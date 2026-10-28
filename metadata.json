@@ -1,0 +1,6 @@
+{
+  "name": "Bayan al-Huda",
+  "description": "Complete Quran, Hadith, and Islamic Library with verified Uthmani script, dual English and Urdu translations, audio recitation, and offline access.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

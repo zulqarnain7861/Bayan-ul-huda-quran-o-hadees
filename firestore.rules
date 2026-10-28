@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidBookmark(data) {
+      return data.keys().hasAll(['itemType', 'referenceKey', 'title', 'arabicSnippet', 'translationSnippet', 'createdAt'])
+        && data.keys().hasOnly(['itemType', 'referenceKey', 'title', 'arabicSnippet', 'translationSnippet', 'createdAt'])
+        && data.itemType in ['AYAH', 'HADITH']
+        && data.referenceKey is string && data.referenceKey.size() >= 1 && data.referenceKey.size() <= 100
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 200
+        && data.arabicSnippet is string && data.arabicSnippet.size() <= 2000
+        && data.translationSnippet is string && data.translationSnippet.size() <= 2000
+        && data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidNote(data) {
+      return data.keys().hasAll(['itemType', 'referenceKey', 'title', 'content', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['itemType', 'referenceKey', 'title', 'content', 'createdAt', 'updatedAt'])
+        && data.itemType in ['AYAH', 'HADITH']
+        && data.referenceKey is string && data.referenceKey.size() >= 1 && data.referenceKey.size() <= 100
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 200
+        && data.content is string && data.content.size() >= 1 && data.content.size() <= 5000
+        && data.createdAt is timestamp && data.createdAt <= request.time
+        && data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    match /users/{userId}/bookmarks/{bookmarkId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+                    && isValidId(bookmarkId)
+                    && isValidBookmark(request.resource.data);
+      allow update: if isOwner(userId)
+                    && isValidId(bookmarkId)
+                    && isValidBookmark(request.resource.data)
+                    && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isOwner(userId);
+    }
+
+    match /users/{userId}/notes/{noteId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+                    && isValidId(noteId)
+                    && isValidNote(request.resource.data);
+      allow update: if isOwner(userId)
+                    && isValidId(noteId)
+                    && isValidNote(request.resource.data)
+                    && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isOwner(userId);
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

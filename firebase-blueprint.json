@@ -1,0 +1,83 @@
+{
+  "entities": {
+    "Bookmark": {
+      "title": "Bookmark",
+      "description": "A user-saved Quran Ayah or Hadith bookmark synced across devices",
+      "type": "object",
+      "properties": {
+        "itemType": {
+          "type": "string",
+          "enum": ["AYAH", "HADITH"],
+          "description": "Type of sacred text bookmarked"
+        },
+        "referenceKey": {
+          "type": "string",
+          "description": "Unique reference identifier such as 2:255 or bukhari_1"
+        },
+        "title": {
+          "type": "string",
+          "description": "Display title of the bookmarked Ayah or Hadith"
+        },
+        "arabicSnippet": {
+          "type": "string",
+          "description": "Arabic text snippet of the bookmarked entry"
+        },
+        "translationSnippet": {
+          "type": "string",
+          "description": "Translation snippet of the bookmarked entry"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["itemType", "referenceKey", "title", "arabicSnippet", "translationSnippet", "createdAt"]
+    },
+    "StudyNote": {
+      "title": "StudyNote",
+      "description": "A personal reflection or study note attached to a Quran Ayah or Hadith",
+      "type": "object",
+      "properties": {
+        "itemType": {
+          "type": "string",
+          "enum": ["AYAH", "HADITH"],
+          "description": "Type of sacred text the note references"
+        },
+        "referenceKey": {
+          "type": "string",
+          "description": "Reference key such as 2:255 or nawawi_1"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title or heading of the study note"
+        },
+        "content": {
+          "type": "string",
+          "description": "User-authored reflection or study note content"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": ["itemType", "referenceKey", "title", "content", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/bookmarks/{bookmarkId}": {
+      "schema": { "$ref": "#/entities/Bookmark" },
+      "description": "Private user bookmarks collection"
+    },
+    "/users/{userId}/notes/{noteId}": {
+      "schema": { "$ref": "#/entities/StudyNote" },
+      "description": "Private user study notes collection"
+    }
+  }
+}

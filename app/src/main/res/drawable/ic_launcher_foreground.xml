@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Golden 8-pointed Islamic Star Accent -->
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M54,23 L57,30 L64,27 L61,34 L68,37 L61,40 L64,47 L57,44 L54,51 L51,44 L44,47 L47,40 L40,37 L47,34 L44,27 L51,30 Z" />
+
+    <!-- Open Quran Book - Left Page -->
+    <path
+        android:fillColor="#FFF8E7"
+        android:pathData="M53,46 C45,44 35,46 32,49 C31,50 31,69 31,70 C35,67 45,65 53,67 Z" />
+
+    <!-- Open Quran Book - Right Page -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M55,46 C63,44 73,46 76,49 C77,50 77,69 77,70 C73,67 63,65 55,67 Z" />
+
+    <!-- Gold Center Spine & Book Ribbon -->
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M53.5,45 L54.5,45 L54.5,76 L53.5,76 Z" />
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M54,67 L56,76 L54,74 L52,76 Z" />
+
+    <!-- Scripture Lines - Left Page -->
+    <path
+        android:strokeColor="#C5A059"
+        android:strokeWidth="1"
+        android:pathData="M36,53 C41,52 47,52 50,54" />
+    <path
+        android:strokeColor="#C5A059"
+        android:strokeWidth="1"
+        android:pathData="M36,58 C41,57 47,57 50,59" />
+    <path
+        android:strokeColor="#C5A059"
+        android:strokeWidth="1"
+        android:pathData="M36,63 C41,62 47,62 50,64" />
+
+    <!-- Scripture Lines - Right Page -->
+    <path
+        android:strokeColor="#C5A059"
+        android:strokeWidth="1"
+        android:pathData="M58,54 C61,52 67,52 72,53" />
+    <path
+        android:strokeColor="#C5A059"
+        android:strokeWidth="1"
+        android:pathData="M58,59 C61,57 67,57 72,58" />
+    <path
+        android:strokeColor="#C5A059"
+        android:strokeWidth="1"
+        android:pathData="M58,64 C61,62 67,62 72,63" />
+
+    <!-- Rehal (Book Stand) Base in Gold -->
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M36,73 L46,67 L54,71 L62,67 L72,73 L67,77 L54,72 L41,77 Z" />
+    <path
+        android:fillColor="#B8942A"
+        android:pathData="M43,76 L54,72 L65,76 L61,81 L54,77 L47,81 Z" />
+</vector>
