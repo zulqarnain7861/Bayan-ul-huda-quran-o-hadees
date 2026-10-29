@@ -122,10 +122,10 @@ class QulTranslationsVerificationTest {
   fun verifyMultilingualOnboardingAndInterfaceLocalizationAndRtl() {
     val context = ApplicationProvider.getApplicationContext<Context>()
 
-    // 16 Full Interface Languages + 57 Content-Only QUL Languages = 73 total selectable languages
+    // 16 Full Interface Languages (3 Core + 13 QUL) + 60 Content-Only QUL Languages = 76 total selectable languages
     assertEquals(16, AppLocalization.fullInterfaceLanguages.size)
-    assertEquals(57, AppLocalization.contentOnlyLanguages.size)
-    assertEquals(73, AppLocalization.allSelectableLanguages.size)
+    assertEquals(60, AppLocalization.contentOnlyLanguages.size)
+    assertEquals(76, AppLocalization.allSelectableLanguages.size)
 
     // Verify Content-Only languages are never claimed as Full UI
     for (lang in AppLocalization.contentOnlyLanguages) {

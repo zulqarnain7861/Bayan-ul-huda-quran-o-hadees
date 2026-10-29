@@ -584,19 +584,80 @@ object DailyDuasDataProvider {
       searchKeywordsRomanUrduAndAliases = "durood sharif durood ibrahimi salawat jumuah ki dua درود شریف"
     ),
     DailyDuaItem(
+      id = "dua_ramadan_sehri_niyyah",
+      title = "Sehri & Fasting Intention (Roza Rakhne / Sehri Ki Niyyat / سحری اور روزے کی نیت)",
+      category = DuaCategory.SPECIAL_OCCASIONS,
+      occasionType = SpecialOccasionType.RAMADAN_IFTAR,
+      occasionBadge = "Ramadan • Sehri & Fasting Intention (Niyyah)",
+      arabicText = "وَبِصَوْمِ غَدٍ نَّوَيْتُ مِنْ شَهْرِ رَمَضَانَ ۝ تَسَحَّرُوا فَإِنَّ فِي السَّحُورِ بَرَكَةً",
+      transliteration = "Wa bisawmi ghadin nawaytu min shahri Ramadan. (Prophetic Hadith: Tasahharu fa-inna fis-suhuri barakah.)",
+      englishTranslation = "I intend to keep the fast for tomorrow in the month of Ramadan. (The Prophet ﷺ said: 'Partake of the pre-dawn Suhoor meal, for indeed in Suhoor there is blessing.')",
+      urduTranslation = "میں نے ماہِ رمضان کے کل کے روزے کی نیت کی۔ (نبی کریم ﷺ نے فرمایا: سحری کھایا کرو کیونکہ سحری میں برکت ہے۔)",
+      authenticReference = "Sahih al-Bukhari 1923 • Sahih Muslim 1095 (Blessing of Suhoor) & Classical Fiqh Niyyah Formula",
+      virtueAndTiming = "Eat the pre-dawn Suhoor meal before Fajr (Subh Sadiq) begins and form the sincere intention in the heart to fast for the pleasure of Allah.",
+      recommendedCount = 1,
+      searchKeywordsRomanUrduAndAliases = "sehri ki dua sehri ki niyat roza rakhne ki dua suhoor dua سحری کی دعا روزہ رکھنے کی نیت"
+    ),
+    DailyDuaItem(
       id = "dua_ramadan_iftar",
-      title = "Dua When Breaking the Fast (Roza Kholne / Iftar Ki Dua / افطار کی دعا)",
+      title = "Dua When Breaking the Fast (Roza Kholne / Iftar Ki Dua / افطار کی مسنون دعا)",
       category = DuaCategory.SPECIAL_OCCASIONS,
       occasionType = SpecialOccasionType.RAMADAN_IFTAR,
       occasionBadge = "Ramadan & Sunnah Fasting • Iftar",
-      arabicText = "ذَهَبَ الظَّمَأُ وَابْتَلَّتِ الْعُرُوقُ، وَثَبَتَ الْأَجْرُ إِنْ شَاءَ اللَّهُ",
-      transliteration = "Dhahabadh-dhama'u wabtallatil-'uruqu, wa thabatal-ajru in sha'Allah.",
-      englishTranslation = "The thirst has gone, the veins are moistened, and the reward is confirmed, if Allah wills.",
-      urduTranslation = "پیاس چلی گئی، رگیں تر ہو گئیں، اور ان شاء اللہ اجر ثابت ہو گیا۔",
-      authenticReference = "Sunan Abi Dawud 2357 (Narrated by Abdullah ibn Umar, may Allah be pleased with them — Hasan)",
-      virtueAndTiming = "Break the fast with fresh or dry dates, or water, saying 'Bismillah', and then recite this authentic Prophetic supplication.",
+      arabicText = "ذَهَبَ الظَّمَأُ وَابْتَلَّتِ الْعُرُوقُ، وَثَبَتَ الْأَجْرُ إِنْ شَاءَ اللَّهُ ۝ اللَّهُمَّ إِنِّي لَكَ صُمْتُ وَبِكَ آمَنْتُ وَعَلَيْكَ تَوَكَّلْتُ وَعَلَى رِزْقِكَ أَفْطَرْتُ",
+      transliteration = "Dhahabadh-dhama'u wabtallatil-'uruqu, wa thabatal-ajru in sha'Allah. (Also: Allahumma inni laka sumtu wa bika amantu wa 'alayka tawakkaltu wa 'ala rizqika aftartu.)",
+      englishTranslation = "The thirst has gone, the veins are moistened, and the reward is confirmed, if Allah wills. (O Allah, for You I have fasted, in You I believe, upon You I rely, and with Your provision I break my fast.)",
+      urduTranslation = "پیاس چلی گئی، رگیں تر ہو گئیں، اور ان شاء اللہ اجر ثابت ہو گیا۔ (اے اللہ! میں نے تیرے ہی لیے روزہ رکھا، تجھ ہی پر ایمان لایا، تجھ ہی پر بھروسہ کیا اور تیرے ہی عطا کردہ رزق سے افطار کیا۔)",
+      authenticReference = "Sunan Abi Dawud 2357 (Hasan — Ibn Umar RA) • Sunan Abi Dawud 2358 (Mu'adh ibn Zuhrah)",
+      virtueAndTiming = "Break the fast at Maghrib sunset with fresh or dry dates, or water, saying 'Bismillah', and recite this Prophetic supplication.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "iftar ki dua roza kholne ki dua roza iftar dua افطار کی دعا روزہ کھولنے کی دعا"
+    ),
+    DailyDuaItem(
+      id = "dua_ramadan_first_ashra_mercy",
+      title = "1st Ashra of Ramadan — Days 1–10: Supplication for Mercy (پہلا عشرہ رحمت کی دعا)",
+      category = DuaCategory.SPECIAL_OCCASIONS,
+      occasionType = SpecialOccasionType.RAMADAN_IFTAR,
+      occasionBadge = "Ramadan Days 1–10 • First Ashra (Mercy / رحمت)",
+      arabicText = "رَّبِّ ٱغْفِرْ وَٱرْحَمْ وَأَنتَ خَيْرُ ٱلرَّٰحِمِينَ",
+      transliteration = "Rabbigh-fir warham wa Anta khayrur-rahimin.",
+      englishTranslation = "My Lord, forgive and have mercy, and You are the Best of the merciful.",
+      urduTranslation = "اے میرے رب! بخش دے اور رحم فرما، اور تو سب سے بہتر رحم فرمانے والا ہے۔",
+      authenticReference = "Surah Al-Mu'minun 23:118",
+      virtueAndTiming = "Recite abundantly during the first ten days (First Ashra) of Ramadan to seek Allah's encompassing mercy.",
+      recommendedCount = 3,
+      quranSurahAyah = 23 to 118,
+      searchKeywordsRomanUrduAndAliases = "pehle ashre ki dua first ashra dua ramazan rahmat ki dua پہلا عشرہ رحمت"
+    ),
+    DailyDuaItem(
+      id = "dua_ramadan_second_ashra_forgiveness",
+      title = "2nd Ashra of Ramadan — Days 11–20: Supplication for Forgiveness (دوسرا عشرہ مغفرت کی دعا)",
+      category = DuaCategory.SPECIAL_OCCASIONS,
+      occasionType = SpecialOccasionType.RAMADAN_IFTAR,
+      occasionBadge = "Ramadan Days 11–20 • Second Ashra (Forgiveness / مغفرت)",
+      arabicText = "أَسْتَغْفِرُ اللَّهَ رَبِّي مِنْ كُلِّ ذَنْبٍ وَأَتُوبُ إِلَيْهِ",
+      transliteration = "Astaghfirullaha Rabbi min kulli dhanbin wa atubu ilayh.",
+      englishTranslation = "I seek forgiveness from Allah, my Lord, from every sin, and I turn to Him in repentance.",
+      urduTranslation = "میں اپنے رب اللہ سے ہر گناہ کی بخشش مانگتا ہوں اور اسی کی طرف توبہ کرتا ہوں۔",
+      authenticReference = "Sahih al-Bukhari 6307 • Sahih Muslim 2702 (Prophetic Istighfar & Repentance)",
+      virtueAndTiming = "Recite frequently throughout the middle ten days (Second Ashra) of Ramadan for sincere repentance and forgiveness of sins.",
+      recommendedCount = 7,
+      searchKeywordsRomanUrduAndAliases = "doosre ashre ki dua second ashra dua maghfirat ki dua دوسرا عشرہ مغفرت"
+    ),
+    DailyDuaItem(
+      id = "dua_ramadan_third_ashra_nijat",
+      title = "3rd Ashra of Ramadan — Days 21–30: Protection from the Fire (تیسرا عشرہ نجات کی دعا)",
+      category = DuaCategory.SPECIAL_OCCASIONS,
+      occasionType = SpecialOccasionType.LAYLATUL_QADR,
+      occasionBadge = "Ramadan Days 21–30 • Third Ashra (Refuge from Fire / نجات)",
+      arabicText = "اللَّهُمَّ أَجِرْنِي مِنَ النَّارِ",
+      transliteration = "Allahumma ajirni minan-nar.",
+      englishTranslation = "O Allah, protect and save me from the Fire of Hell.",
+      urduTranslation = "اے اللہ! مجھے دوزخ کی آگ سے پناہ اور نجات عطا فرما۔",
+      authenticReference = "Sunan Abi Dawud 5079 • Sahih Ibn Hibban 2022",
+      virtueAndTiming = "Recite 7 times after Fajr and Maghrib and throughout the final ten days and nights of Ramadan.",
+      recommendedCount = 7,
+      searchKeywordsRomanUrduAndAliases = "teesre ashre ki dua third ashra dua jahannam se nijat ki dua تیسرا عشرہ نجات"
     ),
     DailyDuaItem(
       id = "dua_laylatul_qadr",
@@ -1273,5 +1334,22 @@ object DailyDuasDataProvider {
     }
 
     return scored.sortedByDescending { it.second }.map { it.first }
+  }
+
+  /**
+   * Dedicated list of Special Duas for the Month of Ramadan displayed prominently on the Home Screen
+   * and inside the Yearly & Ramadan Sehri/Iftar Timetable Screen.
+   */
+  val ramadanSpecialDuas: List<DailyDuaItem> by lazy {
+    val targetIds = listOf(
+      "dua_ramadan_sehri_niyyah",
+      "dua_ramadan_iftar",
+      "dua_ramadan_first_ashra_mercy",
+      "dua_ramadan_second_ashra_forgiveness",
+      "dua_ramadan_third_ashra_nijat",
+      "dua_laylatul_qadr",
+      "dua_new_moon_hilal"
+    )
+    targetIds.mapNotNull { id -> allDuas.find { it.id == id } }
   }
 }

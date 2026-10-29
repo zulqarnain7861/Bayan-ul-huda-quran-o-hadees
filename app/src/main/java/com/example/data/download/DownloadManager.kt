@@ -1025,13 +1025,19 @@ class DownloadManager(
       HadithDownloadScopeType.SINGLE_NARRATION -> {
         val hNum = request.singleHadithNumber ?: 1
         val localFile = File(destDir, "hadith_${request.collectionKey}_$hNum.json")
+        val resolvedUrl = com.example.data.remote.MultiSourceHadithCatalog.resolveDownloadSourceUrl(
+          collectionKey = request.collectionKey,
+          chapterOrSectionNo = null,
+          hadithNo = hNum,
+          preferFullBook = false
+        )
         items.add(
           DownloadItemEntity(
             itemId = "$pkgId::hadith:${request.collectionKey}:$hNum",
             packageId = pkgId,
             resourceIdentifier = "hadith:${request.collectionKey}:$hNum",
             title = "${request.collectionTitle} #$hNum",
-            sourceUrl = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/ara-${request.collectionKey}/$hNum.min.json",
+            sourceUrl = resolvedUrl,
             localFilePath = localFile.absolutePath,
             licence = licence.attributionRequirements,
             expectedFormat = "JSON_UTF8"
@@ -1043,13 +1049,19 @@ class DownloadManager(
         val chapters = request.selectedChapters.ifEmpty { setOf(1) }.sorted()
         for (ch in chapters) {
           val localFile = File(destDir, "chapter_${request.collectionKey}_$ch.json")
+          val resolvedUrl = com.example.data.remote.MultiSourceHadithCatalog.resolveDownloadSourceUrl(
+            collectionKey = request.collectionKey,
+            chapterOrSectionNo = ch,
+            hadithNo = null,
+            preferFullBook = false
+          )
           items.add(
             DownloadItemEntity(
               itemId = "$pkgId::hadith:${request.collectionKey}:chapter:$ch",
               packageId = pkgId,
               resourceIdentifier = "hadith:${request.collectionKey}:chapter:$ch",
               title = "${request.collectionTitle} • Chapter / Book $ch",
-              sourceUrl = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/ara-${request.collectionKey}/sections/$ch.min.json",
+              sourceUrl = resolvedUrl,
               localFilePath = localFile.absolutePath,
               licence = licence.attributionRequirements,
               expectedFormat = "JSON_UTF8"
@@ -1062,13 +1074,19 @@ class DownloadManager(
         val totalBooks = (meta?.totalBooksCount ?: 4).coerceIn(1, 12)
         for (ch in 1..totalBooks) {
           val localFile = File(destDir, "chapter_${request.collectionKey}_$ch.json")
+          val resolvedUrl = com.example.data.remote.MultiSourceHadithCatalog.resolveDownloadSourceUrl(
+            collectionKey = request.collectionKey,
+            chapterOrSectionNo = ch,
+            hadithNo = null,
+            preferFullBook = false
+          )
           items.add(
             DownloadItemEntity(
               itemId = "$pkgId::hadith:${request.collectionKey}:chapter:$ch",
               packageId = pkgId,
               resourceIdentifier = "hadith:${request.collectionKey}:chapter:$ch",
               title = "${request.collectionTitle} • Book $ch",
-              sourceUrl = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/ara-${request.collectionKey}/sections/$ch.min.json",
+              sourceUrl = resolvedUrl,
               localFilePath = localFile.absolutePath,
               licence = licence.attributionRequirements,
               expectedFormat = "JSON_UTF8"
@@ -1900,30 +1918,102 @@ class DownloadManager(
       }
 
       item.resourceIdentifier.startsWith("hadith:") -> {
-        val json = runCatching { JSONObject(String(bytes, Charsets.UTF_8)) }.getOrNull() ?: return
-        val arr = json.optJSONArray("hadiths") ?: return
-        val entities = ArrayList<HadithEntity>(arr.length())
-        for (i in 0 until arr.length()) {
-          val obj = arr.getJSONObject(i)
-          entities.add(
-            HadithEntity(
-              collectionKey = obj.getString("collectionKey"),
-              collectionName = obj.getString("collectionName"),
-              bookNumber = obj.optInt("bookNumber", 1),
-              bookName = obj.optString("bookName", "Book 1"),
-              chapterNumber = obj.optInt("chapterNumber", 1),
-              chapterName = obj.optString("chapterName", ""),
-              hadithNumber = obj.getInt("hadithNumber"),
-              darussalamReference = obj.optString("darussalamReference", "Darussalam #${obj.getInt("hadithNumber")}"),
-              inBookReference = obj.optString("inBookReference", "Book ${obj.optInt("bookNumber", 1)}, Hadith ${obj.getInt("hadithNumber")}"),
-              arabicNumber = obj.optInt("arabicNumber", obj.getInt("hadithNumber")),
-              arabicText = obj.getString("arabicText"),
-              englishText = obj.optString("englishText", ""),
-              urduText = obj.optString("urduText", ""),
-              narrator = obj.optString("narrator", ""),
-              grade = obj.optString("grade", "Sahih"),
-              gradingScholar = obj.optString("gradingScholar", "Darussalam"),
-              reference = obj.optString("reference", "${obj.getString("collectionName")} ${obj.getInt("hadithNumber")}")
+        val rawStr = runCatching { String(bytes, Charsets.UTF_8) }.getOrNull() ?: return
+        val json = runCatching { JSONObject(rawStr) }.getOrNull() ?: return
+        val parts = item.resourceIdentifier.split(":")
+        val colKey = parts.getOrNull(1) ?: pkg.editionKey.ifBlank { "bukhari" }
+        val colMeta = ExtendedHadithDataProvider.primaryCollections.find { it.key == colKey }
+        val colName = colMeta?.nameEnglish ?: colKey.replaceFirstChar { it.uppercase() }
+        val defaultBookNum = parts.lastOrNull()?.toIntOrNull() ?: 1
+
+        val entities = ArrayList<HadithEntity>()
+        val arr = json.optJSONArray("hadiths")
+        if (arr != null && arr.length() > 0) {
+          val firstObj = arr.optJSONObject(0)
+          when {
+            firstObj != null && firstObj.has("collectionKey") && firstObj.has("arabicText") -> {
+              for (i in 0 until arr.length()) {
+                val obj = arr.getJSONObject(i)
+                entities.add(
+                  HadithEntity(
+                    collectionKey = obj.getString("collectionKey"),
+                    collectionName = obj.getString("collectionName"),
+                    bookNumber = obj.optInt("bookNumber", defaultBookNum),
+                    bookName = obj.optString("bookName", "Book $defaultBookNum"),
+                    chapterNumber = obj.optInt("chapterNumber", 1),
+                    chapterName = obj.optString("chapterName", ""),
+                    hadithNumber = obj.getInt("hadithNumber"),
+                    darussalamReference = obj.optString("darussalamReference", "Darussalam #${obj.getInt("hadithNumber")}"),
+                    inBookReference = obj.optString("inBookReference", "Book ${obj.optInt("bookNumber", defaultBookNum)}, Hadith ${obj.getInt("hadithNumber")}"),
+                    arabicNumber = obj.optInt("arabicNumber", obj.getInt("hadithNumber")),
+                    arabicText = obj.getString("arabicText"),
+                    englishText = obj.optString("englishText", ""),
+                    urduText = obj.optString("urduText", ""),
+                    narrator = obj.optString("narrator", ""),
+                    grade = obj.optString("grade", "Sahih"),
+                    gradingScholar = obj.optString("gradingScholar", "Darussalam"),
+                    reference = obj.optString("reference", "$colName ${obj.getInt("hadithNumber")}")
+                  )
+                )
+              }
+            }
+            firstObj != null && firstObj.has("arabic") && firstObj.has("english") -> {
+              // AhmedBaset/hadith-json v1.2.0 format
+              entities.addAll(
+                com.example.data.remote.IslamicRemoteService.parseAhmedBasetHadithJson(
+                  collectionKey = colKey,
+                  collectionName = colName,
+                  rawJson = rawStr,
+                  defaultBookNumber = defaultBookNum
+                )
+              )
+            }
+            firstObj != null && firstObj.has("hadithnumber") && firstObj.has("text") -> {
+              // FawazAhmed0 Hadith API @1 format
+              val sectionTitle = json.optJSONObject("metadata")
+                ?.optJSONObject("section")
+                ?.optString(defaultBookNum.toString(), "")
+                .orEmpty()
+              for (i in 0 until arr.length()) {
+                val obj = arr.optJSONObject(i) ?: continue
+                val hNum = obj.optInt("hadithnumber", i + 1).coerceAtLeast(1)
+                val text = com.example.data.remote.SecurityIntegrityGuard.sanitizeSacredText(obj.optString("text", ""))
+                if (text.isBlank()) continue
+                val refObj = obj.optJSONObject("reference")
+                val bNum = refObj?.optInt("book", defaultBookNum)?.takeIf { it > 0 } ?: defaultBookNum
+                val inBookH = refObj?.optInt("hadith", hNum) ?: hNum
+                entities.add(
+                  HadithEntity(
+                    collectionKey = colKey,
+                    collectionName = colName,
+                    bookNumber = bNum,
+                    bookName = if (sectionTitle.isNotBlank()) "Book $bNum: $sectionTitle" else "Book $bNum",
+                    chapterNumber = 1,
+                    chapterName = sectionTitle.ifBlank { "Book $bNum" },
+                    hadithNumber = hNum,
+                    darussalamReference = "Darussalam: #$hNum",
+                    inBookReference = "In-Book: Book $bNum, Hadith $inBookH",
+                    arabicNumber = obj.optInt("arabicnumber", hNum),
+                    arabicText = text,
+                    englishText = com.example.data.remote.IslamicRemoteService.NOT_AVAILABLE_IN_SOURCE,
+                    urduText = "",
+                    narrator = "Source Edition ($colName #$hNum)",
+                    grade = if (colKey == "bukhari" || colKey == "muslim") "Sahih" else "Classical Transmission",
+                    gradingScholar = colName,
+                    reference = "$colName $hNum"
+                  )
+                )
+              }
+            }
+          }
+        } else if (json.has("hadiths") && json.optJSONObject("hadiths") != null) {
+          // HadithAPI.com format
+          entities.addAll(
+            com.example.data.remote.IslamicRemoteService.parseHadithApiComJson(
+              collectionKey = colKey,
+              collectionName = colName,
+              rawJson = rawStr,
+              defaultBookNumber = defaultBookNum
             )
           )
         }

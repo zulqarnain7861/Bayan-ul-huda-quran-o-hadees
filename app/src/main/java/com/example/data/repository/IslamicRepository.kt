@@ -564,6 +564,46 @@ class IslamicRepository(
   }
 
   /**
+   * Fetches or loads from offline cache the Yearly, Monthly, or Ramadan Sehri/Iftar timetable
+   * via AlAdhan API + Room prayer_schedules + offline astronomical fallback.
+   */
+  suspend fun getOrFetchSehriIftarTimetable(
+    scopeMode: com.example.data.prayer.TimetableScopeMode,
+    city: String,
+    country: String,
+    latitude: Double,
+    longitude: Double,
+    timeZoneId: String,
+    methodId: Int,
+    school: com.example.data.prayer.JuridicalSchool,
+    gregorianYear: Int,
+    gregorianMonth: Int = 3,
+    hijriRamadanYear: Int = 1447,
+    sehriAdjustmentMinutes: Int = 0,
+    iftarAdjustmentMinutes: Int = 0,
+    forceRemoteRefresh: Boolean = false
+  ): com.example.data.prayer.SehriIftarTimetableResult = withContext(Dispatchers.IO) {
+    com.example.data.prayer.SehriIftarTimetableEngine.getOrFetchTimetable(
+      context = appContext,
+      prayerScheduleDao = prayerScheduleDao,
+      scopeMode = scopeMode,
+      country = country,
+      city = city,
+      latitude = latitude,
+      longitude = longitude,
+      timeZoneId = timeZoneId,
+      gregorianYear = gregorianYear,
+      gregorianMonth = gregorianMonth,
+      hijriRamadanYear = hijriRamadanYear,
+      methodId = methodId,
+      juridicalSchool = school,
+      sehriAdjustmentMinutes = sehriAdjustmentMinutes,
+      iftarAdjustmentMinutes = iftarAdjustmentMinutes,
+      forceRefresh = forceRemoteRefresh
+    )
+  }
+
+  /**
    * Generates a complete, transparent Developer Source & API Audit Report without fabricated completeness claims.
    */
   suspend fun generateDiagnosticAuditReport(
@@ -735,6 +775,66 @@ class IslamicRepository(
   }
 
   fun searchHadiths(query: String): Flow<List<HadithEntity>> = hadithDao.searchHadiths(query)
+
+  /**
+   * Returns all stored named translations for a specific Hadith (`sourceType = "HADITH"`,
+   * `referenceKey = "${collectionKey}:${hadithNumber}"`).
+   * Preserves the single canonical Arabic text in `HadithEntity` while allowing multiple named
+   * translations from FawazAhmed0 @1, AhmedBaset v1.2.0, HadithAPI.com, and Sunnah.com.
+   */
+  suspend fun getNamedTranslationsForHadith(
+    collectionKey: String,
+    hadithNumber: Int
+  ): List<TranslationEntity> = withContext(Dispatchers.IO) {
+    translationDao.getTranslationsForReferenceSnapshot("HADITH", "${collectionKey.lowercase()}:$hadithNumber")
+  }
+
+  /**
+   * Fetches or resolves a specific named translation edition for a Hadith, stores it in
+   * `translationDao` under its distinct `editionKey` and `editionTitle`, and returns it.
+   */
+  suspend fun fetchAndCacheNamedHadithTranslation(
+    hadith: HadithEntity,
+    edition: com.example.data.remote.MultiSourceHadithCatalog.NamedHadithTranslationEdition
+  ): TranslationEntity? = withContext(Dispatchers.IO) {
+    val refKey = "${hadith.collectionKey.lowercase()}:${hadith.hadithNumber}"
+    val existing = translationDao.getTranslationsForReferenceSnapshot("HADITH", refKey)
+      .firstOrNull { it.editionKey == edition.editionKey }
+    if (existing != null && existing.text.isNotBlank()) {
+      return@withContext existing
+    }
+
+    val remoteText = IslamicRemoteService.fetchNamedHadithTranslationText(
+      collectionKey = hadith.collectionKey,
+      edition = edition,
+      hadithNumber = hadith.hadithNumber,
+      bookNumber = hadith.bookNumber.coerceAtLeast(1)
+    )
+
+    val fallbackText = when (edition.languageCode) {
+      "ur" -> hadith.urduText.takeIf {
+        it.isNotBlank() && !it.equals(IslamicRemoteService.NOT_AVAILABLE_IN_SOURCE, ignoreCase = true)
+      }
+      "en" -> hadith.englishText.takeIf {
+        it.isNotBlank() && !it.equals(IslamicRemoteService.NOT_AVAILABLE_IN_SOURCE, ignoreCase = true)
+      }
+      else -> null
+    }
+
+    val resolvedText = remoteText ?: fallbackText ?: return@withContext null
+    val entity = TranslationEntity(
+      sourceType = "HADITH",
+      referenceKey = refKey,
+      surahOrBookNumber = hadith.bookNumber.coerceAtLeast(1),
+      verseOrHadithNumber = hadith.hadithNumber,
+      editionKey = edition.editionKey,
+      editionTitle = edition.editionTitle,
+      languageCode = edition.languageCode,
+      text = resolvedText
+    )
+    translationDao.insertTranslations(listOf(entity))
+    entity
+  }
 
   // Translations
   fun getTranslationsForReference(sourceType: String, referenceKey: String): Flow<List<TranslationEntity>> =

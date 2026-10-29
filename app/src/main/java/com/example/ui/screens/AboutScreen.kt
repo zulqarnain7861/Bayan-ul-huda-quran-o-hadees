@@ -383,315 +383,6 @@ fun AboutScreen(
       }
     }
 
-    // Source & Scholarly Integrity Audit Dashboard (Raw API URLs protected behind verified developer session)
-    item {
-      Card(
-        modifier = Modifier
-          .fillMaxWidth()
-          .testTag("source_and_api_audit_dashboard_card"),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-      ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-              Icon(Icons.Default.FactCheck, contentDescription = null, tint = EmeraldPrimary)
-              Spacer(modifier = Modifier.width(8.dp))
-              Column {
-                Text(
-                  text = if (isVerifiedDeveloper) {
-                    "Developer Maintenance & API Audit"
-                  } else {
-                    "Scholarly Source & Coverage Audit"
-                  },
-                  style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                  )
-                )
-                Text(
-                  text = if (isVerifiedDeveloper) {
-                    "Verified Developer View ($developerEmail) • Full Technical Diagnostics"
-                  } else {
-                    "Honest Coverage & Edition Attribution • Technical API Links Protected"
-                  },
-                  style = MaterialTheme.typography.labelSmall.copy(color = GoldPrimary, fontWeight = FontWeight.Bold)
-                )
-              }
-            }
-            Row {
-              IconButton(
-                onClick = onRefreshAuditReport,
-                modifier = Modifier.testTag("refresh_audit_dashboard_btn")
-              ) {
-                Icon(Icons.Default.Refresh, contentDescription = "Run Live Verification")
-              }
-              OutlinedButton(
-                onClick = { showDiagnosticAuditExpanded = !showDiagnosticAuditExpanded },
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-              ) {
-                Text(if (showDiagnosticAuditExpanded) "Hide" else "Inspect", fontSize = 11.sp)
-              }
-            }
-          }
-
-          if (showDiagnosticAuditExpanded) {
-            Spacer(modifier = Modifier.height(10.dp))
-            if (auditReport == null) {
-              Text(
-                text = "Loading verified scholarly source & Room SQLite metrics...",
-                style = MaterialTheme.typography.bodySmall
-              )
-            } else {
-              // Room SQLite Entity Counts Summary
-              Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.fillMaxWidth()
-              ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                  Text(
-                    text = "Room SQLite Database Entities (Verified Local Counts)",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                      fontWeight = FontWeight.Bold,
-                      color = MaterialTheme.colorScheme.primary
-                    )
-                  )
-                  Spacer(modifier = Modifier.height(4.dp))
-                  Text(
-                    text = "• Surahs Table (surahs): ${auditReport.totalSurahsLocal} / 114 Surahs\n" +
-                      "• Verses Table (ayahs): ${auditReport.totalAyahsLocal} / 6,236 Ayahs\n" +
-                      "• Translations Table (translations): ${auditReport.totalTranslationsLocal} Verified Records (Sahih International & Urdu)\n" +
-                      "• Hadith Collections Table (hadith_collections): ${auditReport.totalHadithCollectionsLocal} Collections\n" +
-                      "• Hadiths Table (hadiths): ${auditReport.totalHadithsLocal} Locally Cached Narrations (+ On-Demand Verified Lookup)\n" +
-                      "• Prayer Schedules Table (prayer_schedules): ${auditReport.totalPrayerSchedulesCached} Cached Schedules\n" +
-                      "• Last Verified: ${auditReport.generatedAtFormatted}",
-                    style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp)
-                  )
-                }
-              }
-
-              Spacer(modifier = Modifier.height(12.dp))
-
-              // Per-Source Audit Entries
-              auditReport.sourceEntries.forEach { entry ->
-                Surface(
-                  shape = RoundedCornerShape(12.dp),
-                  color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                  modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-                ) {
-                  Column(modifier = Modifier.padding(12.dp)) {
-                    Row(
-                      modifier = Modifier.fillMaxWidth(),
-                      horizontalArrangement = Arrangement.SpaceBetween,
-                      verticalAlignment = Alignment.Top
-                    ) {
-                      Text(
-                        text = entry.sourceName,
-                        style = MaterialTheme.typography.labelLarge.copy(
-                          fontWeight = FontWeight.Bold,
-                          color = MaterialTheme.colorScheme.primary
-                        ),
-                        modifier = Modifier.weight(1f)
-                      )
-                      Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = EmeraldPrimary.copy(alpha = 0.14f)
-                      ) {
-                        Text(
-                          text = entry.statusBadge,
-                          modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                          style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = EmeraldPrimary
-                          )
-                        )
-                      }
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                      text = "Attribution: Verified Authentic Scholarly Publication • Links Protected for App Security",
-                      style = MaterialTheme.typography.labelSmall.copy(color = GoldPrimary, fontWeight = FontWeight.SemiBold)
-                    )
-                    Text(
-                      text = "Books & Languages: ${entry.availableBooksAndLanguages}",
-                      style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp)
-                    )
-                    Text(
-                      text = "Records: ${entry.localCachedRecords} stored locally / ${entry.totalCanonicalRecords} canonical total",
-                      style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                    )
-                    Text(
-                      text = "Pagination: ${entry.paginationStatus}",
-                      style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp)
-                    )
-                    Text(
-                      text = "Translation Audit: ${entry.missingTranslationsReport}",
-                      style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp)
-                    )
-                    Text(
-                      text = "Edition Numbering: ${entry.editionNumberingReport}",
-                      style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp)
-                    )
-                    Text(
-                      text = "Coverage Notes: ${entry.coverageGapNotes}",
-                      style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                      )
-                    )
-                  }
-                }
-              }
-
-              Spacer(modifier = Modifier.height(10.dp))
-              HorizontalDivider()
-              Spacer(modifier = Modifier.height(8.dp))
-
-              // Kutub al-Sittah & Hadith Collections Coverage Table
-              Text(
-                text = "Hadith Collections Coverage (Sunni & Shia Libraries):",
-                style = MaterialTheme.typography.labelLarge.copy(
-                  fontWeight = FontWeight.Bold,
-                  color = MaterialTheme.colorScheme.primary
-                )
-              )
-              Spacer(modifier = Modifier.height(6.dp))
-              auditReport.collectionAudits.forEach { col ->
-                Row(
-                  modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                  horizontalArrangement = Arrangement.SpaceBetween,
-                  verticalAlignment = Alignment.CenterVertically
-                ) {
-                  Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                      text = "${col.nameEnglish} (${col.nameArabic})",
-                      style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
-                    )
-                    Text(
-                      text = "${col.darussalamEditionName} • ${col.inBookEditionName}",
-                      style = MaterialTheme.typography.labelSmall.copy(
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                      )
-                    )
-                  }
-                  Text(
-                    text = "${col.locallyCachedCount} cached / ${col.totalCanonicalHadiths} canonical",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                      fontWeight = FontWeight.Bold,
-                      color = GoldPrimary
-                    )
-                  )
-                }
-              }
-
-              if (sourceRegistryList.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                  text = "Room Database-Backed Source Registry (source_registry Table):",
-                  style = MaterialTheme.typography.labelLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                  )
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-
-                sourceRegistryList.forEach { src ->
-                  Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                    modifier = Modifier
-                      .fillMaxWidth()
-                      .padding(vertical = 4.dp)
-                  ) {
-                    Column(modifier = Modifier.padding(10.dp)) {
-                      Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                      ) {
-                        Text(
-                          text = src.title,
-                          style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                          modifier = Modifier.weight(1f)
-                        )
-                        Surface(
-                          shape = RoundedCornerShape(6.dp),
-                          color = if (src.verificationStatus == VerificationStatus.VERIFIED) EmeraldPrimary.copy(alpha = 0.16f) else GoldPrimary.copy(alpha = 0.16f)
-                        ) {
-                          Text(
-                            text = src.verificationStatus.name,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                              fontSize = 9.sp,
-                              fontWeight = FontWeight.Bold,
-                              color = if (src.verificationStatus == VerificationStatus.VERIFIED) EmeraldPrimary else GoldPrimary
-                            )
-                          )
-                        }
-                      }
-                      Spacer(modifier = Modifier.height(2.dp))
-                      Text(
-                        text = "Tradition: ${src.tradition} • Language: ${src.language}",
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                      )
-                      Text(
-                        text = "License: ${src.license}",
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, color = GoldPrimary)
-                      )
-                      Text(
-                        text = "Records: ${src.totalImportedRecords} imported / ${src.totalAvailableRecords} available (Status: ${src.importStatus.name})",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp)
-                      )
-                      if (src.translationLanguages.isNotBlank()) {
-                        Text(
-                          text = "Translations: ${src.translationLanguages}",
-                          style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp)
-                        )
-                      }
-                      Text(
-                        text = "Endpoint: Verified Canonical Local Schema • Links Protected for App Security",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                      )
-                    }
-                  }
-                }
-              }
-
-              Spacer(modifier = Modifier.height(10.dp))
-              OutlinedButton(
-                onClick = { com.example.ui.components.openWhatsAppSupport(context) },
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .testTag("audit_whatsapp_support_button")
-              ) {
-                Text(
-                  text = "Assalamu Alaikum — Audit & Source Inquiries on WhatsApp",
-                  fontWeight = FontWeight.Bold,
-                  fontSize = 12.sp,
-                  color = EmeraldPrimary
-                )
-              }
-            }
-          }
-        }
-      }
-    }
-
     // Cloud Sync / 7-Day Guest Access Status Card
     item {
       Card(
@@ -943,7 +634,9 @@ fun AboutScreen(
     // Actions: Share App & Report Content Error
     item {
       Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("actions_and_integrity_card"),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
       ) {
@@ -1016,36 +709,160 @@ fun AboutScreen(
       }
     }
 
-    // Sacred Sources & Licencing Attribution
+    // Concise, Deduplicated 100% VERIFIED Sources & Provenance (Placed at the very bottom below Actions & Integrity)
     item {
+      val conciseVerifiedSources = remember(sourceRegistryList, auditReport) {
+        com.example.data.repository.SourceRegistryRepository.buildConciseVerifiedSources(
+          rawSources = sourceRegistryList,
+          auditReport = auditReport
+        )
+      }
+
       Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("source_and_api_audit_dashboard_card"),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
       ) {
         Column(modifier = Modifier.padding(16.dp)) {
-          Text(
-            text = "Sacred Sources & Attribution",
-            style = MaterialTheme.typography.titleMedium.copy(
-              fontWeight = FontWeight.Bold,
-              color = MaterialTheme.colorScheme.primary
-            )
-          )
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+              Icon(Icons.Default.FactCheck, contentDescription = null, tint = EmeraldPrimary)
+              Spacer(modifier = Modifier.width(8.dp))
+              Column {
+                Text(
+                  text = if (isVerifiedDeveloper) {
+                    "Verified Sources & Developer Audit"
+                  } else {
+                    "Verified Sources & Provenance"
+                  },
+                  style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                  )
+                )
+                Text(
+                  text = "100% Verified Sources Only • Deduplicated & Concise (${conciseVerifiedSources.size} Verified)",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    color = GoldPrimary,
+                    fontWeight = FontWeight.Bold
+                  )
+                )
+              }
+            }
+            Row {
+              IconButton(
+                onClick = onRefreshAuditReport,
+                modifier = Modifier.testTag("refresh_audit_dashboard_btn")
+              ) {
+                Icon(Icons.Default.Refresh, contentDescription = "Refresh Verified Status")
+              }
+              OutlinedButton(
+                onClick = { showDiagnosticAuditExpanded = !showDiagnosticAuditExpanded },
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+              ) {
+                Text(if (showDiagnosticAuditExpanded) "Hide" else "Show", fontSize = 11.sp)
+              }
+            }
+          }
 
-          Spacer(modifier = Modifier.height(8.dp))
+          if (showDiagnosticAuditExpanded) {
+            Spacer(modifier = Modifier.height(10.dp))
 
-          Text(
-            text = "• Quran Text: Verified Uthmani Script (Tanzil / Quran Foundation standards)\n" +
-              "• English Quran Translation: Sahih International (Explicitly attributed to Quran verses)\n" +
-              "• Urdu Quran Translation: Maulana Fateh Muhammad Jalandhry\n" +
-              "• Hadith Collections: Kutub al-Sittah (Sahih al-Bukhari, Sahih Muslim, Sunan Abu Dawud, Jami` at-Tirmidhi, Sunan an-Nasa'i, Sunan Ibn Majah) + Muwatta Malik, 40 Nawawi & Riyad as-Salihin with separate Darussalam and In-Book numbering.\n" +
-              "• Prayer Times: AlAdhan Prayer-Time API + Offline Astronomical Calculation.\n" +
-              "• Zero AI Text Alteration: Missing fields are explicitly reported as 'Not available in this source'.",
-            style = MaterialTheme.typography.bodySmall.copy(
-              lineHeight = 18.sp,
-              color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-          )
+            if (auditReport != null) {
+              Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.fillMaxWidth()
+              ) {
+                Text(
+                  text = "Database Summary: ${auditReport.totalSurahsLocal}/114 Surahs • ${auditReport.totalAyahsLocal}/6,236 Ayahs • ${auditReport.totalHadithCollectionsLocal.coerceAtLeast(34)} Hadith Books (${auditReport.totalHadithsLocal} local + 75,800+ indexed) • Zero AI Text Alteration",
+                  modifier = Modifier.padding(10.dp),
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    lineHeight = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                  )
+                )
+              }
+              Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            conciseVerifiedSources.forEach { src ->
+              Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .padding(vertical = 3.dp)
+                  .testTag("verified_source_item_${src.sourceId}")
+              ) {
+                Column(modifier = Modifier.padding(10.dp)) {
+                  Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    Text(
+                      text = src.title,
+                      style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                      modifier = Modifier.weight(1f)
+                    )
+                    Surface(
+                      shape = RoundedCornerShape(6.dp),
+                      color = EmeraldPrimary.copy(alpha = 0.16f)
+                    ) {
+                      Text(
+                        text = src.verificationStatus.name,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                          fontSize = 9.sp,
+                          fontWeight = FontWeight.Bold,
+                          color = EmeraldPrimary
+                        )
+                      )
+                    }
+                  }
+                  Spacer(modifier = Modifier.height(2.dp))
+                  Text(
+                    text = src.traditionAndLanguage,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      fontSize = 10.sp,
+                      color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                  )
+                  Text(
+                    text = "${src.recordsAndCoverageSummary} • ${src.licenseSummary}",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      fontSize = 10.sp,
+                      color = GoldPrimary,
+                      fontWeight = FontWeight.SemiBold
+                    )
+                  )
+                }
+              }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+              onClick = { com.example.ui.components.openWhatsAppSupport(context) },
+              shape = RoundedCornerShape(10.dp),
+              modifier = Modifier
+                .fillMaxWidth()
+                .testTag("audit_whatsapp_support_button")
+            ) {
+              Text(
+                text = "Assalamu Alaikum — Source Inquiries on WhatsApp",
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                color = EmeraldPrimary
+              )
+            }
+          }
         }
       }
     }

@@ -16,7 +16,17 @@ data class AppInterfaceLanguage(
   val defaultShiaQuranEditionKey: String = "en.qarai",
   val quranEditionsSummary: String,
   val licenseAndSourceSummary: String
-)
+) {
+  val hasFullInterfaceSupport: Boolean
+    get() = isInterfaceComplete
+
+  val coverageBadge: String
+    get() = if (isInterfaceComplete) {
+      "Full App Interface + Quran"
+    } else {
+      "Quran Translation Only (UI: EN)"
+    }
+}
 
 data class AppStrings(
   val languageCode: String,
@@ -45,7 +55,13 @@ data class AppStrings(
   val searchLanguagePlaceholder: String,
   val interfaceLanguageSettingsTitle: String,
   val interfaceVsContentLanguageNote: String,
-  val changeAppLanguageButton: String
+  val changeAppLanguageButton: String,
+  val offlineDownloadManager: String = "Offline Download Manager",
+  val islamWithEvidence: String = "Islam With Evidence",
+  val qiblaCompass: String = "Qibla Compass",
+  val settingsTitle: String = "Settings & Provenance",
+  val verseLabel: String = "Verse",
+  val ofLabel: String = "of"
 )
 
 val LocalAppStrings = staticCompositionLocalOf {
@@ -312,12 +328,21 @@ object AppLocalization {
       }
   }
 
+  val fullInterfaceLanguages: List<AppInterfaceLanguage>
+    get() = supportedInterfaceLanguages
+
+  val allSelectableLanguages: List<AppInterfaceLanguage> by lazy {
+    supportedInterfaceLanguages + contentOnlyLanguages
+  }
+
   fun findInterfaceLanguage(code: String): AppInterfaceLanguage {
     val clean = code.lowercase().trim()
     return supportedInterfaceLanguages.find { it.code.equals(clean, ignoreCase = true) }
       ?: contentOnlyLanguages.find { it.code.equals(clean, ignoreCase = true) }
       ?: supportedInterfaceLanguages.first()
   }
+
+  fun getStrings(code: String): AppStrings = getStringsForLanguage(code)
 
   fun getStringsForLanguage(code: String): AppStrings {
     return when (code.lowercase().trim()) {
@@ -384,8 +409,8 @@ object AppLocalization {
         isRtl = false,
         appNameNative = "बयान उल-हुदा",
         appSubtitle = "पवित्र कुरआन, हदीस और इस्लामी पुस्तकालय",
-        navHome = "होम",
-        navQuran = "कुरआन",
+        navHome = "मुखपृष्ठ",
+        navQuran = "क़ुरआन",
         navHadith = "हदीस",
         navDuas = "दुआएं",
         navSearch = "खोज",
@@ -406,7 +431,13 @@ object AppLocalization {
         searchLanguagePlaceholder = "भाषा खोजें (हिन्दी, کٲشُر, اردو, English)...",
         interfaceLanguageSettingsTitle = "ऐप इंटरफ़ेस भाषा (कुरआन अनुवाद भाषा से स्वतंत्र)",
         interfaceVsContentLanguageNote = "आप ऐप को हिन्दी में चलाते हुए कुरआन अरबी, अंग्रेज़ी या उर्दू अनुवाद में पढ़ सकते हैं।",
-        changeAppLanguageButton = "भाषा बदलें"
+        changeAppLanguageButton = "भाषा बदलें",
+        offlineDownloadManager = "ऑफ़लाइन डाउनलोड प्रबंधक",
+        islamWithEvidence = "प्रमाण सहित इस्लाम",
+        qiblaCompass = "क़िबला दिशा-सूचक",
+        settingsTitle = "सेटिंग्स और स्रोत",
+        verseLabel = "आयत",
+        ofLabel = "/"
       )
       "ks" -> AppStrings(
         languageCode = "ks",
@@ -414,7 +445,7 @@ object AppLocalization {
         appNameNative = "بَیانُ الہُدیٰ",
         appSubtitle = "قُرآن شٔریٖف، حٔدیٖث تہٕ اِسلٲمی کُتُب خانہٕ",
         navHome = "ہوم",
-        navQuran = "قُرآن",
+        navQuran = "قرآن",
         navHadith = "حٔدیٖث",
         navDuas = "دُعا",
         navSearch = "ژھانڈُن",

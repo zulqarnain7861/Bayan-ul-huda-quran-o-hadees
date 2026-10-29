@@ -150,6 +150,25 @@ class BayanViewModel(application: Application) : AndroidViewModel(application) {
   private val _todayPrayerSchedule = MutableStateFlow<PrayerScheduleEntity?>(null)
   val todayPrayerSchedule: StateFlow<PrayerScheduleEntity?> = _todayPrayerSchedule.asStateFlow()
 
+  // Yearly & Ramadan Sehri/Iftar Timetable State
+  private val _sehriIftarTimetable =
+    MutableStateFlow<com.example.data.prayer.SehriIftarTimetableResult?>(null)
+  val sehriIftarTimetable: StateFlow<com.example.data.prayer.SehriIftarTimetableResult?> =
+    _sehriIftarTimetable.asStateFlow()
+
+  private val _isTimetableLoading = MutableStateFlow(false)
+  val isTimetableLoading: StateFlow<Boolean> = _isTimetableLoading.asStateFlow()
+
+  private val _timetableScopeMode = MutableStateFlow(
+    com.example.data.prayer.TimetableScopeMode.RAMADAN_MONTH
+  )
+  val timetableScopeMode: StateFlow<com.example.data.prayer.TimetableScopeMode> =
+    _timetableScopeMode.asStateFlow()
+
+  private val _selectedTimetableGregorianMonth = MutableStateFlow(3)
+  val selectedTimetableGregorianMonth: StateFlow<Int> =
+    _selectedTimetableGregorianMonth.asStateFlow()
+
   // Developer Source & API Audit Report
   private val _auditReport = MutableStateFlow<DiagnosticAuditReport?>(null)
   val auditReport: StateFlow<DiagnosticAuditReport?> = _auditReport.asStateFlow()
@@ -277,6 +296,7 @@ class BayanViewModel(application: Application) : AndroidViewModel(application) {
       runCatching { repository.initializeDatabaseIfNeeded() }
       runCatching { loadDailyContent() }
       runCatching { refreshPrayerSchedule(forceRemote = false) }
+      runCatching { refreshSehriIftarTimetable(forceRemote = false) }
       runCatching { com.example.data.prayer.SunnahReminderManager.scheduleAllSunnahReminders(getApplication()) }
       runCatching {
         _sunnahRemindersState.value =
@@ -326,6 +346,150 @@ class BayanViewModel(application: Application) : AndroidViewModel(application) {
     PrayerPreferencesManager.saveConfig(app, newConfig)
     _uiState.value = _uiState.value.copy(prayerConfig = newConfig)
     refreshPrayerSchedule(forceRemote = false)
+    refreshSehriIftarTimetable(forceRemote = false)
+  }
+
+  fun selectTimetableScopeMode(mode: com.example.data.prayer.TimetableScopeMode) {
+    _timetableScopeMode.value = mode
+    refreshSehriIftarTimetable(forceRemote = false)
+  }
+
+  fun selectTimetableGregorianYear(gregorianYear: Int) {
+    val validYear = gregorianYear.coerceIn(1990, 2100)
+    val ramadanYears =
+      com.example.data.prayer.SehriIftarTimetableEngine.getHijriRamadanYearsForGregorianYear(validYear)
+    val currentCfg = _uiState.value.prayerConfig
+    val targetHijri = if (ramadanYears.contains(currentCfg.selectedTimetableHijriYear)) {
+      currentCfg.selectedTimetableHijriYear
+    } else {
+      ramadanYears.firstOrNull() ?: currentCfg.selectedTimetableHijriYear
+    }
+    val updated = currentCfg.copy(
+      selectedTimetableGregorianYear = validYear,
+      selectedTimetableHijriYear = targetHijri
+    )
+    updatePrayerAndAlarmConfig(updated)
+  }
+
+  fun selectTimetableHijriYear(hijriYear: Int) {
+    val validHijri = hijriYear.coerceIn(1400, 1500)
+    val approxGregorian =
+      com.example.data.prayer.SehriIftarTimetableEngine.getPrimaryGregorianYearForHijriRamadan(validHijri)
+    val currentCfg = _uiState.value.prayerConfig
+    val dualForCurrent =
+      com.example.data.prayer.SehriIftarTimetableEngine.getHijriRamadanYearsForGregorianYear(
+        currentCfg.selectedTimetableGregorianYear
+      )
+    val targetGregorian = if (dualForCurrent.contains(validHijri)) {
+      currentCfg.selectedTimetableGregorianYear
+    } else {
+      approxGregorian
+    }
+    val updated = currentCfg.copy(
+      selectedTimetableHijriYear = validHijri,
+      selectedTimetableGregorianYear = targetGregorian
+    )
+    updatePrayerAndAlarmConfig(updated)
+  }
+
+  fun selectTimetableGregorianMonth(month: Int) {
+    _selectedTimetableGregorianMonth.value = month.coerceIn(1, 12)
+    refreshSehriIftarTimetable(forceRemote = false)
+  }
+
+  fun refreshSehriIftarTimetable(forceRemote: Boolean = false) {
+    viewModelScope.launch(Dispatchers.IO) {
+      _isTimetableLoading.value = true
+      val cfg = _uiState.value.prayerConfig
+      val result = repository.getOrFetchSehriIftarTimetable(
+        scopeMode = _timetableScopeMode.value,
+        city = cfg.city,
+        country = cfg.country,
+        latitude = cfg.latitude,
+        longitude = cfg.longitude,
+        timeZoneId = cfg.timeZoneId,
+        methodId = cfg.calculationMethodId,
+        school = com.example.data.prayer.JuridicalSchool.fromId(cfg.asrMadhhab),
+        gregorianYear = cfg.selectedTimetableGregorianYear,
+        gregorianMonth = _selectedTimetableGregorianMonth.value,
+        hijriRamadanYear = cfg.selectedTimetableHijriYear,
+        sehriAdjustmentMinutes = cfg.sehriAdjustmentMinutes,
+        iftarAdjustmentMinutes = cfg.iftarAdjustmentMinutes,
+        forceRemoteRefresh = forceRemote
+      )
+      _sehriIftarTimetable.value = result
+      _isTimetableLoading.value = false
+    }
+  }
+
+  fun applyTrueMapLocationAndCacheMonth(
+    latitude: Double,
+    longitude: Double,
+    city: String,
+    country: String,
+    timeZoneId: String
+  ) {
+    val nearestPreset =
+      com.example.data.prayer.SehriIftarTimetableEngine.resolveNearestCityForCoordinates(latitude, longitude)
+    val currentCfg = _uiState.value.prayerConfig
+    val updatedCfg = currentCfg.copy(
+      city = city.ifBlank { nearestPreset.city },
+      districtOrRegion = nearestPreset.districtOrRegion,
+      country = country.ifBlank { nearestPreset.country },
+      latitude = latitude,
+      longitude = longitude,
+      timeZoneId = timeZoneId.ifBlank { nearestPreset.timeZoneId },
+      calculationMethodId = nearestPreset.defaultMethodId,
+      asrMadhhab = nearestPreset.defaultAsrMadhhab
+    )
+    val app = getApplication<Application>()
+    PrayerPreferencesManager.saveConfig(app, updatedCfg)
+    _uiState.value = _uiState.value.copy(prayerConfig = updatedCfg)
+    refreshPrayerSchedule(forceRemote = true)
+
+    // Proactively fetch and cache both the current Ramadan month AND current Gregorian month
+    viewModelScope.launch(Dispatchers.IO) {
+      _isTimetableLoading.value = true
+      val currentMonth = java.util.Calendar.getInstance().get(java.util.Calendar.MONTH) + 1
+      _selectedTimetableGregorianMonth.value = currentMonth
+      val school = com.example.data.prayer.JuridicalSchool.fromId(updatedCfg.asrMadhhab)
+      // Cache Gregorian Month for true map location
+      repository.getOrFetchSehriIftarTimetable(
+        scopeMode = com.example.data.prayer.TimetableScopeMode.GREGORIAN_MONTH,
+        city = updatedCfg.city,
+        country = updatedCfg.country,
+        latitude = updatedCfg.latitude,
+        longitude = updatedCfg.longitude,
+        timeZoneId = updatedCfg.timeZoneId,
+        methodId = updatedCfg.calculationMethodId,
+        school = school,
+        gregorianYear = updatedCfg.selectedTimetableGregorianYear,
+        gregorianMonth = currentMonth,
+        hijriRamadanYear = updatedCfg.selectedTimetableHijriYear,
+        sehriAdjustmentMinutes = updatedCfg.sehriAdjustmentMinutes,
+        iftarAdjustmentMinutes = updatedCfg.iftarAdjustmentMinutes,
+        forceRemoteRefresh = false
+      )
+      // And load the active scope mode (Ramadan / Monthly / Yearly)
+      val activeResult = repository.getOrFetchSehriIftarTimetable(
+        scopeMode = _timetableScopeMode.value,
+        city = updatedCfg.city,
+        country = updatedCfg.country,
+        latitude = updatedCfg.latitude,
+        longitude = updatedCfg.longitude,
+        timeZoneId = updatedCfg.timeZoneId,
+        methodId = updatedCfg.calculationMethodId,
+        school = school,
+        gregorianYear = updatedCfg.selectedTimetableGregorianYear,
+        gregorianMonth = currentMonth,
+        hijriRamadanYear = updatedCfg.selectedTimetableHijriYear,
+        sehriAdjustmentMinutes = updatedCfg.sehriAdjustmentMinutes,
+        iftarAdjustmentMinutes = updatedCfg.iftarAdjustmentMinutes,
+        forceRemoteRefresh = false
+      )
+      _sehriIftarTimetable.value = activeResult
+      _isTimetableLoading.value = false
+    }
   }
 
   fun setThemeMode(mode: AppThemeMode) {

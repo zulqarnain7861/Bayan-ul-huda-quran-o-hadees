@@ -66,6 +66,7 @@ import com.example.ui.screens.QiblaCompassScreen
 import com.example.ui.screens.QuranScreen
 import com.example.ui.screens.ReportErrorDialog
 import com.example.ui.screens.SearchScreen
+import com.example.ui.screens.SehriIftarTimetableScreen
 import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.GoldPrimary
 import com.example.ui.theme.MyApplicationTheme
@@ -84,6 +85,7 @@ object BayanNavRoutes {
   const val DOWNLOADS = "downloads"
   const val EVIDENCE = "evidence"
   const val QIBLA = "qibla"
+  const val SEHRI_IFTAR = "sehri_iftar"
 }
 
 data class BottomNavDestination(
@@ -134,6 +136,10 @@ fun BayanApp(
   val syncBadgeState by viewModel.downloadManager.syncBadgeState.collectAsStateWithLifecycle()
   val sunnahRemindersState by viewModel.sunnahRemindersState.collectAsStateWithLifecycle()
   val duaAudioState by viewModel.duaAudioState.collectAsStateWithLifecycle()
+  val sehriIftarTimetable by viewModel.sehriIftarTimetable.collectAsStateWithLifecycle()
+  val isTimetableLoading by viewModel.isTimetableLoading.collectAsStateWithLifecycle()
+  val timetableScopeMode by viewModel.timetableScopeMode.collectAsStateWithLifecycle()
+  val selectedTimetableGregorianMonth by viewModel.selectedTimetableGregorianMonth.collectAsStateWithLifecycle()
 
   val appLanguageCode = uiState.prayerConfig.appInterfaceLanguageCode
   val appStrings = remember(appLanguageCode) {
@@ -236,7 +242,8 @@ fun BayanApp(
       BayanNavRoutes.ABOUT,
       BayanNavRoutes.DOWNLOADS,
       BayanNavRoutes.EVIDENCE,
-      BayanNavRoutes.QIBLA
+      BayanNavRoutes.QIBLA,
+      BayanNavRoutes.SEHRI_IFTAR
     )
 
     Scaffold(
@@ -247,6 +254,7 @@ fun BayanApp(
             BayanNavRoutes.DOWNLOADS -> appStrings.offlineDownloadManager
             BayanNavRoutes.EVIDENCE -> appStrings.islamWithEvidence
             BayanNavRoutes.QIBLA -> appStrings.qiblaCompass
+            BayanNavRoutes.SEHRI_IFTAR -> "Ramadan & Yearly Sehri / Iftar Timetable"
             else -> appStrings.settingsTitle
           }
           TopAppBar(
@@ -445,6 +453,10 @@ fun BayanApp(
             },
             onNavigateToDailyDuas = {
               navigateToTab(BayanNavRoutes.DUAS, MainNavigationTab.DUAS)
+            },
+            onNavigateToSehriIftar = {
+              viewModel.refreshSehriIftarTimetable(forceRemote = false)
+              navController.navigate(BayanNavRoutes.SEHRI_IFTAR) { launchSingleTop = true }
             }
           )
         }
@@ -625,6 +637,27 @@ fun BayanApp(
           QiblaCompassScreen(
             prayerConfig = uiState.prayerConfig,
             onUpdatePrayerConfig = { viewModel.updatePrayerAndAlarmConfig(it) }
+          )
+        }
+
+        composable(BayanNavRoutes.SEHRI_IFTAR) {
+          SehriIftarTimetableScreen(
+            prayerConfig = uiState.prayerConfig,
+            timetableResult = sehriIftarTimetable,
+            isLoading = isTimetableLoading,
+            selectedScopeMode = timetableScopeMode,
+            selectedGregorianYear = uiState.prayerConfig.selectedTimetableGregorianYear,
+            selectedHijriYear = uiState.prayerConfig.selectedTimetableHijriYear,
+            selectedGregorianMonth = selectedTimetableGregorianMonth,
+            onSelectScopeMode = { viewModel.selectTimetableScopeMode(it) },
+            onSelectGregorianYear = { viewModel.selectTimetableGregorianYear(it) },
+            onSelectHijriYear = { viewModel.selectTimetableHijriYear(it) },
+            onSelectGregorianMonth = { viewModel.selectTimetableGregorianMonth(it) },
+            onUpdatePrayerConfig = { viewModel.updatePrayerAndAlarmConfig(it) },
+            onRefreshTimetable = { forceRemote -> viewModel.refreshSehriIftarTimetable(forceRemote) },
+            onApplyTrueMapLocationAndCacheMonth = { lat, lon, city, country, tz ->
+              viewModel.applyTrueMapLocationAndCacheMonth(lat, lon, city, country, tz)
+            }
           )
         }
 

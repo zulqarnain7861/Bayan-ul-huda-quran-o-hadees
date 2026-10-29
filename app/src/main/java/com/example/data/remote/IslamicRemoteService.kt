@@ -152,13 +152,46 @@ object IslamicRemoteService {
       }
     }
 
-    // 3. Try Sunni fawazahmed0 API if supported
-    val apiSlug = resolveSunniApiSlug(collectionKey) ?: return@withContext null
+    // 3. Try Sunni FawazAhmed0 (@1), AhmedBaset (v1.2.0), HadithAPI.com, or Sunnah.com API
+    val apiSlug = resolveSunniApiSlug(collectionKey)
+    if (apiSlug != null) {
+      fetchSunniHadithFromFawaz(collectionKey, collectionName, apiSlug, hadithNumber)?.let { entity ->
+        hadithMemoryCache[cacheKey] = entity
+        return@withContext entity
+      }
+    }
 
-    try {
-      val enUrl = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/eng-$apiSlug/$hadithNumber.min.json"
-      val arUrl = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/ara-$apiSlug/$hadithNumber.min.json"
-      val urUrl = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/urd-$apiSlug/$hadithNumber.min.json"
+    // 4. Try HadithAPI.com when configured for this collection
+    fetchHadithFromHadithApiComByNumber(collectionKey, collectionName, hadithNumber)?.let { entity ->
+      hadithMemoryCache[cacheKey] = entity
+      return@withContext entity
+    }
+
+    // 5. Try Sunnah.com Official API v1 when configured
+    fetchHadithFromSunnahComByNumber(collectionKey, collectionName, hadithNumber)?.let { entity ->
+      hadithMemoryCache[cacheKey] = entity
+      return@withContext entity
+    }
+
+    // 6. Try AhmedBaset Hadith-JSON (strictly pinned to tag v1.2.0) by chapter / book
+    fetchHadithFromAhmedBasetByNumber(collectionKey, collectionName, hadithNumber)?.let { entity ->
+      hadithMemoryCache[cacheKey] = entity
+      return@withContext entity
+    }
+
+    null
+  }
+
+  private suspend fun fetchSunniHadithFromFawaz(
+    collectionKey: String,
+    collectionName: String,
+    apiSlug: String,
+    hadithNumber: Int
+  ): HadithEntity? {
+    return try {
+      val enUrl = MultiSourceHadithCatalog.fawazHadithByNumberUrl("eng-$apiSlug", hadithNumber, minified = true)
+      val arUrl = MultiSourceHadithCatalog.fawazHadithByNumberUrl("ara-$apiSlug", hadithNumber, minified = true)
+      val urUrl = MultiSourceHadithCatalog.fawazHadithByNumberUrl("urd-$apiSlug", hadithNumber, minified = true)
 
       var (enJson, arJson, urJson) = coroutineScope {
         val enDeferred = async { httpGet(enUrl)?.let { runCatching { JSONObject(it) }.getOrNull() } }
@@ -179,9 +212,9 @@ object IslamicRemoteService {
       // where Arabic/English are mostly empty, while Book 1 (Kitab al-Iman) Hadith 1..92 starts at 93 (hadithNumber + 92).
       if (apiSlug == "muslim" && arabicText.isBlank() && englishText.isBlank() && hadithNumber in 1..92) {
         val shifted = hadithNumber + 92
-        val enUrl2 = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/eng-$apiSlug/$shifted.min.json"
-        val arUrl2 = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/ara-$apiSlug/$shifted.min.json"
-        val urUrl2 = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/urd-$apiSlug/$shifted.min.json"
+        val enUrl2 = MultiSourceHadithCatalog.fawazHadithByNumberUrl("eng-$apiSlug", shifted, minified = true)
+        val arUrl2 = MultiSourceHadithCatalog.fawazHadithByNumberUrl("ara-$apiSlug", shifted, minified = true)
+        val urUrl2 = MultiSourceHadithCatalog.fawazHadithByNumberUrl("urd-$apiSlug", shifted, minified = true)
         val shiftedTriple = coroutineScope {
           val enD = async { httpGet(enUrl2)?.let { runCatching { JSONObject(it) }.getOrNull() } }
           val arD = async { httpGet(arUrl2)?.let { runCatching { JSONObject(it) }.getOrNull() } }
@@ -199,10 +232,10 @@ object IslamicRemoteService {
         urduText = SecurityIntegrityGuard.sanitizeSacredText(urHadith?.optString("text", "").orEmpty())
       }
 
-      if (enJson == null && arJson == null && urJson == null) return@withContext null
+      if (enJson == null && arJson == null && urJson == null) return null
 
       if (!SecurityIntegrityGuard.isValidCanonicalHadithPayload(collectionKey, hadithNumber, arabicText, englishText)) {
-        return@withContext null
+        return null
       }
 
       val refObj = enHadith?.optJSONObject("reference") ?: arHadith?.optJSONObject("reference")
@@ -247,7 +280,7 @@ object IslamicRemoteService {
 
       val extractedNarrator = extractNarratorFromText(englishText) ?: "Source Edition ($collectionName #$hadithNumber)"
 
-      val entity = HadithEntity(
+      HadithEntity(
         collectionKey = collectionKey,
         collectionName = collectionName,
         bookNumber = if (bookNum > 0) bookNum else 1,
@@ -268,9 +301,328 @@ object IslamicRemoteService {
         reference = "$collectionName $hadithNumber",
         linkedQuranVerses = ""
       )
-      hadithMemoryCache[cacheKey] = entity
-      entity
-    } catch (e: Exception) {
+    } catch (_: Exception) {
+      null
+    }
+  }
+
+  /**
+   * Parses an AhmedBaset Hadith-JSON (v1.2.0) payload (either `by_chapter` or `by_book` format)
+   * into canonical `HadithEntity` items while preserving the shared canonical Arabic text and
+   * accurate narrator / chapter metadata.
+   */
+  fun parseAhmedBasetHadithJson(
+    collectionKey: String,
+    collectionName: String,
+    rawJson: String,
+    defaultBookNumber: Int = 1,
+    maxRecords: Int = Int.MAX_VALUE
+  ): List<HadithEntity> {
+    return try {
+      val root = JSONObject(rawJson)
+      val hadithsArr = root.optJSONArray("hadiths") ?: return emptyList()
+      val chaptersArr = root.optJSONArray("chapters")
+      val chapterNamesById = HashMap<Int, Pair<String, String>>()
+      if (chaptersArr != null) {
+        for (i in 0 until chaptersArr.length()) {
+          val chObj = chaptersArr.optJSONObject(i) ?: continue
+          val chId = chObj.optInt("id", i + 1)
+          val arName = SecurityIntegrityGuard.sanitizeSacredText(chObj.optString("arabic", ""))
+          val enName = SecurityIntegrityGuard.sanitizeSacredText(chObj.optString("english", ""))
+          chapterNamesById[chId] = enName to arName
+        }
+      }
+      val singleChapObj = root.optJSONObject("chapter")
+      if (singleChapObj != null) {
+        val chId = singleChapObj.optInt("id", defaultBookNumber)
+        val arName = SecurityIntegrityGuard.sanitizeSacredText(singleChapObj.optString("arabic", ""))
+        val enName = SecurityIntegrityGuard.sanitizeSacredText(singleChapObj.optString("english", ""))
+        chapterNamesById[chId] = enName to arName
+      }
+
+      val defaultGrade = when (collectionKey.lowercase()) {
+        "bukhari", "muslim", "nawawi", "qudsi" -> "Sahih"
+        else -> "Classical Sunni Transmission (AhmedBaset v1.2.0)"
+      }
+      val defaultScholar = when (collectionKey.lowercase()) {
+        "bukhari" -> "Imam al-Bukhari"
+        "muslim" -> "Imam Muslim"
+        else -> "AhmedBaset Hadith-JSON v1.2.0"
+      }
+
+      val list = ArrayList<HadithEntity>(minOf(hadithsArr.length(), maxRecords))
+      val limit = minOf(hadithsArr.length(), maxRecords)
+      for (i in 0 until limit) {
+        val obj = hadithsArr.optJSONObject(i) ?: continue
+        val globalId = obj.optInt("id", 0)
+        val idInBook = obj.optInt("idInBook", i + 1)
+        val hNum = if (globalId > 0) globalId else idInBook.coerceAtLeast(1)
+        val chId = obj.optInt("chapterId", defaultBookNumber).coerceAtLeast(1)
+        val arText = SecurityIntegrityGuard.sanitizeSacredText(obj.optString("arabic", ""))
+        val engValue = obj.opt("english")
+        val (narratorRaw, enBodyRaw) = when (engValue) {
+          is JSONObject -> {
+            engValue.optString("narrator", "") to engValue.optString("text", "")
+          }
+          is String -> {
+            "" to engValue
+          }
+          else -> "" to ""
+        }
+        val narratorClean = SecurityIntegrityGuard.sanitizeSacredText(narratorRaw)
+        val enBodyClean = SecurityIntegrityGuard.sanitizeSacredText(enBodyRaw)
+        val fullEnglish = if (narratorClean.isNotBlank() && !enBodyClean.startsWith(narratorClean)) {
+          "$narratorClean $enBodyClean".trim()
+        } else {
+          enBodyClean
+        }
+        if (!SecurityIntegrityGuard.isValidCanonicalHadithPayload(collectionKey, hNum, arText, fullEnglish)) continue
+
+        val (chEn, chAr) = chapterNamesById[chId] ?: ("Book $chId" to "")
+        val bookLabel = when {
+          chEn.isNotBlank() && chAr.isNotBlank() -> "Book $chId: $chEn ($chAr)"
+          chEn.isNotBlank() -> "Book $chId: $chEn"
+          else -> "Book $chId"
+        }
+
+        val entity = HadithEntity(
+          collectionKey = collectionKey,
+          collectionName = collectionName,
+          bookNumber = chId,
+          bookName = bookLabel,
+          chapterNumber = chId,
+          chapterName = chEn.ifBlank { "$collectionName — Book $chId" },
+          hadithNumber = hNum,
+          darussalamReference = "Darussalam: #$hNum",
+          inBookReference = "In-Book: Book $chId, Hadith $idInBook",
+          arabicNumber = hNum,
+          arabicText = arText.ifEmpty { NOT_AVAILABLE_IN_SOURCE },
+          transliteration = "",
+          englishText = fullEnglish.ifEmpty { NOT_AVAILABLE_IN_SOURCE },
+          urduText = "",
+          narrator = narratorClean.ifBlank { extractNarratorFromText(fullEnglish) ?: "Source Edition ($collectionName #$hNum)" },
+          grade = defaultGrade,
+          gradingScholar = defaultScholar,
+          reference = "$collectionName $hNum",
+          linkedQuranVerses = ""
+        )
+        list.add(entity)
+      }
+      list
+    } catch (_: Exception) {
+      emptyList()
+    }
+  }
+
+  /**
+   * Parses a HadithAPI.com JSON response (`/public/api/hadiths`) into `HadithEntity` items.
+   */
+  fun parseHadithApiComJson(
+    collectionKey: String,
+    collectionName: String,
+    rawJson: String,
+    defaultBookNumber: Int = 1,
+    maxRecords: Int = Int.MAX_VALUE
+  ): List<HadithEntity> {
+    return try {
+      val root = JSONObject(rawJson)
+      val hadithsContainer = root.optJSONObject("hadiths")
+      val dataArr = hadithsContainer?.optJSONArray("data")
+        ?: root.optJSONArray("hadiths")
+        ?: root.optJSONArray("data")
+        ?: return emptyList()
+
+      val list = ArrayList<HadithEntity>(minOf(dataArr.length(), maxRecords))
+      val limit = minOf(dataArr.length(), maxRecords)
+      for (i in 0 until limit) {
+        val obj = dataArr.optJSONObject(i) ?: continue
+        val hNumStr = obj.optString("hadithNumber", "").trim()
+        val hNum = hNumStr.filter { it.isDigit() }.toIntOrNull() ?: obj.optInt("id", i + 1)
+        if (hNum <= 0) continue
+
+        val arText = SecurityIntegrityGuard.sanitizeSacredText(obj.optString("hadithArabic", ""))
+        val enText = SecurityIntegrityGuard.sanitizeSacredText(obj.optString("hadithEnglish", ""))
+        val urText = SecurityIntegrityGuard.sanitizeSacredText(obj.optString("hadithUrdu", ""))
+        if (!SecurityIntegrityGuard.isValidCanonicalHadithPayload(collectionKey, hNum, arText, enText)) continue
+
+        val narrator = SecurityIntegrityGuard.sanitizeSacredText(obj.optString("englishNarrator", ""))
+          .ifBlank { extractNarratorFromText(enText) ?: "Source Edition ($collectionName #$hNum)" }
+        val chapNum = obj.optString("chapterNumber", "").toIntOrNull()
+          ?: obj.optJSONObject("chapter")?.optString("chapterNumber", "")?.toIntOrNull()
+          ?: defaultBookNumber
+        val chapEn = SecurityIntegrityGuard.sanitizeSacredText(
+          obj.optJSONObject("chapter")?.optString("chapterEnglish", "")
+            ?: obj.optString("headingEnglish", "")
+        )
+        val statusGrade = SecurityIntegrityGuard.sanitizeSacredText(obj.optString("status", "Sahih"))
+
+        list.add(
+          HadithEntity(
+            collectionKey = collectionKey,
+            collectionName = collectionName,
+            bookNumber = chapNum.coerceAtLeast(1),
+            bookName = if (chapEn.isNotBlank()) "Book $chapNum: $chapEn" else "Book $chapNum",
+            chapterNumber = chapNum.coerceAtLeast(1),
+            chapterName = chapEn.ifBlank { "$collectionName — Hadith #$hNum" },
+            hadithNumber = hNum,
+            darussalamReference = "Darussalam: #$hNum",
+            inBookReference = "In-Book: Book $chapNum, Hadith $hNum",
+            arabicNumber = hNum,
+            arabicText = arText.ifEmpty { NOT_AVAILABLE_IN_SOURCE },
+            transliteration = "",
+            englishText = enText.ifEmpty { NOT_AVAILABLE_IN_SOURCE },
+            urduText = urText,
+            narrator = narrator,
+            grade = statusGrade.ifBlank { "Sahih" },
+            gradingScholar = "HadithAPI.com / Darussalam",
+            reference = "$collectionName $hNum",
+            linkedQuranVerses = ""
+          )
+        )
+      }
+      list
+    } catch (_: Exception) {
+      emptyList()
+    }
+  }
+
+  private fun fetchHadithFromHadithApiComByNumber(
+    collectionKey: String,
+    collectionName: String,
+    hadithNumber: Int
+  ): HadithEntity? {
+    val url = MultiSourceHadithCatalog.hadithApiSingleHadithUrl(collectionKey, hadithNumber.toString()) ?: return null
+    val raw = httpGet(url) ?: return null
+    return parseHadithApiComJson(collectionKey, collectionName, raw, 1, 1).firstOrNull()
+  }
+
+  private fun fetchHadithFromSunnahComByNumber(
+    collectionKey: String,
+    collectionName: String,
+    hadithNumber: Int
+  ): HadithEntity? {
+    val apiKey = MultiSourceHadithCatalog.getConfiguredSunnahApiKey() ?: return null
+    val url = MultiSourceHadithCatalog.sunnahSingleHadithUrl(collectionKey, hadithNumber.toString()) ?: return null
+    val raw = httpGetWithHeaders(url, mapOf("X-API-Key" to apiKey)) ?: return null
+    return try {
+      val obj = JSONObject(raw)
+      val hadithArr = obj.optJSONArray("hadith") ?: return null
+      var arBody = ""
+      var enBody = ""
+      var gradeStr = ""
+      var gradedBy = ""
+      for (i in 0 until hadithArr.length()) {
+        val hLangObj = hadithArr.optJSONObject(i) ?: continue
+        val lang = hLangObj.optString("lang", "")
+        val body = SecurityIntegrityGuard.sanitizeSacredText(
+          hLangObj.optString("body", "").replace(Regex("<[^>]*>"), " ").trim()
+        )
+        if (lang == "ar") arBody = body
+        if (lang == "en") enBody = body
+        val grades = hLangObj.optJSONArray("grades")
+        if (grades != null && grades.length() > 0 && gradeStr.isBlank()) {
+          val g0 = grades.optJSONObject(0)
+          gradeStr = SecurityIntegrityGuard.sanitizeSacredText(g0?.optString("grade", "").orEmpty())
+          gradedBy = SecurityIntegrityGuard.sanitizeSacredText(g0?.optString("graded_by", "").orEmpty())
+        }
+      }
+      if (!SecurityIntegrityGuard.isValidCanonicalHadithPayload(collectionKey, hadithNumber, arBody, enBody)) return null
+      val bookNum = obj.optString("bookNumber", "1").toIntOrNull() ?: 1
+      val chapTitle = SecurityIntegrityGuard.sanitizeSacredText(obj.optString("chapterTitle", "Book $bookNum"))
+      HadithEntity(
+        collectionKey = collectionKey,
+        collectionName = collectionName,
+        bookNumber = bookNum,
+        bookName = "Book $bookNum: $chapTitle",
+        chapterNumber = obj.optInt("chapterId", 1),
+        chapterName = chapTitle,
+        hadithNumber = hadithNumber,
+        darussalamReference = "Darussalam: #$hadithNumber",
+        inBookReference = "In-Book: Book $bookNum, Hadith $hadithNumber",
+        arabicNumber = hadithNumber,
+        arabicText = arBody.ifEmpty { NOT_AVAILABLE_IN_SOURCE },
+        transliteration = "",
+        englishText = enBody.ifEmpty { NOT_AVAILABLE_IN_SOURCE },
+        urduText = "",
+        narrator = extractNarratorFromText(enBody) ?: "Sunnah.com Official Edition ($collectionName #$hadithNumber)",
+        grade = gradeStr.ifBlank { "Sahih" },
+        gradingScholar = gradedBy.ifBlank { "Sunnah.com Official API" },
+        reference = "$collectionName $hadithNumber",
+        linkedQuranVerses = ""
+      )
+    } catch (_: Exception) {
+      null
+    }
+  }
+
+  private fun fetchHadithFromAhmedBasetByNumber(
+    collectionKey: String,
+    collectionName: String,
+    hadithNumber: Int
+  ): HadithEntity? {
+    val coord = MultiSourceHadithCatalog.ahmedBasetMappings[collectionKey.lowercase()] ?: return null
+    // Check chapter 1 first for forties or small collections, then full book if needed
+    val ch1Raw = httpGet(coord.byChapterUrl(1))
+    if (!ch1Raw.isNullOrBlank()) {
+      val parsed = parseAhmedBasetHadithJson(collectionKey, collectionName, ch1Raw, 1)
+      parsed.firstOrNull { it.hadithNumber == hadithNumber }?.let { return it }
+    }
+    val bookRaw = httpGet(coord.byBookUrl()) ?: return null
+    val allParsed = parseAhmedBasetHadithJson(collectionKey, collectionName, bookRaw, 1)
+    return allParsed.firstOrNull { it.hadithNumber == hadithNumber }
+  }
+
+  /**
+   * Fetches a specific named translation edition text for a single Hadith (e.g., `eng-bukhari`,
+   * `urd-bukhari`, `ben-bukhari`, `tur-bukhari`, `ind-bukhari`, `fra-bukhari`, `rus-bukhari`,
+   * `eng-ahmedbaset-bukhari-v1.2.0`, `eng-hadithapi-sahih-bukhari`, `urd-hadithapi-sahih-bukhari`)
+   * without altering the shared canonical Arabic text.
+   */
+  suspend fun fetchNamedHadithTranslationText(
+    collectionKey: String,
+    edition: MultiSourceHadithCatalog.NamedHadithTranslationEdition,
+    hadithNumber: Int,
+    bookNumber: Int = 1
+  ): String? = withContext(Dispatchers.IO) {
+    try {
+      when (edition.provider) {
+        MultiSourceHadithCatalog.HadithSourceProvider.FAWAZ_AHMED -> {
+          val editionName = edition.fawazEditionName ?: return@withContext null
+          val url = MultiSourceHadithCatalog.fawazHadithByNumberUrl(editionName, hadithNumber, minified = true)
+          val raw = httpGet(url) ?: return@withContext null
+          val json = JSONObject(raw)
+          val text = json.optJSONArray("hadiths")?.optJSONObject(0)?.optString("text", "").orEmpty()
+          SecurityIntegrityGuard.sanitizeSacredText(text).takeIf { it.isNotBlank() }
+        }
+        MultiSourceHadithCatalog.HadithSourceProvider.AHMED_BASET_V1_2_0 -> {
+          val coord = edition.ahmedBasetCoordinate ?: return@withContext null
+          val raw = httpGet(coord.byChapterUrl(bookNumber.coerceAtLeast(1)))
+            ?: httpGet(coord.byBookUrl())
+            ?: return@withContext null
+          val parsed = parseAhmedBasetHadithJson(collectionKey, edition.editionTitle, raw, bookNumber)
+          parsed.firstOrNull { it.hadithNumber == hadithNumber }?.englishText?.takeIf {
+            it.isNotBlank() && it != NOT_AVAILABLE_IN_SOURCE
+          }
+        }
+        MultiSourceHadithCatalog.HadithSourceProvider.HADITH_API_COM -> {
+          val url = MultiSourceHadithCatalog.hadithApiSingleHadithUrl(collectionKey, hadithNumber.toString())
+            ?: return@withContext null
+          val raw = httpGet(url) ?: return@withContext null
+          val parsed = parseHadithApiComJson(collectionKey, edition.editionTitle, raw, bookNumber, 1).firstOrNull()
+            ?: return@withContext null
+          if (edition.languageCode == "ur") {
+            parsed.urduText.takeIf { it.isNotBlank() }
+          } else {
+            parsed.englishText.takeIf { it.isNotBlank() && it != NOT_AVAILABLE_IN_SOURCE }
+          }
+        }
+        MultiSourceHadithCatalog.HadithSourceProvider.SUNNAH_COM_API -> {
+          val entity = fetchHadithFromSunnahComByNumber(collectionKey, edition.editionTitle, hadithNumber)
+          entity?.englishText?.takeIf { it.isNotBlank() && it != NOT_AVAILABLE_IN_SOURCE }
+        }
+        MultiSourceHadithCatalog.HadithSourceProvider.BUNDLED_OFFLINE_CORPUS -> null
+      }
+    } catch (_: Exception) {
       null
     }
   }
@@ -332,8 +684,13 @@ object IslamicRemoteService {
 
   /**
    * Fetches an entire book/section of Hadiths concurrently across Arabic, English, and Urdu editions.
-   * Always merges/falls back to curated canonical ExtendedHadithDataProvider records so that Shia books,
-   * Nahj al-Balagha sermons, and additional Sunni books never fail to load.
+   * Queries:
+   * 1. FawazAhmed0 Hadith API (@1) for collections with a Fawaz slug.
+   * 2. AhmedBaset Hadith-JSON strictly pinned to tag v1.2.0 (`db/by_chapter` & `db/by_book`) for the 17 Sunni books.
+   * 3. HadithAPI.com when configured.
+   * 4. Thaqalayn v2 API for Shia collections.
+   * 5. Always merges/falls back to curated canonical ExtendedHadithDataProvider records so that Shia books,
+   *    Nahj al-Balagha sermons, and additional Sunni books never fail to load.
    */
   suspend fun fetchHadithBookSectionFromApi(
     collectionKey: String,
@@ -348,6 +705,39 @@ object IslamicRemoteService {
     val apiSlug = resolveSunniApiSlug(collectionKey)
 
     if (apiSlug == null) {
+      // Check if this is one of the 17 Sunni books in AhmedBaset Hadith-JSON (v1.2.0) or HadithAPI.com
+      val ahmedBasetCoord = MultiSourceHadithCatalog.ahmedBasetMappings[collectionKey.lowercase()]
+      if (ahmedBasetCoord != null) {
+        try {
+          val chUrl = ahmedBasetCoord.byChapterUrl(bookNumber.coerceAtLeast(1))
+          val raw = httpGet(chUrl) ?: if (bookNumber <= 1) httpGet(ahmedBasetCoord.byBookUrl()) else null
+          if (!raw.isNullOrBlank()) {
+            val parsed = parseAhmedBasetHadithJson(collectionKey, collectionName, raw, bookNumber.coerceAtLeast(1), maxRecords)
+            if (parsed.isNotEmpty()) {
+              parsed.forEach { h -> hadithMemoryCache["${collectionKey.lowercase()}:${h.hadithNumber}"] = h }
+              bookSectionMemoryCache[sectionKey] = parsed
+              return@withContext parsed
+            }
+          }
+        } catch (_: Exception) {}
+      }
+
+      // Check HadithAPI.com for collections like Musnad Ahmad or Mishkat al-Masabih when API key is configured
+      val hadithApiUrl = MultiSourceHadithCatalog.hadithApiChapterHadithsUrl(collectionKey.lowercase(), bookNumber.coerceAtLeast(1))
+      if (hadithApiUrl != null) {
+        try {
+          val raw = httpGet(hadithApiUrl)
+          if (!raw.isNullOrBlank()) {
+            val parsed = parseHadithApiComJson(collectionKey, collectionName, raw, bookNumber.coerceAtLeast(1), maxRecords)
+            if (parsed.isNotEmpty()) {
+              parsed.forEach { h -> hadithMemoryCache["${collectionKey.lowercase()}:${h.hadithNumber}"] = h }
+              bookSectionMemoryCache[sectionKey] = parsed
+              return@withContext parsed
+            }
+          }
+        } catch (_: Exception) {}
+      }
+
       val shiaBookId = resolveShiaThaqalaynBookId(collectionKey, bookNumber.coerceAtLeast(1))
       if (shiaBookId != null) {
         try {
@@ -405,9 +795,9 @@ object IslamicRemoteService {
     }
 
     try {
-      val enUrl = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/eng-$apiSlug/sections/$bookNumber.min.json"
-      val arUrl = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/ara-$apiSlug/sections/$bookNumber.min.json"
-      val urUrl = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/urd-$apiSlug/sections/$bookNumber.min.json"
+      val enUrl = MultiSourceHadithCatalog.fawazSectionUrl("eng-$apiSlug", bookNumber, minified = true)
+      val arUrl = MultiSourceHadithCatalog.fawazSectionUrl("ara-$apiSlug", bookNumber, minified = true)
+      val urUrl = MultiSourceHadithCatalog.fawazSectionUrl("urd-$apiSlug", bookNumber, minified = true)
 
       var (enJson, arJson, urJson) = coroutineScope {
         val enDeferred = async { httpGet(enUrl)?.let { runCatching { JSONObject(it) }.getOrNull() } }
@@ -417,9 +807,9 @@ object IslamicRemoteService {
       }
 
       if (enJson == null && arJson == null && bookNumber == 1) {
-        val fullEnUrl = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/eng-$apiSlug.min.json"
-        val fullArUrl = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/ara-$apiSlug.min.json"
-        val fullUrUrl = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/urd-$apiSlug.min.json"
+        val fullEnUrl = MultiSourceHadithCatalog.fawazWholeEditionUrl("eng-$apiSlug", minified = true)
+        val fullArUrl = MultiSourceHadithCatalog.fawazWholeEditionUrl("ara-$apiSlug", minified = true)
+        val fullUrUrl = MultiSourceHadithCatalog.fawazWholeEditionUrl("urd-$apiSlug", minified = true)
         val fullTriple = coroutineScope {
           val enDef = async { httpGet(fullEnUrl)?.let { runCatching { JSONObject(it) }.getOrNull() } }
           val arDef = async { httpGet(fullArUrl)?.let { runCatching { JSONObject(it) }.getOrNull() } }
@@ -431,7 +821,21 @@ object IslamicRemoteService {
         urJson = fullTriple.third
       }
 
-      if (enJson == null && arJson == null) return@withContext offlineList
+      if (enJson == null && arJson == null) {
+        // Fallback to AhmedBaset v1.2.0 chapter endpoint if Fawaz CDN was unreachable
+        val ahmedCoord = MultiSourceHadithCatalog.ahmedBasetMappings[collectionKey.lowercase()]
+        if (ahmedCoord != null) {
+          val rawAhmed = httpGet(ahmedCoord.byChapterUrl(bookNumber.coerceAtLeast(1)))
+          if (!rawAhmed.isNullOrBlank()) {
+            val parsedAhmed = parseAhmedBasetHadithJson(collectionKey, collectionName, rawAhmed, bookNumber.coerceAtLeast(1), maxRecords)
+            if (parsedAhmed.isNotEmpty()) {
+              bookSectionMemoryCache[sectionKey] = parsedAhmed
+              return@withContext parsedAhmed
+            }
+          }
+        }
+        return@withContext offlineList
+      }
 
       val enArr = enJson?.optJSONArray("hadiths") ?: arJson?.optJSONArray("hadiths") ?: return@withContext offlineList
       val arArr = arJson?.optJSONArray("hadiths")
@@ -522,6 +926,8 @@ object IslamicRemoteService {
       offlineList
     }
   }
+
+  private fun behbudiGradeLabel(raw: String): String = raw.trim()
 
   /**
    * Fetches daily prayer times from the reputable AlAdhan API (https://aladhan.com/prayer-times-api),
@@ -634,7 +1040,9 @@ object IslamicRemoteService {
     return null
   }
 
-  private fun httpGet(urlString: String): String? {
+  private fun httpGet(urlString: String): String? = httpGetWithHeaders(urlString, emptyMap())
+
+  private fun httpGetWithHeaders(urlString: String, headers: Map<String, String>): String? {
     // Enforce strict HTTPS & Host Allowlist via SecurityIntegrityGuard (blocks any ad or unauthorized domain)
     if (!SecurityIntegrityGuard.isUrlTrustedAndAllowed(urlString)) {
       return null
@@ -647,6 +1055,7 @@ object IslamicRemoteService {
         connectTimeout = 2800
         readTimeout = 3200
         setRequestProperty("Accept", "application/json")
+        headers.forEach { (k, v) -> setRequestProperty(k, v) }
       }
       if (conn.responseCode in 200..299) {
         val contentLength = conn.contentLengthLong

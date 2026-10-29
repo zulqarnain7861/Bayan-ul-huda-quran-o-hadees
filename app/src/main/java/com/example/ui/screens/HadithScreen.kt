@@ -146,6 +146,12 @@ fun HadithScreen(
   var sortByEntryTimeDesc by remember { mutableStateOf(false) }
   var showVerifiedSourcesSheet by remember { mutableStateOf(false) }
   var userRecalledSourceInput by remember { mutableStateOf("") }
+  var selectedNamedEditionKey by remember(selectedCollectionKey) {
+    mutableStateOf(
+      com.example.data.remote.MultiSourceHadithCatalog.getNamedEditionsForCollection(selectedCollectionKey)
+        .firstOrNull()?.editionKey.orEmpty()
+    )
+  }
 
   val activeCollectionMeta = remember(selectedCollectionKey) {
     ExtendedHadithDataProvider.primaryCollections.find { it.key == selectedCollectionKey }
@@ -951,6 +957,53 @@ fun HadithScreen(
             }
           }
 
+          // Named Multi-Source Translation Editions Row (FawazAhmed0 @1, AhmedBaset v1.2.0, HadithAPI.com, Sunnah.com)
+          if (!isShiaActive) {
+            val namedEditions = remember(selectedCollectionKey) {
+              com.example.data.remote.MultiSourceHadithCatalog.getNamedEditionsForCollection(selectedCollectionKey)
+            }
+            if (namedEditions.isNotEmpty()) {
+              LazyRow(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .testTag("hadith_named_editions_row"),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+              ) {
+                items(namedEditions.size) { idx ->
+                  val ed = namedEditions[idx]
+                  val isSelectedEdition = selectedNamedEditionKey == ed.editionKey ||
+                    (selectedNamedEditionKey.isBlank() && idx == 0)
+                  FilterChip(
+                    selected = isSelectedEdition,
+                    onClick = {
+                      selectedNamedEditionKey = ed.editionKey
+                      Toast.makeText(
+                        context,
+                        "Active Translation Source: ${ed.editionTitle}",
+                        Toast.LENGTH_SHORT
+                      ).show()
+                    },
+                    label = {
+                      Text(
+                        text = "${ed.languageLabel}: ${ed.provider.shortLabel} (${ed.editionKey})",
+                        fontSize = 10.sp,
+                        fontWeight = if (isSelectedEdition) FontWeight.Bold else FontWeight.Medium,
+                        maxLines = 1
+                      )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                      selectedContainerColor = EmeraldPrimary.copy(alpha = 0.18f),
+                      selectedLabelColor = EmeraldPrimary
+                    ),
+                    modifier = Modifier
+                      .height(28.dp)
+                      .testTag("hadith_named_edition_chip_${ed.editionKey}")
+                  )
+                }
+              }
+            }
+          }
+
           // If user typed a Hadith number in the filter box that isn't cached yet, offer 1-tap live fetch
           val typedNumberInFilter = searchQuery.trim().filter { it.isDigit() }.toIntOrNull()
           if (filteredHadiths.isEmpty() && typedNumberInFilter != null && typedNumberInFilter > 0) {
@@ -1674,11 +1727,110 @@ fun HadithScreen(
           )
         }
 
+        // Named Multi-Source Translation Selector inside Hadith Reader Modal
+        val modalNamedEditions = remember(currentHadith.collectionKey) {
+          if (isShiaDetail) emptyList()
+          else com.example.data.remote.MultiSourceHadithCatalog.getNamedEditionsForCollection(currentHadith.collectionKey)
+        }
+        var activeModalEdition by remember(currentHadith.collectionKey, selectedNamedEditionKey) {
+          mutableStateOf(
+            modalNamedEditions.find { it.editionKey == selectedNamedEditionKey }
+              ?: modalNamedEditions.firstOrNull()
+          )
+        }
+        var fetchedNamedTranslationText by remember(currentHadith.collectionKey, currentHadith.hadithNumber, activeModalEdition?.editionKey) {
+          mutableStateOf<String?>(null)
+        }
+
+        LaunchedEffect(currentHadith.collectionKey, currentHadith.hadithNumber, activeModalEdition?.editionKey) {
+          val ed = activeModalEdition ?: return@LaunchedEffect
+          val repo = runCatching { com.example.data.repository.IslamicRepository.getInstance(context) }.getOrNull()
+          val loaded = repo?.fetchAndCacheNamedHadithTranslation(currentHadith, ed)
+          fetchedNamedTranslationText = loaded?.text
+        }
+
+        if (modalNamedEditions.isNotEmpty()) {
+          Spacer(modifier = Modifier.height(10.dp))
+          Text(
+            text = "Named Translation Editions (Shared Canonical Arabic):",
+            style = MaterialTheme.typography.labelSmall.copy(
+              fontWeight = FontWeight.Bold,
+              color = MaterialTheme.colorScheme.primary
+            )
+          )
+          Spacer(modifier = Modifier.height(4.dp))
+          LazyRow(
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("modal_named_editions_row"),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+          ) {
+            items(modalNamedEditions.size) { idx ->
+              val ed = modalNamedEditions[idx]
+              val isSelected = activeModalEdition?.editionKey == ed.editionKey
+              FilterChip(
+                selected = isSelected,
+                onClick = {
+                  activeModalEdition = ed
+                  selectedNamedEditionKey = ed.editionKey
+                },
+                label = {
+                  Text(
+                    text = "${ed.languageLabel} • ${ed.provider.shortLabel} (${ed.editionKey})",
+                    fontSize = 10.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    maxLines = 1
+                  )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                  selectedContainerColor = EmeraldPrimary.copy(alpha = 0.18f),
+                  selectedLabelColor = EmeraldPrimary
+                ),
+                modifier = Modifier
+                  .height(28.dp)
+                  .testTag("modal_named_edition_chip_${ed.editionKey}")
+              )
+            }
+          }
+          activeModalEdition?.let { ed ->
+            if (!fetchedNamedTranslationText.isNullOrBlank() && ed.languageCode != "en" && ed.languageCode != "ur") {
+              Spacer(modifier = Modifier.height(6.dp))
+              Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = EmeraldPrimary.copy(alpha = 0.08f),
+                modifier = Modifier.fillMaxWidth()
+              ) {
+                Column(modifier = Modifier.padding(10.dp)) {
+                  Text(
+                    text = ed.editionTitle,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      fontWeight = FontWeight.Bold,
+                      color = EmeraldPrimary
+                    )
+                  )
+                  Spacer(modifier = Modifier.height(4.dp))
+                  Text(
+                    text = fetchedNamedTranslationText.orEmpty(),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 22.sp)
+                  )
+                }
+              }
+            }
+          }
+        }
+
         Spacer(modifier = Modifier.height(12.dp))
 
         // English Translation (Verified Collection Source) + Listen (EN) Male Voice Button
         val isModalSpeakingEn = activeSpeakingHadithId == "${currentHadith.collectionKey}_${currentHadith.hadithNumber}" && activeSpeakingLang == "en"
         val isModalSpeakingUr = activeSpeakingHadithId == "${currentHadith.collectionKey}_${currentHadith.hadithNumber}" && activeSpeakingLang == "ur"
+        val englishHeadingTitle = activeModalEdition?.takeIf { it.languageCode == "en" }?.editionTitle
+          ?: "English Translation (${ExtendedHadithDataProvider.cleanBookTitle(currentHadith.collectionName)} Verified Edition)"
+        val effectiveEnglishText = if (activeModalEdition?.languageCode == "en" && !fetchedNamedTranslationText.isNullOrBlank()) {
+          fetchedNamedTranslationText!!
+        } else {
+          currentHadith.englishText
+        }
 
         Row(
           modifier = Modifier.fillMaxWidth(),
@@ -1686,7 +1838,7 @@ fun HadithScreen(
           verticalAlignment = Alignment.CenterVertically
         ) {
           Text(
-            text = "English Translation (${ExtendedHadithDataProvider.cleanBookTitle(currentHadith.collectionName)} Verified Edition)",
+            text = englishHeadingTitle,
             style = MaterialTheme.typography.labelSmall.copy(
               fontWeight = FontWeight.Bold,
               color = EmeraldPrimary
@@ -1718,7 +1870,7 @@ fun HadithScreen(
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-          text = ExtendedHadithDataProvider.formatEnglishTranslation(currentHadith.englishText),
+          text = ExtendedHadithDataProvider.formatEnglishTranslation(effectiveEnglishText),
           style = MaterialTheme.typography.bodyLarge.copy(
             fontSize = 15.sp,
             lineHeight = 23.sp
@@ -1726,6 +1878,11 @@ fun HadithScreen(
         )
 
         // Urdu Translation + Listen (UR) Male Voice Button
+        val effectiveUrduText = if (activeModalEdition?.languageCode == "ur" && !fetchedNamedTranslationText.isNullOrBlank()) {
+          fetchedNamedTranslationText!!
+        } else {
+          currentHadith.urduText
+        }
         Spacer(modifier = Modifier.height(12.dp))
         Row(
           modifier = Modifier.fillMaxWidth(),
@@ -1755,7 +1912,8 @@ fun HadithScreen(
             )
           }
           Text(
-            text = "اردو ترجمہ (Urdu Translation)",
+            text = activeModalEdition?.takeIf { it.languageCode == "ur" }?.editionTitle
+              ?: "اردو ترجمہ (Urdu Translation)",
             style = MaterialTheme.typography.labelSmall.copy(
               fontWeight = FontWeight.Bold,
               color = GoldPrimary,
@@ -1764,7 +1922,7 @@ fun HadithScreen(
           )
         }
         Text(
-          text = ExtendedHadithDataProvider.formatUrduTranslation(currentHadith.urduText),
+          text = ExtendedHadithDataProvider.formatUrduTranslation(effectiveUrduText),
           style = MaterialTheme.typography.bodyLarge.copy(
             fontFamily = UrduNastaliqFontFamily,
             fontSize = 16.sp,

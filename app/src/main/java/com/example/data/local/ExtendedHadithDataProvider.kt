@@ -1537,8 +1537,8 @@ object ExtendedHadithDataProvider {
 
     // Build broader tradition pool (for cross-collection Shia or Sunni library search)
     val allowedTraditionKeys: Set<String> = when (traditionFilter.uppercase()) {
-      "SHIA" -> shiaCollections.map { it.key.lowercase() }.toSet()
-      "SUNNI" -> sunniCollections.map { it.key.lowercase() }.toSet()
+      "SHIA" -> primaryCollections.filter { it.tradition == "SHIA" }.map { it.key.lowercase() }.toSet()
+      "SUNNI" -> primaryCollections.filter { it.tradition == "SUNNI" }.map { it.key.lowercase() }.toSet()
       else -> primaryCollections.map { it.key.lowercase() }.toSet()
     }
 
@@ -1879,14 +1879,38 @@ object ExtendedHadithDataProvider {
     ),
     VerifiedLibrarySourceLink(
       id = "src_fawaz_hadith_api",
-      title = "Fawazahmed0 Open Hadith API CDN & GitHub Repository",
+      title = "Fawazahmed0 Open Hadith API CDN (@1) & GitHub Repository",
       tradition = "SUNNI",
-      collectionName = "Complete Arabic, English & Urdu Editions of Bukhari, Muslim, Abu Dawud, Tirmidhi, Nasa'i, Ibn Majah & Muwatta Malik",
-      languages = "Arabic • English • Urdu",
+      collectionName = "Complete Arabic, English, Urdu & Multilingual Editions of Bukhari, Muslim, Abu Dawud, Tirmidhi, Nasa'i, Ibn Majah, Muwatta Malik, 40 Nawawi, 40 Qudsi & 40 Dehlawi",
+      languages = "Arabic • English • Urdu • Bengali • Turkish • Indonesian • French • Russian • Tamil",
       sourceType = "API & Open Repository",
       officialUrl = "https://github.com/fawazahmed0/hadith-api",
       apiOrRepoUrl = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions.json",
-      gradingMethodology = "Sunni Canonical Edition Numbering & Grade Metadata",
+      gradingMethodology = "Sunni Canonical Edition Numbering & Grade Metadata (/editions, /sections & /info)",
+      previouslyUsedRestored = true
+    ),
+    VerifiedLibrarySourceLink(
+      id = "src_ahmedbaset_hadith_json",
+      title = "AhmedBaset Hadith-JSON Corpus (Strictly Pinned to Tag v1.2.0)",
+      tradition = "SUNNI",
+      collectionName = "17 Books (The 9 Books: Bukhari, Muslim, Abu Dawud, Tirmidhi, Nasa'i, Ibn Majah, Malik, Musnad Ahmad, Darimi; Forties: Nawawi 40, Qudsi 40, Dehlawi 40; Other Books: Riyad as-Salihin, Mishkat al-Masabih, Al-Adab al-Mufrad, Ash-Shama'il al-Muhammadiyah, Bulugh al-Maram)",
+      languages = "Arabic • English",
+      sourceType = "Pinned GitHub Tag Repository (v1.2.0)",
+      officialUrl = "https://github.com/AhmedBaset/hadith-json",
+      apiOrRepoUrl = "https://raw.githubusercontent.com/AhmedBaset/hadith-json/v1.2.0/db/by_book/the_9_books/bukhari.json",
+      gradingMethodology = "Classical Chapter & Book Structure (db/by_chapter & db/by_book at tag v1.2.0)",
+      previouslyUsedRestored = true
+    ),
+    VerifiedLibrarySourceLink(
+      id = "src_hadithapi_com",
+      title = "HadithAPI.com — Verified Arabic, English & Urdu Hadith Service",
+      tradition = "SUNNI",
+      collectionName = "Sahih Bukhari, Sahih Muslim, Jami' at-Tirmidhi, Sunan Abu Dawud, Sunan Ibn Majah, Sunan an-Nasa'i, Mishkat al-Masabih, Musnad Ahmad",
+      languages = "Arabic • English • Urdu",
+      sourceType = "Authorized REST API",
+      officialUrl = "https://hadithapi.com",
+      apiOrRepoUrl = "https://hadithapi.com/api/books",
+      gradingMethodology = "Darussalam & Classical Muhaddithun Grading",
       previouslyUsedRestored = true
     ),
     VerifiedLibrarySourceLink(

@@ -37,6 +37,8 @@ object SecurityIntegrityGuard {
     "tanzil.net",
     "sunnah.com",
     "api.sunnah.com",
+    "hadithapi.com",
+    "www.hadithapi.com",
     "thaqalayn-api.net",
     "thaqalayn-api.ieron.dev",
     "thaqalayn.net",
@@ -89,7 +91,9 @@ object SecurityIntegrityGuard {
     ".al-islam.org",
     ".easyquran.ai",
     ".tarteel.ai",
-    ".duas.org"
+    ".duas.org",
+    ".hadithapi.com",
+    ".sunnah.com"
   )
 
   private val BLOCKED_AD_AND_TRACKER_KEYWORDS = listOf(

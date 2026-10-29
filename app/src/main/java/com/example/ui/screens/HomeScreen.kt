@@ -129,6 +129,7 @@ fun HomeScreen(
   onNavigateToEvidence: () -> Unit = {},
   onNavigateToQibla: () -> Unit = {},
   onNavigateToDailyDuas: () -> Unit = {},
+  onNavigateToSehriIftar: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   val context = LocalContext.current
@@ -231,6 +232,31 @@ fun HomeScreen(
         onStopActiveAlarm = onStopActiveAlarm,
         onSnoozeActiveAlarm = onSnoozeActiveAlarm,
         onOpenQiblaCompass = onNavigateToQibla
+      )
+      Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    // Special Duas for the Month of Ramadan & Yearly Sehri/Iftar Timetable Card
+    item {
+      val adjustedSehri = prayerSchedule?.fajrTime?.let { rawFajr ->
+        com.example.data.prayer.SehriIftarTimetableEngine.applyMinuteAdjustment(
+          rawFajr,
+          prayerConfig.sehriAdjustmentMinutes
+        )
+      }
+      val adjustedIftar = prayerSchedule?.maghribTime?.let { rawMaghrib ->
+        com.example.data.prayer.SehriIftarTimetableEngine.applyMinuteAdjustment(
+          rawMaghrib,
+          prayerConfig.iftarAdjustmentMinutes
+        )
+      }
+      SpecialRamadanDuasShowcaseCard(
+        duas = DailyDuasDataProvider.ramadanSpecialDuas,
+        onOpenSehriIftarTimetable = onNavigateToSehriIftar,
+        todaySehriEnds = adjustedSehri,
+        todayIftarTime = adjustedIftar,
+        cityName = "${prayerConfig.city}, ${prayerConfig.country}",
+        modifier = Modifier.testTag("home_ramadan_duas_and_timetable_card")
       )
       Spacer(modifier = Modifier.height(16.dp))
     }

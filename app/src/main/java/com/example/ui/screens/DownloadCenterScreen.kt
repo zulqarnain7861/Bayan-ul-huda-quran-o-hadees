@@ -891,10 +891,12 @@ fun DownloadCenterScreen(
 
       2 -> {
         // SECTION C: Sunni & Shia Hadith Offline Downloads
-        val allCollections = remember { ExtendedHadithDataProvider.primaryCollections }
+        val allCollections = remember {
+          ExtendedHadithDataProvider.primaryCollections.filter { !ExtendedHadithDataProvider.isHistoryCollection(it.key) }
+        }
         val filteredCollections = remember(hadithTraditionTab) {
           allCollections.filter { col ->
-            val isShia = col.key in setOf("alkafi", "manlayahduruhu", "tahdhib", "istibsar", "nahjulbalagha", "sahifasajjadiyya")
+            val isShia = ExtendedHadithDataProvider.isShiaCollection(col.key)
             if (hadithTraditionTab == "SHIA") isShia else !isShia
           }
         }

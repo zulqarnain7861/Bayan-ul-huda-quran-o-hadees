@@ -232,6 +232,11 @@ data class PrayerAndAlarmConfig(
   // App Interface Language & First-Launch Onboarding (Separate from Quran/Hadith Content Language)
   val appInterfaceLanguageCode: String = "en",
   val hasCompletedLanguageOnboarding: Boolean = false,
+  // Manual minute adjustments for Sehri (Fajr) and Iftar (Maghrib) Timetable
+  val sehriAdjustmentMinutes: Int = 0,
+  val iftarAdjustmentMinutes: Int = 0,
+  val selectedTimetableGregorianYear: Int = 2026,
+  val selectedTimetableHijriYear: Int = 1447,
   // Appearance theme
   val themeMode: AppThemeMode = AppThemeMode.LIGHT
 ) {
@@ -287,6 +292,10 @@ object PrayerPreferencesManager {
       lastReadTimestamp = prefs.getLong("lastReadTimestamp", 0L),
       appInterfaceLanguageCode = prefs.getString("appInterfaceLanguageCode", "en") ?: "en",
       hasCompletedLanguageOnboarding = prefs.getBoolean("hasCompletedLanguageOnboarding", false),
+      sehriAdjustmentMinutes = prefs.getInt("sehriAdjustmentMinutes", 0).coerceIn(-60, 60),
+      iftarAdjustmentMinutes = prefs.getInt("iftarAdjustmentMinutes", 0).coerceIn(-60, 60),
+      selectedTimetableGregorianYear = prefs.getInt("selectedTimetableGregorianYear", 2026),
+      selectedTimetableHijriYear = prefs.getInt("selectedTimetableHijriYear", 1447),
       themeMode = parseThemeMode(prefs.getString("themeMode", AppThemeMode.LIGHT.name))
     )
   }
@@ -334,6 +343,10 @@ object PrayerPreferencesManager {
       .putLong("lastReadTimestamp", config.lastReadTimestamp)
       .putString("appInterfaceLanguageCode", config.appInterfaceLanguageCode.ifBlank { "en" })
       .putBoolean("hasCompletedLanguageOnboarding", config.hasCompletedLanguageOnboarding)
+      .putInt("sehriAdjustmentMinutes", config.sehriAdjustmentMinutes.coerceIn(-60, 60))
+      .putInt("iftarAdjustmentMinutes", config.iftarAdjustmentMinutes.coerceIn(-60, 60))
+      .putInt("selectedTimetableGregorianYear", config.selectedTimetableGregorianYear)
+      .putInt("selectedTimetableHijriYear", config.selectedTimetableHijriYear)
       .putString("themeMode", config.themeMode.name)
       .apply()
   }
