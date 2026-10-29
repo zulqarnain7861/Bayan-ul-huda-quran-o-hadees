@@ -39,6 +39,7 @@ object MultiSourceHadithCatalog {
     const val AHMED_BASET_BASE = "https://raw.githubusercontent.com/AhmedBaset/hadith-json/$AHMED_BASET_TAG/db"
     const val HADITH_API_BASE = "https://hadithapi.com"
     const val SUNNAH_API_BASE = "https://api.sunnah.com/v1"
+    const val UMMAH_API_BASE = "https://ummahapi.com"
 
     enum class HadithSourceProvider(
         val id: String,
@@ -64,6 +65,11 @@ object MultiSourceHadithCatalog {
             id = "sunnah_com_v1",
             displayName = "Sunnah.com Official API (v1)",
             shortLabel = "Sunnah.com API"
+        ),
+        UMMAH_API(
+            id = "ummahapi_com",
+            displayName = "UmmahAPI.com Verified Hadith Corpus",
+            shortLabel = "UmmahAPI.com"
         ),
         BUNDLED_OFFLINE_CORPUS(
             id = "bundled_offline",
@@ -95,7 +101,8 @@ object MultiSourceHadithCatalog {
         val fawazEditionName: String? = null,
         val ahmedBasetCoordinate: AhmedBasetBookCoordinate? = null,
         val hadithApiBookSlug: String? = null,
-        val sunnahCollectionSlug: String? = null
+        val sunnahCollectionSlug: String? = null,
+        val ummahApiCollectionSlug: String? = null
     )
 
     data class SunniBookSourceMapping(
@@ -106,7 +113,8 @@ object MultiSourceHadithCatalog {
         val ahmedBaset: AhmedBasetBookCoordinate?,
         val hadithApiSlug: String?,
         val sunnahComSlug: String?,
-        val hasBundledOfflineArchive: Boolean
+        val hasBundledOfflineArchive: Boolean,
+        val ummahApiSlug: String? = null
     )
 
     /**
@@ -190,27 +198,51 @@ object MultiSourceHadithCatalog {
     )
 
     /**
+     * UmmahAPI.com collection slugs (https://ummahapi.com/api/hadith/collections).
+     */
+    val ummahApiSlugs: Map<String, String> = mapOf(
+        "bukhari" to "bukhari",
+        "muslim" to "muslim",
+        "abudawud" to "abudawud",
+        "tirmidhi" to "tirmidhi",
+        "nasai" to "nasai",
+        "ibnmajah" to "ibnmajah",
+        "malik" to "malik",
+        "nawawi" to "nawawi",
+        "qudsi" to "qudsi",
+        "dehlawi" to "dehlawi",
+        "riyadussalihin" to "riyadussalihin",
+        "ahmad" to "ahmad",
+        "darimi" to "darimi",
+        "adab" to "adab",
+        "bulugh" to "bulugh",
+        "mishkat" to "mishkat",
+        "shamail" to "shamail",
+        "hisn" to "hisn"
+    )
+
+    /**
      * Complete 18 Sunni Hadith books (plus classical musannaf/sahih corpora) source mapping.
      */
     val sunniBookMappings: Map<String, SunniBookSourceMapping> = listOf(
-        SunniBookSourceMapping("bukhari", "Sahih al-Bukhari", "صحيح البخاري", "bukhari", ahmedBasetMappings["bukhari"], "sahih-bukhari", "bukhari", false),
-        SunniBookSourceMapping("muslim", "Sahih Muslim", "صحيح مسلم", "muslim", ahmedBasetMappings["muslim"], "sahih-muslim", "muslim", false),
-        SunniBookSourceMapping("abudawud", "Sunan Abu Dawud", "سنن أبي داود", "abudawud", ahmedBasetMappings["abudawud"], "abu-dawood", "abudawud", false),
-        SunniBookSourceMapping("tirmidhi", "Jami' at-Tirmidhi", "جامع الترمذي", "tirmidhi", ahmedBasetMappings["tirmidhi"], "al-tirmidhi", "tirmidhi", false),
-        SunniBookSourceMapping("nasai", "Sunan an-Nasa'i", "سنن النسائي", "nasai", ahmedBasetMappings["nasai"], "sunan-nasai", "nasai", false),
-        SunniBookSourceMapping("ibnmajah", "Sunan Ibn Majah", "سنن ابن ماجه", "ibnmajah", ahmedBasetMappings["ibnmajah"], "ibn-e-majah", "ibnmajah", false),
-        SunniBookSourceMapping("malik", "Muwatta Imam Malik", "موطأ الإمام مالك", "malik", ahmedBasetMappings["malik"], null, "malik", false),
-        SunniBookSourceMapping("ahmad", "Musnad Ahmad ibn Hanbal", "مسند الإمام أحمد بن حنبل", null, ahmedBasetMappings["ahmad"], "musnad-ahmad", "ahmad", true),
-        SunniBookSourceMapping("darimi", "Sunan ad-Darimi", "سنن الدارمي", null, ahmedBasetMappings["darimi"], null, "darimi", true),
-        SunniBookSourceMapping("riyadussalihin", "Riyad as-Salihin", "رياض الصالحين", null, ahmedBasetMappings["riyadussalihin"], null, "riyadussalihin", true),
-        SunniBookSourceMapping("adab", "Al-Adab al-Mufrad", "الأدب المفرد", null, ahmedBasetMappings["adab"], null, "adab", true),
-        SunniBookSourceMapping("bulugh", "Bulugh al-Maram", "بلوغ المرام", null, ahmedBasetMappings["bulugh"], null, "bulugh", true),
-        SunniBookSourceMapping("mishkat", "Mishkat al-Masabih", "مشكاة المصابيح", null, ahmedBasetMappings["mishkat"], "mishkat", "mishkat", true),
-        SunniBookSourceMapping("shamail", "Ash-Shama'il al-Muhammadiyah", "الشمائل المحمدية", null, ahmedBasetMappings["shamail"], null, "shamail", true),
-        SunniBookSourceMapping("nawawi", "Al-Arba'in al-Nawawiyyah (40 Hadith Nawawi)", "الأربعون النووية", "nawawi", ahmedBasetMappings["nawawi"], null, "nawawi40", true),
-        SunniBookSourceMapping("qudsi", "Forty Hadith Qudsi", "الأحاديث القدسية الأربعون", "qudsi", ahmedBasetMappings["qudsi"], null, "qudsi40", true),
-        SunniBookSourceMapping("dehlawi", "Forty Hadith of Shah Waliullah Dehlawi", "أربعون شاه ولي الله الدهلوي", "dehlawi", ahmedBasetMappings["dehlawi"], null, "shahwaliullah40", false),
-        SunniBookSourceMapping("hisn", "Hisn al-Muslim (Fortress of the Muslim)", "حصن المسلم", null, null, null, "hisn", true),
+        SunniBookSourceMapping("bukhari", "Sahih al-Bukhari", "صحيح البخاري", "bukhari", ahmedBasetMappings["bukhari"], "sahih-bukhari", "bukhari", false, "bukhari"),
+        SunniBookSourceMapping("muslim", "Sahih Muslim", "صحيح مسلم", "muslim", ahmedBasetMappings["muslim"], "sahih-muslim", "muslim", false, "muslim"),
+        SunniBookSourceMapping("abudawud", "Sunan Abu Dawud", "سنن أبي داود", "abudawud", ahmedBasetMappings["abudawud"], "abu-dawood", "abudawud", false, "abudawud"),
+        SunniBookSourceMapping("tirmidhi", "Jami' at-Tirmidhi", "جامع الترمذي", "tirmidhi", ahmedBasetMappings["tirmidhi"], "al-tirmidhi", "tirmidhi", false, "tirmidhi"),
+        SunniBookSourceMapping("nasai", "Sunan an-Nasa'i", "سنن النسائي", "nasai", ahmedBasetMappings["nasai"], "sunan-nasai", "nasai", false, "nasai"),
+        SunniBookSourceMapping("ibnmajah", "Sunan Ibn Majah", "سنن ابن ماجه", "ibnmajah", ahmedBasetMappings["ibnmajah"], "ibn-e-majah", "ibnmajah", false, "ibnmajah"),
+        SunniBookSourceMapping("malik", "Muwatta Imam Malik", "موطأ الإمام مالك", "malik", ahmedBasetMappings["malik"], null, "malik", false, "malik"),
+        SunniBookSourceMapping("ahmad", "Musnad Ahmad ibn Hanbal", "مسند الإمام أحمد بن حنبل", null, ahmedBasetMappings["ahmad"], "musnad-ahmad", "ahmad", true, "ahmad"),
+        SunniBookSourceMapping("darimi", "Sunan ad-Darimi", "سنن الدارمي", null, ahmedBasetMappings["darimi"], null, "darimi", true, "darimi"),
+        SunniBookSourceMapping("riyadussalihin", "Riyad as-Salihin", "رياض الصالحين", null, ahmedBasetMappings["riyadussalihin"], null, "riyadussalihin", true, "riyadussalihin"),
+        SunniBookSourceMapping("adab", "Al-Adab al-Mufrad", "الأدب المفرد", null, ahmedBasetMappings["adab"], null, "adab", true, "adab"),
+        SunniBookSourceMapping("bulugh", "Bulugh al-Maram", "بلوغ المرام", null, ahmedBasetMappings["bulugh"], null, "bulugh", true, "bulugh"),
+        SunniBookSourceMapping("mishkat", "Mishkat al-Masabih", "مشكاة المصابيح", null, ahmedBasetMappings["mishkat"], "mishkat", "mishkat", true, "mishkat"),
+        SunniBookSourceMapping("shamail", "Ash-Shama'il al-Muhammadiyah", "الشمائل المحمدية", null, ahmedBasetMappings["shamail"], null, "shamail", true, "shamail"),
+        SunniBookSourceMapping("nawawi", "Al-Arba'in al-Nawawiyyah (40 Hadith Nawawi)", "الأربعون النووية", "nawawi", ahmedBasetMappings["nawawi"], null, "nawawi40", true, "nawawi"),
+        SunniBookSourceMapping("qudsi", "Forty Hadith Qudsi", "الأحاديث القدسية الأربعون", "qudsi", ahmedBasetMappings["qudsi"], null, "qudsi40", true, "qudsi"),
+        SunniBookSourceMapping("dehlawi", "Forty Hadith of Shah Waliullah Dehlawi", "أربعون شاه ولي الله الدهلوي", "dehlawi", ahmedBasetMappings["dehlawi"], null, "shahwaliullah40", false, "dehlawi"),
+        SunniBookSourceMapping("hisn", "Hisn al-Muslim (Fortress of the Muslim)", "حصن المسلم", null, null, null, "hisn", true, "hisn"),
         SunniBookSourceMapping("ibnkhuzaymah", "Sahih Ibn Khuzaymah", "صحيح ابن خزيمة", null, null, null, null, true),
         SunniBookSourceMapping("ibnhibban", "Sahih Ibn Hibban", "صحيح ابن حبان", null, null, null, null, true),
         SunniBookSourceMapping("mustadrak", "Al-Mustadrak ala al-Sahihayn", "المستدرك على الصحيحين", null, null, null, null, true),
@@ -334,6 +366,45 @@ object MultiSourceHadithCatalog {
         val slug = sunnahComSlugs[collectionKey] ?: return null
         return "$SUNNAH_API_BASE/collections/$slug/hadiths/$hadithNumber"
     }
+
+    // =========================================================================
+    // 4B. UMMAHAPI.COM ENDPOINT BUILDERS (https://ummahapi.com)
+    // =========================================================================
+
+    fun getConfiguredUmmahApiKey(): String? {
+        val raw = runCatching { BuildConfig.UMMAH_API_KEY }.getOrNull()?.trim().orEmpty()
+        return if (raw.isNotEmpty() && raw != "UMMAH_API_KEY_DEFAULT_VALUE" && !raw.startsWith("YOUR_")) {
+            raw
+        } else {
+            null
+        }
+    }
+
+    fun isUmmahApiKeyConfigured(): Boolean = getConfiguredUmmahApiKey() != null
+
+    fun ummahCollectionsUrl(): String = "$UMMAH_API_BASE/api/hadith/collections"
+
+    fun ummahCollectionHadithsUrl(collectionKey: String, page: Int = 1, limit: Int = 100): String? {
+        val slug = ummahApiSlugs[collectionKey] ?: return null
+        return "$UMMAH_API_BASE/api/hadith/$slug?page=$page&limit=$limit"
+    }
+
+    fun ummahSingleHadithUrl(collectionKey: String, hadithNumber: Int): String? {
+        val slug = ummahApiSlugs[collectionKey] ?: return null
+        return "$UMMAH_API_BASE/api/hadith/$slug/$hadithNumber"
+    }
+
+    fun ummahSearchHadithsUrl(query: String, collectionKey: String? = null): String {
+        val encoded = java.net.URLEncoder.encode(query.trim(), "UTF-8")
+        val slug = collectionKey?.let { ummahApiSlugs[it] }
+        return if (!slug.isNullOrBlank()) {
+            "$UMMAH_API_BASE/api/hadith/search?q=$encoded&collection=$slug"
+        } else {
+            "$UMMAH_API_BASE/api/hadith/search?q=$encoded"
+        }
+    }
+
+    fun ummahRandomHadithUrl(): String = "$UMMAH_API_BASE/api/hadith/random"
 
     // =========================================================================
     // 5. NAMED MULTI-TRANSLATION EDITIONS PER COLLECTION
@@ -534,7 +605,24 @@ object MultiSourceHadithCatalog {
             )
         }
 
-        // 5. Bundled Offline Archive Edition (if present in assets/hadith_corpus)
+        // 5. UmmahAPI.com Official Hadith Edition (https://ummahapi.com)
+        val ummahSlug = mapping?.ummahApiSlug ?: ummahApiSlugs[collectionKey]
+        if (ummahSlug != null) {
+            result.add(
+                NamedHadithTranslationEdition(
+                    editionKey = "eng-ummahapi-$ummahSlug",
+                    collectionKey = collectionKey,
+                    languageCode = "en",
+                    languageLabel = "English",
+                    editionTitle = "${mapping?.canonicalTitle ?: collectionKey} — UmmahAPI.com Verified Edition",
+                    translatorOrSourceName = "UmmahAPI.com Verified Collection ($ummahSlug)",
+                    provider = HadithSourceProvider.UMMAH_API,
+                    ummahApiCollectionSlug = ummahSlug
+                )
+            )
+        }
+
+        // 6. Bundled Offline Archive Edition (if present in assets/hadith_corpus)
         if (mapping?.hasBundledOfflineArchive == true || result.isEmpty()) {
             result.add(
                 NamedHadithTranslationEdition(
@@ -566,7 +654,7 @@ object MultiSourceHadithCatalog {
     /**
      * Resolves the primary offline download URLs for a given collection & scope so
      * DownloadManager can accurately fetch all 18 Sunni Hadith books from either
-     * FawazAhmed0 (@1) or AhmedBaset Hadith-JSON (v1.2.0) or HadithAPI.com.
+     * FawazAhmed0 (@1) or AhmedBaset Hadith-JSON (v1.2.0) or HadithAPI.com or UmmahAPI.com.
      */
     fun resolveDownloadSourceUrl(
         collectionKey: String,
@@ -581,6 +669,9 @@ object MultiSourceHadithCatalog {
         if (hadithNo != null && fawazSlug != null) {
             return fawazHadithByNumberUrl("ara-$fawazSlug", hadithNo)
         }
+        if (hadithNo != null) {
+            ummahSingleHadithUrl(collectionKey, hadithNo)?.let { return it }
+        }
 
         // Chapter / section download
         if (chapterOrSectionNo != null && !preferFullBook) {
@@ -591,6 +682,7 @@ object MultiSourceHadithCatalog {
                 return ahmedBaset.byChapterUrl(chapterOrSectionNo)
             }
             hadithApiChapterHadithsUrl(collectionKey, chapterOrSectionNo)?.let { return it }
+            ummahCollectionHadithsUrl(collectionKey, page = chapterOrSectionNo)?.let { return it }
         }
 
         // Full book download
@@ -601,6 +693,7 @@ object MultiSourceHadithCatalog {
             return ahmedBaset.byBookUrl()
         }
         hadithApiChapterHadithsUrl(collectionKey, chapterOrSectionNo ?: 1)?.let { return it }
+        ummahCollectionHadithsUrl(collectionKey, page = chapterOrSectionNo ?: 1)?.let { return it }
         return fawazInfoUrl()
     }
 }

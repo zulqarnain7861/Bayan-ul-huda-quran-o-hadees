@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.NoteAdd
 import androidx.compose.material.icons.filled.Numbers
@@ -124,6 +125,7 @@ fun HadithScreen(
   onDismissQuranVersePreview: () -> Unit = {},
   onBookmarkHadith: (HadithEntity) -> Unit,
   onAddNote: (String) -> Unit,
+  onReportHadith: (HadithEntity) -> Unit = {},
   onOpenOfflineDownloads: () -> Unit = {},
   onOpenEvidenceVerification: () -> Unit = {},
   modifier: Modifier = Modifier
@@ -1287,6 +1289,7 @@ fun HadithScreen(
             context.startActivity(Intent.createChooser(sendIntent, "Share Hadith"))
           },
           onAddNote = { onAddNote(hadith.reference) },
+          onReport = { onReportHadith(hadith) },
           isSpeakingEnglish = activeSpeakingHadithId == "${hadith.collectionKey}_${hadith.hadithNumber}" && activeSpeakingLang == "en",
           isSpeakingUrdu = activeSpeakingHadithId == "${hadith.collectionKey}_${hadith.hadithNumber}" && activeSpeakingLang == "ur",
           onListenEnglish = { toggleHadithTranslationSpeech(hadith, "en") },
@@ -2169,6 +2172,7 @@ fun HadithCardItem(
   onCopy: () -> Unit,
   onShare: () -> Unit,
   onAddNote: () -> Unit,
+  onReport: () -> Unit = {},
   isSpeakingEnglish: Boolean = false,
   isSpeakingUrdu: Boolean = false,
   onListenEnglish: () -> Unit = {},
@@ -2496,6 +2500,18 @@ fun HadithCardItem(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
+          IconButton(
+            onClick = onReport,
+            modifier = Modifier
+              .size(36.dp)
+              .testTag("hadith_flag_report_${hadith.collectionKey}_${hadith.hadithNumber}")
+          ) {
+            Icon(
+              Icons.Default.Flag,
+              contentDescription = "Flag or Report Hadith",
+              tint = MaterialTheme.colorScheme.error
+            )
+          }
           IconButton(onClick = onCopy, modifier = Modifier.size(36.dp)) {
             Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = MaterialTheme.colorScheme.onSurfaceVariant)
           }

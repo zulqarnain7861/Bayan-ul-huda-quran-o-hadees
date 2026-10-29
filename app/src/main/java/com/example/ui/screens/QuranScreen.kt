@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.CloseFullscreen
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Link
@@ -164,6 +165,7 @@ fun QuranScreen(
   highlightedVerseNumber: Int? = null,
   onSaveReadingProgress: (SurahEntity, Int, String) -> Unit = { _, _, _ -> },
   onResumeLastRead: (Int, Int, String) -> Unit = { _, _, _ -> },
+  onReportAyah: (String) -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   val appStrings = com.example.ui.localization.LocalAppStrings.current
@@ -242,6 +244,7 @@ fun QuranScreen(
         onPlayAyahRecitation = onPlayAyahRecitation,
         onBookmarkAyah = onBookmarkAyah,
         onAddNote = onAddNote,
+        onReportAyah = onReportAyah,
         allHadithsForTafsir = allHadithsForTafsir,
         isReadingMode = isReadingMode,
         onToggleReadingMode = onToggleReadingMode,
@@ -649,6 +652,7 @@ fun SurahReaderView(
   onPlayAyahRecitation: (AyahEntity, String) -> Unit,
   onBookmarkAyah: (AyahEntity, String) -> Unit,
   onAddNote: (String) -> Unit,
+  onReportAyah: (String) -> Unit = {},
   allHadithsForTafsir: List<HadithEntity>,
   isReadingMode: Boolean = false,
   onToggleReadingMode: () -> Unit = {},
@@ -1314,6 +1318,7 @@ fun SurahReaderView(
               Toast.makeText(context, "Ayah copied to clipboard", Toast.LENGTH_SHORT).show()
             },
             onAddNote = { onAddNote("${surah.nameEnglish} ${ayah.surahNumber}:${ayah.verseNumber}") },
+            onReport = { onReportAyah("Surah ${surah.nameEnglish} (${ayah.surahNumber}:${ayah.verseNumber}) [$activeTranslationKey]") },
             isReadingMode = localReadingMode,
             englishTranslationOverride = enOverride,
             urduTranslationOverride = urOverride,
@@ -2311,6 +2316,7 @@ fun AyahCardItem(
   onBookmark: () -> Unit,
   onCopy: () -> Unit,
   onAddNote: () -> Unit,
+  onReport: () -> Unit = {},
   isReadingMode: Boolean = false,
   englishTranslationOverride: String? = null,
   urduTranslationOverride: String? = null,
@@ -2507,6 +2513,18 @@ fun AyahCardItem(
             }
             IconButton(onClick = onAddNote, modifier = Modifier.size(36.dp)) {
               Icon(Icons.Default.NoteAdd, contentDescription = "Note", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            IconButton(
+              onClick = onReport,
+              modifier = Modifier
+                .size(36.dp)
+                .testTag("ayah_flag_report_${ayah.surahNumber}_${ayah.verseNumber}")
+            ) {
+              Icon(
+                Icons.Default.Flag,
+                contentDescription = "Flag or Report Ayah",
+                tint = MaterialTheme.colorScheme.error
+              )
             }
           }
         }

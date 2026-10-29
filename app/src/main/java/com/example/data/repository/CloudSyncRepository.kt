@@ -5,6 +5,7 @@ import com.example.R
 import com.example.data.remote.CloudBookmark
 import com.example.data.remote.CloudNote
 import com.example.data.remote.OperationType
+import com.example.data.remote.SecurityIntegrityGuard
 import com.example.data.remote.handleFirestoreError
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -19,6 +20,11 @@ class CloudSyncRepository(
 ) {
 
   fun getBookmarksFlow(userId: String): Flow<List<CloudBookmark>> = callbackFlow {
+    if (userId.isBlank()) {
+      trySend(emptyList())
+      close()
+      return@callbackFlow
+    }
     val path = "users/$userId/bookmarks"
     val registration = db.collection(path)
       .orderBy("createdAt", Query.Direction.DESCENDING)
@@ -28,7 +34,7 @@ class CloudSyncRepository(
             handleFirestoreError(error, OperationType.LIST, path)
           } catch (_: Exception) {
           }
-          close(error)
+          trySend(emptyList())
           return@addSnapshotListener
         }
         val items = snapshot?.toObjects(CloudBookmark::class.java).orEmpty()
@@ -38,6 +44,11 @@ class CloudSyncRepository(
   }
 
   fun getNotesFlow(userId: String): Flow<List<CloudNote>> = callbackFlow {
+    if (userId.isBlank()) {
+      trySend(emptyList())
+      close()
+      return@callbackFlow
+    }
     val path = "users/$userId/notes"
     val registration = db.collection(path)
       .orderBy("updatedAt", Query.Direction.DESCENDING)
@@ -47,7 +58,7 @@ class CloudSyncRepository(
             handleFirestoreError(error, OperationType.LIST, path)
           } catch (_: Exception) {
           }
-          close(error)
+          trySend(emptyList())
           return@addSnapshotListener
         }
         val items = snapshot?.toObjects(CloudNote::class.java).orEmpty()
@@ -57,15 +68,28 @@ class CloudSyncRepository(
   }
 
   suspend fun saveBookmark(userId: String, bookmarkId: String, bookmark: CloudBookmark) {
+    if (userId.isBlank() || bookmarkId.isBlank()) return
     val path = "users/$userId/bookmarks/$bookmarkId"
     try {
-      db.document(path).set(bookmark, SetOptions.merge()).await()
+      val existing = runCatching {
+        db.document(path).get().await().toObject(CloudBookmark::class.java)
+      }.getOrNull()
+      val sanitized = bookmark.copy(
+        userId = userId,
+        title = SecurityIntegrityGuard.sanitizeSacredText(bookmark.title).take(199),
+        subtitle = SecurityIntegrityGuard.sanitizeSacredText(bookmark.subtitle).take(499),
+        arabicSnippet = SecurityIntegrityGuard.sanitizeSacredText(bookmark.arabicSnippet).take(1999),
+        translationSnippet = SecurityIntegrityGuard.sanitizeSacredText(bookmark.translationSnippet).take(1999),
+        createdAt = existing?.createdAt ?: bookmark.createdAt
+      )
+      db.document(path).set(sanitized, SetOptions.merge()).await()
     } catch (e: Exception) {
       handleFirestoreError(e, OperationType.WRITE, path)
     }
   }
 
   suspend fun getBookmark(userId: String, bookmarkId: String): CloudBookmark? {
+    if (userId.isBlank() || bookmarkId.isBlank()) return null
     val path = "users/$userId/bookmarks/$bookmarkId"
     return try {
       val snapshot = db.document(path).get().await()
@@ -77,6 +101,7 @@ class CloudSyncRepository(
   }
 
   suspend fun deleteBookmark(userId: String, bookmarkId: String) {
+    if (userId.isBlank() || bookmarkId.isBlank()) return
     val path = "users/$userId/bookmarks/$bookmarkId"
     try {
       db.document(path).delete().await()
@@ -86,15 +111,26 @@ class CloudSyncRepository(
   }
 
   suspend fun saveNote(userId: String, noteId: String, note: CloudNote) {
+    if (userId.isBlank() || noteId.isBlank()) return
     val path = "users/$userId/notes/$noteId"
     try {
-      db.document(path).set(note, SetOptions.merge()).await()
+      val existing = runCatching {
+        db.document(path).get().await().toObject(CloudNote::class.java)
+      }.getOrNull()
+      val sanitized = note.copy(
+        userId = userId,
+        title = SecurityIntegrityGuard.sanitizeSacredText(note.title).take(199),
+        content = SecurityIntegrityGuard.sanitizeSacredText(note.content).take(9999),
+        createdAt = existing?.createdAt ?: note.createdAt
+      )
+      db.document(path).set(sanitized, SetOptions.merge()).await()
     } catch (e: Exception) {
       handleFirestoreError(e, OperationType.WRITE, path)
     }
   }
 
   suspend fun getNote(userId: String, noteId: String): CloudNote? {
+    if (userId.isBlank() || noteId.isBlank()) return null
     val path = "users/$userId/notes/$noteId"
     return try {
       val snapshot = db.document(path).get().await()
@@ -106,6 +142,7 @@ class CloudSyncRepository(
   }
 
   suspend fun deleteNote(userId: String, noteId: String) {
+    if (userId.isBlank() || noteId.isBlank()) return
     val path = "users/$userId/notes/$noteId"
     try {
       db.document(path).delete().await()

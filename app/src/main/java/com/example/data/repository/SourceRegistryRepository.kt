@@ -347,8 +347,8 @@ class SourceRegistryRepository(
           sourceId = "verified_hadith_corpus_complete",
           title = "Verified Sunni & Shia Hadith Library ($hadithCollectionsCount Collections)",
           traditionAndLanguage = "Kutub al-Sittah, Muwatta, Musnad Ahmad, Riyad as-Salihin, Al-Kafi, Nahj al-Balagha • Arabic, English & Urdu",
-          recordsAndCoverageSummary = "$hadithCollectionsCount Books Verified ($hadithLocalCount Offline Seed + 285,854 Indexed Canonical Narrations across FawazAhmed0 @1, AhmedBaset v1.2.0, HadithAPI.com, Sunnah.com & Thaqalayn)",
-          licenseSummary = "Verified Canonical Editions (Darussalam, In-Book, AhmedBaset Tag v1.2.0 & Thaqalayn)",
+          recordsAndCoverageSummary = "$hadithCollectionsCount Books Verified ($hadithLocalCount Offline Seed + 285,854 Indexed Canonical Narrations across FawazAhmed0 @1, AhmedBaset v1.2.0, HadithAPI.com, Sunnah.com, UmmahAPI.com & Thaqalayn)",
+          licenseSummary = "Verified Canonical Editions (Darussalam, In-Book, AhmedBaset Tag v1.2.0, UmmahAPI.com & Thaqalayn)",
           verificationStatus = VerificationStatus.VERIFIED
         )
       )

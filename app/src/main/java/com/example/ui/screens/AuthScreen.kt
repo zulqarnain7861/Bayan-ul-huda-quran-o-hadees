@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -30,8 +33,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,6 +52,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.NoCredentialException
 import com.example.data.auth.AuthManager
 import com.example.ui.theme.CreamBackground
 import com.example.ui.theme.EmeraldDark
@@ -56,22 +60,21 @@ import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.GoldLight
 import com.example.ui.theme.GoldPrimary
 import com.example.ui.theme.ScheherazadeFontFamily
+import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.launch
 
 @Composable
 fun AuthScreen(
   remainingGuestDays: Int = 7,
   onContinueAsGuest: () -> Unit = {},
+  onSignInSuccess: (FirebaseUser) -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   val context = LocalContext.current
   val scope = rememberCoroutineScope()
   var isLoading by remember { mutableStateOf(false) }
   var errorMessage by remember { mutableStateOf<String?>(null) }
-
-  LaunchedEffect(Unit) {
-    AuthManager.attemptAutoSignIn(context)
-  }
+  var showAddAccountAction by remember { mutableStateOf(false) }
 
   Box(
     modifier = modifier
@@ -152,7 +155,7 @@ fun AuthScreen(
         Spacer(modifier = Modifier.height(14.dp))
 
         Text(
-          text = "Sign in with Google for permanent cloud backup across devices, or continue with 7-Day Guest Access using offline local storage.",
+          text = "Sign in with Google for permanent cloud backup across devices, or continue with Guest Access using offline local storage.",
           style = MaterialTheme.typography.bodyMedium.copy(
             color = CreamBackground.copy(alpha = 0.88f),
             textAlign = TextAlign.Center,
@@ -179,7 +182,7 @@ fun AuthScreen(
             )
             Spacer(modifier = Modifier.width(10.dp))
             Text(
-              text = "114 Surahs • 8 Tafsirs • 7 Hadith Books • 32 Islamic Books",
+              text = "114 Surahs • 8 Tafsirs • 34 Hadith Books • Multi-Source Verified",
               style = MaterialTheme.typography.labelMedium.copy(
                 color = CreamBackground
               )
@@ -197,6 +200,39 @@ fun AuthScreen(
             ),
             modifier = Modifier.testTag("auth_error_text")
           )
+          if (showAddAccountAction) {
+            Spacer(modifier = Modifier.height(6.dp))
+            TextButton(
+              onClick = {
+                runCatching {
+                  val intent = Intent(Settings.ACTION_ADD_ACCOUNT).apply {
+                    putExtra(Settings.EXTRA_ACCOUNT_TYPES, arrayOf("com.google"))
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                  }
+                  context.startActivity(intent)
+                }.onFailure {
+                  runCatching {
+                    context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                  }
+                }
+              },
+              modifier = Modifier.testTag("add_google_account_settings_button")
+            ) {
+              Icon(
+                imageVector = Icons.Default.PersonAdd,
+                contentDescription = null,
+                tint = GoldLight,
+                modifier = Modifier.size(16.dp)
+              )
+              Spacer(modifier = Modifier.width(6.dp))
+              Text(
+                text = "Add Google Account in Device Settings",
+                color = GoldLight,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 12.sp
+              )
+            }
+          }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -207,14 +243,26 @@ fun AuthScreen(
             if (!isLoading) {
               isLoading = true
               errorMessage = null
+              showAddAccountAction = false
               scope.launch {
                 val result = AuthManager.signInWithGoogle(context)
                 isLoading = false
-                result.onFailure { err ->
-                  errorMessage = if (err is GetCredentialCancellationException) {
-                    "Sign-in was cancelled. You can try again or continue in 7-Day Guest Mode below."
-                  } else {
-                    err.localizedMessage ?: "Google Sign-In unavailable on this device. You can use 7-Day Guest Mode below."
+                result.onSuccess { user ->
+                  onSignInSuccess(user)
+                }.onFailure { err ->
+                  when (err) {
+                    is GetCredentialCancellationException -> {
+                      errorMessage = "Sign-in was cancelled. You can try again or continue in Guest Mode below."
+                    }
+                    is NoCredentialException -> {
+                      showAddAccountAction = true
+                      errorMessage = "No Google account found on this device. Add a Google account in Device Settings or continue in Guest Mode below."
+                    }
+                    else -> {
+                      showAddAccountAction = true
+                      errorMessage = err.localizedMessage
+                        ?: "Google Sign-In unavailable on this device. You can add a Google account or continue in Guest Mode below."
+                    }
                   }
                 }
               }
@@ -257,42 +305,36 @@ fun AuthScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Secondary: 7-Day Guest Mode button
-        if (remainingGuestDays > 0) {
-          OutlinedButton(
-            onClick = onContinueAsGuest,
-            enabled = !isLoading,
-            modifier = Modifier
-              .fillMaxWidth()
-              .height(50.dp)
-              .testTag("guest_access_7_days_button"),
-            shape = RoundedCornerShape(14.dp),
-            border = BorderStroke(1.2.dp, GoldPrimary.copy(alpha = 0.8f)),
-            colors = ButtonDefaults.outlinedButtonColors(
-              contentColor = GoldLight
-            )
-          ) {
-            Icon(
-              imageVector = Icons.Default.PersonOutline,
-              contentDescription = null,
-              modifier = Modifier.size(18.dp),
-              tint = GoldPrimary
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-              text = "Continue as Guest ($remainingGuestDays Days Available)",
-              style = MaterialTheme.typography.titleSmall.copy(
-                fontWeight = FontWeight.SemiBold,
-                color = GoldLight
-              )
-            )
-          }
-        } else {
+        // Secondary: Guest Mode button (always accessible so user is never locked out)
+        val effectiveDays = remainingGuestDays.coerceAtLeast(7)
+        OutlinedButton(
+          onClick = {
+            AuthManager.resetOrRenewGuestSession(context)
+            onContinueAsGuest()
+          },
+          enabled = !isLoading,
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(50.dp)
+            .testTag("guest_access_7_days_button"),
+          shape = RoundedCornerShape(14.dp),
+          border = BorderStroke(1.2.dp, GoldPrimary.copy(alpha = 0.8f)),
+          colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = GoldLight
+          )
+        ) {
+          Icon(
+            imageVector = Icons.Default.PersonOutline,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = GoldPrimary
+          )
+          Spacer(modifier = Modifier.width(8.dp))
           Text(
-            text = "Your 7-day Guest Access period has ended. Please sign in with Google to continue and back up your library.",
-            style = MaterialTheme.typography.labelSmall.copy(
-              color = GoldLight,
-              textAlign = TextAlign.Center
+            text = "Continue as Guest ($effectiveDays Days Offline Access)",
+            style = MaterialTheme.typography.titleSmall.copy(
+              fontWeight = FontWeight.SemiBold,
+              color = GoldLight
             )
           )
         }

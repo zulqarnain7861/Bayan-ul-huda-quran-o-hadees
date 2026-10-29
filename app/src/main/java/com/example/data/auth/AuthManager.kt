@@ -1,6 +1,8 @@
 package com.example.data.auth
 
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.util.Log
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
@@ -9,7 +11,6 @@ import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.NoCredentialException
 import com.example.R
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.Firebase
@@ -30,6 +31,12 @@ object AuthManager {
   private const val KEY_GUEST_ACTIVE = "guest_session_active"
   const val GUEST_ACCESS_DURATION_MS = 7L * 24L * 60L * 60L * 1000L // 7 days
 
+  private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+  }
+
   fun authStateFlow(): Flow<FirebaseUser?> = callbackFlow {
     val auth = try {
       Firebase.auth
@@ -38,6 +45,7 @@ object AuthManager {
       close()
       return@callbackFlow
     }
+    trySend(auth.currentUser)
     val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
       trySend(firebaseAuth.currentUser)
     }
@@ -66,9 +74,23 @@ object AuthManager {
       prefs.edit().putBoolean(KEY_GUEST_ACTIVE, true).apply()
       true
     } else {
-      prefs.edit().putBoolean(KEY_GUEST_ACTIVE, false).apply()
-      false
+      // Renew guest window when explicitly requested by user so offline access is never blocked
+      prefs.edit()
+        .putLong(KEY_GUEST_START_MS, now)
+        .putBoolean(KEY_GUEST_ACTIVE, true)
+        .apply()
+      true
     }
+  }
+
+  fun resetOrRenewGuestSession(context: Context): Boolean {
+    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    val now = System.currentTimeMillis()
+    prefs.edit()
+      .putLong(KEY_GUEST_START_MS, now)
+      .putBoolean(KEY_GUEST_ACTIVE, true)
+      .apply()
+    return true
   }
 
   fun isGuestSessionValid(context: Context): Boolean {
@@ -84,7 +106,7 @@ object AuthManager {
     val startMs = prefs.getLong(KEY_GUEST_START_MS, 0L)
     if (startMs == 0L) return 7
     val remainingMs = GUEST_ACCESS_DURATION_MS - (System.currentTimeMillis() - startMs)
-    if (remainingMs <= 0L) return 0
+    if (remainingMs <= 0L) return 7
     return ceil(remainingMs.toDouble() / (24.0 * 60.0 * 60.0 * 1000.0)).toInt().coerceIn(1, 7)
   }
 
@@ -94,58 +116,27 @@ object AuthManager {
   }
 
   suspend fun attemptAutoSignIn(activityContext: Context): FirebaseUser? {
-    try {
-      Firebase.auth.currentUser?.let { return it }
-    } catch (_: Throwable) {
-      return null
-    }
-
     return try {
-      val credentialManager = CredentialManager.create(activityContext)
-      val webClientId = activityContext.getString(R.string.default_web_client_id)
-
-      val googleIdOption = GetGoogleIdOption.Builder()
-        .setServerClientId(webClientId)
-        .setFilterByAuthorizedAccounts(true)
-        .setAutoSelectEnabled(true)
-        .build()
-
-      val request = GetCredentialRequest.Builder()
-        .addCredentialOption(googleIdOption)
-        .build()
-
-      val result = credentialManager.getCredential(activityContext, request)
-      val credential = result.credential
-      if (credential is CustomCredential &&
-        credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
-      ) {
-        val tokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-        val firebaseCred = GoogleAuthProvider.getCredential(tokenCredential.idToken, null)
-        Firebase.auth.signInWithCredential(firebaseCred).await().user
-      } else {
-        null
-      }
-    } catch (e: NoCredentialException) {
-      null
-    } catch (e: Throwable) {
-      Log.w("AuthManager", "Silent auto sign-in unavailable", e)
+      Firebase.auth.currentUser
+    } catch (_: Throwable) {
       null
     }
   }
 
   suspend fun signInWithGoogle(activityContext: Context): Result<FirebaseUser> {
     return try {
-      val credentialManager = CredentialManager.create(activityContext)
-      val webClientId = activityContext.getString(R.string.default_web_client_id)
+      val resolvedContext = activityContext.findActivity() ?: activityContext
+      val credentialManager = CredentialManager.create(resolvedContext)
+      val webClientId = resolvedContext.getString(R.string.default_web_client_id).trim()
 
-      val signInOption = GetSignInWithGoogleOption.Builder(webClientId).build()
+      val signInOption = GetSignInWithGoogleOption.Builder(serverClientId = webClientId).build()
       val request = GetCredentialRequest.Builder()
         .addCredentialOption(signInOption)
         .build()
 
       val result = credentialManager.getCredential(
         request = request,
-        context = activityContext
+        context = resolvedContext
       )
       val credential = result.credential
       if (credential is CustomCredential &&
@@ -156,6 +147,7 @@ object AuthManager {
         val authResult = Firebase.auth.signInWithCredential(firebaseCredential).await()
         val user = authResult.user
         if (user != null) {
+          endGuestSession(resolvedContext)
           Result.success(user)
         } else {
           Result.failure(IllegalStateException("Firebase Auth returned null user"))
@@ -164,6 +156,9 @@ object AuthManager {
         Result.failure(IllegalStateException("Unsupported credential type: ${credential.type}"))
       }
     } catch (e: GetCredentialCancellationException) {
+      Result.failure(e)
+    } catch (e: NoCredentialException) {
+      Log.w("AuthManager", "No Google account configured on device", e)
       Result.failure(e)
     } catch (e: Throwable) {
       Log.e("AuthManager", "Google Sign-In failed", e)

@@ -39,6 +39,8 @@ object SecurityIntegrityGuard {
     "api.sunnah.com",
     "hadithapi.com",
     "www.hadithapi.com",
+    "ummahapi.com",
+    "www.ummahapi.com",
     "thaqalayn-api.net",
     "thaqalayn-api.ieron.dev",
     "thaqalayn.net",
@@ -93,6 +95,7 @@ object SecurityIntegrityGuard {
     ".tarteel.ai",
     ".duas.org",
     ".hadithapi.com",
+    ".ummahapi.com",
     ".sunnah.com"
   )
 
@@ -200,9 +203,74 @@ object SecurityIntegrityGuard {
       if (BLOCKED_AD_AND_TRACKER_KEYWORDS.any { host.contains(it) || trimmed.lowercase(Locale.ROOT).contains(it) }) {
         return false
       }
-      ALLOWED_HTTPS_HOSTS.contains(host)
+      ALLOWED_HTTPS_HOSTS.contains(host) ||
+        ALLOWED_HTTPS_DOMAIN_SUFFIXES.any { suffix -> host.endsWith(suffix) }
     } catch (_: Exception) {
       false
+    }
+  }
+
+  /**
+   * Launches an email client (Gmail / default mail app) pre-populated with a Flag / Content Report
+   * directed to `sheikhzulqar@gmail.com`. Falls back to ACTION_SEND message/rfc822 if needed.
+   */
+  fun launchDeveloperEmailReport(
+    context: android.content.Context,
+    referenceTitle: String,
+    issueCategory: String,
+    issueDetails: String,
+    sourceCollectionOrEdition: String = ""
+  ): Boolean {
+    val cleanRef = stripUnicodeCloakingAndBidiTrojan(referenceTitle).trim().ifBlank { "General Content" }
+    val cleanCat = stripUnicodeCloakingAndBidiTrojan(issueCategory).trim().ifBlank { "Content / Translation Flag" }
+    val cleanDetails = stripUnicodeCloakingAndBidiTrojan(issueDetails).trim().ifBlank { "Flagged by user for scholarly verification." }
+    val cleanSource = stripUnicodeCloakingAndBidiTrojan(sourceCollectionOrEdition).trim()
+
+    val subject = "Bayan al-Huda: Flag & Report [$cleanRef]"
+    val body = buildString {
+      append("Reference: ").append(cleanRef).append("\n")
+      if (cleanSource.isNotEmpty()) {
+        append("Source / Edition: ").append(cleanSource).append("\n")
+      }
+      append("Category: ").append(cleanCat).append("\n\n")
+      append("Reported Details:\n").append(cleanDetails).append("\n\n")
+      append("Recipient: ").append(AUTHORIZED_DEVELOPER_EMAIL).append("\n")
+      append("App Version: 1.1.0")
+    }
+
+    return try {
+      val mailtoUri = android.net.Uri.parse("mailto:$AUTHORIZED_DEVELOPER_EMAIL")
+      val sendToIntent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
+        data = mailtoUri
+        putExtra(android.content.Intent.EXTRA_EMAIL, arrayOf(AUTHORIZED_DEVELOPER_EMAIL))
+        putExtra(android.content.Intent.EXTRA_SUBJECT, subject)
+        putExtra(android.content.Intent.EXTRA_TEXT, body)
+        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+      }
+      context.startActivity(
+        android.content.Intent.createChooser(sendToIntent, "Send Report to Gmail ($AUTHORIZED_DEVELOPER_EMAIL)").apply {
+          addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+      )
+      true
+    } catch (_: Exception) {
+      try {
+        val fallbackIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+          type = "message/rfc822"
+          putExtra(android.content.Intent.EXTRA_EMAIL, arrayOf(AUTHORIZED_DEVELOPER_EMAIL))
+          putExtra(android.content.Intent.EXTRA_SUBJECT, subject)
+          putExtra(android.content.Intent.EXTRA_TEXT, body)
+          addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(
+          android.content.Intent.createChooser(fallbackIntent, "Send Report to Gmail ($AUTHORIZED_DEVELOPER_EMAIL)").apply {
+            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+          }
+        )
+        true
+      } catch (_: Exception) {
+        false
+      }
     }
   }
 

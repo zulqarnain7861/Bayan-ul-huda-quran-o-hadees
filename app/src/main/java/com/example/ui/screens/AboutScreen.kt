@@ -79,6 +79,7 @@ import com.example.ui.audio.availableReciters
 import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.GoldPrimary
 import com.example.ui.theme.ScheherazadeFontFamily
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -385,6 +386,10 @@ fun AboutScreen(
 
     // Cloud Sync / 7-Day Guest Access Status Card
     item {
+      val authScope = androidx.compose.runtime.rememberCoroutineScope()
+      var isSigningInDirect by remember { mutableStateOf(false) }
+      var signInStatusMessage by remember { mutableStateOf<String?>(null) }
+
       Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -421,12 +426,61 @@ fun AboutScreen(
             },
             style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
           )
+          if (signInStatusMessage != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+              text = signInStatusMessage!!,
+              style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.error)
+            )
+          }
           Spacer(modifier = Modifier.height(12.dp))
-          Button(
-            onClick = onSignOut,
-            modifier = Modifier.testTag("sign_out_button")
-          ) {
-            Text(if (isGuestMode && userEmail == null) "Sign in with Google / Switch Account" else "Sign Out")
+          if (isGuestMode && userEmail == null) {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+              Button(
+                onClick = {
+                  if (!isSigningInDirect) {
+                    isSigningInDirect = true
+                    signInStatusMessage = null
+                    authScope.launch {
+                      val result = com.example.data.auth.AuthManager.signInWithGoogle(context)
+                      isSigningInDirect = false
+                      result.onSuccess { user ->
+                        Toast.makeText(
+                          context,
+                          "Signed in as ${user.email ?: user.displayName ?: "Google User"}",
+                          Toast.LENGTH_SHORT
+                        ).show()
+                      }.onFailure { err ->
+                        signInStatusMessage = err.localizedMessage
+                          ?: "Could not complete Google Sign-In. Ensure a Google account is added in Device Settings."
+                      }
+                    }
+                  }
+                },
+                enabled = !isSigningInDirect,
+                modifier = Modifier
+                  .weight(1f)
+                  .testTag("about_direct_google_sign_in_button")
+              ) {
+                Text(if (isSigningInDirect) "Signing in..." else "Sign in with Google")
+              }
+              OutlinedButton(
+                onClick = onSignOut,
+                modifier = Modifier.testTag("sign_out_button")
+              ) {
+                Text("Sign-In Screen")
+              }
+            }
+          } else {
+            Button(
+              onClick = onSignOut,
+              modifier = Modifier.testTag("sign_out_button")
+            ) {
+              Text("Sign Out")
+            }
           }
         }
       }
@@ -880,60 +934,90 @@ fun AboutScreen(
   }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ReportErrorDialog(
   initialContext: String,
   onDismiss: () -> Unit
 ) {
   val context = LocalContext.current
-  var refText by remember { mutableStateOf(initialContext) }
+  var refText by remember(initialContext) { mutableStateOf(initialContext) }
+  var selectedCategory by remember { mutableStateOf("Text / Translation Mismatch") }
   var errorDetails by remember { mutableStateOf("") }
+  val categories = listOf(
+    "Text / Translation Mismatch",
+    "Arabic Diacritics / Script",
+    "Missing Hadith / Verse",
+    "Grading / Attribution",
+    "Other"
+  )
 
   AlertDialog(
     onDismissRequest = onDismiss,
-    title = { Text("Report Content Error", fontWeight = FontWeight.Bold) },
+    title = { Text("Flag & Report Content Issue", fontWeight = FontWeight.Bold) },
     text = {
       Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
-          text = "Help us maintain sacred text integrity. Please identify the Surah/Hadith reference and provide specific details.",
+          text = "Help us maintain sacred text integrity. Your report will open your email client addressed directly to sheikhzulqar@gmail.com with the exact reference pre-filled.",
           style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
         )
         OutlinedTextField(
           value = refText,
           onValueChange = { refText = it },
-          label = { Text("Reference (Surah / Hadith)") },
+          label = { Text("Reference (Surah / Hadith / Edition)") },
           singleLine = true,
-          modifier = Modifier.fillMaxWidth()
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("report_dialog_reference_input")
         )
+        FlowRow(
+          horizontalArrangement = Arrangement.spacedBy(6.dp),
+          verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+          categories.forEach { cat ->
+            FilterChip(
+              selected = selectedCategory == cat,
+              onClick = { selectedCategory = cat },
+              label = { Text(cat, fontSize = 11.sp) }
+            )
+          }
+        }
         OutlinedTextField(
           value = errorDetails,
           onValueChange = { errorDetails = it },
-          label = { Text("Description of suspected error") },
+          label = { Text("Description of suspected issue or missing data") },
           minLines = 3,
           maxLines = 6,
-          modifier = Modifier.fillMaxWidth()
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("report_dialog_details_input")
         )
       }
     },
     confirmButton = {
       Button(
         onClick = {
-          if (errorDetails.isNotBlank()) {
-            val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
-              data = Uri.parse("mailto:sheikhzulqar@gmail.com")
-              putExtra(Intent.EXTRA_SUBJECT, "Bayan al-Huda: Content Error Report [$refText]")
-              putExtra(Intent.EXTRA_TEXT, "Reference: $refText\n\nIssue Details:\n$errorDetails\n\nApp Version: 1.1.0")
-            }
-            try {
-              context.startActivity(Intent.createChooser(emailIntent, "Send Error Report"))
-            } catch (e: Exception) {
-              Toast.makeText(context, "No email app found", Toast.LENGTH_SHORT).show()
-            }
-            onDismiss()
+          val launched = com.example.data.remote.SecurityIntegrityGuard.launchDeveloperEmailReport(
+            context = context,
+            referenceTitle = refText.ifBlank { "General Reference Report" },
+            issueCategory = selectedCategory,
+            issueDetails = errorDetails.ifBlank { "Flagged for verification ($selectedCategory)" },
+            sourceCollectionOrEdition = refText
+          )
+          if (!launched) {
+            Toast.makeText(
+              context,
+              "Report prepared for sheikhzulqar@gmail.com (No email app found on device)",
+              Toast.LENGTH_LONG
+            ).show()
           }
-        }
+          onDismiss()
+        },
+        modifier = Modifier.testTag("report_dialog_submit_email_btn")
       ) {
-        Text("Submit Report")
+        Icon(Icons.Default.Email, contentDescription = null, modifier = Modifier.size(16.dp))
+        Spacer(modifier = Modifier.width(6.dp))
+        Text("Send to Gmail")
       }
     },
     dismissButton = {

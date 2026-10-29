@@ -658,19 +658,34 @@ fun IslamWithEvidenceScreen(
       confirmButton = {
         Button(
           onClick = {
+            val capturedRef = reportRefIdentifier.ifBlank { "Unspecified Reference" }
+            val capturedCollection = reportSourceCollection.ifBlank { "General" }
+            val capturedCategory = reportCategory
+            val capturedNotes = reportUserNotes.ifBlank { "User flagged reference for verification review." }
             scope.launch {
               evidenceEngine.reportIncorrectReference(
                 claimOrQuery = queryInput,
-                referenceIdentifier = reportRefIdentifier.ifBlank { "Unspecified Reference" },
-                sourceCollection = reportSourceCollection.ifBlank { "General" },
-                issueCategory = reportCategory,
-                userNotes = reportUserNotes.ifBlank { "User flagged reference for verification review." }
+                referenceIdentifier = capturedRef,
+                sourceCollection = capturedCollection,
+                issueCategory = capturedCategory,
+                userNotes = capturedNotes
               )
               showReportDialog = false
               reportUserNotes = ""
+              val launchedEmail = com.example.data.remote.SecurityIntegrityGuard.launchDeveloperEmailReport(
+                context = context,
+                referenceTitle = capturedRef,
+                issueCategory = capturedCategory,
+                issueDetails = "Query/Claim: $queryInput\n\nNotes: $capturedNotes",
+                sourceCollectionOrEdition = capturedCollection
+              )
               Toast.makeText(
                 context,
-                "Reference issue recorded for scholarly administrator review.",
+                if (launchedEmail) {
+                  "Redirecting report to Gmail (sheikhzulqar@gmail.com)..."
+                } else {
+                  "Reference issue recorded for sheikhzulqar@gmail.com."
+                },
                 Toast.LENGTH_SHORT
               ).show()
             }
@@ -678,7 +693,7 @@ fun IslamWithEvidenceScreen(
           colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
           modifier = Modifier.testTag("submit_incorrect_reference_report_button")
         ) {
-          Text("Submit Report")
+          Text("Report & Send to Gmail")
         }
       },
       dismissButton = {
