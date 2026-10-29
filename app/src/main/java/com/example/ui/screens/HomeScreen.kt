@@ -130,6 +130,7 @@ fun HomeScreen(
   onNavigateToQibla: () -> Unit = {},
   onNavigateToDailyDuas: () -> Unit = {},
   onNavigateToSehriIftar: () -> Unit = {},
+  onNavigateToLearnIslam: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   val context = LocalContext.current
@@ -149,6 +150,49 @@ fun HomeScreen(
     item {
       BismillahHeader()
       Spacer(modifier = Modifier.height(12.dp))
+    }
+
+    // 1. PRIORITY 1 ON HOME: Sehri / Iftari Timings & Fasting Duas (Prophetic Hadith First)
+    item {
+      val adjustedSehri = prayerSchedule?.fajrTime?.let { rawFajr ->
+        com.example.data.prayer.SehriIftarTimetableEngine.applyMinuteAdjustment(
+          rawFajr,
+          prayerConfig.sehriAdjustmentMinutes
+        )
+      }
+      val adjustedIftar = prayerSchedule?.maghribTime?.let { rawMaghrib ->
+        com.example.data.prayer.SehriIftarTimetableEngine.applyMinuteAdjustment(
+          rawMaghrib,
+          prayerConfig.iftarAdjustmentMinutes
+        )
+      }
+      SpecialRamadanDuasShowcaseCard(
+        duas = DailyDuasDataProvider.ramadanSpecialDuas,
+        onOpenSehriIftarTimetable = onNavigateToSehriIftar,
+        todaySehriEnds = adjustedSehri,
+        todayIftarTime = adjustedIftar,
+        cityName = "${prayerConfig.city}, ${prayerConfig.country}",
+        prayerConfig = prayerConfig,
+        onUpdatePrayerConfig = onUpdatePrayerConfig,
+        modifier = Modifier.testTag("home_ramadan_duas_and_timetable_card")
+      )
+      Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    // 2. PRIORITY 2 ON HOME: Five Daily Salah Times, Adhan & Real-Time Alarm Audio Level
+    item {
+      SalahAndFajrAlarmCard(
+        schedule = prayerSchedule,
+        config = prayerConfig,
+        alarmPlaybackState = alarmPlaybackState,
+        onUpdateConfig = onUpdatePrayerConfig,
+        onRefreshSchedule = onRefreshPrayerSchedule,
+        onTestAzanOrFajrAlarm = onTestAzanOrFajrAlarm,
+        onStopActiveAlarm = onStopActiveAlarm,
+        onSnoozeActiveAlarm = onSnoozeActiveAlarm,
+        onOpenQiblaCompass = onNavigateToQibla
+      )
+      Spacer(modifier = Modifier.height(16.dp))
     }
 
     // Resume Quran Reading Progress Tracker Card
@@ -218,47 +262,6 @@ fun HomeScreen(
         }
         Spacer(modifier = Modifier.height(14.dp))
       }
-    }
-
-    // Five Daily Salah Times, Azan & Special 15-Minute Fajr Wake-Up Alarm
-    item {
-      SalahAndFajrAlarmCard(
-        schedule = prayerSchedule,
-        config = prayerConfig,
-        alarmPlaybackState = alarmPlaybackState,
-        onUpdateConfig = onUpdatePrayerConfig,
-        onRefreshSchedule = onRefreshPrayerSchedule,
-        onTestAzanOrFajrAlarm = onTestAzanOrFajrAlarm,
-        onStopActiveAlarm = onStopActiveAlarm,
-        onSnoozeActiveAlarm = onSnoozeActiveAlarm,
-        onOpenQiblaCompass = onNavigateToQibla
-      )
-      Spacer(modifier = Modifier.height(16.dp))
-    }
-
-    // Special Duas for the Month of Ramadan & Yearly Sehri/Iftar Timetable Card
-    item {
-      val adjustedSehri = prayerSchedule?.fajrTime?.let { rawFajr ->
-        com.example.data.prayer.SehriIftarTimetableEngine.applyMinuteAdjustment(
-          rawFajr,
-          prayerConfig.sehriAdjustmentMinutes
-        )
-      }
-      val adjustedIftar = prayerSchedule?.maghribTime?.let { rawMaghrib ->
-        com.example.data.prayer.SehriIftarTimetableEngine.applyMinuteAdjustment(
-          rawMaghrib,
-          prayerConfig.iftarAdjustmentMinutes
-        )
-      }
-      SpecialRamadanDuasShowcaseCard(
-        duas = DailyDuasDataProvider.ramadanSpecialDuas,
-        onOpenSehriIftarTimetable = onNavigateToSehriIftar,
-        todaySehriEnds = adjustedSehri,
-        todayIftarTime = adjustedIftar,
-        cityName = "${prayerConfig.city}, ${prayerConfig.country}",
-        modifier = Modifier.testTag("home_ramadan_duas_and_timetable_card")
-      )
-      Spacer(modifier = Modifier.height(16.dp))
     }
 
     // Specially Present on Home Screen: Calculated Friday & All Other Days Sunnah & Notification Card

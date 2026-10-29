@@ -424,7 +424,24 @@ object QulOfflineTranslationManager {
         setRequestProperty("User-Agent", "BayanAlHuda-Android/1.0")
       }
       if (conn.responseCode in 200..299) {
-        conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+        val contentLen = conn.contentLengthLong
+        if (contentLen > SecurityIntegrityGuard.MAX_HTTP_RESPONSE_BYTES) {
+          return null
+        }
+        conn.inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
+          val sb = StringBuilder()
+          val buffer = CharArray(8192)
+          var totalRead = 0L
+          var read: Int
+          while (reader.read(buffer).also { read = it } != -1) {
+            totalRead += read
+            if (totalRead > SecurityIntegrityGuard.MAX_HTTP_RESPONSE_BYTES) {
+              return null
+            }
+            sb.append(buffer, 0, read)
+          }
+          sb.toString()
+        }
       } else {
         null
       }

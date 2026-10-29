@@ -617,6 +617,11 @@ class BayanViewModel(application: Application) : AndroidViewModel(application) {
       if (currentCfg.shiaTranslationKey != currentCfg.sunniTranslationKey) {
         repository.ensureQulEditionLoadedForSurah(surah.number, currentCfg.shiaTranslationKey)
       }
+      currentCfg.selectedTranslationKeys.forEach { key ->
+        if (key != currentCfg.sunniTranslationKey && key != currentCfg.shiaTranslationKey) {
+          repository.ensureQulEditionLoadedForSurah(surah.number, key)
+        }
+      }
       launch {
         repository.getAyahsBySurah(surah.number).collect { ayahs ->
           _currentAyahs.value = ayahs
@@ -800,14 +805,41 @@ class BayanViewModel(application: Application) : AndroidViewModel(application) {
 
   fun setQuranTranslationKey(key: String, tradition: String) {
     val currentConfig = _uiState.value.prayerConfig
+    val nextSet = currentConfig.selectedTranslationKeys + key
     val updatedConfig = if (tradition == "SUNNI") {
-      currentConfig.copy(sunniTranslationKey = key)
+      currentConfig.copy(sunniTranslationKey = key, selectedTranslationKeys = nextSet)
     } else {
-      currentConfig.copy(shiaTranslationKey = key)
+      currentConfig.copy(shiaTranslationKey = key, selectedTranslationKeys = nextSet)
     }
     updatePrayerAndAlarmConfig(updatedConfig)
     val openSurahNum = _uiState.value.selectedSurah?.number
     if (openSurahNum != null) {
+      viewModelScope.launch {
+        repository.ensureQulEditionLoadedForSurah(openSurahNum, key)
+      }
+    }
+  }
+
+  fun toggleSelectedTranslationKey(key: String, tradition: String) {
+    val currentConfig = _uiState.value.prayerConfig
+    val currentSet = currentConfig.selectedTranslationKeys
+    val isRemoving = currentSet.contains(key) && currentSet.size > 1
+    val nextSet = if (isRemoving) currentSet - key else currentSet + key
+    val primaryKey = if (!isRemoving) key else nextSet.first()
+    val updatedConfig = if (tradition == "SUNNI") {
+      currentConfig.copy(
+        sunniTranslationKey = primaryKey,
+        selectedTranslationKeys = nextSet
+      )
+    } else {
+      currentConfig.copy(
+        shiaTranslationKey = primaryKey,
+        selectedTranslationKeys = nextSet
+      )
+    }
+    updatePrayerAndAlarmConfig(updatedConfig)
+    val openSurahNum = _uiState.value.selectedSurah?.number
+    if (!isRemoving && openSurahNum != null) {
       viewModelScope.launch {
         repository.ensureQulEditionLoadedForSurah(openSurahNum, key)
       }
@@ -1059,11 +1091,11 @@ class BayanViewModel(application: Application) : AndroidViewModel(application) {
       val cleanRef = refKey.ifBlank { "General" }.take(100)
       val cleanTitle = title.trim().take(200)
       val cleanContent = content.trim().take(5000)
-      repository.saveNote(cleanRef, cleanTitle, cleanContent)
+      val insertedId = repository.saveNote(cleanRef, cleanTitle, cleanContent)
 
       val uid = currentUser.value?.uid
       if (uid != null && cloudRepository != null) {
-        val noteId = "note_${System.currentTimeMillis()}"
+        val noteId = "note_$insertedId"
         val itemType = if (cleanRef.contains("hadith", ignoreCase = true) ||
           cleanRef.contains("bukhari", ignoreCase = true) ||
           cleanRef.contains("muslim", ignoreCase = true) ||
@@ -1198,6 +1230,6 @@ class BayanViewModel(application: Application) : AndroidViewModel(application) {
   override fun onCleared() {
     super.onCleared()
     audioPlayerManager.stop()
-    duaAudioController.stop()
+    duaAudioController.shutdown()
   }
 }

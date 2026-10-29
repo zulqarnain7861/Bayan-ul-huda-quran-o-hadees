@@ -221,6 +221,7 @@ data class PrayerAndAlarmConfig(
   val shiaQuranReciterId: String = "karim_mansouri",
   val sunniTranslationKey: String = "en.sahih",
   val shiaTranslationKey: String = "en.qarai",
+  val selectedTranslationKeys: Set<String> = setOf("en.sahih", "ur.jalandhry"),
   // Reading Progress Tracker (Last Read Surah & Verse Position)
   val lastReadSurahNumber: Int = 1,
   val lastReadVerseNumber: Int = 1,
@@ -250,6 +251,16 @@ object PrayerPreferencesManager {
 
   fun loadConfig(context: Context): PrayerAndAlarmConfig {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    val sunniKey = prefs.getString("sunniTranslationKey", "en.sahih") ?: "en.sahih"
+    val rawMulti = prefs.getString("selectedTranslationKeys", null)
+    val parsedMulti = rawMulti
+      ?.split(",")
+      ?.map { it.trim() }
+      ?.filter { it.isNotEmpty() }
+      ?.toSet()
+      ?.takeIf { it.isNotEmpty() }
+      ?: setOf(sunniKey, "ur.jalandhry")
+
     return PrayerAndAlarmConfig(
       city = prefs.getString("city", "Srinagar") ?: "Srinagar",
       districtOrRegion = prefs.getString("district", "Srinagar District, Kashmir") ?: "Srinagar District, Kashmir",
@@ -281,8 +292,9 @@ object PrayerPreferencesManager {
       defaultSnoozeMinutes = prefs.getInt("defaultSnoozeMinutes", 5),
       sunniQuranReciterId = prefs.getString("sunniQuranReciterId", "husary") ?: "husary",
       shiaQuranReciterId = prefs.getString("shiaQuranReciterId", "karim_mansouri") ?: "karim_mansouri",
-      sunniTranslationKey = prefs.getString("sunniTranslationKey", "en.sahih") ?: "en.sahih",
+      sunniTranslationKey = sunniKey,
       shiaTranslationKey = prefs.getString("shiaTranslationKey", "en.qarai") ?: "en.qarai",
+      selectedTranslationKeys = parsedMulti,
       lastReadSurahNumber = prefs.getInt("lastReadSurahNumber", 1).coerceIn(1, 114),
       lastReadVerseNumber = prefs.getInt("lastReadVerseNumber", 1).coerceAtLeast(1),
       lastReadSurahNameEn = prefs.getString("lastReadSurahNameEn", "Al-Fatihah") ?: "Al-Fatihah",
@@ -334,6 +346,7 @@ object PrayerPreferencesManager {
       .putString("shiaQuranReciterId", config.shiaQuranReciterId)
       .putString("sunniTranslationKey", config.sunniTranslationKey)
       .putString("shiaTranslationKey", config.shiaTranslationKey)
+      .putString("selectedTranslationKeys", config.selectedTranslationKeys.joinToString(","))
       .putInt("lastReadSurahNumber", config.lastReadSurahNumber.coerceIn(1, 114))
       .putInt("lastReadVerseNumber", config.lastReadVerseNumber.coerceAtLeast(1))
       .putString("lastReadSurahNameEn", config.lastReadSurahNameEn)

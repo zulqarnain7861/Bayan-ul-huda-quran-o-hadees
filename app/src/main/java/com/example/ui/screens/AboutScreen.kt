@@ -110,6 +110,17 @@ fun AboutScreen(
   val facebookMessengerUrl = "https://www.facebook.com/share/1PiLFRT6jv/"
   val isVerifiedDeveloper = !isGuestMode &&
     com.example.data.remote.SecurityIntegrityGuard.isAuthorizedDeveloper(userEmail)
+  val devPrefs = remember {
+    context.getSharedPreferences("bayan_developer_options_prefs", Context.MODE_PRIVATE)
+  }
+  var developerTapCount by remember { mutableStateOf(0) }
+  var isDeveloperUnlocked by remember(isVerifiedDeveloper) {
+    mutableStateOf(isVerifiedDeveloper || devPrefs.getBoolean("developer_unlocked", false))
+  }
+  var isDeveloperSettingsEnabled by remember(isVerifiedDeveloper) {
+    mutableStateOf(isVerifiedDeveloper || devPrefs.getBoolean("developer_settings_enabled", false))
+  }
+  var showApiSourcesAndLicencesPage by remember { mutableStateOf(false) }
   var showDiagnosticAuditExpanded by remember { mutableStateOf(true) }
   var showLanguagePickerSheet by remember { mutableStateOf(false) }
   val activeLangMeta = remember(currentAppLanguageCode) {
@@ -216,7 +227,7 @@ fun AboutScreen(
       }
     }
 
-    // App Header Card
+    // App Header Card (with 7-tap Android Developer Options unlock on Version badge)
     item {
       ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -267,12 +278,45 @@ fun AboutScreen(
 
           Spacer(modifier = Modifier.height(6.dp))
 
-          Text(
-            text = "Version 1.1.0 (Production Release)",
-            style = MaterialTheme.typography.labelSmall.copy(
-              color = MaterialTheme.colorScheme.onSurfaceVariant
+          Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = Color.Transparent,
+            modifier = Modifier
+              .testTag("about_version_developer_unlock_badge")
+              .clickable {
+                if (!isDeveloperUnlocked) {
+                  developerTapCount += 1
+                  val remaining = 7 - developerTapCount
+                  if (remaining <= 0) {
+                    isDeveloperUnlocked = true
+                    isDeveloperSettingsEnabled = true
+                    devPrefs.edit()
+                      .putBoolean("developer_unlocked", true)
+                      .putBoolean("developer_settings_enabled", true)
+                      .apply()
+                    Toast.makeText(
+                      context,
+                      "Developer Options unlocked",
+                      Toast.LENGTH_SHORT
+                    ).show()
+                  } else if (remaining in 1..3) {
+                    Toast.makeText(
+                      context,
+                      "$remaining taps away from Developer Options",
+                      Toast.LENGTH_SHORT
+                    ).show()
+                  }
+                }
+              }
+          ) {
+            Text(
+              text = "Version 1.1.0 (Production Release)",
+              modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+              style = MaterialTheme.typography.labelSmall.copy(
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
             )
-          )
+          }
         }
       }
     }
@@ -763,163 +807,257 @@ fun AboutScreen(
       }
     }
 
-    // Concise, Deduplicated 100% VERIFIED Sources & Provenance (Placed at the very bottom below Actions & Integrity)
+    // Legally Required User-Facing Copyright & Scholarly Attribution Notices
     item {
-      val conciseVerifiedSources = remember(sourceRegistryList, auditReport) {
-        com.example.data.repository.SourceRegistryRepository.buildConciseVerifiedSources(
-          rawSources = sourceRegistryList,
-          auditReport = auditReport
-        )
-      }
-
       Card(
         modifier = Modifier
           .fillMaxWidth()
-          .testTag("source_and_api_audit_dashboard_card"),
+          .testTag("user_facing_copyright_attributions_card"),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
       ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-              Icon(Icons.Default.FactCheck, contentDescription = null, tint = EmeraldPrimary)
-              Spacer(modifier = Modifier.width(8.dp))
-              Column {
-                Text(
-                  text = if (isVerifiedDeveloper) {
-                    "Verified Sources & Developer Audit"
-                  } else {
-                    "Verified Sources & Provenance"
-                  },
-                  style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                  )
-                )
-                Text(
-                  text = "100% Verified Sources Only • Deduplicated & Concise (${conciseVerifiedSources.size} Verified)",
-                  style = MaterialTheme.typography.labelSmall.copy(
-                    color = GoldPrimary,
-                    fontWeight = FontWeight.Bold
-                  )
-                )
-              }
-            }
-            Row {
-              IconButton(
-                onClick = onRefreshAuditReport,
-                modifier = Modifier.testTag("refresh_audit_dashboard_btn")
-              ) {
-                Icon(Icons.Default.Refresh, contentDescription = "Refresh Verified Status")
-              }
-              OutlinedButton(
-                onClick = { showDiagnosticAuditExpanded = !showDiagnosticAuditExpanded },
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-              ) {
-                Text(if (showDiagnosticAuditExpanded) "Hide" else "Show", fontSize = 11.sp)
-              }
-            }
-          }
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+          Text(
+            text = "Copyright & Content Attributions",
+            style = MaterialTheme.typography.titleMedium.copy(
+              fontWeight = FontWeight.Bold,
+              color = MaterialTheme.colorScheme.primary
+            )
+          )
+          Text(
+            text = "• Quran Text & Translations: Canonical Uthmani Quran text courtesy of Tanzil.net & King Fahd Glorious Quran Printing Complex (CC BY 3.0). Translations credited to their respective authors via Quran.com / Quran Foundation, Quranic Universal Library (QUL — Tarteel AI), QuranEnc, Al-Islam.org (DILP), and ShiaQuran.in.",
+            style = MaterialTheme.typography.bodySmall.copy(lineHeight = 17.sp)
+          )
+          Text(
+            text = "• Hadith, Duas & Prayer Timings: Classical Sunni & Shia Hadith collections credited to Sunnah.com, FawazAhmed0, AhmedBaset (v1.2.0), HadithAPI.com, UmmahAPI.com, and Thaqalayn.net. Daily Adhkar from Hisn al-Muslim; Salah & Ramadan timetables powered by AlAdhan.com; Quran audio courtesy of EveryAyah.com, QuranicAudio.com, and MP3Quran.net.",
+            style = MaterialTheme.typography.bodySmall.copy(lineHeight = 17.sp)
+          )
+          Text(
+            text = "• Open-Source Fonts & UI: Amiri & Amiri Quran (© Khaled Hosny), Scheherazade New (© SIL International), and Noto Nastaliq Urdu (© Google LLC) licensed under the SIL Open Font License 1.1. AndroidX Jetpack Compose & Material Icons licensed under Apache License 2.0.",
+            style = MaterialTheme.typography.labelSmall.copy(
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              lineHeight = 16.sp
+            )
+          )
+        }
+      }
+    }
 
-          if (showDiagnosticAuditExpanded) {
-            Spacer(modifier = Modifier.height(10.dp))
-
-            if (auditReport != null) {
-              Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.fillMaxWidth()
-              ) {
-                Text(
-                  text = "Database Summary: ${auditReport.totalSurahsLocal}/114 Surahs • ${auditReport.totalAyahsLocal}/6,236 Ayahs • ${auditReport.totalHadithCollectionsLocal.coerceAtLeast(34)} Hadith Books (${auditReport.totalHadithsLocal} local + 75,800+ indexed) • Zero AI Text Alteration",
-                  modifier = Modifier.padding(10.dp),
-                  style = MaterialTheme.typography.labelSmall.copy(
-                    lineHeight = 16.sp,
-                    fontWeight = FontWeight.SemiBold
-                  )
-                )
-              }
-              Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            conciseVerifiedSources.forEach { src ->
-              Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .padding(vertical = 3.dp)
-                  .testTag("verified_source_item_${src.sourceId}")
-              ) {
-                Column(modifier = Modifier.padding(10.dp)) {
-                  Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                  ) {
-                    Text(
-                      text = src.title,
-                      style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                      modifier = Modifier.weight(1f)
-                    )
-                    Surface(
-                      shape = RoundedCornerShape(6.dp),
-                      color = EmeraldPrimary.copy(alpha = 0.16f)
-                    ) {
-                      Text(
-                        text = src.verificationStatus.name,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                          fontSize = 9.sp,
-                          fontWeight = FontWeight.Bold,
-                          color = EmeraldPrimary
-                        )
-                      )
-                    }
-                  }
-                  Spacer(modifier = Modifier.height(2.dp))
+    // Hidden Developer Options (Accessible ONLY when Developer Access is unlocked via authorized developer account or 7-tap version unlock)
+    if (isDeveloperUnlocked) {
+      item {
+        Card(
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("developer_options_card"),
+          shape = RoundedCornerShape(16.dp),
+          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+          Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                Icon(Icons.Default.FactCheck, contentDescription = null, tint = EmeraldPrimary)
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
                   Text(
-                    text = src.traditionAndLanguage,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                      fontSize = 10.sp,
-                      color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "Developer Options",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                      fontWeight = FontWeight.Bold,
+                      color = MaterialTheme.colorScheme.primary
                     )
                   )
                   Text(
-                    text = "${src.recordsAndCoverageSummary} • ${src.licenseSummary}",
+                    text = if (isDeveloperSettingsEnabled) {
+                      "Developer Setting Enabled • API Sources, Licences & Publication Audit"
+                    } else {
+                      "Developer Setting Disabled • Turn on to view API Sources & Licences"
+                    },
                     style = MaterialTheme.typography.labelSmall.copy(
-                      fontSize = 10.sp,
                       color = GoldPrimary,
                       fontWeight = FontWeight.SemiBold
                     )
                   )
                 }
               }
+              androidx.compose.material3.Switch(
+                checked = isDeveloperSettingsEnabled,
+                onCheckedChange = { enabled ->
+                  isDeveloperSettingsEnabled = enabled
+                  devPrefs.edit().putBoolean("developer_settings_enabled", enabled).apply()
+                },
+                modifier = Modifier.testTag("developer_settings_switch")
+              )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedButton(
-              onClick = { com.example.ui.components.openWhatsAppSupport(context) },
-              shape = RoundedCornerShape(10.dp),
-              modifier = Modifier
-                .fillMaxWidth()
-                .testTag("audit_whatsapp_support_button")
-            ) {
-              Text(
-                text = "Assalamu Alaikum — Source Inquiries on WhatsApp",
-                fontWeight = FontWeight.Bold,
-                fontSize = 12.sp,
-                color = EmeraldPrimary
-              )
+            if (isDeveloperSettingsEnabled) {
+              HorizontalDivider()
+
+              Button(
+                onClick = { showApiSourcesAndLicencesPage = true },
+                colors = ButtonDefaults.buttonColors(
+                  containerColor = EmeraldPrimary,
+                  contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .testTag("open_api_sources_licences_button")
+              ) {
+                Icon(Icons.Default.FactCheck, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                  text = "Developer Options → API Sources & Licences",
+                  fontWeight = FontWeight.Bold,
+                  fontSize = 13.sp
+                )
+              }
+
+              // Concise, Deduplicated 100% VERIFIED Sources & Provenance (Inside Developer Options)
+              val conciseVerifiedSources = remember(sourceRegistryList, auditReport) {
+                com.example.data.repository.SourceRegistryRepository.buildConciseVerifiedSources(
+                  rawSources = sourceRegistryList,
+                  auditReport = auditReport
+                )
+              }
+
+              Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .testTag("source_and_api_audit_dashboard_card")
+              ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                  Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                      Text(
+                        text = "Verified Sources & Developer Audit",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                          fontWeight = FontWeight.Bold,
+                          color = MaterialTheme.colorScheme.primary
+                        )
+                      )
+                      Text(
+                        text = "100% Verified Sources Only • Deduplicated & Concise (${conciseVerifiedSources.size} Verified)",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                          color = GoldPrimary,
+                          fontWeight = FontWeight.Bold
+                        )
+                      )
+                    }
+                    Row {
+                      IconButton(
+                        onClick = onRefreshAuditReport,
+                        modifier = Modifier.testTag("refresh_audit_dashboard_btn")
+                      ) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh Verified Status")
+                      }
+                      OutlinedButton(
+                        onClick = { showDiagnosticAuditExpanded = !showDiagnosticAuditExpanded },
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                      ) {
+                        Text(if (showDiagnosticAuditExpanded) "Hide" else "Show", fontSize = 11.sp)
+                      }
+                    }
+                  }
+
+                  if (showDiagnosticAuditExpanded) {
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (auditReport != null) {
+                      Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                      ) {
+                        Text(
+                          text = "Database Summary: ${auditReport.totalSurahsLocal}/114 Surahs • ${auditReport.totalAyahsLocal}/6,236 Ayahs • ${auditReport.totalHadithCollectionsLocal.coerceAtLeast(34)} Hadith Books (${auditReport.totalHadithsLocal} local + 75,800+ indexed) • Zero AI Text Alteration",
+                          modifier = Modifier.padding(10.dp),
+                          style = MaterialTheme.typography.labelSmall.copy(
+                            lineHeight = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                          )
+                        )
+                      }
+                      Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    conciseVerifiedSources.forEach { src ->
+                      Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                        modifier = Modifier
+                          .fillMaxWidth()
+                          .padding(vertical = 3.dp)
+                          .testTag("verified_source_item_${src.sourceId}")
+                      ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                          Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                          ) {
+                            Text(
+                              text = src.title,
+                              style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                              modifier = Modifier.weight(1f)
+                            )
+                            Surface(
+                              shape = RoundedCornerShape(6.dp),
+                              color = EmeraldPrimary.copy(alpha = 0.16f)
+                            ) {
+                              Text(
+                                text = src.verificationStatus.name,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                  fontSize = 9.sp,
+                                  fontWeight = FontWeight.Bold,
+                                  color = EmeraldPrimary
+                                )
+                              )
+                            }
+                          }
+                          Spacer(modifier = Modifier.height(2.dp))
+                          Text(
+                            text = src.traditionAndLanguage,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                              fontSize = 10.sp,
+                              color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                          )
+                          Text(
+                            text = "${src.recordsAndCoverageSummary} • ${src.licenseSummary}",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                              fontSize = 10.sp,
+                              color = GoldPrimary,
+                              fontWeight = FontWeight.SemiBold
+                            )
+                          )
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }
       }
     }
+  }
+
+  if (showApiSourcesAndLicencesPage && isDeveloperUnlocked && isDeveloperSettingsEnabled) {
+    DeveloperApiSourcesAndLicencesDialog(
+      onDismiss = { showApiSourcesAndLicencesPage = false }
+    )
   }
 
   if (showLanguagePickerSheet) {
@@ -1027,3 +1165,444 @@ fun ReportErrorDialog(
     }
   )
 }
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+fun DeveloperApiSourcesAndLicencesDialog(
+  onDismiss: () -> Unit
+) {
+  val context = LocalContext.current
+  val allSources = remember {
+    com.example.data.repository.SourceRegistryRepository.getDeveloperApiSourcesAndLicences()
+  }
+  val categories = remember(allSources) {
+    listOf("All") + allSources.map { it.category }.distinct()
+  }
+  var selectedCategory by remember { mutableStateOf("All") }
+  val filteredSources = remember(allSources, selectedCategory) {
+    if (selectedCategory == "All") allSources else allSources.filter { it.category == selectedCategory }
+  }
+  var showLearnIslamInvestigatedSources by remember { mutableStateOf(false) }
+  var showHadithManifestProvenance by remember { mutableStateOf(false) }
+  val learnIslamSources = remember {
+    com.example.data.model.LearnIslamCurriculumData.verifiedSourceRegistry
+  }
+  val hadithManifestEntries = remember {
+    com.example.data.local.OfflineHadithAssetLoader.loadManifest(context)
+  }
+
+  fun openSafeExternalUrl(url: String) {
+    if (com.example.data.remote.SecurityIntegrityGuard.isExternalIntentSafe(url)) {
+      try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+      } catch (_: Exception) {
+        Toast.makeText(context, "Could not open browser for $url", Toast.LENGTH_SHORT).show()
+      }
+    } else {
+      Toast.makeText(context, "Blocked by HTTPS host security policy", Toast.LENGTH_SHORT).show()
+    }
+  }
+
+  fun copyUrlToClipboard(label: String, url: String) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(ClipData.newPlainText(label, url))
+    Toast.makeText(context, "$label copied", Toast.LENGTH_SHORT).show()
+  }
+
+  androidx.compose.ui.window.Dialog(
+    onDismissRequest = onDismiss,
+    properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+  ) {
+    Surface(
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(8.dp)
+        .testTag("developer_api_sources_licences_page"),
+      shape = RoundedCornerShape(20.dp),
+      color = MaterialTheme.colorScheme.background
+    ) {
+      Column(modifier = Modifier.fillMaxSize()) {
+        // Header Bar
+        Surface(
+          color = EmeraldPrimary,
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = "Developer Options → API Sources & Licences",
+                style = MaterialTheme.typography.titleMedium.copy(
+                  fontWeight = FontWeight.Bold,
+                  color = Color.White
+                )
+              )
+              Text(
+                text = "${allSources.size} Verified Project Sources • Masked Credentials • Play Store Compliance Ready",
+                style = MaterialTheme.typography.labelSmall.copy(
+                  color = GoldPrimary,
+                  fontWeight = FontWeight.SemiBold
+                )
+              )
+            }
+            TextButton(
+              onClick = onDismiss,
+              colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
+              modifier = Modifier.testTag("close_api_sources_licences_button")
+            ) {
+              Text("Close", fontWeight = FontWeight.Bold)
+            }
+          }
+        }
+
+        LazyColumn(
+          modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 14.dp),
+          contentPadding = PaddingValues(vertical = 12.dp),
+          verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+          // Play Store Publication & Security Notice Banner
+          item {
+            Card(
+              shape = RoundedCornerShape(14.dp),
+              colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+              Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                  text = "Google Play Publication & Credential Security Summary",
+                  style = MaterialTheme.typography.titleSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                  )
+                )
+                Text(
+                  text = "• Application ID: com.bayanulhuda.com • Maintainer: Zulqarnain Ahmad Sheikh (sheikhzulqar@gmail.com)\n" +
+                    "• Credential Masking Policy: API keys, tokens, passwords, and private credentials are strictly masked as 'Configured' or 'Not configured' and are never logged or rendered in the UI.\n" +
+                    "• Network Security: ${com.example.data.remote.SecurityIntegrityGuard.getSecurityAuditSummary()}",
+                  style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 16.sp)
+                )
+              }
+            }
+          }
+
+          // Category Filter Row
+          item {
+            FlowRow(
+              horizontalArrangement = Arrangement.spacedBy(6.dp),
+              verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+              categories.forEach { category ->
+                FilterChip(
+                  selected = selectedCategory == category,
+                  onClick = { selectedCategory = category },
+                  label = { Text(category, fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                  colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = EmeraldPrimary,
+                    selectedLabelColor = Color.White
+                  ),
+                  modifier = Modifier.testTag("api_source_category_chip_${category.lowercase().replace(" ", "_")}")
+                )
+              }
+            }
+          }
+
+          // All Consolidated Project Sources
+          items(filteredSources.size) { idx ->
+            val item = filteredSources[idx]
+            val isConfigured = item.configurationStatus.equals("Configured", ignoreCase = true)
+
+            Card(
+              shape = RoundedCornerShape(14.dp),
+              colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+              modifier = Modifier
+                .fillMaxWidth()
+                .testTag("dev_api_source_card_${item.id}")
+            ) {
+              Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.SpaceBetween,
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                      text = item.sourceName,
+                      style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                      )
+                    )
+                    Text(
+                      text = "Category: ${item.category}",
+                      style = MaterialTheme.typography.labelSmall.copy(
+                        color = GoldPrimary,
+                        fontWeight = FontWeight.SemiBold
+                      )
+                    )
+                  }
+                  Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (isConfigured) {
+                      EmeraldPrimary.copy(alpha = 0.16f)
+                    } else {
+                      MaterialTheme.colorScheme.errorContainer
+                    }
+                  ) {
+                    Text(
+                      text = item.configurationStatus,
+                      modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                      style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isConfigured) EmeraldPrimary else MaterialTheme.colorScheme.onErrorContainer
+                      )
+                    )
+                  }
+                }
+
+                Text(
+                  text = "Purpose: ${item.purpose}",
+                  style = MaterialTheme.typography.bodySmall.copy(lineHeight = 17.sp)
+                )
+
+                // Official Documentation URL Row
+                Surface(
+                  shape = RoundedCornerShape(8.dp),
+                  color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { openSafeExternalUrl(item.officialDocumentationUrl) }
+                ) {
+                  Row(
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .padding(horizontal = 10.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                      Text(
+                        text = "Official Documentation URL",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                          fontSize = 10.sp,
+                          color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                      )
+                      Text(
+                        text = item.officialDocumentationUrl,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                          fontWeight = FontWeight.SemiBold,
+                          color = EmeraldPrimary
+                        )
+                      )
+                    }
+                    IconButton(
+                      onClick = { copyUrlToClipboard("${item.sourceName} Docs URL", item.officialDocumentationUrl) },
+                      modifier = Modifier.size(28.dp)
+                    ) {
+                      Icon(Icons.Default.ContentCopy, contentDescription = "Copy Documentation URL", modifier = Modifier.size(14.dp))
+                    }
+                  }
+                }
+
+                // Applicable Licence & Licence URL Row
+                Surface(
+                  shape = RoundedCornerShape(8.dp),
+                  color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { openSafeExternalUrl(item.applicableLicenceUrl) }
+                ) {
+                  Row(
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .padding(horizontal = 10.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                      Text(
+                        text = "Licence: ${item.applicableLicenceName}",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                          fontSize = 10.sp,
+                          fontWeight = FontWeight.Bold,
+                          color = GoldPrimary
+                        )
+                      )
+                      Text(
+                        text = "Licence URL: ${item.applicableLicenceUrl}",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                          color = EmeraldPrimary
+                        )
+                      )
+                    }
+                    IconButton(
+                      onClick = { copyUrlToClipboard("${item.sourceName} Licence URL", item.applicableLicenceUrl) },
+                      modifier = Modifier.size(28.dp)
+                    ) {
+                      Icon(Icons.Default.ContentCopy, contentDescription = "Copy Licence URL", modifier = Modifier.size(14.dp))
+                    }
+                  }
+                }
+
+                Text(
+                  text = "Attribution Requirements: ${item.attributionRequirements}",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 16.sp
+                  )
+                )
+
+                if (!item.missingDetailsNote.isNullOrBlank()) {
+                  Text(
+                    text = "Audit / Upstream Note: ${item.missingDetailsNote}",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      color = GoldPrimary,
+                      fontWeight = FontWeight.SemiBold,
+                      lineHeight = 15.sp
+                    )
+                  )
+                }
+              }
+            }
+          }
+
+          // Consolidated Learn Islam Investigated Sources Section (Moved from LearnIslamScreen)
+          item {
+            Card(
+              shape = RoundedCornerShape(14.dp),
+              colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+              Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.SpaceBetween,
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                      text = "Learn Islam Investigated Sources & Reuse Audit (${learnIslamSources.size})",
+                      style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                      )
+                    )
+                    Text(
+                      text = "Moved from Learn Islam tab to consolidate technical API & audio reuse findings",
+                      style = MaterialTheme.typography.labelSmall.copy(color = GoldPrimary)
+                    )
+                  }
+                  OutlinedButton(
+                    onClick = { showLearnIslamInvestigatedSources = !showLearnIslamInvestigatedSources },
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                  ) {
+                    Text(if (showLearnIslamInvestigatedSources) "Hide" else "Show", fontSize = 11.sp)
+                  }
+                }
+
+                if (showLearnIslamInvestigatedSources) {
+                  learnIslamSources.forEach { src ->
+                    Surface(
+                      shape = RoundedCornerShape(10.dp),
+                      color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                      modifier = Modifier.fillMaxWidth()
+                    ) {
+                      Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(
+                          text = src.name,
+                          style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Text(
+                          text = "URL: ${src.url}",
+                          style = MaterialTheme.typography.labelSmall.copy(color = EmeraldPrimary)
+                        )
+                        Text(
+                          text = "API & Reuse Status: ${src.apiAndReuseStatus}",
+                          style = MaterialTheme.typography.labelSmall
+                        )
+                        Text(
+                          text = "Licence & Attribution: ${src.licenseAndAttributionNote}",
+                          style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        )
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          // Consolidated Per-Collection Hadith Manifest Provenance (Moved from HadithScreen)
+          if (hadithManifestEntries.isNotEmpty()) {
+            item {
+              Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+              ) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                  Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                      Text(
+                        text = "Per-Collection Hadith Import & Licence Manifest (${hadithManifestEntries.size} Books)",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                          fontWeight = FontWeight.Bold,
+                          color = MaterialTheme.colorScheme.primary
+                        )
+                      )
+                      Text(
+                        text = "Consolidated from Hadith toolbar • Pinned versions, record counts & licences",
+                        style = MaterialTheme.typography.labelSmall.copy(color = GoldPrimary)
+                      )
+                    }
+                    OutlinedButton(
+                      onClick = { showHadithManifestProvenance = !showHadithManifestProvenance },
+                      contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                      Text(if (showHadithManifestProvenance) "Hide" else "Show", fontSize = 11.sp)
+                    }
+                  }
+
+                  if (showHadithManifestProvenance) {
+                    hadithManifestEntries.forEach { entry ->
+                      Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                        modifier = Modifier.fillMaxWidth()
+                      ) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                          Text(
+                            text = "${entry.titleEnglish} (${entry.titleArabic})",
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
+                          )
+                          Text(
+                            text = "Source: ${entry.sourceName} • Version/Tag: ${entry.pinnedVersion} • Licence: ${entry.license}",
+                            style = MaterialTheme.typography.labelSmall.copy(color = EmeraldPrimary)
+                          )
+                          Text(
+                            text = "Attribution: ${entry.attribution}",
+                            style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                          )
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+

@@ -798,14 +798,38 @@ fun SalahAndFajrAlarmCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Offline Adhan Favourite, 0%–100% Volume Control (Default 100%) & Continuous Vibration Panel
+            // Offline Adhan Favourite, Real-Time Hardware Alarm Volume Sync & Continuous Vibration Panel
             val activeMuezzin = remember(config.selectedMuezzinId) {
               MuezzinAudioOption.entries.find { it.id == config.selectedMuezzinId }
                 ?: MuezzinAudioOption.MADINAH_NABAWI
             }
-            val hwAlarmStatus = remember(config.alarmVolumePercent, nowMillis / 4000L) {
+            val hwAlarmStatus = remember(config.alarmVolumePercent, nowMillis / 1000L) {
               AzanAudioController.getHardwareAlarmVolumeStatus(context)
             }
+            var showAlarmVolumeSettingGuide by remember { mutableStateOf(false) }
+
+            val openAlarmVolumeSettingsAndGuide: () -> Unit = {
+              showAlarmVolumeSettingGuide = true
+              try {
+                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
+                audioManager?.adjustStreamVolume(
+                  android.media.AudioManager.STREAM_ALARM,
+                  android.media.AudioManager.ADJUST_RAISE,
+                  android.media.AudioManager.FLAG_SHOW_UI
+                )
+              } catch (_: Exception) {
+              }
+              try {
+                context.startActivity(Intent(Settings.ACTION_SOUND_SETTINGS))
+              } catch (_: Exception) {
+                Toast.makeText(
+                  context,
+                  "Setting Guide: Open Android Settings → Sound & Vibration → Alarm Volume and slide to 100%.",
+                  Toast.LENGTH_LONG
+                ).show()
+              }
+            }
+
             Surface(
               shape = RoundedCornerShape(12.dp),
               color = EmeraldPrimary.copy(alpha = 0.10f),
@@ -821,14 +845,14 @@ fun SalahAndFajrAlarmCard(
                 ) {
                   Column(modifier = Modifier.weight(1f)) {
                     Text(
-                      text = "Saved Favourite Adhan: ${activeMuezzin.title}",
+                      text = "Adhan: ${activeMuezzin.title}",
                       style = MaterialTheme.typography.labelLarge.copy(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                       )
                     )
                     Text(
-                      text = "100% Offline Local Recording (${activeMuezzin.localAssetPath}) • Volume: ${config.alarmVolumePercent}% (Default 100%) • Vibration: ${if (config.vibrationEnabled && config.continuousVibration) "ON" else "OFF"}",
+                      text = "Offline Vocal • Real-Time Alarm Audio: ${hwAlarmStatus.currentPercent}% • Vib: ${if (config.vibrationEnabled && config.continuousVibration) "ON" else "OFF"}",
                       style = MaterialTheme.typography.labelSmall.copy(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.SemiBold
@@ -839,7 +863,7 @@ fun SalahAndFajrAlarmCard(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 0% to 100% Volume Slider (Default 100%) + Direct System Alarm Volume Redirect Button
+                // Real-Time Hardware Alarm Volume Sync + Increase Redirect to Setting Guide
                 Row(
                   modifier = Modifier.fillMaxWidth(),
                   horizontalArrangement = Arrangement.SpaceBetween,
@@ -847,14 +871,14 @@ fun SalahAndFajrAlarmCard(
                 ) {
                   Column(modifier = Modifier.weight(1f)) {
                     Text(
-                      text = "Adhan Alarm Volume: ${config.alarmVolumePercent}% (Default 100%)",
+                      text = "Audio Level (Equal to Alarm Volume): ${hwAlarmStatus.currentPercent}%",
                       style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                       )
                     )
                     Text(
-                      text = "System Hardware Alarm: ${hwAlarmStatus.currentPercent}% (${hwAlarmStatus.currentSteps}/${hwAlarmStatus.maxSteps})",
+                      text = "Live System Alarm Stream: ${hwAlarmStatus.currentSteps}/${hwAlarmStatus.maxSteps} steps • App Target: ${config.alarmVolumePercent}%",
                       style = MaterialTheme.typography.labelSmall.copy(
                         color = GoldPrimary,
                         fontWeight = FontWeight.SemiBold,
@@ -862,57 +886,57 @@ fun SalahAndFajrAlarmCard(
                       )
                     )
                   }
-                  OutlinedButton(
-                    onClick = {
-                      try {
-                        context.startActivity(Intent(Settings.ACTION_SOUND_SETTINGS))
-                      } catch (_: Exception) {
-                        Toast.makeText(
-                          context,
-                          "Open Android Settings → Sound & Vibration → Alarm Volume to adjust hardware alarm volume.",
-                          Toast.LENGTH_LONG
-                        ).show()
-                      }
-                    },
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                  Spacer(modifier = Modifier.width(8.dp))
+                  Button(
+                    onClick = openAlarmVolumeSettingsAndGuide,
+                    colors = ButtonDefaults.buttonColors(
+                      containerColor = GoldPrimary,
+                      contentColor = Color(0xFF102820)
+                    ),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.testTag("redirect_system_alarm_volume_btn")
                   ) {
-                    Text("Set System Alarm Vol", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Icon(Icons.Default.VolumeUp, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                      text = "Increase Vol",
+                      fontSize = 11.sp,
+                      fontWeight = FontWeight.Bold,
+                      maxLines = 1,
+                      softWrap = false
+                    )
                   }
                 }
+
                 Slider(
-                  value = config.alarmVolumePercent.coerceIn(0, 100).toFloat(),
+                  value = hwAlarmStatus.currentPercent.coerceIn(0, 100).toFloat(),
                   onValueChange = { newVal ->
+                    val targetPct = newVal.toInt().coerceIn(0, 100)
                     onUpdateConfig(
                       config.copy(
-                        alarmVolumePercent = newVal.toInt().coerceIn(0, 100),
+                        alarmVolumePercent = targetPct,
                         boostSystemAlarmStream = true
                       )
                     )
+                    if (targetPct > hwAlarmStatus.currentPercent) {
+                      showAlarmVolumeSettingGuide = true
+                    }
                   },
                   valueRange = 0f..100f,
                   modifier = Modifier
                     .fillMaxWidth()
                     .testTag("adhan_volume_slider_0_100")
                 )
-                Text(
-                  text = "Note: Android system volume and device hardware restrictions may limit app-controlled volume changes. Tap 'Set System Alarm Vol' to adjust your phone's hardware alarm stream directly.",
-                  style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                  ),
-                  modifier = Modifier.padding(bottom = 6.dp)
-                )
 
-                // Hardware Alarm Stream Guidance Banner (if device hardware alarm volume is lower than 100%)
-                if (hwAlarmStatus.isBelowHardwareMax || hwAlarmStatus.isMuted) {
+                // Concise Setting Guide & Hardware Alarm Redirect Banner (shown when below max or when user increases volume)
+                if (showAlarmVolumeSettingGuide || hwAlarmStatus.isBelowHardwareMax || hwAlarmStatus.isMuted) {
                   Surface(
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(10.dp),
                     color = GoldPrimary.copy(alpha = 0.16f),
                     modifier = Modifier
                       .fillMaxWidth()
-                      .padding(bottom = 6.dp)
+                      .padding(bottom = 8.dp)
                       .testTag("hardware_alarm_volume_warning_banner")
                   ) {
                     Row(
@@ -924,38 +948,34 @@ fun SalahAndFajrAlarmCard(
                     ) {
                       Column(modifier = Modifier.weight(1f)) {
                         Text(
-                          text = "Device Hardware Alarm Volume: ${hwAlarmStatus.currentPercent}% (${hwAlarmStatus.currentSteps}/${hwAlarmStatus.maxSteps})",
+                          text = "Setting Guide to Increase Alarm Volume (${hwAlarmStatus.currentPercent}%):",
                           style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                           )
                         )
                         Text(
-                          text = hwAlarmStatus.guidanceMessage,
+                          text = "1. Tap 'Sound Settings' → 2. Raise 'Alarm Volume' slider to 100%. Audio level syncs automatically in real time.",
                           style = MaterialTheme.typography.labelSmall.copy(
                             fontSize = 10.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                           )
                         )
                       }
-                      Spacer(modifier = Modifier.width(6.dp))
+                      Spacer(modifier = Modifier.width(8.dp))
                       OutlinedButton(
-                        onClick = {
-                          try {
-                            context.startActivity(Intent(Settings.ACTION_SOUND_SETTINGS))
-                          } catch (_: Exception) {
-                            Toast.makeText(
-                              context,
-                              "Press your phone's Volume Up button and expand the Alarm volume slider to 100%.",
-                              Toast.LENGTH_LONG
-                            ).show()
-                          }
-                        },
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        onClick = openAlarmVolumeSettingsAndGuide,
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.testTag("open_sound_settings_btn")
                       ) {
-                        Text("Sound Settings", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                          text = "Sound Settings",
+                          fontSize = 10.sp,
+                          fontWeight = FontWeight.Bold,
+                          maxLines = 1,
+                          softWrap = false
+                        )
                       }
                     }
                   }
@@ -981,7 +1001,11 @@ fun SalahAndFajrAlarmCard(
                             boostSystemAlarmStream = true
                           )
                         )
-                        Toast.makeText(context, "Saved Adhan Alarm Volume: $label", Toast.LENGTH_SHORT).show()
+                        if (volPct > hwAlarmStatus.currentPercent) {
+                          openAlarmVolumeSettingsAndGuide()
+                        } else {
+                          Toast.makeText(context, "Saved Adhan Alarm Volume: $label", Toast.LENGTH_SHORT).show()
+                        }
                       },
                       label = { Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                       colors = FilterChipDefaults.filterChipColors(
@@ -1483,11 +1507,11 @@ fun SalahAndFajrAlarmCard(
           }
         }
 
-        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
 
-        // 3. Calculation Method & Asr Madhhab (Hanafi / Shafi'i)
+        // 3. Calculation Method & Asr Juristic Option (Compact Chips)
         Text(
-          text = "Calculation Method & Asr Juristic School:",
+          text = "Calculation Method & Asr Timing:",
           style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
         )
         Spacer(modifier = Modifier.height(6.dp))
@@ -1495,7 +1519,7 @@ fun SalahAndFajrAlarmCard(
           FilterChip(
             selected = config.asrMadhhab == 1,
             onClick = { onUpdateConfig(config.copy(asrMadhhab = 1)) },
-            label = { Text("Hanafi Asr (Shadow 2x)") },
+            label = { Text("Standard 2x Shadow", fontSize = 11.sp) },
             colors = FilterChipDefaults.filterChipColors(
               selectedContainerColor = EmeraldPrimary,
               selectedLabelColor = Color.White
@@ -1504,7 +1528,7 @@ fun SalahAndFajrAlarmCard(
           FilterChip(
             selected = config.asrMadhhab == 0,
             onClick = { onUpdateConfig(config.copy(asrMadhhab = 0)) },
-            label = { Text("Shafi'i / Standard Asr (1x)") },
+            label = { Text("Standard 1x Shadow", fontSize = 11.sp) },
             colors = FilterChipDefaults.filterChipColors(
               selectedContainerColor = EmeraldPrimary,
               selectedLabelColor = Color.White
@@ -1513,90 +1537,140 @@ fun SalahAndFajrAlarmCard(
         }
 
         Spacer(modifier = Modifier.height(6.dp))
-        PrayerTimeCalculator.calculationMethods.forEach { method ->
-          Row(
-            modifier = Modifier
-              .fillMaxWidth()
-              .clickable { onUpdateConfig(config.copy(calculationMethodId = method.id)) }
-              .padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            RadioButton(
+        FlowRow(
+          horizontalArrangement = Arrangement.spacedBy(6.dp),
+          verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+          PrayerTimeCalculator.calculationMethods.forEach { method ->
+            FilterChip(
               selected = config.calculationMethodId == method.id,
-              onClick = { onUpdateConfig(config.copy(calculationMethodId = method.id)) }
+              onClick = { onUpdateConfig(config.copy(calculationMethodId = method.id)) },
+              label = { Text(method.name, fontSize = 11.sp, maxLines = 1) },
+              colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = EmeraldPrimary,
+                selectedLabelColor = Color.White
+              )
             )
-            Column {
-              Text(text = method.name, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
-              Text(text = method.regionDescription, style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant))
-            }
           }
         }
 
-        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
 
-        // 4. Selectable Authentic Offline Muezzin (14 Verified Voices), 0%–100% Volume Slider & Continuous Vibration
-        Text(
-          text = "Preview, Test & Keep Favourite Adhan (${MuezzinAudioOption.entries.size} Offline Pure Vocal Recordings):",
-          style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        MuezzinAudioOption.entries.forEach { muezzin ->
-          val isPlayingThis = alarmPlaybackState.isActive && alarmPlaybackState.activeMuezzinId == muezzin.id
-          Row(
-            modifier = Modifier
-              .fillMaxWidth()
-              .clickable { onUpdateConfig(config.copy(selectedMuezzinId = muezzin.id)) }
-              .padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            RadioButton(
-              selected = config.selectedMuezzinId == muezzin.id,
-              onClick = { onUpdateConfig(config.copy(selectedMuezzinId = muezzin.id)) }
+        // 4. Concise Adhan Voice, Real-Time Alarm Volume & Vibration Controls
+        var expandMuezzinsInSheet by remember { mutableStateOf(false) }
+        val currentSheetMuezzin = remember(config.selectedMuezzinId) {
+          MuezzinAudioOption.entries.find { it.id == config.selectedMuezzinId }
+            ?: MuezzinAudioOption.MADINAH_NABAWI
+        }
+        val sheetHwAlarm = remember(config.alarmVolumePercent, nowMillis / 1000L) {
+          AzanAudioController.getHardwareAlarmVolumeStatus(context)
+        }
+
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Column(modifier = Modifier.weight(1f)) {
+            Text(
+              text = "Active Adhan: ${currentSheetMuezzin.title}",
+              style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
             )
-            Column(modifier = Modifier.weight(1f)) {
-              Text(text = muezzin.title, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
-              Text(
-                text = "${muezzin.originMasjid} • ${muezzin.maqamOrStyle}",
-                style = MaterialTheme.typography.labelSmall.copy(color = GoldPrimary, fontWeight = FontWeight.SemiBold)
+            Text(
+              text = "${currentSheetMuezzin.originMasjid} • ${currentSheetMuezzin.maqamOrStyle}",
+              style = MaterialTheme.typography.labelSmall.copy(color = GoldPrimary, fontWeight = FontWeight.SemiBold)
+            )
+          }
+          OutlinedButton(
+            onClick = { expandMuezzinsInSheet = !expandMuezzinsInSheet },
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+            shape = RoundedCornerShape(8.dp)
+          ) {
+            Text(
+              text = if (expandMuezzinsInSheet) "Hide Voices" else "Change (${MuezzinAudioOption.entries.size})",
+              fontSize = 11.sp,
+              fontWeight = FontWeight.Bold
+            )
+          }
+        }
+
+        if (expandMuezzinsInSheet) {
+          Spacer(modifier = Modifier.height(6.dp))
+          MuezzinAudioOption.entries.forEach { muezzin ->
+            val isPlayingThis = alarmPlaybackState.isActive && alarmPlaybackState.activeMuezzinId == muezzin.id
+            Row(
+              modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onUpdateConfig(config.copy(selectedMuezzinId = muezzin.id)) }
+                .padding(vertical = 4.dp),
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              RadioButton(
+                selected = config.selectedMuezzinId == muezzin.id,
+                onClick = { onUpdateConfig(config.copy(selectedMuezzinId = muezzin.id)) }
               )
-              Text(text = muezzin.subtitle, style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant))
-            }
-            OutlinedButton(
-              onClick = {
-                if (isPlayingThis) {
-                  onStopActiveAlarm()
-                } else {
-                  AzanAudioController.previewMuezzinAzan(context, muezzin)
-                }
-              },
-              contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-            ) {
-              Text(if (isPlayingThis) "Stop" else "Preview", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-            }
-            Spacer(modifier = Modifier.width(4.dp))
-            OutlinedButton(
-              onClick = {
-                if (isPlayingThis) {
-                  onStopActiveAlarm()
-                } else {
-                  onUpdateConfig(config.copy(selectedMuezzinId = muezzin.id))
-                  AzanAudioController.testMuezzinAzan(context, muezzin)
-                }
-              },
-              contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-            ) {
-              Text(if (isPlayingThis) "Stop" else "Test & Keep", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+              Column(modifier = Modifier.weight(1f)) {
+                Text(text = muezzin.title, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
+                Text(
+                  text = "${muezzin.originMasjid} • ${muezzin.maqamOrStyle}",
+                  style = MaterialTheme.typography.labelSmall.copy(color = GoldPrimary, fontSize = 10.sp)
+                )
+              }
+              OutlinedButton(
+                onClick = {
+                  if (isPlayingThis) {
+                    onStopActiveAlarm()
+                  } else {
+                    AzanAudioController.previewMuezzinAzan(context, muezzin)
+                  }
+                },
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+              ) {
+                Text(if (isPlayingThis) "Stop" else "Preview", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+              }
+              Spacer(modifier = Modifier.width(4.dp))
+              OutlinedButton(
+                onClick = {
+                  if (isPlayingThis) {
+                    onStopActiveAlarm()
+                  } else {
+                    onUpdateConfig(config.copy(selectedMuezzinId = muezzin.id))
+                    AzanAudioController.testMuezzinAzan(context, muezzin)
+                  }
+                },
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+              ) {
+                Text(if (isPlayingThis) "Stop" else "Keep", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+              }
             }
           }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
-          text = "Adhan & Fajr Alarm Volume: ${config.alarmVolumePercent}% (Default 100%, Range 0%–100%)",
-          style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
-        )
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Text(
+            text = "Audio Level (Equal to Alarm Volume): ${sheetHwAlarm.currentPercent}%",
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+          )
+          OutlinedButton(
+            onClick = {
+              try {
+                context.startActivity(Intent(Settings.ACTION_SOUND_SETTINGS))
+              } catch (_: Exception) {
+              }
+            },
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+            shape = RoundedCornerShape(8.dp)
+          ) {
+            Text("Increase in Sound Settings", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+          }
+        }
         Slider(
-          value = config.alarmVolumePercent.coerceIn(0, 100).toFloat(),
+          value = sheetHwAlarm.currentPercent.coerceIn(0, 100).toFloat(),
           onValueChange = { onUpdateConfig(config.copy(alarmVolumePercent = it.toInt().coerceIn(0, 100))) },
           valueRange = 0f..100f
         )
@@ -1606,39 +1680,27 @@ fun SalahAndFajrAlarmCard(
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          Column(modifier = Modifier.weight(1f)) {
-            Text(
-              text = "Use Android Alarm Stream at Highest Permitted Device Volume",
-              style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold)
-            )
-            Text(
-              text = "Plays Adhan on Android's STREAM_ALARM up to the highest permitted device alarm volume, restoring previous volume when dismissed.",
-              style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-            )
-          }
+          Text(
+            text = "Use Android Alarm Stream (Max Permitted Volume)",
+            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+            modifier = Modifier.weight(1f)
+          )
           Switch(
             checked = config.boostSystemAlarmStream,
             onCheckedChange = { onUpdateConfig(config.copy(boostSystemAlarmStream = it)) }
           )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
         Row(
           modifier = Modifier.fillMaxWidth(),
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          Column(modifier = Modifier.weight(1f)) {
-            Text(
-              text = "Continue Vibrations Non-Stop Until Alarm Dismissed",
-              style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold)
-            )
-            Text(
-              text = "Continuously vibrates with maximum alarm amplitude and watchdog protection while Azan plays.",
-              style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-            )
-          }
+          Text(
+            text = "Continuous Vibration During Alarm",
+            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+            modifier = Modifier.weight(1f)
+          )
           Switch(
             checked = config.vibrationEnabled && config.continuousVibration,
             onCheckedChange = {

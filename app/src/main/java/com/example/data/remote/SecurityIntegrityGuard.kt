@@ -80,7 +80,30 @@ object SecurityIntegrityGuard {
     "surahquran.com",
     "tvquran.com",
     "wa.me",
-    "api.whatsapp.com"
+    "api.whatsapp.com",
+    "alquran.cloud",
+    "aladhan.com",
+    "api-docs.quran.com",
+    "api-docs.quran.foundation",
+    "quran.foundation",
+    "sunnah.readme.io",
+    "hisnulmuslim.app",
+    "islamqa.info",
+    "taqwafoundation.com",
+    "learnnooraniqaida.com",
+    "noorani-qaida.com",
+    "iifa-aifi.org",
+    "dar-alifta.org",
+    "amu.ac.in",
+    "creativecommons.org",
+    "opensource.org",
+    "unlicense.org",
+    "apache.org",
+    "openfontlicense.org",
+    "software.sil.org",
+    "fonts.google.com",
+    "developer.android.com",
+    "firebase.google.com"
   )
 
   private val ALLOWED_HTTPS_DOMAIN_SUFFIXES = listOf(
@@ -88,6 +111,7 @@ object SecurityIntegrityGuard {
     ".way2quran.com",
     ".archive.org",
     ".quran.com",
+    ".quran.foundation",
     ".qurancdn.com",
     ".quranicaudio.com",
     ".al-islam.org",
@@ -96,7 +120,9 @@ object SecurityIntegrityGuard {
     ".duas.org",
     ".hadithapi.com",
     ".ummahapi.com",
-    ".sunnah.com"
+    ".sunnah.com",
+    ".google.com",
+    ".android.com"
   )
 
   private val BLOCKED_AD_AND_TRACKER_KEYWORDS = listOf(
@@ -338,8 +364,40 @@ object SecurityIntegrityGuard {
     return cleanAr.isNotBlank() || cleanEn.isNotBlank()
   }
 
+  private val FTS_RESERVED_KEYWORDS = setOf("AND", "OR", "NOT", "NEAR")
+
   /**
-   * Checks whether the current user email matches the authorized developer maintainer.
+   * Builds a safe SQLite FTS4 MATCH prefix expression from user input.
+   * Strips FTS syntax characters and excludes standalone FTS boolean operators
+   * (AND, OR, NOT, NEAR) so queries like "NOT AVAILABLE" or "MERCY AND FORGIVENESS"
+   * never produce malformed MATCH expressions such as "NOT*" or "AND*".
+   */
+  fun toSafeFtsMatchQuery(rawQuery: String): String {
+    val sanitized = sanitizeSearchQuery(rawQuery)
+    if (sanitized.isBlank()) return ""
+    return sanitized
+      .replace(Regex("[^\\p{L}\\p{N}\\s]"), " ")
+      .split(Regex("\\s+"))
+      .map { it.trim() }
+      .filter { token ->
+        token.length > 1 && token.uppercase() !in FTS_RESERVED_KEYWORDS
+      }
+      .joinToString(" ") { "$it*" }
+  }
+
+  /**
+   * Redacts sensitive query parameters (such as apiKey, key, token) from URLs before logging.
+   */
+  fun redactSensitiveUrl(url: String): String {
+    return url.replace(
+      Regex("([?&](?:apiKey|api_key|key|token)=)[^&#\\s]+", RegexOption.IGNORE_CASE),
+      "$1[REDACTED]"
+    )
+  }
+
+  /**
+   * UI-only provenance header helper: checks whether the signed-in email matches the maintainer
+   * email to toggle the About-screen section heading label. Never use for access control.
    */
   fun isAuthorizedDeveloper(email: String?): Boolean {
     return email?.trim()?.equals(AUTHORIZED_DEVELOPER_EMAIL, ignoreCase = true) == true

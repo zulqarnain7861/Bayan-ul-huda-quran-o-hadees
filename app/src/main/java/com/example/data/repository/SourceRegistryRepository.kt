@@ -394,6 +394,393 @@ class SourceRegistryRepository(
 
       return result.values.toList()
     }
+
+    /**
+     * Comprehensive, deduplicated registry of all actual APIs, content sources, translations,
+     * audio services, repositories, bundled fonts, icon sets, and platform SDKs used in
+     * Bayan al-Huda for the hidden "Developer Options -> API Sources & Licences" page.
+     *
+     * Security guarantee:
+     * - Never exposes API keys, tokens, passwords, credentials, or private repository URLs.
+     * - Reports only masked configuration status ("Configured" or "Not configured").
+     */
+    fun getDeveloperApiSourcesAndLicences(): List<DeveloperApiSourceLicenceItem> {
+      val hadithApiStatus = if (com.example.data.remote.MultiSourceHadithCatalog.isHadithApiKeyConfigured()) {
+        "Configured"
+      } else {
+        "Not configured"
+      }
+      val sunnahApiStatus = if (com.example.data.remote.MultiSourceHadithCatalog.isSunnahApiKeyConfigured()) {
+        "Configured"
+      } else {
+        "Not configured"
+      }
+      val ummahApiStatus = if (com.example.data.remote.MultiSourceHadithCatalog.isUmmahApiKeyConfigured()) {
+        "Configured"
+      } else {
+        "Not configured"
+      }
+
+      return listOf(
+        // =====================================================================
+        // 1. QURAN TEXT, TRANSLATIONS & TAFSIR APIS
+        // =====================================================================
+        DeveloperApiSourceLicenceItem(
+          id = "tanzil_quran_project",
+          category = "Quran & Tafsir",
+          sourceName = "Tanzil.net — International Quran Text Project",
+          purpose = "Canonical Uthmani Arabic Quran text (114 Surahs, 6,236 verses) and baseline English/Urdu translations (Sahih International, Pickthall, Yusuf Ali, Fateh Muhammad Jalandhry, Abul Ala Maududi).",
+          officialDocumentationUrl = "https://tanzil.net/docs/tanzil_project",
+          applicableLicenceName = "Creative Commons Attribution 3.0 (CC BY 3.0) / Tanzil Text License",
+          applicableLicenceUrl = "https://tanzil.net/docs/text_license",
+          attributionRequirements = "Attribute Tanzil.net and King Fahd Glorious Quran Printing Complex (KFGQPC); distribute verbatim Quran text without modification.",
+          configurationStatus = "Configured"
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "quran_foundation_api_v4",
+          category = "Quran & Tafsir",
+          sourceName = "Quran.com / Quran Foundation REST API v4",
+          purpose = "Chapter/verse metadata, multi-translator verse translations, classical Tafsir sync (Ibn Kathir, Tabari, Qurtubi, Jalalayn, As-Sa'di, Ma'ariful Quran), and chapter audio recitations.",
+          officialDocumentationUrl = "https://api-docs.quran.com/",
+          applicableLicenceName = "Quran.Foundation Open Educational & Content Sync Terms",
+          applicableLicenceUrl = "https://api-docs.quran.foundation/docs/content-sync",
+          attributionRequirements = "Maintain Quran.com / Quran Foundation attribution, preserve translator/author names, and follow 30-day Content Sync refresh rules.",
+          configurationStatus = "Configured"
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "alquran_cloud_api",
+          category = "Quran & Tafsir",
+          sourceName = "AlQuran Cloud REST API (Islamic Network)",
+          purpose = "Online Surah fetch for Uthmani Arabic script, Sahih International (en.sahih), Fateh Muhammad Jalandhry (ur.jalandhry), and English transliteration (en.transliteration).",
+          officialDocumentationUrl = "https://alquran.cloud/api",
+          applicableLicenceName = "GNU GPL v3 / Open Islamic Network Terms",
+          applicableLicenceUrl = "https://alquran.cloud/terms-and-conditions",
+          attributionRequirements = "Credit AlQuran.cloud (Islamic Network) and preserve edition identifiers and translator attributions.",
+          configurationStatus = "Configured"
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "qul_tarteel_translations",
+          category = "Quran & Tafsir",
+          sourceName = "Quranic Universal Library (QUL — Tarteel AI)",
+          purpose = "Multilingual Ayah-by-Ayah Quran translations across 72+ languages with RTL script support and footnote parsing.",
+          officialDocumentationUrl = "https://qul.tarteel.ai/resources/translation",
+          applicableLicenceName = "Open Scholarly Attribution (Per-Translator QUL Terms)",
+          applicableLicenceUrl = "https://qul.tarteel.ai/",
+          attributionRequirements = "Display exact translator name and language edition beneath each verse. Note: Dr. Mustafa Khattab (The Clear Quran, QUL #426) is excluded from QUL bulk download due to copyright restrictions on QUL and served via existing licensed catalog.",
+          configurationStatus = "Configured",
+          missingDetailsNote = "Dagbani translation is not available in QUL or fawazahmed0/quran-api and is explicitly marked unavailable."
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "quranenc_translations_api",
+          category = "Quran & Tafsir",
+          sourceName = "QuranEnc (Quranic Encyclopedia Translation API)",
+          purpose = "Verified Surah-level translations in English, Urdu, Kashmiri, Hindi, Bengali, Persian, Dari, Pashto, and international languages.",
+          officialDocumentationUrl = "https://quranenc.com/en/home#api",
+          applicableLicenceName = "CC BY-ND (Attribution-NoDerivatives) / Free Non-Commercial Religious Distribution",
+          applicableLicenceUrl = "https://quranenc.com/en/about",
+          attributionRequirements = "Credit QuranEnc.com and the respective translation scholar/board without modifying translated text.",
+          configurationStatus = "Configured"
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "fawazahmed0_quran_api",
+          category = "Quran & Tafsir",
+          sourceName = "FawazAhmed0 Open Quran API (jsDelivr CDN)",
+          purpose = "Fallback multilingual Quran translation JSONs including Afar translation (aar-sheikhmahmoudab by Sheikh Mahmoud Abdel Qader Hamza).",
+          officialDocumentationUrl = "https://github.com/fawazahmed0/quran-api",
+          applicableLicenceName = "The Unlicense (Public Domain)",
+          applicableLicenceUrl = "https://unlicense.org/",
+          attributionRequirements = "Public domain repository; preserve individual translator attribution in UI.",
+          configurationStatus = "Configured"
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "al_islam_org_dilp",
+          category = "Quran & Tafsir",
+          sourceName = "Al-Islam.org — Ahlul Bayt Digital Islamic Library Project (DILP)",
+          purpose = "Shia Quran translations (Ali Quli Qara'i, Mohammad Habib Shakir), Nahj al-Balagha, Al-Sahifa al-Sajjadiyya, and classical Imami theology texts.",
+          officialDocumentationUrl = "https://www.al-islam.org/",
+          applicableLicenceName = "Ahlul Bayt DILP Non-Commercial Educational Terms",
+          applicableLicenceUrl = "https://www.al-islam.org/terms-of-use",
+          attributionRequirements = "Non-commercial educational use with attribution to Al-Islam.org (DILP) and respective translators.",
+          configurationStatus = "Configured"
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "shiaquran_in_portal",
+          category = "Quran & Tafsir",
+          sourceName = "ShiaQuran.in & Jamia-tus-Saqlain / Tanzeem-ul-Makatib",
+          purpose = "Verified Shia Urdu Quran translations and exegetical notes: Anwar-ul-Quran (Allamah Syed Zeeshan Haider Jawadi) and Faiz-ur-Rahman (Allamah Muhammad Hussain Najafi).",
+          officialDocumentationUrl = "https://shiaquran.in/",
+          applicableLicenceName = "Scholarly Open Access / Religious Education Permitted",
+          applicableLicenceUrl = "https://shiaquran.in/downloads",
+          attributionRequirements = "Preserve translator names (Allamah Zeeshan Haider Jawadi & Allamah Muhammad Hussain Najafi) and non-commercial religious study notice.",
+          configurationStatus = "Configured",
+          missingDetailsNote = "Upstream portal provides open religious downloads without a separate SPDX software licence URL."
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "almizan_and_ali_academy",
+          category = "Quran & Tafsir",
+          sourceName = "Al-Mizan.org & Academy for Learning Islam (ALI)",
+          purpose = "Tafsir al-Mizan (Allamah Muhammad Husayn Tabataba'i, translated by Sayyid Saeed Akhtar Rizvi / WOFIS) and S.V. Mir Ahmed Ali / Agha Pooya Yazdi Quran commentary.",
+          officialDocumentationUrl = "https://almizan.org/",
+          applicableLicenceName = "WOFIS / Academy for Learning Islam Scholarly Access",
+          applicableLicenceUrl = "https://academyofislam.com/general-quran-resources/",
+          attributionRequirements = "Credit Allamah Tabataba'i, WOFIS (World Organization for Islamic Services), and S.V. Mir Ahmed Ali.",
+          configurationStatus = "Configured"
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "shia_online_library_classical",
+          category = "Quran & Tafsir",
+          sourceName = "Al-Maktabah al-Shi'iyyah (Shia Online Library)",
+          purpose = "Classical Arabic Shia exegesis and Hadith heritage texts (Majma' al-Bayan, Al-Tibyan, Nur al-Thaqalayn, Tafsir al-Qummi, Tafsir al-'Ayyashi, Tahdhib al-Ahkam, Al-Istibsar).",
+          officialDocumentationUrl = "https://shiaonlinelibrary.com/",
+          applicableLicenceName = "Classical Public Domain Islamic Heritage",
+          applicableLicenceUrl = "https://shiaonlinelibrary.com/",
+          attributionRequirements = "Cite classical authors (Shaykh al-Tabarsi, Shaykh al-Tusi, Ali ibn Ibrahim al-Qummi) and volume/page numbers.",
+          configurationStatus = "Configured"
+        ),
+
+        // =====================================================================
+        // 2. HADITH APIS & CANONICAL REPOSITORIES
+        // =====================================================================
+        DeveloperApiSourceLicenceItem(
+          id = "fawazahmed0_hadith_api_v1",
+          category = "Hadith",
+          sourceName = "FawazAhmed0 Hadith API (@1 via jsDelivr CDN)",
+          purpose = "Primary Sunni Hadith JSON endpoints (/editions, /sections, /info) for Kutub al-Sittah, Muwatta Malik, 40 Nawawi, 40 Qudsi, and 40 Shah Waliullah Dehlawi in Arabic, English, Urdu, Bengali, Turkish, Indonesian, French, Russian, and Tamil.",
+          officialDocumentationUrl = "https://github.com/fawazahmed0/hadith-api",
+          applicableLicenceName = "The Unlicense (Public Domain)",
+          applicableLicenceUrl = "https://unlicense.org/",
+          attributionRequirements = "Preserve canonical Hadith numbering, grading scholar attribution, and named translator credit.",
+          configurationStatus = "Configured"
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "ahmedbaset_hadith_json_v1_2_0",
+          category = "Hadith",
+          sourceName = "AhmedBaset Hadith-JSON (Strictly Pinned to Tag v1.2.0)",
+          purpose = "17 Sunni Hadith collections structured by chapter and book (The 9 Books, Forties, Riyad as-Salihin, Mishkat al-Masabih, Al-Adab al-Mufrad, Ash-Shama'il al-Muhammadiyah, Bulugh al-Maram).",
+          officialDocumentationUrl = "https://github.com/AhmedBaset/hadith-json/tree/v1.2.0",
+          applicableLicenceName = "MIT License",
+          applicableLicenceUrl = "https://opensource.org/licenses/MIT",
+          attributionRequirements = "Pin requests to tag v1.2.0 and retain AhmedBaset/hadith-json MIT copyright notice.",
+          configurationStatus = "Configured"
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "hadithapi_com_service",
+          category = "Hadith",
+          sourceName = "HadithAPI.com — Verified Hadith REST API",
+          purpose = "Arabic, English, and Urdu Hadith books, chapters, and narration lookup for Sahih Bukhari, Sahih Muslim, Jami' at-Tirmidhi, Sunan Abu Dawud, Sunan Ibn Majah, Sunan an-Nasa'i, Mishkat al-Masabih, and Musnad Ahmad.",
+          officialDocumentationUrl = "https://hadithapi.com/docs",
+          applicableLicenceName = "HadithAPI.com Authorized Developer Terms",
+          applicableLicenceUrl = "https://hadithapi.com/",
+          attributionRequirements = "Requires authorized API key via BuildConfig (never exposed in UI); preserve book, chapter, and Darussalam numbering.",
+          configurationStatus = hadithApiStatus
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "sunnah_com_official_api",
+          category = "Hadith",
+          sourceName = "Sunnah.com Official Hadith Portal & API v1",
+          purpose = "Canonical Sunni Hadith collections, dual Darussalam and In-Book reference verification, and Hadith grading metadata across 18 Sunni collections.",
+          officialDocumentationUrl = "https://sunnah.readme.io/docs",
+          applicableLicenceName = "Sunnah.com Open Research & Attribution License",
+          applicableLicenceUrl = "https://sunnah.com/about",
+          attributionRequirements = "Attribute Sunnah.com, preserve verbatim Arabic and English/Urdu text, and retain both In-Book and Darussalam references.",
+          configurationStatus = sunnahApiStatus
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "ummahapi_com_service",
+          category = "Hadith",
+          sourceName = "UmmahAPI.com Verified Hadith API",
+          purpose = "Supplementary Sunni Hadith collection browsing, narration lookup, and cross-source text verification across 18 collections.",
+          officialDocumentationUrl = "https://ummahapi.com",
+          applicableLicenceName = "UmmahAPI.com Developer Terms of Service",
+          applicableLicenceUrl = "https://ummahapi.com",
+          attributionRequirements = "Requires API key via BuildConfig (masked in UI); preserve collection and narration attribution.",
+          configurationStatus = ummahApiStatus
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "thaqalayn_shia_hadith_api",
+          category = "Hadith",
+          sourceName = "Thaqalayn.net Shia Hadith Library & REST API v2",
+          purpose = "Primary Shia Hadith corpus (Kitab al-Kafi Vols 1–8, Man La Yahduruhu al-Faqih, Tahdhib al-Ahkam, Al-Khisal, 'Uyun Akhbar al-Rida, Al-Amali, Kitab al-Tawhid, Ma'ani al-Akhbar) with Imami Rijal grading.",
+          officialDocumentationUrl = "https://github.com/ThaqalaynAPI/thaqalayn-api",
+          applicableLicenceName = "Open Source / Thaqalayn Public API Terms",
+          applicableLicenceUrl = "https://www.thaqalayn.net/",
+          attributionRequirements = "Attribute Thaqalayn.net and preserve Imami scholar gradings ('Allamah al-Majlisi & Shaykh Asif al-Muhsini) without mixing Sunni Darussalam labels.",
+          configurationStatus = "Configured"
+        ),
+
+        // =====================================================================
+        // 3. PRAYER TIMES, RAMADAN CALENDAR & LEARNING SOURCES
+        // =====================================================================
+        DeveloperApiSourceLicenceItem(
+          id = "aladhan_prayer_calendar_api",
+          category = "Prayer & Learning",
+          sourceName = "AlAdhan Prayer Times & Hijri Calendar API",
+          purpose = "Worldwide 5 daily Salah timings, Hijri-Gregorian calendar conversion, and complete yearly/Ramadan Sehri & Iftar timetable with Hanafi/Shafi'i settings and offline astronomical fallback.",
+          officialDocumentationUrl = "https://aladhan.com/prayer-times-api",
+          applicableLicenceName = "MIT / Open Islamic Network API Terms",
+          applicableLicenceUrl = "https://aladhan.com/terms-and-conditions",
+          attributionRequirements = "Attribute AlAdhan.com (Islamic Network) and display user disclaimer to verify fasting/prayer times with local religious authorities.",
+          configurationStatus = "Configured"
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "hisnul_muslim_adhkar",
+          category = "Prayer & Learning",
+          sourceName = "Hisn al-Muslim (Fortress of the Muslim — Shaykh Sa'id ibn 'Ali ibn Wahf al-Qahtani)",
+          purpose = "Authentic daily Duas, Ramadan Sehri/Iftari supplications (including Sunan Abi Dawud 2357), and chronological daily Adhkar in Daily Duas and Learn Islam.",
+          officialDocumentationUrl = "https://www.hisnulmuslim.app/",
+          applicableLicenceName = "Open Non-Commercial Islamic Educational Distribution",
+          applicableLicenceUrl = "https://www.hisnulmuslim.app/",
+          attributionRequirements = "Credit compiler Sa'id ibn 'Ali ibn Wahf al-Qahtani (Hisn al-Muslim) and retain original Hadith book/number citations.",
+          configurationStatus = "Configured"
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "noorani_qaida_curriculum_sources",
+          category = "Prayer & Learning",
+          sourceName = "Classical Noorani Qaida (Sheikh Noor Muhammad Haqqani Ludhianvi) & Investigated Web Curricula",
+          purpose = "17-lesson classical Darasgah Noorani Qaida progression (cross-referenced with 21-lesson web division on taqwafoundation.com, learnnooraniqaida.com, and noorani-qaida.com).",
+          officialDocumentationUrl = "https://taqwafoundation.com/resources/noorani-qaida-online/",
+          applicableLicenceName = "Public Domain Classical Primer (1856–1925 CE); Third-Party Web Audio Copyright Reserved",
+          applicableLicenceUrl = "https://noorani-qaida.com/",
+          attributionRequirements = "Attribute Sheikh Noor Muhammad Haqqani Ludhianvi for the classical 17-lesson primer. Third-party website audio from learnnooraniqaida.com and noorani-qaida.com is copyright-protected and is NOT scraped or redistributed; app uses native Arabic phonetic TTS and EveryAyah/Quran.com reciter audio.",
+          configurationStatus = "Configured",
+          missingDetailsNote = "learnnooraniqaida.com, noorani-qaida.com, and taqwafoundation.com do not provide public JSON APIs or open audio redistribution licences."
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "islamqa_fiqh_reference",
+          category = "Prayer & Learning",
+          sourceName = "IslamQA Scholarly Fiqh Reference (Fatwa #37805)",
+          purpose = "Scholarly verification distinguishing Prophetic heart intention (Niyyah) for fasting from customary verbal Sehri formulas.",
+          officialDocumentationUrl = "https://islamqa.info/en/answers/37805",
+          applicableLicenceName = "Scholarly Citation / Non-Commercial Reference",
+          applicableLicenceUrl = "https://islamqa.info/en/about-us",
+          attributionRequirements = "Cite IslamQA Fatwa #37805 alongside primary Hadith references (Sahih al-Bukhari 1, Sunan an-Nasa'i 2331).",
+          configurationStatus = "Configured"
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "iifa_dar_alifta_fiqh_archive",
+          category = "Prayer & Learning",
+          sourceName = "International Islamic Fiqh Academy (OIC) & Dar al-Ifta Archive",
+          purpose = "Comparative Sunni jurisprudence resolutions and fatwa citations in the Evidence & Jurisprudence section.",
+          officialDocumentationUrl = "https://iifa-aifi.org/",
+          applicableLicenceName = "Official Institutional Public Access / Scholarly Citation",
+          applicableLicenceUrl = "https://www.dar-alifta.org/",
+          attributionRequirements = "Cite institutional resolution numbers and issuing bodies without altering legal rulings.",
+          configurationStatus = "Configured"
+        ),
+
+        // =====================================================================
+        // 4. QURAN AUDIO STREAMING & TIMING REPOSITORIES
+        // =====================================================================
+        DeveloperApiSourceLicenceItem(
+          id = "everyayah_audio_cdn",
+          category = "Audio",
+          sourceName = "EveryAyah.com Verse-by-Verse Quran Audio CDN",
+          purpose = "Ayah-by-Ayah MP3 streaming and offline caching for Mahmoud Khalil Al-Husary, Abdul Basit, Al-Minshawi, Al-Sudais, Abu Bakr Al-Shatri, Karim Mansouri, and Maytham al-Tammar.",
+          officialDocumentationUrl = "https://everyayah.com/data/status.htm",
+          applicableLicenceName = "EveryAyah Open Personal & Educational Playback License",
+          applicableLicenceUrl = "https://everyayah.com/",
+          attributionRequirements = "Credit EveryAyah.com and the respective Qari/Reciter; non-commercial educational and personal listening only.",
+          configurationStatus = "Configured"
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "quranicaudio_com_cdn",
+          category = "Audio",
+          sourceName = "QuranicAudio.com Full-Surah Audio Repository",
+          purpose = "Full-chapter Surah MP3 downloads and streaming for Sunni reciters.",
+          officialDocumentationUrl = "https://quranicaudio.com/",
+          applicableLicenceName = "Quran.Foundation Open Audio Streaming License",
+          applicableLicenceUrl = "https://quranicaudio.com/about",
+          attributionRequirements = "Credit QuranicAudio.com and the respective reciter.",
+          configurationStatus = "Configured"
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "mp3quran_and_archive_org",
+          category = "Audio",
+          sourceName = "MP3Quran.net v3 API & Internet Archive Audio",
+          purpose = "Surah-level Quran recitation streaming for Islam Sobhi and Abdul Rehman Mossad.",
+          officialDocumentationUrl = "https://www.mp3quran.net/eng/api",
+          applicableLicenceName = "Open Non-Commercial Quran Audio Distribution",
+          applicableLicenceUrl = "https://archive.org/about/terms.php",
+          attributionRequirements = "Credit MP3Quran.net, Archive.org, and the reciter; honestly mark unrecorded Surahs as unavailable without substituting other reciters.",
+          configurationStatus = "Configured"
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "qud_quranic_universal_audio",
+          category = "Audio",
+          sourceName = "QUD-Technologies / quranic-universal-audio",
+          purpose = "Open-source reference metadata for Quran word and verse audio timing intervals.",
+          officialDocumentationUrl = "https://github.com/QUD-Technologies/quranic-universal-audio",
+          applicableLicenceName = "Open-Source GitHub Reference Repository",
+          applicableLicenceUrl = "https://github.com/QUD-Technologies/quranic-universal-audio",
+          attributionRequirements = "Retain repository attribution for timing structure reference.",
+          configurationStatus = "Configured",
+          missingDetailsNote = "Upstream GitHub repository does not contain a separate standalone LICENSE file; used only for timing metadata reference alongside Quran.com v4."
+        ),
+
+        // =====================================================================
+        // 5. TYPOGRAPHY, FONTS & ICON LIBRARIES
+        // =====================================================================
+        DeveloperApiSourceLicenceItem(
+          id = "font_amiri_quran",
+          category = "Fonts & Icons",
+          sourceName = "Amiri & Amiri Quran Typefaces (Dr. Khaled Hosny)",
+          purpose = "Bundled Uthmani Mushaf calligraphy and classical Arabic Naskh rendering (res/font/amiri.ttf, amiri_bold.ttf, amiri_quran.ttf).",
+          officialDocumentationUrl = "https://github.com/aliftype/amiri",
+          applicableLicenceName = "SIL Open Font License 1.1 (OFL-1.1)",
+          applicableLicenceUrl = "https://openfontlicense.org/",
+          attributionRequirements = "Copyright (c) Khaled Hosny (Alif Type), licensed under the SIL Open Font License 1.1.",
+          configurationStatus = "Configured"
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "font_scheherazade_new",
+          category = "Fonts & Icons",
+          sourceName = "Scheherazade New Arabic Font (SIL International)",
+          purpose = "Bundled extended Arabic script Naskh font for headings, Hadith, and Duas (res/font/scheherazade_new.ttf, scheherazade_new_bold.ttf).",
+          officialDocumentationUrl = "https://software.sil.org/scheherazade/",
+          applicableLicenceName = "SIL Open Font License 1.1 (OFL-1.1)",
+          applicableLicenceUrl = "https://openfontlicense.org/",
+          attributionRequirements = "Copyright (c) SIL International, licensed under the SIL Open Font License 1.1.",
+          configurationStatus = "Configured"
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "font_noto_nastaliq_urdu",
+          category = "Fonts & Icons",
+          sourceName = "Google Noto Nastaliq Urdu Font",
+          purpose = "Bundled Urdu Nastaliq calligraphy font for Urdu Quran translations, Hadith, and Learn Islam lessons (res/font/noto_nastaliq_urdu.ttf).",
+          officialDocumentationUrl = "https://fonts.google.com/noto/specimen/Noto+Nastaliq+Urdu",
+          applicableLicenceName = "SIL Open Font License 1.1 (OFL-1.1)",
+          applicableLicenceUrl = "https://openfontlicense.org/",
+          attributionRequirements = "Copyright (c) Google LLC, licensed under the SIL Open Font License 1.1.",
+          configurationStatus = "Configured"
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "google_material_icons_compose",
+          category = "Fonts & Icons",
+          sourceName = "Google Material Icons & AndroidX Jetpack Compose Material 3",
+          purpose = "UI components, adaptive layouts, and vector navigation/action icons across the application.",
+          officialDocumentationUrl = "https://developer.android.com/jetpack/compose",
+          applicableLicenceName = "Apache License 2.0",
+          applicableLicenceUrl = "https://www.apache.org/licenses/LICENSE-2.0",
+          attributionRequirements = "Copyright (c) Google LLC / Android Open Source Project, licensed under the Apache License, Version 2.0.",
+          configurationStatus = "Configured"
+        ),
+
+        // =====================================================================
+        // 6. CLOUD SYNC, AUTHENTICATION & PLATFORM SDKS
+        // =====================================================================
+        DeveloperApiSourceLicenceItem(
+          id = "firebase_auth_firestore_appcheck",
+          category = "Cloud & SDKs",
+          sourceName = "Google Firebase (Authentication, Cloud Firestore & Play Integrity App Check)",
+          purpose = "Optional Google Sign-In via AndroidX Credential Manager, cloud backup of user bookmarks/notes, and App Check Play Integrity verification.",
+          officialDocumentationUrl = "https://firebase.google.com/docs/android/setup",
+          applicableLicenceName = "Apache License 2.0 / Google APIs Terms of Service",
+          applicableLicenceUrl = "https://firebase.google.com/terms",
+          attributionRequirements = "Governed by Google APIs & Firebase Terms of Service; credentials managed via google-services.json and never displayed in UI.",
+          configurationStatus = "Configured"
+        )
+      )
+    }
   }
 }
 
@@ -405,4 +792,18 @@ data class ConciseVerifiedSourceSummary(
   val licenseSummary: String,
   val verificationStatus: VerificationStatus = VerificationStatus.VERIFIED
 )
+
+data class DeveloperApiSourceLicenceItem(
+  val id: String,
+  val category: String,
+  val sourceName: String,
+  val purpose: String,
+  val officialDocumentationUrl: String,
+  val applicableLicenceName: String,
+  val applicableLicenceUrl: String,
+  val attributionRequirements: String,
+  val configurationStatus: String,
+  val missingDetailsNote: String? = null
+)
+
 

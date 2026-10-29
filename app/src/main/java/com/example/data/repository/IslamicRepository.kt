@@ -304,10 +304,7 @@ class IslamicRepository(
     }
 
     // 3. Standard DAO search across all 6,236 offline verses using sanitized FTS tokens
-    val ftsQuery = q.replace(Regex("[^\\p{L}\\p{N}\\s]"), " ")
-      .split(Regex("\\s+"))
-      .filter { it.length > 1 }
-      .joinToString(" ") { "$it*" }
+    val ftsQuery = com.example.data.remote.SecurityIntegrityGuard.toSafeFtsMatchQuery(q)
     if (ftsQuery.isNotBlank()) {
       val daoMatches = runCatching { ayahDao.searchAyahs(ftsQuery).first() }.getOrDefault(emptyList())
       for (a in daoMatches) {
@@ -322,12 +319,7 @@ class IslamicRepository(
    * Searches across all Quran and Hadith translations using FTS5.
    */
   suspend fun searchTranslationsSmart(rawQuery: String): List<TranslationEntity> = withContext(Dispatchers.IO) {
-    val q = com.example.data.remote.SecurityIntegrityGuard.sanitizeSearchQuery(rawQuery)
-    if (q.isEmpty()) return@withContext emptyList()
-    val ftsQuery = q.replace(Regex("[^\\p{L}\\p{N}\\s]"), " ")
-      .split(Regex("\\s+"))
-      .filter { it.length > 1 }
-      .joinToString(" ") { "$it*" }
+    val ftsQuery = com.example.data.remote.SecurityIntegrityGuard.toSafeFtsMatchQuery(rawQuery)
     if (ftsQuery.isBlank()) return@withContext emptyList()
     runCatching { translationDao.searchTranslations(ftsQuery).first() }.getOrDefault(emptyList())
   }
@@ -406,10 +398,7 @@ class IslamicRepository(
     }
 
     // 4. Local Room full-text search using sanitized FTS tokens
-    val ftsQuery = q.replace(Regex("[^\\p{L}\\p{N}\\s]"), " ")
-      .split(Regex("\\s+"))
-      .filter { it.length > 1 }
-      .joinToString(" ") { "$it*" }
+    val ftsQuery = com.example.data.remote.SecurityIntegrityGuard.toSafeFtsMatchQuery(q)
     if (ftsQuery.isNotBlank()) {
       val daoMatches = runCatching { hadithDao.searchHadiths(ftsQuery).first() }.getOrDefault(emptyList())
       for (h in daoMatches) {
@@ -754,7 +743,11 @@ class IslamicRepository(
     ayahDao.getRandomAyah()
   }
 
-  fun searchAyahs(query: String): Flow<List<AyahEntity>> = ayahDao.searchAyahs(query)
+  fun searchAyahs(query: String): Flow<List<AyahEntity>> {
+    val ftsQuery = com.example.data.remote.SecurityIntegrityGuard.toSafeFtsMatchQuery(query)
+    if (ftsQuery.isBlank()) return kotlinx.coroutines.flow.flowOf(emptyList())
+    return ayahDao.searchAyahs(ftsQuery)
+  }
 
   // Hadith Collections & Hadiths
   fun getAllHadithCollections(): Flow<List<HadithCollectionEntity>> =
@@ -774,7 +767,11 @@ class IslamicRepository(
     hadithDao.getRandomHadith()
   }
 
-  fun searchHadiths(query: String): Flow<List<HadithEntity>> = hadithDao.searchHadiths(query)
+  fun searchHadiths(query: String): Flow<List<HadithEntity>> {
+    val ftsQuery = com.example.data.remote.SecurityIntegrityGuard.toSafeFtsMatchQuery(query)
+    if (ftsQuery.isBlank()) return kotlinx.coroutines.flow.flowOf(emptyList())
+    return hadithDao.searchHadiths(ftsQuery)
+  }
 
   /**
    * Returns all stored named translations for a specific Hadith (`sourceType = "HADITH"`,

@@ -32,6 +32,7 @@ data class DuaAudioPlaybackState(
   val activeStageLabel: String = "",
   val repeatCountTarget: Int = 1,
   val currentRepeatIteration: Int = 1,
+  val speechRateMultiplier: Float = 1.0f,
   val languageMode: DuaAudioLanguageMode = DuaAudioLanguageMode.ARABIC_ONLY,
   val progressFraction: Float = 0f,
   val activeWordIndex: Int = -1,
@@ -76,7 +77,7 @@ class DuaAudioController(
           )
           // Deep resonant male voice configuration ("man sound")
           tts?.setPitch(0.82f)
-          tts?.setSpeechRate(0.86f)
+          tts?.setSpeechRate(0.86f * _playbackState.value.speechRateMultiplier)
         }
       }
     }
@@ -86,7 +87,7 @@ class DuaAudioController(
     runCatching {
       engine.language = locale
       engine.setPitch(0.82f)
-      engine.setSpeechRate(0.86f)
+      engine.setSpeechRate((0.86f * _playbackState.value.speechRateMultiplier).coerceIn(0.45f, 1.4f))
       val voices = engine.voices ?: return@runCatching
       val langPrefix = locale.language.lowercase()
       val matchingVoices = voices.filter { v ->
@@ -114,8 +115,55 @@ class DuaAudioController(
 
   fun toggleRepeatTarget() {
     val current = _playbackState.value.repeatCountTarget
-    val next = if (current == 1) 3 else 1
+    val next = when (current) {
+      1 -> 3
+      3 -> 5
+      else -> 1
+    }
     _playbackState.value = _playbackState.value.copy(repeatCountTarget = next)
+  }
+
+  fun setRepeatTarget(count: Int) {
+    _playbackState.value = _playbackState.value.copy(repeatCountTarget = count.coerceIn(1, 10))
+  }
+
+  fun toggleSlowPlaybackMode(): Float {
+    val nextRate = if (_playbackState.value.speechRateMultiplier < 0.85f) 1.0f else 0.65f
+    _playbackState.value = _playbackState.value.copy(speechRateMultiplier = nextRate)
+    return nextRate
+  }
+
+  fun setSpeechRateMultiplier(multiplier: Float) {
+    _playbackState.value = _playbackState.value.copy(speechRateMultiplier = multiplier.coerceIn(0.5f, 1.5f))
+  }
+
+  fun playLearningItem(
+    id: String,
+    title: String,
+    arabicText: String,
+    transliteration: String,
+    englishText: String,
+    urduText: String,
+    quranSurahAyah: Pair<Int, Int>? = null
+  ) {
+    val syntheticDua = DailyDuaItem(
+      id = id,
+      title = title,
+      category = com.example.data.model.DuaCategory.HOME_MASJID,
+      occasionBadge = "Learn Islam",
+      arabicText = arabicText,
+      transliteration = transliteration,
+      englishTranslation = englishText,
+      urduTranslation = urduText,
+      authenticReference = "",
+      virtueAndTiming = "",
+      recommendedCount = _playbackState.value.repeatCountTarget,
+      quranSurahAyah = quranSurahAyah
+    )
+    playDuaVocal(
+      dua = syntheticDua,
+      preferQuranReciterIfAvailable = (_playbackState.value.speechRateMultiplier >= 0.9f && _playbackState.value.repeatCountTarget == 1)
+    )
   }
 
   fun playDuaVocal(
@@ -130,7 +178,7 @@ class DuaAudioController(
 
     // Always prefer verified human reciter audio when the Dua has a Quranic ayah reference
     val quranRef = dua.quranSurahAyah
-    if (quranRef != null) {
+    if (quranRef != null && preferQuranReciterIfAvailable) {
       quranAudioPlayerManager.playAyah(
         surah = quranRef.first,
         ayah = quranRef.second,
@@ -335,5 +383,12 @@ class DuaAudioController(
       activeWordIndex = -1,
       activeLetterIndexInWord = -1
     )
+  }
+
+  fun shutdown() {
+    stop()
+    isTtsReady = false
+    runCatching { tts?.shutdown() }
+    tts = null
   }
 }

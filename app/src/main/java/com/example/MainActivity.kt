@@ -60,6 +60,7 @@ import com.example.ui.screens.HadithScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.IslamWithEvidenceScreen
 import com.example.ui.screens.LanguageOnboardingScreen
+import com.example.ui.screens.LearnIslamScreen
 import com.example.ui.screens.LibraryScreen
 import com.example.ui.screens.OpeningExperienceScreen
 import com.example.ui.screens.QiblaCompassScreen
@@ -86,6 +87,7 @@ object BayanNavRoutes {
   const val EVIDENCE = "evidence"
   const val QIBLA = "qibla"
   const val SEHRI_IFTAR = "sehri_iftar"
+  const val LEARN_ISLAM = "learn_islam"
 }
 
 data class BottomNavDestination(
@@ -120,26 +122,9 @@ fun BayanApp(
 ) {
   val uiState by viewModel.uiState.collectAsStateWithLifecycle()
   val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
-  val audioState by viewModel.audioState.collectAsStateWithLifecycle()
   val alarmPlaybackState by viewModel.alarmPlaybackState.collectAsStateWithLifecycle()
-  val todayPrayerSchedule by viewModel.todayPrayerSchedule.collectAsStateWithLifecycle()
-  val auditReport by viewModel.auditReport.collectAsStateWithLifecycle()
-  val sourceRegistryList by viewModel.sourceRegistryList.collectAsStateWithLifecycle()
-  val surahs by viewModel.allSurahs.collectAsStateWithLifecycle()
-  val currentAyahs by viewModel.currentAyahs.collectAsStateWithLifecycle()
-  val hadiths by viewModel.collectionHadiths.collectAsStateWithLifecycle()
-  val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
-  val notes by viewModel.notes.collectAsStateWithLifecycle()
-  val searchAyahs by viewModel.searchAyahResults.collectAsStateWithLifecycle()
-  val searchHadiths by viewModel.searchHadithResults.collectAsStateWithLifecycle()
-  val searchTafsirs by viewModel.searchTafsirResults.collectAsStateWithLifecycle()
   val syncBadgeState by viewModel.downloadManager.syncBadgeState.collectAsStateWithLifecycle()
-  val sunnahRemindersState by viewModel.sunnahRemindersState.collectAsStateWithLifecycle()
-  val duaAudioState by viewModel.duaAudioState.collectAsStateWithLifecycle()
-  val sehriIftarTimetable by viewModel.sehriIftarTimetable.collectAsStateWithLifecycle()
-  val isTimetableLoading by viewModel.isTimetableLoading.collectAsStateWithLifecycle()
-  val timetableScopeMode by viewModel.timetableScopeMode.collectAsStateWithLifecycle()
-  val selectedTimetableGregorianMonth by viewModel.selectedTimetableGregorianMonth.collectAsStateWithLifecycle()
+  val surahs by viewModel.allSurahs.collectAsStateWithLifecycle()
 
   val appLanguageCode = uiState.prayerConfig.appInterfaceLanguageCode
   val appStrings = remember(appLanguageCode) {
@@ -243,13 +228,14 @@ fun BayanApp(
       BayanNavRoutes.DOWNLOADS,
       BayanNavRoutes.EVIDENCE,
       BayanNavRoutes.QIBLA,
-      BayanNavRoutes.SEHRI_IFTAR
+      BayanNavRoutes.SEHRI_IFTAR,
+      BayanNavRoutes.LEARN_ISLAM
     )
 
     Scaffold(
       modifier = Modifier.fillMaxSize(),
       topBar = {
-        if (isSubpageWithBack) {
+        if (isSubpageWithBack && currentRoute != BayanNavRoutes.LEARN_ISLAM) {
           val headerTitle = when (currentRoute) {
             BayanNavRoutes.DOWNLOADS -> appStrings.offlineDownloadManager
             BayanNavRoutes.EVIDENCE -> appStrings.islamWithEvidence
@@ -273,7 +259,7 @@ fun BayanApp(
               containerColor = MaterialTheme.colorScheme.surface
             )
           )
-        } else if (!(currentRoute == BayanNavRoutes.QURAN && uiState.isReaderOpen)) {
+        } else if (!(currentRoute == BayanNavRoutes.QURAN && uiState.isReaderOpen) && currentRoute != BayanNavRoutes.LEARN_ISLAM) {
           TopIslamicBar(
             themeMode = uiState.prayerConfig.themeMode,
             isOfflineMode = syncBadgeState.isOfflineMode,
@@ -359,9 +345,10 @@ fun BayanApp(
             }
           }
 
-          // Persistent Audio Reciter Mini Player (when recitation is playing or buffering)
+          // Persistent Audio Reciter Mini Player (scoped so 60ms progress ticks only recompose the mini-player)
+          val miniPlayerAudioState by viewModel.audioState.collectAsStateWithLifecycle()
           AudioMiniPlayerBar(
-            audioState = audioState,
+            audioState = miniPlayerAudioState,
             onTogglePlayPause = { viewModel.audioPlayerManager.togglePlayPause() },
             onStop = { viewModel.audioPlayerManager.stop() }
           )
@@ -399,6 +386,8 @@ fun BayanApp(
           .padding(paddingValues)
       ) {
         composable(BayanNavRoutes.HOME) {
+          val todayPrayerSchedule by viewModel.todayPrayerSchedule.collectAsStateWithLifecycle()
+          val sunnahRemindersState by viewModel.sunnahRemindersState.collectAsStateWithLifecycle()
           HomeScreen(
             dailyAyah = uiState.dailyAyah,
             dailyHadith = uiState.dailyHadith,
@@ -457,11 +446,18 @@ fun BayanApp(
             onNavigateToSehriIftar = {
               viewModel.refreshSehriIftarTimetable(forceRemote = false)
               navController.navigate(BayanNavRoutes.SEHRI_IFTAR) { launchSingleTop = true }
+            },
+            onNavigateToLearnIslam = {
+              navController.navigate(BayanNavRoutes.LEARN_ISLAM) { launchSingleTop = true }
             }
           )
         }
 
         composable(BayanNavRoutes.QURAN) {
+          val currentAyahs by viewModel.currentAyahs.collectAsStateWithLifecycle()
+          val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
+          val audioState by viewModel.audioState.collectAsStateWithLifecycle()
+          val currentTranslations by viewModel.currentTranslations.collectAsStateWithLifecycle()
           QuranScreen(
             surahs = surahs,
             isReaderOpen = uiState.isReaderOpen,
@@ -493,20 +489,26 @@ fun BayanApp(
             onToggleContinuousMushafFlow = { viewModel.toggleContinuousMushafFlow() },
             prayerConfig = uiState.prayerConfig,
             audioState = audioState,
-            currentTranslations = viewModel.currentTranslations.collectAsStateWithLifecycle().value,
+            currentTranslations = currentTranslations,
             onSelectReciter = { reciter, tradition -> viewModel.setQuranReciter(reciter, tradition) },
             onSelectTranslation = { key, tradition -> viewModel.setQuranTranslationKey(key, tradition) },
+            onToggleTranslationKey = { key, tradition -> viewModel.toggleSelectedTranslationKey(key, tradition) },
             highlightedVerseNumber = uiState.highlightedVerseNumber,
             onSaveReadingProgress = { surah, verseNum, tradition ->
               viewModel.saveQuranReadingProgress(surah, verseNum, tradition)
             },
             onResumeLastRead = { surahNum, verseNum, _ ->
               viewModel.resumeLastReadQuran(surahNum, verseNum)
+            },
+            onReportAyah = { ref ->
+              viewModel.openErrorReportDialog(ref)
             }
           )
         }
 
         composable(BayanNavRoutes.HADITH) {
+          val hadiths by viewModel.collectionHadiths.collectAsStateWithLifecycle()
+          val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
           HadithScreen(
             selectedCollectionKey = uiState.selectedCollectionKey,
             hadiths = hadiths,
@@ -532,6 +534,9 @@ fun BayanApp(
             onDismissQuranVersePreview = { viewModel.dismissPreviewedQuranVerse() },
             onBookmarkHadith = { viewModel.toggleBookmarkHadith(it) },
             onAddNote = { ref -> pendingNoteRef = ref },
+            onReportHadith = { hadith ->
+              viewModel.openErrorReportDialog("${hadith.collectionName} #${hadith.hadithNumber} (${hadith.reference})")
+            },
             onOpenOfflineDownloads = {
               navController.navigate(BayanNavRoutes.DOWNLOADS) { launchSingleTop = true }
             },
@@ -542,6 +547,8 @@ fun BayanApp(
         }
 
         composable(BayanNavRoutes.DUAS) {
+          val sunnahRemindersState by viewModel.sunnahRemindersState.collectAsStateWithLifecycle()
+          val duaAudioState by viewModel.duaAudioState.collectAsStateWithLifecycle()
           DailyDuasScreen(
             remindersState = sunnahRemindersState,
             duaAudioState = duaAudioState,
@@ -568,11 +575,17 @@ fun BayanApp(
                 viewModel.openSurahReader(targetSurah)
                 navigateToTab(BayanNavRoutes.QURAN, MainNavigationTab.QURAN)
               }
+            },
+            onNavigateToLearnIslam = {
+              navController.navigate(BayanNavRoutes.LEARN_ISLAM) { launchSingleTop = true }
             }
           )
         }
 
         composable(BayanNavRoutes.SEARCH) {
+          val searchAyahs by viewModel.searchAyahResults.collectAsStateWithLifecycle()
+          val searchHadiths by viewModel.searchHadithResults.collectAsStateWithLifecycle()
+          val searchTafsirs by viewModel.searchTafsirResults.collectAsStateWithLifecycle()
           SearchScreen(
             searchQuery = uiState.searchQuery,
             searchCategory = uiState.searchCategory,
@@ -596,6 +609,8 @@ fun BayanApp(
         }
 
         composable(BayanNavRoutes.LIBRARY) {
+          val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
+          val notes by viewModel.notes.collectAsStateWithLifecycle()
           LibraryScreen(
             bookmarks = bookmarks,
             notes = notes,
@@ -641,6 +656,10 @@ fun BayanApp(
         }
 
         composable(BayanNavRoutes.SEHRI_IFTAR) {
+          val sehriIftarTimetable by viewModel.sehriIftarTimetable.collectAsStateWithLifecycle()
+          val isTimetableLoading by viewModel.isTimetableLoading.collectAsStateWithLifecycle()
+          val timetableScopeMode by viewModel.timetableScopeMode.collectAsStateWithLifecycle()
+          val selectedTimetableGregorianMonth by viewModel.selectedTimetableGregorianMonth.collectAsStateWithLifecycle()
           SehriIftarTimetableScreen(
             prayerConfig = uiState.prayerConfig,
             timetableResult = sehriIftarTimetable,
@@ -661,7 +680,21 @@ fun BayanApp(
           )
         }
 
+        composable(BayanNavRoutes.LEARN_ISLAM) {
+          LearnIslamScreen(
+            duaAudioController = viewModel.duaAudioController,
+            onBack = { navController.popBackStack() },
+            onOpenQuranSurah = { surahNum, verseNum ->
+              viewModel.openOrPreviewQuranReference("$surahNum:$verseNum", openFullSurahReader = true)
+              navigateToTab(BayanNavRoutes.QURAN, MainNavigationTab.QURAN)
+            }
+          )
+        }
+
         composable(BayanNavRoutes.ABOUT) {
+          val audioState by viewModel.audioState.collectAsStateWithLifecycle()
+          val auditReport by viewModel.auditReport.collectAsStateWithLifecycle()
+          val sourceRegistryList by viewModel.sourceRegistryList.collectAsStateWithLifecycle()
           AboutScreen(
             currentReciter = audioState.reciter,
             themeMode = uiState.prayerConfig.themeMode,

@@ -226,7 +226,7 @@ object PrayerAlarmScheduler {
     val curVol = audioManager?.getStreamVolume(AudioManager.STREAM_ALARM) ?: 5
     val volPct = ((curVol * 100) / maxVol).coerceIn(0, 100)
 
-    val scheduled = scheduleAllDailyAlarms(appCtx, schedule)
+    val scheduled = computeScheduledAlarmsSummary(appCtx, schedule)
 
     return AlarmSetupDiagnostics(
       hasLocationPermission = hasFineLocation || hasCoarseLocation,
@@ -237,6 +237,57 @@ object PrayerAlarmScheduler {
       isAlarmStreamMuted = curVol <= 0,
       scheduledAlarmsSummary = scheduled
     )
+  }
+
+  /**
+   * Pure, side-effect-free computation of the active alarm schedule summary for UI diagnostics.
+   * Does not cancel or reschedule pending AlarmManager intents.
+   */
+  fun computeScheduledAlarmsSummary(
+    context: Context,
+    schedule: PrayerScheduleEntity? = null
+  ): List<String> {
+    val appCtx = context.applicationContext
+    val config = PrayerPreferencesManager.loadConfig(appCtx)
+    val effectiveSchedule = schedule ?: PrayerTimeCalculator.calculateOfflineSchedule(
+      locationName = config.city,
+      districtOrRegion = config.districtOrRegion,
+      country = config.country,
+      latitude = config.latitude,
+      longitude = config.longitude,
+      timeZoneId = config.timeZoneId,
+      methodId = config.calculationMethodId,
+      asrMadhhab = config.asrMadhhab,
+      highLatitudeRule = config.highLatitudeRule
+    )
+
+    val summary = mutableListOf<String>()
+    val fivePrayers = listOf(
+      Triple("Fajr", effectiveSchedule.fajrTime, config.fajrAzanMode),
+      Triple("Dhuhr", effectiveSchedule.dhuhrTime, config.dhuhrAzanMode),
+      Triple("Asr", effectiveSchedule.asrTime, config.asrAzanMode),
+      Triple("Maghrib", effectiveSchedule.maghribTime, config.maghribAzanMode),
+      Triple("Isha", effectiveSchedule.ishaTime, config.ishaAzanMode)
+    )
+    for ((prayerName, time24, mode) in fivePrayers) {
+      if (mode != AzanNotificationMode.OFF) {
+        summary.add("$prayerName (${PrayerTimeCalculator.format24hTo12h(time24)}) — ${mode.label}")
+      }
+    }
+    if (config.fajrWakeUpAlarmEnabled) {
+      val wakeTime24 = PrayerTimeCalculator.calculateWakeUpTimeBeforeFajr(
+        effectiveSchedule.fajrTime,
+        config.fajrWakeUpOffsetMinutes
+      )
+      summary.add(
+        "Fajr 15-Min Wake-Up (${PrayerTimeCalculator.format24hTo12h(wakeTime24)}, ${config.fajrWakeUpOffsetMinutes}m before Fajr)"
+      )
+    }
+    if (config.tahajjudWakeUpEnabled) {
+      val tahajjudTime24 = effectiveSchedule.tahajjudLastThirdStart
+      summary.add("Tahajjud Final Third (${PrayerTimeCalculator.format24hTo12h(tahajjudTime24)})")
+    }
+    return summary
   }
 
   fun computeNextOccurrenceMillis(

@@ -381,6 +381,72 @@ object QulTranslationCatalog {
     return if (selectedTradition == "SHIA") "Ali Quli Qara'i (EN)" else "Sahih International (EN)"
   }
 
+  data class TranslationAttributionInfo(
+    val editionKey: String,
+    val translatorName: String,
+    val languageNameEn: String,
+    val languageNameNative: String,
+    val languageCode: String,
+    val sourceAttribution: String,
+    val isRtl: Boolean
+  )
+
+  fun getAttributionDetailsForKey(editionKey: String): TranslationAttributionInfo {
+    val legacy = (ShiaTranslationDataProvider.sunniEditions + ShiaTranslationDataProvider.shiaEditions)
+      .find { it.key == editionKey }
+    if (legacy != null) {
+      val isUrdu = legacy.languageCode.equals("ur", ignoreCase = true)
+      return TranslationAttributionInfo(
+        editionKey = legacy.key,
+        translatorName = legacy.translator,
+        languageNameEn = if (isUrdu) "Urdu" else "English",
+        languageNameNative = if (isUrdu) "اردو" else "English",
+        languageCode = legacy.languageCode,
+        sourceAttribution = "Tanzil / Quran.com v4 Canonical Corpus (${legacy.title})",
+        isRtl = isUrdu
+      )
+    }
+
+    val qul = findEditionByKey(editionKey)
+    if (qul != null) {
+      val src = if (qul.fawazEditionKey != null) {
+        "QUL (${qul.source} #${qul.qulResourceId}) • fawazahmed0 (${qul.fawazEditionKey})"
+      } else {
+        "Quran.com API v4 / QUL (${qul.source} #${qul.qulResourceId})"
+      }
+      return TranslationAttributionInfo(
+        editionKey = qul.editionKey,
+        translatorName = qul.translatorName,
+        languageNameEn = qul.languageNameEn,
+        languageNameNative = qul.languageNameNative,
+        languageCode = qul.languageCode,
+        sourceAttribution = src,
+        isRtl = qul.isRtl || RTL_LANGUAGE_CODES.contains(qul.languageCode.lowercase(Locale.ROOT))
+      )
+    }
+
+    val isRtl = isRtlEdition(editionKey)
+    return TranslationAttributionInfo(
+      editionKey = editionKey,
+      translatorName = editionKey,
+      languageNameEn = if (isRtl) "Urdu/Arabic" else "English",
+      languageNameNative = if (isRtl) "اردو" else "English",
+      languageCode = editionKey.substringBefore("."),
+      sourceAttribution = "Canonical Quran Translation Database",
+      isRtl = isRtl
+    )
+  }
+
+  fun computeAvailableLanguageCount(): Int {
+    return languageGroups.count { !it.isMissingInSource && it.editions.isNotEmpty() }
+  }
+
+  fun computeTotalAvailableEditionsCount(): Int {
+    return allEditions.size +
+      ShiaTranslationDataProvider.sunniEditions.size +
+      ShiaTranslationDataProvider.shiaEditions.size
+  }
+
   /**
    * Resolves the best default translation edition for the user's device locale if supported,
    * falling back to existing English defaults.

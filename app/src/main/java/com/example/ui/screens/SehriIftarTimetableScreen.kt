@@ -45,6 +45,8 @@ import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
@@ -84,6 +86,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -1574,6 +1577,8 @@ fun SpecialRamadanDuasShowcaseCard(
   todaySehriEnds: String? = null,
   todayIftarTime: String? = null,
   cityName: String? = null,
+  prayerConfig: PrayerAndAlarmConfig? = null,
+  onUpdatePrayerConfig: ((PrayerAndAlarmConfig) -> Unit)? = null,
   modifier: Modifier = Modifier
 ) {
   val context = LocalContext.current
@@ -1582,7 +1587,7 @@ fun SpecialRamadanDuasShowcaseCard(
 
   ElevatedCard(
     modifier = modifier.fillMaxWidth(),
-    shape = RoundedCornerShape(18.dp),
+    shape = RoundedCornerShape(20.dp),
     colors = CardDefaults.elevatedCardColors(
       containerColor = MaterialTheme.colorScheme.surface
     ),
@@ -1592,7 +1597,7 @@ fun SpecialRamadanDuasShowcaseCard(
       modifier = Modifier
         .fillMaxWidth()
         .padding(16.dp),
-      verticalArrangement = Arrangement.spacedBy(10.dp)
+      verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
       Row(
         modifier = Modifier.fillMaxWidth(),
@@ -1601,14 +1606,15 @@ fun SpecialRamadanDuasShowcaseCard(
       ) {
         Column(modifier = Modifier.weight(1f)) {
           Text(
-            text = "🌙 أَدْعِيَةُ شَهْرِ رَمَضَانَ • Special Duas for Ramadan",
+            text = "🌙 Sehri & Iftari Timings • Fasting Duas",
             style = MaterialTheme.typography.titleMedium.copy(
               fontWeight = FontWeight.Bold,
               color = MaterialTheme.colorScheme.primary
             )
           )
+          Spacer(modifier = Modifier.height(2.dp))
           Text(
-            text = "Authentic Supplications for Sehri, Iftar, the Three Ashras & Laylatul Qadr",
+            text = "Prophetic Sunnah Duas & Verified Astronomical Timetable",
             style = MaterialTheme.typography.labelSmall.copy(
               color = GoldPrimary,
               fontWeight = FontWeight.SemiBold
@@ -1616,86 +1622,240 @@ fun SpecialRamadanDuasShowcaseCard(
           )
         }
         if (onOpenSehriIftarTimetable != null) {
+          Spacer(modifier = Modifier.width(8.dp))
           Button(
             onClick = onOpenSehriIftarTimetable,
             colors = ButtonDefaults.buttonColors(
               containerColor = EmeraldPrimary,
               contentColor = Color.White
             ),
-            shape = RoundedCornerShape(10.dp),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+            shape = RoundedCornerShape(12.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             modifier = Modifier.testTag("home_open_sehri_iftar_timetable_btn")
           ) {
             Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(15.dp))
             Spacer(modifier = Modifier.width(6.dp))
-            Text("Sehri/Iftar Calendar", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text(
+              text = "Timetable",
+              fontSize = 12.sp,
+              fontWeight = FontWeight.Bold,
+              maxLines = 1,
+              softWrap = false
+            )
           }
         }
       }
 
-      // Today's Quick Sehri & Iftar Summary Strip (when provided on Home Screen)
+      // Today's Quick Iftari (First) & Sehri (Second) Summary Strip + Well-Spaced Single-Line Alarm Buttons
       if (!todaySehriEnds.isNullOrBlank() && !todayIftarTime.isNullOrBlank()) {
+        val isIftarAlarmOn = prayerConfig?.maghribAzanMode != com.example.data.prayer.AzanNotificationMode.OFF
+        val isSehriAlarmOn = prayerConfig?.fajrWakeUpAlarmEnabled ?: true
+
         Surface(
-          shape = RoundedCornerShape(12.dp),
+          shape = RoundedCornerShape(14.dp),
           color = Color(0xFF102820),
           modifier = Modifier
             .fillMaxWidth()
             .clickable { onOpenSehriIftarTimetable?.invoke() }
             .testTag("home_today_sehri_iftar_summary_strip")
         ) {
-          Row(
+          Column(
             modifier = Modifier
               .fillMaxWidth()
-              .padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+              .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
           ) {
-            Column {
-              Text(
-                text = "Today's Fasting Times (${cityName ?: "Current Location"})",
-                style = MaterialTheme.typography.labelSmall.copy(
-                  color = Color(0xFFD8CCB2)
-                )
-              )
-              Text(
-                text = "Tap to view full 30-day Ramadan & Yearly Timetable + True Map",
-                style = MaterialTheme.typography.labelSmall.copy(
-                  fontSize = 10.sp,
-                  color = GoldPrimary
-                )
-              )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-              Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                  text = "Sehri Ends",
-                  style = MaterialTheme.typography.labelSmall.copy(
-                    color = Color(0xFFD8CCB2),
-                    fontSize = 10.sp
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.spacedBy(10.dp),
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              // 1. IFTARI FIRST — Responsive Vertical Layout inside Half-Width Box so "Alarm ON" never wraps
+              Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFF1B3A2E),
+                modifier = Modifier
+                  .weight(1f)
+                  .testTag("iftari_first_timing_box")
+              ) {
+                Column(
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                  verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                  Text(
+                    text = "1. Iftari (Maghrib)",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      color = GoldPrimary,
+                      fontSize = 11.sp,
+                      fontWeight = FontWeight.Bold
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                   )
-                )
-                Text(
-                  text = todaySehriEnds,
-                  style = MaterialTheme.typography.titleSmall.copy(
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                  )
-                )
+                  Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    Text(
+                      text = todayIftarTime,
+                      style = MaterialTheme.typography.titleLarge.copy(
+                        color = GoldPrimary,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold
+                      ),
+                      maxLines = 1,
+                      softWrap = false
+                    )
+                    if (prayerConfig != null && onUpdatePrayerConfig != null) {
+                      Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (isIftarAlarmOn) GoldPrimary else Color.White.copy(alpha = 0.14f),
+                        modifier = Modifier
+                          .clip(RoundedCornerShape(8.dp))
+                          .clickable {
+                            val nextMode = if (isIftarAlarmOn) {
+                              com.example.data.prayer.AzanNotificationMode.OFF
+                            } else {
+                              com.example.data.prayer.AzanNotificationMode.FULL_AZAN
+                            }
+                            onUpdatePrayerConfig(prayerConfig.copy(maghribAzanMode = nextMode))
+                          }
+                          .testTag("iftar_concise_alarm_btn")
+                      ) {
+                        Row(
+                          modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                          verticalAlignment = Alignment.CenterVertically
+                        ) {
+                          Icon(
+                            imageVector = if (isIftarAlarmOn) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff,
+                            contentDescription = null,
+                            tint = if (isIftarAlarmOn) Color(0xFF102820) else Color.White,
+                            modifier = Modifier.size(12.dp)
+                          )
+                          Spacer(modifier = Modifier.width(4.dp))
+                          Text(
+                            text = if (isIftarAlarmOn) "Alarm ON" else "Alarm OFF",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isIftarAlarmOn) Color(0xFF102820) else Color.White,
+                            maxLines = 1,
+                            softWrap = false
+                          )
+                        }
+                      }
+                    }
+                  }
+                }
               }
-              Column(horizontalAlignment = Alignment.CenterHorizontally) {
+
+              // 2. SEHRI SECOND — Responsive Vertical Layout inside Half-Width Box so "Alarm ON" never wraps
+              Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFF1B3A2E),
+                modifier = Modifier
+                  .weight(1f)
+                  .testTag("sehri_second_timing_box")
+              ) {
+                Column(
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                  verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                  Text(
+                    text = "2. Sehri (Fajr)",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      color = Color(0xFFD8CCB2),
+                      fontSize = 11.sp,
+                      fontWeight = FontWeight.Bold
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                  )
+                  Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    Text(
+                      text = todaySehriEnds,
+                      style = MaterialTheme.typography.titleLarge.copy(
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold
+                      ),
+                      maxLines = 1,
+                      softWrap = false
+                    )
+                    if (prayerConfig != null && onUpdatePrayerConfig != null) {
+                      Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (isSehriAlarmOn) EmeraldPrimary else Color.White.copy(alpha = 0.14f),
+                        modifier = Modifier
+                          .clip(RoundedCornerShape(8.dp))
+                          .clickable {
+                            onUpdatePrayerConfig(
+                              prayerConfig.copy(fajrWakeUpAlarmEnabled = !isSehriAlarmOn)
+                            )
+                          }
+                          .testTag("sehri_concise_alarm_btn")
+                      ) {
+                        Row(
+                          modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                          verticalAlignment = Alignment.CenterVertically
+                        ) {
+                          Icon(
+                            imageVector = if (isSehriAlarmOn) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(12.dp)
+                          )
+                          Spacer(modifier = Modifier.width(4.dp))
+                          Text(
+                            text = if (isSehriAlarmOn) "Alarm ON" else "Alarm OFF",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            maxLines = 1,
+                            softWrap = false
+                          )
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
+            // Clean Location & Method Footer (Without Sectarian Labels)
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Text(
+                text = "📍 ${cityName ?: "Current Location"} • Method #${prayerConfig?.calculationMethodId ?: 1}",
+                style = MaterialTheme.typography.labelSmall.copy(
+                  color = Color(0xFFD8CCB2),
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.Medium
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+              )
+              if (onOpenSehriIftarTimetable != null) {
                 Text(
-                  text = "Iftar",
+                  text = "Full Calendar →",
                   style = MaterialTheme.typography.labelSmall.copy(
                     color = GoldPrimary,
-                    fontSize = 10.sp
-                  )
-                )
-                Text(
-                  text = todayIftarTime,
-                  style = MaterialTheme.typography.titleSmall.copy(
-                    color = GoldPrimary,
-                    fontWeight = FontWeight.Bold
-                  )
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp
+                  ),
+                  maxLines = 1,
+                  softWrap = false
                 )
               }
             }
@@ -1703,12 +1863,12 @@ fun SpecialRamadanDuasShowcaseCard(
         }
       }
 
-      // Selector Chips for each Ramadan Dua
+      // Selector Chips for each Ramadan / Fasting Dua
       Row(
         modifier = Modifier
           .fillMaxWidth()
           .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
       ) {
         duas.forEachIndexed { idx, dua ->
           val isSelected = idx == selectedDuaIndex
@@ -1718,8 +1878,9 @@ fun SpecialRamadanDuasShowcaseCard(
             label = {
               Text(
                 text = dua.title,
-                fontSize = 11.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                fontSize = 12.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 1
               )
             },
             colors = FilterChipDefaults.filterChipColors(
@@ -1731,10 +1892,10 @@ fun SpecialRamadanDuasShowcaseCard(
         }
       }
 
-      // Active Ramadan Dua Card
+      // Active Ramadan & Fasting Dua Card (Hadith First Priority)
       Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
         modifier = Modifier
           .fillMaxWidth()
           .testTag("active_ramadan_dua_display")
@@ -1742,8 +1903,8 @@ fun SpecialRamadanDuasShowcaseCard(
         Column(
           modifier = Modifier
             .fillMaxWidth()
-            .padding(14.dp),
-          verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(16.dp),
+          verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
           Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1758,6 +1919,7 @@ fun SpecialRamadanDuasShowcaseCard(
                   color = EmeraldPrimary
                 )
               )
+              Spacer(modifier = Modifier.height(2.dp))
               Text(
                 text = activeDua.occasionBadge,
                 style = MaterialTheme.typography.labelSmall.copy(
@@ -1772,28 +1934,28 @@ fun SpecialRamadanDuasShowcaseCard(
                 val text =
                   "${activeDua.title}\n${activeDua.arabicText}\n${activeDua.transliteration}\n${activeDua.englishTranslation}\n${activeDua.urduTranslation}\n(${activeDua.authenticReference})"
                 clip.setPrimaryClip(ClipData.newPlainText(activeDua.title, text))
-                Toast.makeText(context, "Ramadan Dua copied", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Fasting Dua copied", Toast.LENGTH_SHORT).show()
               },
-              modifier = Modifier.size(32.dp)
+              modifier = Modifier.size(36.dp)
             ) {
               Icon(
                 imageVector = Icons.Default.ContentCopy,
-                contentDescription = "Copy Ramadan Dua",
+                contentDescription = "Copy Fasting Dua",
                 tint = EmeraldPrimary,
                 modifier = Modifier.size(18.dp)
               )
             }
           }
 
-          // Arabic Text
+          // Arabic Text with Scheherazade / Amiri Calligraphy
           Text(
             text = activeDua.arabicText,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.End,
             style = MaterialTheme.typography.headlineSmall.copy(
               fontFamily = ScheherazadeFontFamily,
-              fontSize = 24.sp,
-              lineHeight = 38.sp,
+              fontSize = 25.sp,
+              lineHeight = 42.sp,
               fontWeight = FontWeight.Bold,
               textDirection = TextDirection.Rtl
             )
@@ -1805,7 +1967,8 @@ fun SpecialRamadanDuasShowcaseCard(
             style = MaterialTheme.typography.bodySmall.copy(
               fontStyle = FontStyle.Italic,
               color = EmeraldPrimary,
-              fontWeight = FontWeight.SemiBold
+              fontWeight = FontWeight.SemiBold,
+              lineHeight = 19.sp
             )
           )
 
@@ -1813,28 +1976,31 @@ fun SpecialRamadanDuasShowcaseCard(
           Text(
             text = activeDua.englishTranslation,
             style = MaterialTheme.typography.bodySmall.copy(
-              lineHeight = 18.sp
+              lineHeight = 20.sp,
+              color = MaterialTheme.colorScheme.onSurface
             )
           )
 
-          // Urdu Translation
+          // Urdu Translation with Nastaliq Font
           Text(
             text = activeDua.urduTranslation,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.End,
             style = MaterialTheme.typography.bodyMedium.copy(
               fontFamily = UrduNastaliqFontFamily,
-              lineHeight = 24.sp,
+              fontSize = 15.sp,
+              lineHeight = 28.sp,
               textDirection = TextDirection.Rtl
             )
           )
 
-          // Authentic Reference & Occasion
+          // Authentic Reference & Timing
           Text(
             text = "Source: ${activeDua.authenticReference} • ${activeDua.virtueAndTiming}",
             style = MaterialTheme.typography.labelSmall.copy(
               color = MaterialTheme.colorScheme.onSurfaceVariant,
-              fontSize = 10.sp
+              fontSize = 11.sp,
+              lineHeight = 16.sp
             )
           )
         }

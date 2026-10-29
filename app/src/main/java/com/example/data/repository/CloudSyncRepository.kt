@@ -75,9 +75,8 @@ class CloudSyncRepository(
         db.document(path).get().await().toObject(CloudBookmark::class.java)
       }.getOrNull()
       val sanitized = bookmark.copy(
-        userId = userId,
+        referenceKey = SecurityIntegrityGuard.sanitizeSacredText(bookmark.referenceKey).take(100),
         title = SecurityIntegrityGuard.sanitizeSacredText(bookmark.title).take(199),
-        subtitle = SecurityIntegrityGuard.sanitizeSacredText(bookmark.subtitle).take(499),
         arabicSnippet = SecurityIntegrityGuard.sanitizeSacredText(bookmark.arabicSnippet).take(1999),
         translationSnippet = SecurityIntegrityGuard.sanitizeSacredText(bookmark.translationSnippet).take(1999),
         createdAt = existing?.createdAt ?: bookmark.createdAt
@@ -118,9 +117,9 @@ class CloudSyncRepository(
         db.document(path).get().await().toObject(CloudNote::class.java)
       }.getOrNull()
       val sanitized = note.copy(
-        userId = userId,
+        referenceKey = SecurityIntegrityGuard.sanitizeSacredText(note.referenceKey).take(100),
         title = SecurityIntegrityGuard.sanitizeSacredText(note.title).take(199),
-        content = SecurityIntegrityGuard.sanitizeSacredText(note.content).take(9999),
+        content = SecurityIntegrityGuard.sanitizeSacredText(note.content).take(5000),
         createdAt = existing?.createdAt ?: note.createdAt
       )
       db.document(path).set(sanitized, SetOptions.merge()).await()

@@ -21,7 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -219,7 +218,7 @@ fun AuthScreen(
               modifier = Modifier.testTag("add_google_account_settings_button")
             ) {
               Icon(
-                imageVector = Icons.Default.PersonAdd,
+                imageVector = Icons.Default.PersonOutline,
                 contentDescription = null,
                 tint = GoldLight,
                 modifier = Modifier.size(16.dp)

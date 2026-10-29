@@ -812,16 +812,6 @@ fun HadithScreen(
               Text("Offline Library", fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             OutlinedButton(
-              onClick = { showVerifiedSourcesSheet = true },
-              contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-              modifier = Modifier
-                .weight(1.2f)
-                .height(32.dp)
-                .testTag("hadith_verified_sources_links_button")
-            ) {
-              Text("Official Sources & Links", fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            OutlinedButton(
               onClick = {
                 onSelectCollection(selectedCollectionKey)
                 if (selectedBookNumber > 0) {

@@ -1175,24 +1175,34 @@ fun DownloadCenterScreen(
             }
           }
 
-          // Source-Specific Permissions & Quran Foundation Content Sync Records (Section H)
+          // User-facing copyright attribution notice (Technical API & Licence details moved to About -> Developer Options -> API Sources & Licences)
           item {
             Spacer(modifier = Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-              Icon(Icons.Default.Security, contentDescription = null, tint = GoldPrimary)
-              Spacer(modifier = Modifier.width(8.dp))
-              Text(
-                text = "Source Licences & Content Sync Schedule (${licences.size})",
-                style = MaterialTheme.typography.titleMedium.copy(
-                  fontWeight = FontWeight.Bold,
-                  color = MaterialTheme.colorScheme.primary
+            ElevatedCard(
+              modifier = Modifier.fillMaxWidth(),
+              shape = RoundedCornerShape(12.dp)
+            ) {
+              Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                  Icon(Icons.Default.Security, contentDescription = null, tint = GoldPrimary)
+                  Spacer(modifier = Modifier.width(8.dp))
+                  Text(
+                    text = "Content Attribution & Copyright Notice (${licences.size} Verified Licences)",
+                    style = MaterialTheme.typography.titleSmall.copy(
+                      fontWeight = FontWeight.Bold,
+                      color = MaterialTheme.colorScheme.primary
+                    )
+                  )
+                }
+                Text(
+                  text = "All downloaded Quran texts, translations, Tafsirs, audio recitations, and Hadith collections retain their original author, translator, and reciter attributions for personal offline study. Technical API sources and licence URLs are consolidated in About → Developer Options → API Sources & Licences.",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 16.sp
+                  )
                 )
-              )
+              }
             }
-          }
-
-          items(licences, key = { it.resourceId }) { lic ->
-            ContentLicenceCard(licence = lic)
           }
         }
       }
