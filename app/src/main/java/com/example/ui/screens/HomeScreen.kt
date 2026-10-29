@@ -195,6 +195,90 @@ fun HomeScreen(
       Spacer(modifier = Modifier.height(16.dp))
     }
 
+    // 3. Learn Quran & Noorani Qaida Card (Restored on Home screen, above "Resume")
+    item {
+      Card(
+        modifier = Modifier
+          .fillMaxWidth()
+          .clickable { onNavigateToLearnIslam() }
+          .testTag("home_learn_islam_card"),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+          containerColor = Color(0xFF0A4D3C)
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, GoldPrimary)
+      ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
+              Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = GoldPrimary.copy(alpha = 0.22f)
+              ) {
+                Text(
+                  text = "DARASGAH & MADRASAH CURRICULUM",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    color = GoldPrimary,
+                    fontWeight = FontWeight.ExtraBold
+                  ),
+                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                )
+              }
+              Spacer(modifier = Modifier.height(6.dp))
+              Text(
+                text = "Learn Quran & Noorani Qaida",
+                style = MaterialTheme.typography.titleMedium.copy(
+                  color = Color.White,
+                  fontWeight = FontWeight.ExtraBold
+                )
+              )
+              Text(
+                text = "نورانی قاعدہ، تجوید، ایمان و کلمات، نمازِ مترجم، وضو اور مسنون دعائیں",
+                style = MaterialTheme.typography.bodyMedium.copy(
+                  fontFamily = com.example.ui.theme.UrduNastaliqFontFamily,
+                  color = GoldPrimary,
+                  fontSize = 15.sp,
+                  lineHeight = 26.sp
+                )
+              )
+            }
+          }
+          Spacer(modifier = Modifier.height(8.dp))
+          Text(
+            text = "21 Noorani Qaida lessons (Makharij, Harakat, Tanween, Madd & Tajweed), Six Kalimas, Iman-e-Mufassal/Mujmal, Complete Namaz & Wudu, and Daily Duas with authentic Quranic verse audio & quizzes.",
+            style = MaterialTheme.typography.bodySmall.copy(
+              color = Color.White.copy(alpha = 0.9f),
+              lineHeight = 18.sp
+            )
+          )
+          Spacer(modifier = Modifier.height(10.dp))
+          Button(
+            onClick = onNavigateToLearnIslam,
+            shape = RoundedCornerShape(10.dp),
+            colors = ButtonDefaults.buttonColors(
+              containerColor = GoldPrimary,
+              contentColor = Color(0xFF073B2E)
+            ),
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("home_open_learn_islam_btn")
+          ) {
+            Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+              text = "Open Learn Quran & Noorani Qaida",
+              style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold)
+            )
+          }
+        }
+      }
+      Spacer(modifier = Modifier.height(16.dp))
+    }
+
     // Resume Quran Reading Progress Tracker Card
     if (prayerConfig.lastReadSurahNumber in 1..114) {
       item {

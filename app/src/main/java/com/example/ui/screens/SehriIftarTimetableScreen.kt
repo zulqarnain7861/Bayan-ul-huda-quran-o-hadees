@@ -1863,7 +1863,9 @@ fun SpecialRamadanDuasShowcaseCard(
         }
       }
 
-      // Selector Chips for each Ramadan / Fasting Dua
+      // Selector Chips for each Ramadan / Fasting Dua (Sehri Dua & Iftari Dua first)
+      var isDuaTranslationExpanded by remember { mutableStateOf(false) }
+
       Row(
         modifier = Modifier
           .fillMaxWidth()
@@ -1874,7 +1876,13 @@ fun SpecialRamadanDuasShowcaseCard(
           val isSelected = idx == selectedDuaIndex
           FilterChip(
             selected = isSelected,
-            onClick = { selectedDuaIndex = idx },
+            onClick = {
+              if (selectedDuaIndex == idx) {
+                isDuaTranslationExpanded = !isDuaTranslationExpanded
+              } else {
+                selectedDuaIndex = idx
+              }
+            },
             label = {
               Text(
                 text = dua.title,
@@ -1892,19 +1900,21 @@ fun SpecialRamadanDuasShowcaseCard(
         }
       }
 
-      // Active Ramadan & Fasting Dua Card (Hadith First Priority)
+      // Active Sehri / Iftari Dua Card — Compact by default; click to open Transliteration, Urdu & English Translation
       Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
         modifier = Modifier
           .fillMaxWidth()
+          .clip(RoundedCornerShape(16.dp))
+          .clickable { isDuaTranslationExpanded = !isDuaTranslationExpanded }
           .testTag("active_ramadan_dua_display")
       ) {
         Column(
           modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
-          verticalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+          verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
           Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1919,7 +1929,6 @@ fun SpecialRamadanDuasShowcaseCard(
                   color = EmeraldPrimary
                 )
               )
-              Spacer(modifier = Modifier.height(2.dp))
               Text(
                 text = activeDua.occasionBadge,
                 style = MaterialTheme.typography.labelSmall.copy(
@@ -1936,13 +1945,13 @@ fun SpecialRamadanDuasShowcaseCard(
                 clip.setPrimaryClip(ClipData.newPlainText(activeDua.title, text))
                 Toast.makeText(context, "Fasting Dua copied", Toast.LENGTH_SHORT).show()
               },
-              modifier = Modifier.size(36.dp)
+              modifier = Modifier.size(32.dp)
             ) {
               Icon(
                 imageVector = Icons.Default.ContentCopy,
                 contentDescription = "Copy Fasting Dua",
                 tint = EmeraldPrimary,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(16.dp)
               )
             }
           }
@@ -1954,55 +1963,95 @@ fun SpecialRamadanDuasShowcaseCard(
             textAlign = TextAlign.End,
             style = MaterialTheme.typography.headlineSmall.copy(
               fontFamily = ScheherazadeFontFamily,
-              fontSize = 25.sp,
-              lineHeight = 42.sp,
+              fontSize = 24.sp,
+              lineHeight = 40.sp,
+              letterSpacing = 0.sp,
               fontWeight = FontWeight.Bold,
               textDirection = TextDirection.Rtl
             )
           )
 
-          // Transliteration
-          Text(
-            text = activeDua.transliteration,
-            style = MaterialTheme.typography.bodySmall.copy(
-              fontStyle = FontStyle.Italic,
-              color = EmeraldPrimary,
-              fontWeight = FontWeight.SemiBold,
-              lineHeight = 19.sp
-            )
-          )
+          // Clickable Toggle Bar to Open/Close Transliteration, Urdu & English Translation
+          Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = EmeraldPrimary.copy(alpha = 0.12f),
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("toggle_fasting_dua_translation_btn")
+          ) {
+            Row(
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Text(
+                text = if (isDuaTranslationExpanded) {
+                  "Hide Translation (Transliteration, Urdu & English) ▲"
+                } else {
+                  "Tap to Open Translation (Transliteration, Urdu & English) ▼"
+                },
+                style = MaterialTheme.typography.labelSmall.copy(
+                  color = EmeraldPrimary,
+                  fontWeight = FontWeight.Bold,
+                  fontSize = 11.sp
+                )
+              )
+            }
+          }
 
-          // English Translation
-          Text(
-            text = activeDua.englishTranslation,
-            style = MaterialTheme.typography.bodySmall.copy(
-              lineHeight = 20.sp,
-              color = MaterialTheme.colorScheme.onSurface
-            )
-          )
+          if (isDuaTranslationExpanded) {
+            Column(
+              modifier = Modifier
+                .fillMaxWidth()
+                .testTag("expanded_fasting_dua_translation"),
+              verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+              // Transliteration
+              Text(
+                text = activeDua.transliteration,
+                style = MaterialTheme.typography.bodySmall.copy(
+                  fontStyle = FontStyle.Italic,
+                  color = EmeraldPrimary,
+                  fontWeight = FontWeight.SemiBold,
+                  lineHeight = 19.sp
+                )
+              )
 
-          // Urdu Translation with Nastaliq Font
-          Text(
-            text = activeDua.urduTranslation,
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.End,
-            style = MaterialTheme.typography.bodyMedium.copy(
-              fontFamily = UrduNastaliqFontFamily,
-              fontSize = 15.sp,
-              lineHeight = 28.sp,
-              textDirection = TextDirection.Rtl
-            )
-          )
+              // Urdu Translation with Nastaliq Font
+              Text(
+                text = activeDua.urduTranslation,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.End,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                  fontFamily = UrduNastaliqFontFamily,
+                  fontSize = 15.sp,
+                  lineHeight = 28.sp,
+                  textDirection = TextDirection.Rtl
+                )
+              )
 
-          // Authentic Reference & Timing
-          Text(
-            text = "Source: ${activeDua.authenticReference} • ${activeDua.virtueAndTiming}",
-            style = MaterialTheme.typography.labelSmall.copy(
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-              fontSize = 11.sp,
-              lineHeight = 16.sp
-            )
-          )
+              // English Translation
+              Text(
+                text = activeDua.englishTranslation,
+                style = MaterialTheme.typography.bodySmall.copy(
+                  lineHeight = 20.sp,
+                  color = MaterialTheme.colorScheme.onSurface
+                )
+              )
+
+              // Authentic Reference & Timing
+              Text(
+                text = "Source: ${activeDua.authenticReference} • ${activeDua.virtueAndTiming}",
+                style = MaterialTheme.typography.labelSmall.copy(
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  fontSize = 11.sp,
+                  lineHeight = 16.sp
+                )
+              )
+            }
+          }
         }
       }
     }

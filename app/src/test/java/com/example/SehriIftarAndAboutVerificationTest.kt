@@ -320,4 +320,40 @@ class SehriIftarAndAboutVerificationTest {
     assertEquals(2030, loaded.selectedTimetableGregorianYear)
     assertEquals(1452, loaded.selectedTimetableHijriYear)
   }
+
+  @Test
+  fun `Quranic duas map only to exact Quran verses and non-Quranic duas show Real voice coming soon without AI TTS`() {
+    assertEquals(
+      "Real voice coming soon, In Sha Allah.",
+      com.example.ui.audio.DuaAudioController.REAL_VOICE_COMING_SOON_MESSAGE
+    )
+
+    // Non-Quranic Hadith/Fasting duas (e.g. drinking water, before eating, Sehri dua, Iftari dua) must NOT map to a fake Surah/Ayah
+    val waterDua = DailyDuasDataProvider.allDuas.first { it.id == "dua_drinking_water_pani" }
+    val eatingDua = DailyDuasDataProvider.allDuas.first { it.id == "dua_before_eating_khana" }
+    val sehriDua = DailyDuasDataProvider.allDuas.first { it.id == "dua_ramadan_sehri_niyyah" }
+    val iftarDua = DailyDuasDataProvider.allDuas.first { it.id == "dua_ramadan_iftar" }
+    org.junit.Assert.assertNull(waterDua.quranSurahAyah)
+    org.junit.Assert.assertNull(eatingDua.quranSurahAyah)
+    org.junit.Assert.assertNull(sehriDua.quranSurahAyah)
+    org.junit.Assert.assertNull(iftarDua.quranSurahAyah)
+
+    // Verify exact Sehri and Iftari Arabic & Transliteration
+    assertEquals("وَبِصَوْمِ غَدٍ نَّوَيْتُ مِنْ شَهْرِ رَمَضَانَ", sehriDua.arabicText)
+    assertTrue(sehriDua.transliteration.contains("Wa bisawmi ghadin nawaytu", ignoreCase = true))
+    assertEquals("ذَهَبَ الظَّمَأُ وَابْتَلَّتِ الْعُرُوقُ، وَثَبَتَ الْأَجْرُ إِنْ شَاءَ اللَّهُ", iftarDua.arabicText)
+    assertTrue(iftarDua.transliteration.contains("Zahaba al-zama'u wabtallatil-'urooqu", ignoreCase = true))
+
+    // Authentic Quranic Duas map to their exact Surah:Ayah
+    val ayatAlKursi = DailyDuasDataProvider.allDuas.first { it.id == "dua_ayat_al_kursi" }
+    val rabbanaAtina = DailyDuasDataProvider.allDuas.first { it.id == "dua_rabbana_fid_dunya" }
+    val rabbiZidniIlma = DailyDuasDataProvider.allDuas.first { it.id == "dua_increase_knowledge_ilm" }
+    val safarVerse = DailyDuasDataProvider.allDuas.first { it.id == "dua_safar_travel" }
+
+    assertEquals(2 to 255, ayatAlKursi.quranSurahAyah)
+    assertEquals(2 to 201, rabbanaAtina.quranSurahAyah)
+    assertEquals(20 to 114, rabbiZidniIlma.quranSurahAyah)
+    assertEquals(43 to 13, safarVerse.quranSurahAyah)
+  }
 }
+

@@ -879,6 +879,66 @@ fun SurahReaderView(
               verticalAlignment = Alignment.CenterVertically
             ) {
               item {
+                FilterChip(
+                  selected = showTransliteration,
+                  onClick = onToggleTransliteration,
+                  label = { Text("Transliteration", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                  colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = EmeraldPrimary,
+                    selectedLabelColor = Color.White
+                  ),
+                  modifier = Modifier.testTag("toggle_transliteration_chip")
+                )
+              }
+              item {
+                FilterChip(
+                  selected = showUrdu,
+                  onClick = onToggleUrdu,
+                  label = { Text("Urdu", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                  colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = EmeraldPrimary,
+                    selectedLabelColor = Color.White
+                  ),
+                  modifier = Modifier.testTag("toggle_urdu_chip")
+                )
+              }
+              item {
+                FilterChip(
+                  selected = showEnglish,
+                  onClick = onToggleEnglish,
+                  label = { Text("English", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                  colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = EmeraldPrimary,
+                    selectedLabelColor = Color.White
+                  ),
+                  modifier = Modifier.testTag("toggle_english_chip")
+                )
+              }
+              item {
+                val editionLabel = QulTranslationCatalog.getDisplayTitleForEditionKey(
+                  editionKey = activeTranslationKey,
+                  selectedTradition = selectedTradition
+                )
+                val extraCount = selectedTranslationKeys.count { it != "en.sahih" && it != "ur.jalandhry" && it != activeTranslationKey }
+                val multiSuffix = if (extraCount > 0) " (+$extraCount)" else ""
+                FilterChip(
+                  selected = true,
+                  onClick = { showTranslationSheet = true },
+                  label = {
+                    Text(
+                      text = "Other Translations: $editionLabel$multiSuffix",
+                      fontSize = 11.sp,
+                      fontWeight = FontWeight.Bold
+                    )
+                  },
+                  colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = if (selectedTradition == "SHIA") GoldPrimary.copy(alpha = 0.22f) else EmeraldPrimary.copy(alpha = 0.22f),
+                    selectedLabelColor = if (selectedTradition == "SHIA") GoldPrimary else EmeraldPrimary
+                  ),
+                  modifier = Modifier.testTag("open_translation_selector_button")
+                )
+              }
+              item {
                 val isCurrentSurahPlaying = audioState.isPlaying && audioState.surahNumber == surah.number
                 FilterChip(
                   selected = isCurrentSurahPlaying,
@@ -941,65 +1001,6 @@ fun SurahReaderView(
                     selectedLabelColor = if (selectedTradition == "SHIA") GoldPrimary else EmeraldPrimary
                   ),
                   modifier = Modifier.testTag("open_reciter_selector_button")
-                )
-              }
-              item {
-                val editionLabel = QulTranslationCatalog.getDisplayTitleForEditionKey(
-                  editionKey = activeTranslationKey,
-                  selectedTradition = selectedTradition
-                )
-                val multiSuffix = if (selectedTranslationKeys.size > 1) " (+${selectedTranslationKeys.size - 1} more)" else ""
-                FilterChip(
-                  selected = true,
-                  onClick = { showTranslationSheet = true },
-                  label = {
-                    Text(
-                      text = "Translation: $editionLabel$multiSuffix",
-                      fontSize = 11.sp,
-                      fontWeight = FontWeight.Bold
-                    )
-                  },
-                  colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = if (selectedTradition == "SHIA") GoldPrimary.copy(alpha = 0.22f) else EmeraldPrimary.copy(alpha = 0.22f),
-                    selectedLabelColor = if (selectedTradition == "SHIA") GoldPrimary else EmeraldPrimary
-                  ),
-                  modifier = Modifier.testTag("open_translation_selector_button")
-                )
-              }
-              item {
-                FilterChip(
-                  selected = showEnglish,
-                  onClick = onToggleEnglish,
-                  label = { Text("English", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
-                  colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = EmeraldPrimary,
-                    selectedLabelColor = Color.White
-                  ),
-                  modifier = Modifier.testTag("toggle_english_chip")
-                )
-              }
-              item {
-                FilterChip(
-                  selected = showUrdu,
-                  onClick = onToggleUrdu,
-                  label = { Text("Urdu", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
-                  colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = EmeraldPrimary,
-                    selectedLabelColor = Color.White
-                  ),
-                  modifier = Modifier.testTag("toggle_urdu_chip")
-                )
-              }
-              item {
-                FilterChip(
-                  selected = showTransliteration,
-                  onClick = onToggleTransliteration,
-                  label = { Text("Transliteration", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
-                  colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = EmeraldPrimary,
-                    selectedLabelColor = Color.White
-                  ),
-                  modifier = Modifier.testTag("toggle_transliteration_chip")
                 )
               }
               item {
@@ -1320,34 +1321,30 @@ fun SurahReaderView(
             }
           } else null
 
-          // Build multi-translator entries beneath this verse when additional translators are selected
+          // Build multi-translator entries beneath this verse ONLY for additional non-default translators selected via the top button
           val multiTranslationsForVerse = remember(
             orderedSelectedKeys,
             translationsByKeyAndVerse,
             ayah.surahNumber,
-            ayah.verseNumber,
-            ayah.translationEnglish,
-            ayah.translationUrdu
+            ayah.verseNumber
           ) {
-            orderedSelectedKeys.mapNotNull { edKey ->
-              val text = translationsByKeyAndVerse[edKey to ayah.verseNumber]
-                ?: when (edKey) {
-                  "en.sahih" -> ayah.translationEnglish
-                  "ur.jalandhry" -> ayah.translationUrdu
-                  else -> QulOfflineTranslationManager.getOfflineVerseText(
+            orderedSelectedKeys
+              .filter { edKey -> edKey != "en.sahih" && edKey != "ur.jalandhry" && edKey != activeTranslationKey }
+              .mapNotNull { edKey ->
+                val text = translationsByKeyAndVerse[edKey to ayah.verseNumber]
+                  ?: QulOfflineTranslationManager.getOfflineVerseText(
                     context = context,
                     editionKey = edKey,
                     surahNumber = ayah.surahNumber,
                     verseNumber = ayah.verseNumber
                   )
-                }
-              if (text.isNullOrBlank()) null
-              else RenderedVerseTranslation(
-                editionKey = edKey,
-                attribution = QulTranslationCatalog.getAttributionDetailsForKey(edKey),
-                text = text
-              )
-            }
+                if (text.isNullOrBlank()) null
+                else RenderedVerseTranslation(
+                  editionKey = edKey,
+                  attribution = QulTranslationCatalog.getAttributionDetailsForKey(edKey),
+                  text = text
+                )
+              }
           }
 
           AyahCardItem(
@@ -2604,33 +2601,6 @@ fun AyahCardItem(
                   style = MaterialTheme.typography.labelSmall.copy(
                     fontWeight = FontWeight.Bold,
                     color = EmeraldPrimary,
-                    fontSize = 10.sp
-                  )
-                )
-              }
-            }
-            Spacer(modifier = Modifier.width(5.dp))
-            Surface(
-              modifier = Modifier
-                .clickable(onClick = onOpenTranslationSelector)
-                .testTag("ayah_translation_button_${ayah.surahNumber}_${ayah.verseNumber}"),
-              shape = RoundedCornerShape(8.dp),
-              color = GoldPrimary.copy(alpha = 0.15f),
-              border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.4f))
-            ) {
-              Row(
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                verticalAlignment = Alignment.CenterVertically
-              ) {
-                Text(
-                  text = if (selectedVerseTranslations.size > 1) {
-                    "Translation (${selectedVerseTranslations.size})"
-                  } else {
-                    "Translation"
-                  },
-                  style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = GoldPrimary,
                     fontSize = 10.sp
                   )
                 )

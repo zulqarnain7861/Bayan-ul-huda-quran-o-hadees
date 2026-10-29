@@ -131,7 +131,8 @@ data class DailyDuaSequenceEntry(
     val englishTranslation: String,
     val urduTranslation: String,
     val authenticReference: String,
-    val verificationNote: String
+    val verificationNote: String,
+    val quranSurahAyah: Pair<Int, Int>? = null
 )
 
 object LearnIslamCurriculumData {
@@ -144,7 +145,7 @@ object LearnIslamCurriculumData {
             category = "Noorani Qaida Curriculum (17 Lessons)",
             apiAndReuseStatus = "Classical public-domain text & letter progression (authored by Sheikh Noor Muhammad Haqqani, Ludhiana). Website HTML/PDF wrappers on taqwafoundation.com do not expose a public JSON API.",
             licenseAndAttributionNote = "Original 17-lesson Arabic primer is public-domain heritage across South Asian Darasgah/Madrasah curricula. Proprietary website audio recordings are NOT scraped or redistributed.",
-            integrationMethodInApp = "All 17 classical lessons (Huroof-e-Mufradat through Tajweed & Quran practice) structured natively with Arabic phonetic TTS playback (Normal 1.0x & Slow 0.65x, Repeat 1x/3x/5x) plus canonical Quran.com / EveryAyah reciter audio for Quranic words & verses."
+            integrationMethodInApp = "All 17 classical lessons (Huroof-e-Mufradat through Tajweed & Quran practice) structured natively with canonical Quran.com / EveryAyah human reciter audio for verified Quranic verses and words (no AI/TTS voice)."
         ),
         VerifiedLearningSourceInfo(
             id = "source_learnnooraniqaida_com",
@@ -1369,12 +1370,13 @@ object LearnIslamCurriculumData {
             duaId = "dua_study_rabbi_zidni",
             titleEnglish = "Before Studying / Seeking Knowledge",
             titleUrdu = "علم میں اضافے کی قرآنی و مسنون دعا",
-            arabicText = "رَبِّ زِدْنِي عِلْمًا ۝ اَللّٰهُمَّ إِنِّي أَسْأَلُكَ عِلْمًا نَافِعًا، وَرِزْقًا طَيِّبًا، وَعَمَلًا مُتَقَبَّلًا",
-            transliteration = "Rabbi zidnee 'ilmaa. Allaahumma innee as'aluka 'ilman naafi'an, wa rizqan tayyiban, wa 'amalan mutaqabbalaa",
-            englishTranslation = "My Lord, increase me in knowledge (Quran 20:114). O Allah, I ask You for beneficial knowledge, pure provision, and accepted deeds.",
-            urduTranslation = "اے میرے رب! میرے علم میں اضافہ فرما (سورۃ طٰہٰ ۲۰:۱۱۴)۔ اے اللہ! میں تجھ سے نفع بخش علم، پاکیزہ رزق اور مقبول عمل کا سوال کرتا ہوں۔",
-            authenticReference = "Quran 20:114; Sunan Ibn Majah 925; Musnad Ahmad 26602 (Sahih)",
-            verificationNote = "Quran 20:114 & Sahih Hadith."
+            arabicText = "رَّبِّ زِدْنِي عِلْمًا",
+            transliteration = "Rabbi zidnee 'ilmaa.",
+            englishTranslation = "My Lord, increase me in knowledge (Quran 20:114).",
+            urduTranslation = "اے میرے رب! میرے علم میں اضافہ فرما (سورۃ طٰہٰ ۲۰:۱۱۴)۔",
+            authenticReference = "Quran 20:114 (Surah Ta-Ha 20:114)",
+            verificationNote = "Exact Quranic verse (Surah Ta-Ha 20:114) — plays authentic human reciter verse audio.",
+            quranSurahAyah = 20 to 114
         ),
         DailyDuaSequenceEntry(
             sequenceOrder = 10,
@@ -1431,7 +1433,8 @@ object LearnIslamCurriculumData {
             englishTranslation = "Glory be to Him who has subjected this to us, and we could never have subdued it by our efforts; and indeed, to our Lord we shall surely return.",
             urduTranslation = "پاک ہے وہ ذات جس نے اس سواری کو ہمارے تابع کر دیا حالانکہ ہم اسے قابو میں لانے والے نہ تھے، اور بے شک ہم اپنے رب ہی کی طرف لوٹ کر جانے والے ہیں۔",
             authenticReference = "Quran 43:13–14; Sahih Muslim 1342 (Hisn al-Muslim #207)",
-            verificationNote = "Verbatim Quranic verse (Az-Zukhruf 43:13–14) & Sahih Muslim 1342."
+            verificationNote = "Verbatim Quranic verse (Az-Zukhruf 43:13) & Sahih Muslim 1342 — plays authentic human reciter verse audio.",
+            quranSurahAyah = 43 to 13
         ),
         DailyDuaSequenceEntry(
             sequenceOrder = 14,

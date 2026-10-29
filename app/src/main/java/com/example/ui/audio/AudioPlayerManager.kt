@@ -180,6 +180,9 @@ class AudioPlayerManager(private val context: Context) {
 
   private var preloadJob: Job? = null
   var autoAdvanceFullSurah: Boolean = true
+  @Volatile
+  var isSingleVersePlaybackMode: Boolean = false
+    private set
 
   private data class Mp3QuranMoshafInfo(
     val serverBaseUrl: String,
@@ -684,10 +687,17 @@ class AudioPlayerManager(private val context: Context) {
     val currentReciter = _audioState.value.reciter
     val totalAyahs = getSurahTotalAyahs(surah)
 
-    if (autoAdvanceFullSurah && !currentReciter.isSurahLevelReciter && ayah < totalAyahs) {
+    // Continuous playback is strictly restricted to the Quran/Surah section (!isSingleVersePlaybackMode)
+    if (!isSingleVersePlaybackMode && autoAdvanceFullSurah && !currentReciter.isSurahLevelReciter && ayah < totalAyahs) {
       val nextAyah = ayah + 1
-      playAyah(surah, nextAyah, surahName)
+      playAyah(surah, nextAyah, surahName, singleVerseOnly = false)
       return
+    }
+
+    val completionMessage = if (isSingleVersePlaybackMode) {
+      "Exact Quranic verse finished ($surah:$ayah) • Tap Play to replay"
+    } else {
+      "Surah recitation finished • Tap Play to replay or X to close"
     }
 
     _audioState.value = _audioState.value.copy(
@@ -695,7 +705,7 @@ class AudioPlayerManager(private val context: Context) {
       isBuffering = false,
       isAudioUnavailable = false,
       currentPositionMs = _audioState.value.durationMs,
-      statusMessage = "Surah recitation finished • Tap Play to replay or X to close"
+      statusMessage = completionMessage
     )
     scheduleAutoDismissAfterCompletion()
   }
@@ -729,11 +739,28 @@ class AudioPlayerManager(private val context: Context) {
     }
   }
 
-  fun playAyah(surah: Int, ayah: Int, surahName: String = "") {
+  /**
+   * Plays ONLY the exact single verse (Surah:Ayah) using an ayah-level human reciter and stops
+   * immediately when that single verse finishes (never auto-advances to the next verse).
+   * Used for Quranic Duas, Namaz Quranic verses, and reliable Noorani Qaida verse examples.
+   */
+  fun playSingleAyahOnly(surah: Int, ayah: Int, surahName: String = "") {
+    playAyah(surah = surah, ayah = ayah, surahName = surahName, singleVerseOnly = true)
+  }
+
+  fun playAyah(surah: Int, ayah: Int, surahName: String = "", singleVerseOnly: Boolean = false) {
     try {
       releasePlayersOnly()
+      isSingleVersePlaybackMode = singleVerseOnly
 
-      val currentReciter = _audioState.value.reciter
+      val configuredReciter = _audioState.value.reciter
+      // When playing a single exact verse (e.g. Quranic Dua), ensure we use an ayah-level human reciter
+      // rather than a full-surah stream so ONLY that exact verse is played.
+      val currentReciter = if (singleVerseOnly && configuredReciter.isSurahLevelReciter) {
+        availableReciters.firstOrNull { !it.isSurahLevelReciter } ?: configuredReciter
+      } else {
+        configuredReciter
+      }
       val reciterId = currentReciter.id
       val totalAyahs = getSurahTotalAyahs(surah)
       val safeAyah = ayah.coerceIn(1, totalAyahs)
@@ -747,8 +774,10 @@ class AudioPlayerManager(private val context: Context) {
         durationMs = 0
       )
 
-      // Preload upcoming ayahs in background for gapless full-surah playback
-      preloadUpcomingAyahs(currentReciter, surah, safeAyah, count = 4)
+      // Preload upcoming ayahs in background ONLY when in continuous Surah playback mode
+      if (!singleVerseOnly) {
+        preloadUpcomingAyahs(currentReciter, surah, safeAyah, count = 4)
+      }
 
       val offlineFile = runCatching {
         com.example.data.download.DownloadManager.getInstance(context)
@@ -939,6 +968,8 @@ class AudioPlayerManager(private val context: Context) {
           }
           val playingStatus = if (isSurahMode) {
             "${currentReciter.name} • Surah $surah • Ayah ${initialTiming.first}/$totalAyahs ${if (surahName.isNotBlank()) "($surahName)" else ""}"
+          } else if (isSingleVersePlaybackMode) {
+            "${currentReciter.name} • Exact Verse $surah:$ayah ${if (surahName.isNotBlank()) "($surahName)" else ""}"
           } else {
             "${currentReciter.name} • Ayah $ayah/$totalAyahs (Full Surah Auto-Play)"
           }
@@ -959,7 +990,9 @@ class AudioPlayerManager(private val context: Context) {
           scope.launch(Dispatchers.IO) {
             catchAudioForOffline(url, cacheFile)
           }
-          preloadUpcomingAyahs(currentReciter, surah, ayah, count = 4)
+          if (!isSingleVersePlaybackMode) {
+            preloadUpcomingAyahs(currentReciter, surah, ayah, count = 4)
+          }
         }
         setOnCompletionListener {
           handleAyahOrSurahCompletion(surah, ayah, surahName)
@@ -1267,7 +1300,9 @@ class AudioPlayerManager(private val context: Context) {
         statusMessage = status
       )
       startProgressTracking()
-      preloadUpcomingAyahs(_audioState.value.reciter, surah, ayah, count = 4)
+      if (!isSingleVersePlaybackMode) {
+        preloadUpcomingAyahs(_audioState.value.reciter, surah, ayah, count = 4)
+      }
       true
     }.getOrDefault(false)
 

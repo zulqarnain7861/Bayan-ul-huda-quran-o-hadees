@@ -260,9 +260,7 @@ object DailyDuasDataProvider {
       authenticReference = "Sahih al-Bukhari 5631 • Sahih Muslim 2028 • Hilyat al-Muttaqin / Al-Kafi Vol. 6 (Imam Ja'far al-Sadiq AS) • Shu'ab al-Iman al-Bayhaqi 6002",
       virtueAndTiming = "Drink water with the right hand while sitting, in three breaths: say 'Bismillah' before drinking and 'Alhamdulillah' (or this complete praise) after finishing.",
       recommendedCount = 1,
-      quranSurahAyah = 1 to 1,
-      searchKeywordsRomanUrduAndAliases = "pani peene ki dua paani peenay ki dua pani pina water drinking dua پینے کا پانی پانی پینے کی دعا",
-      humanAudioUrl = "https://everyayah.com/data/Alafasy_128kbps/001001.mp3"
+      searchKeywordsRomanUrduAndAliases = "pani peene ki dua paani peenay ki dua pani pina water drinking dua پینے کا پانی پانی پینے کی دعا"
     ),
     DailyDuaItem(
       id = "dua_before_eating_khana",
@@ -276,9 +274,7 @@ object DailyDuasDataProvider {
       authenticReference = "Sunan Abi Dawud 3767 • Jami' at-Tirmidhi 1858 (Sahih) • Al-Mustadrak al-Hakim 7076",
       virtueAndTiming = "Recite before starting any meal and eat with the right hand from what is nearest to you.",
       recommendedCount = 1,
-      quranSurahAyah = 1 to 1,
-      searchKeywordsRomanUrduAndAliases = "khana khane ki dua khana khane se pehle ki dua khana shuru karne ki dua eating food meal کھانا کھانے کی دعا",
-      humanAudioUrl = "https://everyayah.com/data/Alafasy_128kbps/001001.mp3"
+      searchKeywordsRomanUrduAndAliases = "khana khane ki dua khana khane se pehle ki dua khana shuru karne ki dua eating food meal کھانا کھانے کی دعا"
     ),
     DailyDuaItem(
       id = "dua_after_eating",
@@ -585,31 +581,31 @@ object DailyDuasDataProvider {
     ),
     DailyDuaItem(
       id = "dua_ramadan_sehri_niyyah",
-      title = "Sehri & Fasting Niyyah (Prophetic Hadith — سحری اور روزے کی مسنون نیت)",
+      title = "Sehri Dua (Roza Rakhne Ki Dua / سحری اور روزے کی دعا)",
       category = DuaCategory.SPECIAL_OCCASIONS,
       occasionType = SpecialOccasionType.RAMADAN_IFTAR,
-      occasionBadge = "Sunan an-Nasa'i 2331 • Sahih al-Bukhari 1 & 1923 (Authentic Hadith)",
-      arabicText = "«مَنْ لَمْ يُبَيِّتِ الصِّيَامَ قَبْلَ الْفَجْرِ فَلَا صِيَامَ لَهُ» ۝ «تَسَحَّرُوا فَإِنَّ فِي السَّحُورِ بَرَكَةً» ۝ «إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ، وَإِنَّمَا لِكُلِّ امْرِئٍ مَا نَوَى»",
-      transliteration = "Man lam yubayyitis-siyama qablal-fajri fala siyama lah. • Tasahharu fa-inna fis-suhuri barakah. • Innamal-a'malu bin-niyyat, wa innama li-kulli imri'in ma nawa.",
-      englishTranslation = "\"Whoever does not form the intention (Niyyah) to fast before Fajr, there is no fast for him.\" (Sunan an-Nasa'i 2331, Sunan Abi Dawud 2454 — Sahih) • \"Partake of Suhoor (Sehri), for indeed in Suhoor there is blessing.\" (Sahih al-Bukhari 1923, Sahih Muslim 1095) • \"Actions are judged only by intentions, and every person will have what they intended.\" (Sahih al-Bukhari 1) — As per authentic Hadith, the Niyat of Sehri is the sincere resolve in the heart before Fajr to fast tomorrow for the sake of Allah, and waking up to eat Sehri saying 'Bismillah' fulfills this intention.",
-      urduTranslation = "«جو شخص فجر سے پہلے روزے کی نیت (دل میں پختہ ارادہ) نہ کرے اس کا روزہ نہیں۔» (سنن نسائی ۲۳۳۱، سنن ابی داؤد ۲۴۵۴ — صحیح) • «سحری کھایا کرو کیونکہ بے شک سحری میں برکت ہے۔» (صحیح بخاری ۱۹۲۳، صحیح مسلم ۱۰۹۵) • «اعمال کا دارومدار نیتوں پر ہے اور ہر شخص کے لیے وہی ہے جس کی اس نے نیت کی۔» (صحیح بخاری ۱) — صحیح احادیثِ مبارکہ کی رو سے سحری اور روزے کی مسنون نیت فجر سے پہلے دل کا یہ پختہ ارادہ ہے کہ میں اللہ تعالیٰ کی رضا کے لیے روزہ رکھ رہا ہوں، اور سحری کے لیے اٹھنا اور بسم اللہ پڑھ کر کھانا پینا بذاتِ خود مکمل مسنون نیت ہے۔",
-      authenticReference = "Sunan an-Nasa'i 2331 • Sunan Abi Dawud 2454 (Sahih) • Sahih al-Bukhari 1 & 1923 • Sahih Muslim 1095 & 1907",
-      virtueAndTiming = "1st Priority — Authentic Hadith: Form the sincere intention in the heart before Fajr to fast for Allah's sake (Sunan an-Nasa'i 2331) and partake of the blessed pre-dawn Suhoor meal saying 'Bismillah' (Sahih al-Bukhari 1923).",
+      occasionBadge = "Ramadan & Fasting • Sehri Dua",
+      arabicText = "وَبِصَوْمِ غَدٍ نَّوَيْتُ مِنْ شَهْرِ رَمَضَانَ",
+      transliteration = "Wa bisawmi ghadin nawaytu min shahri Ramadan (Wabi soum gadan nowut min shahri Ramadan)",
+      englishTranslation = "And I intend to keep the fast of tomorrow in the month of Ramadan.",
+      urduTranslation = "اور میں نے ماہِ رمضان کے کل کے روزے کی نیت کی۔",
+      authenticReference = "Sunan an-Nasa'i 2331 • Sahih al-Bukhari 1 & 1923 • Traditional Sehri Niyyah Formula",
+      virtueAndTiming = "Form the sincere intention before Fajr to fast tomorrow for Allah's sake and partake of the blessed pre-dawn Suhoor (Sehri) meal.",
       recommendedCount = 1,
-      searchKeywordsRomanUrduAndAliases = "sehri ki dua sehri ki niyat roza rakhne ki dua suhoor dua man lam yubayyitis siyama tasahharu سحری کی دعا روزہ رکھنے کی نیت"
+      searchKeywordsRomanUrduAndAliases = "sehri ki dua sehri ki niyat roza rakhne ki dua suhoor dua wabi soum gadan nowut wa bisawmi ghadin nawaytu سحری کی دعا روزہ رکھنے کی نیت"
     ),
     DailyDuaItem(
       id = "dua_ramadan_iftar",
-      title = "Dua When Breaking the Fast (Roza Kholne / Iftar Ki Dua / افطار کی مسنون دعا)",
+      title = "Iftari Dua (Roza Kholne Ki Dua / افطار کی مسنون دعا)",
       category = DuaCategory.SPECIAL_OCCASIONS,
       occasionType = SpecialOccasionType.RAMADAN_IFTAR,
       occasionBadge = "Ramadan & Sunnah Fasting • Iftari Dua (Sunan Abi Dawud 2357)",
-      arabicText = "ذَهَبَ الظَّمَأُ وَابْتَلَّتِ الْعُرُوقُ، وَثَبَتَ الْأَجْرُ إِنْ شَاءَ اللَّهُ ۝ اللَّهُمَّ إِنِّي لَكَ صُمْتُ وَبِكَ آمَنْتُ وَعَلَيْكَ تَوَكَّلْتُ وَعَلَى رِزْقِكَ أَفْطَرْتُ",
-      transliteration = "Zahaba al-zama'u wabtallatil-'urooqu wa thabatal-ajru in sha' Allah (Dhahabadh-dhama'u wabtallatil-'uruqu, wa thabatal-ajru in sha'Allah. Also: Allahumma inni laka sumtu wa bika amantu wa 'alayka tawakkaltu wa 'ala rizqika aftartu.)",
-      englishTranslation = "The thirst is gone, the veins are moistened, and the reward is confirmed, if Allah wills. (Also recited: O Allah, for You I have fasted, in You I believe, upon You I rely, and with Your provision I break my fast.)",
-      urduTranslation = "پیاس چلی گئی، رگیں تر ہو گئیں، اور ان شاء اللہ اجر ثابت ہو گیا۔ (نیز: اے اللہ! میں نے تیرے ہی لیے روزہ رکھا، تجھ ہی پر ایمان لایا، تجھ ہی پر بھروسہ کیا اور تیرے ہی عطا کردہ رزق سے افطار کیا۔)",
-      authenticReference = "Sunan Abi Dawud 2357 (Graded Hasan — narrated by Abdullah ibn 'Umar RA) • Sunan Abi Dawud 2358 (Mursal — Mu'adh ibn Zuhrah) • Hisn al-Muslim #176",
-      virtueAndTiming = "Break the fast at Maghrib sunset with fresh or dry dates, or water, saying 'Bismillah', and recite this authentic Prophetic supplication (Sunan Abi Dawud 2357).",
+      arabicText = "ذَهَبَ الظَّمَأُ وَابْتَلَّتِ الْعُرُوقُ، وَثَبَتَ الْأَجْرُ إِنْ شَاءَ اللَّهُ",
+      transliteration = "Zahaba al-zama'u wabtallatil-'urooqu wa thabatal-ajru in sha' Allah (Dhahabadh-dhama'u wabtallatil-'uruqu, wa thabatal-ajru in sha'Allah)",
+      englishTranslation = "The thirst is gone, the veins are moistened, and the reward is confirmed, if Allah wills.",
+      urduTranslation = "پیاس چلی گئی، رگیں تر ہو گئیں، اور ان شاء اللہ اجر ثابت ہو گیا۔",
+      authenticReference = "Sunan Abi Dawud 2357 (Graded Hasan — narrated by Abdullah ibn 'Umar RA) • Hisn al-Muslim #176",
+      virtueAndTiming = "Break the fast at Maghrib sunset with dates or water saying 'Bismillah', then recite this authentic Prophetic supplication (Sunan Abi Dawud 2357).",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "iftar ki dua roza kholne ki dua roza iftar dua zahaba al-zama'u wabtallatil-'urooqu dhahabadh-dhama'u افطار کی دعا روزہ کھولنے کی دعا"
     ),

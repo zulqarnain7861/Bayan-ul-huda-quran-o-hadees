@@ -1,13 +1,9 @@
 package com.example.ui.audio
 
 import android.content.Context
-import android.media.AudioAttributes
-import android.os.Build
-import android.os.Bundle
-import android.speech.tts.TextToSpeech
-import android.speech.tts.UtteranceProgressListener
+import android.widget.Toast
 import com.example.data.model.DailyDuaItem
-import java.util.Locale
+import com.example.data.model.DuaCategory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -20,375 +16,322 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 enum class DuaAudioLanguageMode(val label: String) {
-  ARABIC_ONLY("Arabic Vocal Only"),
-  ARABIC_AND_ENGLISH("Arabic + English Translation"),
-  ARABIC_AND_URDU("Arabic + Urdu Translation")
+  ARABIC_ONLY("Arabic Only"),
+  ARABIC_AND_ENGLISH("Arabic + English"),
+  ARABIC_AND_URDU("Arabic + Urdu"),
+  ARABIC_ENGLISH_URDU("Arabic + English + Urdu")
 }
 
-data class DuaAudioPlaybackState(
+data class DuaVocalPlaybackState(
   val isPlaying: Boolean = false,
   val activeDuaId: String? = null,
   val activeDuaTitle: String = "",
   val activeStageLabel: String = "",
-  val repeatCountTarget: Int = 1,
-  val currentRepeatIteration: Int = 1,
-  val speechRateMultiplier: Float = 1.0f,
-  val languageMode: DuaAudioLanguageMode = DuaAudioLanguageMode.ARABIC_ONLY,
-  val progressFraction: Float = 0f,
-  val activeWordIndex: Int = -1,
+  val currentRepetition: Int = 0,
+  val totalRepetitions: Int = 0,
+  val activeArabicWordIndex: Int = -1,
+  val totalArabicWords: Int = 0,
   val activeLetterIndexInWord: Int = -1,
-  val totalWords: Int = 0,
-  val isHumanReciterAudio: Boolean = false
-)
+  val progressFraction: Float = 0f,
+  val languageMode: DuaAudioLanguageMode = DuaAudioLanguageMode.ARABIC_ONLY,
+  val speechRatePreset: Float = 1.0f, // 1.0f = Normal, 0.65f = Slow Teacher Mode
+  val repeatCountPreset: Int = 1,     // 1x, 3x, 5x
+  val includeUrduMeaning: Boolean = false,
+  val includeEnglishMeaning: Boolean = false,
+  val isComingSoonNotice: Boolean = false
+) {
+  val speechRateMultiplier: Float get() = speechRatePreset
+  val repeatCountTarget: Int get() = repeatCountPreset
+  val activeWordIndex: Int get() = activeArabicWordIndex
+}
+
+typealias DuaAudioPlaybackState = DuaVocalPlaybackState
 
 /**
- * Pure-vocal Masnoon & Special Occasion Dua Audio Controller.
+ * Authentic Audio Controller for Daily Duas, Iman, Kalimas, Wudu, Namaz, and Noorani Qaida.
  *
- * 1. Prioritizes authentic verified human reciter recordings (EveryAyah / MP3Quran) whenever available.
- * 2. When falling back to vocal speech for Hadith Duas or translations, enforces a deep male voice ("man sound", pitch 0.82f).
- * 3. Provides real-time word-by-word and letter-by-letter green highlighting synchronization.
+ * STRICT AUDIO POLICY (No AI / Robotic TTS Voice):
+ * - AI/TTS synthesized voice is completely removed from Iman, Kalimas, Namaz, Wudu, and Daily Duas.
+ * - For Quranic Duas and verified Quranic verses (`quranSurahAyah != null`), plays ONLY the exact single
+ *   verse using authentic human reciter audio (`AudioPlayerManager.playSingleAyahOnly`).
+ * - For non-Quranic items without authentic human audio, displays:
+ *   "Real voice coming soon, In Sha Allah."
  */
 class DuaAudioController(
   private val context: Context,
-  private val quranAudioPlayerManager: AudioPlayerManager
+  private val quranAudioPlayerManager: AudioPlayerManager = AudioPlayerManager(context)
 ) {
+
+  companion object {
+    const val REAL_VOICE_COMING_SOON_MESSAGE = "Real voice coming soon, In Sha Allah."
+
+    @Volatile
+    private var instance: DuaAudioController? = null
+
+    fun getInstance(context: Context): DuaAudioController {
+      return instance ?: synchronized(this) {
+        instance ?: DuaAudioController(context.applicationContext).also { instance = it }
+      }
+    }
+  }
+
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-  private var tts: TextToSpeech? = null
-  private var isTtsReady = false
-  private var activeProgressJob: Job? = null
+  private var vocalJob: Job? = null
 
-  private val _playbackState = MutableStateFlow(DuaAudioPlaybackState())
-  val playbackState: StateFlow<DuaAudioPlaybackState> = _playbackState.asStateFlow()
+  private val _playbackState = MutableStateFlow(DuaVocalPlaybackState())
+  val playbackState: StateFlow<DuaVocalPlaybackState> = _playbackState.asStateFlow()
 
-  init {
-    initTextToSpeech()
+  fun setSpeechRatePreset(rate: Float) {
+    val clamped = rate.coerceIn(0.5f, 1.5f)
+    _playbackState.value = _playbackState.value.copy(speechRatePreset = clamped)
   }
 
-  private fun initTextToSpeech() {
-    runCatching {
-      tts = TextToSpeech(context.applicationContext) { status ->
-        if (status == TextToSpeech.SUCCESS) {
-          isTtsReady = true
-          tts?.setAudioAttributes(
-            AudioAttributes.Builder()
-              .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-              .setUsage(AudioAttributes.USAGE_MEDIA)
-              .build()
-          )
-          // Deep resonant male voice configuration ("man sound")
-          tts?.setPitch(0.82f)
-          tts?.setSpeechRate(0.86f * _playbackState.value.speechRateMultiplier)
-        }
-      }
-    }
+  fun toggleSlowPlaybackMode() {
+    val current = _playbackState.value.speechRatePreset
+    val next = if (current < 0.85f) 1.0f else 0.65f
+    setSpeechRatePreset(next)
   }
 
-  private fun selectMaleVoiceForLocale(engine: TextToSpeech, locale: Locale) {
-    runCatching {
-      engine.language = locale
-      engine.setPitch(0.82f)
-      engine.setSpeechRate((0.86f * _playbackState.value.speechRateMultiplier).coerceIn(0.45f, 1.4f))
-      val voices = engine.voices ?: return@runCatching
-      val langPrefix = locale.language.lowercase()
-      val matchingVoices = voices.filter { v ->
-        v.locale.language.lowercase() == langPrefix && !v.isNetworkConnectionRequired
-      }.ifEmpty {
-        voices.filter { v -> v.locale.language.lowercase() == langPrefix }
-      }
-      val preferredMale = matchingVoices.firstOrNull { v ->
-        val nameLower = v.name.lowercase()
-        nameLower.contains("male") && !nameLower.contains("female")
-      } ?: matchingVoices.firstOrNull { v ->
-        val nameLower = v.name.lowercase()
-        (nameLower.contains("-m-") || nameLower.contains("_m_") || nameLower.endsWith("b") || nameLower.endsWith("d")) &&
-          !nameLower.contains("female")
-      }
-      if (preferredMale != null) {
-        engine.voice = preferredMale
-      }
-    }
-  }
-
-  fun setLanguageMode(mode: DuaAudioLanguageMode) {
-    _playbackState.value = _playbackState.value.copy(languageMode = mode)
+  fun setRepeatCountPreset(repeatCount: Int) {
+    val safeRepeat = repeatCount.coerceIn(1, 10)
+    _playbackState.value = _playbackState.value.copy(repeatCountPreset = safeRepeat)
   }
 
   fun toggleRepeatTarget() {
-    val current = _playbackState.value.repeatCountTarget
-    val next = when (current) {
+    val next = when (_playbackState.value.repeatCountPreset) {
       1 -> 3
       3 -> 5
       else -> 1
     }
-    _playbackState.value = _playbackState.value.copy(repeatCountTarget = next)
+    setRepeatCountPreset(next)
   }
 
-  fun setRepeatTarget(count: Int) {
-    _playbackState.value = _playbackState.value.copy(repeatCountTarget = count.coerceIn(1, 10))
+  fun setMeaningPlaybackOptions(includeUrdu: Boolean, includeEnglish: Boolean) {
+    _playbackState.value = _playbackState.value.copy(
+      includeUrduMeaning = includeUrdu,
+      includeEnglishMeaning = includeEnglish
+    )
   }
 
-  fun toggleSlowPlaybackMode(): Float {
-    val nextRate = if (_playbackState.value.speechRateMultiplier < 0.85f) 1.0f else 0.65f
-    _playbackState.value = _playbackState.value.copy(speechRateMultiplier = nextRate)
-    return nextRate
+  fun setLanguageMode(mode: DuaAudioLanguageMode) {
+    _playbackState.value = _playbackState.value.copy(
+      languageMode = mode,
+      includeEnglishMeaning = mode == DuaAudioLanguageMode.ARABIC_AND_ENGLISH || mode == DuaAudioLanguageMode.ARABIC_ENGLISH_URDU,
+      includeUrduMeaning = mode == DuaAudioLanguageMode.ARABIC_AND_URDU || mode == DuaAudioLanguageMode.ARABIC_ENGLISH_URDU
+    )
   }
 
-  fun setSpeechRateMultiplier(multiplier: Float) {
-    _playbackState.value = _playbackState.value.copy(speechRateMultiplier = multiplier.coerceIn(0.5f, 1.5f))
-  }
-
+  /**
+   * Plays an item from Noorani Qaida, Iman/Kalimas, Wudu/Namaz, or Daily Duas.
+   * Plays authentic human reciter audio ONLY when an exact Quranic verse (`quranSurahAyah`) is linked;
+   * otherwise shows "Real voice coming soon, In Sha Allah." (Never uses AI/TTS voice).
+   */
   fun playLearningItem(
     id: String,
     title: String,
     arabicText: String,
-    transliteration: String,
-    englishText: String,
-    urduText: String,
-    quranSurahAyah: Pair<Int, Int>? = null
+    transliteration: String = "",
+    englishText: String = "",
+    urduText: String = "",
+    urduMeaning: String = "",
+    englishMeaning: String = "",
+    quranSurahAyah: Pair<Int, Int>? = null,
+    speechRateOverride: Float? = null,
+    repeatCountOverride: Int? = null,
+    preferQuranReciterIfAvailable: Boolean = true
   ) {
+    val current = _playbackState.value
     val syntheticDua = DailyDuaItem(
       id = id,
       title = title,
-      category = com.example.data.model.DuaCategory.HOME_MASJID,
+      category = DuaCategory.HOME_MASJID,
       occasionBadge = "Learn Islam",
       arabicText = arabicText,
       transliteration = transliteration,
-      englishTranslation = englishText,
-      urduTranslation = urduText,
+      englishTranslation = englishText.ifBlank { englishMeaning },
+      urduTranslation = urduText.ifBlank { urduMeaning },
       authenticReference = "",
       virtueAndTiming = "",
-      recommendedCount = _playbackState.value.repeatCountTarget,
+      recommendedCount = repeatCountOverride ?: current.repeatCountPreset,
       quranSurahAyah = quranSurahAyah
     )
     playDuaVocal(
       dua = syntheticDua,
-      preferQuranReciterIfAvailable = (_playbackState.value.speechRateMultiplier >= 0.9f && _playbackState.value.repeatCountTarget == 1)
+      includeTranslations = false,
+      repetitions = repeatCountOverride ?: current.repeatCountPreset,
+      speechRate = speechRateOverride ?: current.speechRatePreset,
+      includeUrduOverride = false,
+      preferQuranReciterIfAvailable = true
     )
   }
 
   fun playDuaVocal(
     dua: DailyDuaItem,
+    includeTranslations: Boolean = false,
+    repetitions: Int = 1,
+    speechRate: Float = _playbackState.value.speechRatePreset,
+    includeUrduOverride: Boolean = false,
     preferQuranReciterIfAvailable: Boolean = true
   ) {
-    activeProgressJob?.cancel()
-    runCatching { tts?.stop() }
+    if (_playbackState.value.isPlaying && _playbackState.value.activeDuaId == dua.id) {
+      stop()
+      return
+    }
 
-    val arabicWords = dua.arabicText.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
-    val totalWordsCount = arabicWords.size.coerceAtLeast(1)
-
-    // Always prefer verified human reciter audio when the Dua has a Quranic ayah reference
     val quranRef = dua.quranSurahAyah
-    if (quranRef != null && preferQuranReciterIfAvailable) {
-      quranAudioPlayerManager.playAyah(
-        surah = quranRef.first,
-        ayah = quranRef.second,
-        surahName = dua.title
-      )
+    if (quranRef == null) {
+      showRealVoiceComingSoon(duaId = dua.id, duaTitle = dua.title)
+      return
+    }
+
+    stop()
+
+    val safeReps = repetitions.coerceIn(1, 10)
+    val arabicWords = tokenizeArabicWords(dua.arabicText)
+
+    vocalJob = scope.launch {
       _playbackState.value = _playbackState.value.copy(
         isPlaying = true,
         activeDuaId = dua.id,
         activeDuaTitle = dua.title,
-        activeStageLabel = "Verified Human Reciter (${quranAudioPlayerManager.audioState.value.reciter.name})",
-        currentRepeatIteration = 1,
-        progressFraction = 0.05f,
-        activeWordIndex = 0,
-        activeLetterIndexInWord = 0,
-        totalWords = totalWordsCount,
-        isHumanReciterAudio = true
+        activeStageLabel = "Authentic Quranic Verse Audio (${quranRef.first}:${quranRef.second}) — Exact Verse Only",
+        currentRepetition = 1,
+        totalRepetitions = safeReps,
+        activeArabicWordIndex = 0,
+        totalArabicWords = arabicWords.size,
+        isComingSoonNotice = false
       )
-      activeProgressJob = scope.launch {
-        val totalMs = (dua.arabicText.length * 55L).coerceIn(4000L, 14000L)
-        val tickMs = 45L
-        val totalTicks = (totalMs / tickMs).toInt().coerceAtLeast(20)
-        for (tick in 1..totalTicks) {
-          if (!isActive || !_playbackState.value.isPlaying) break
-          delay(tickMs)
-          val qState = quranAudioPlayerManager.audioState.value
-          val fraction = if (qState.isPlaying && qState.durationMs > 1000 && qState.currentPositionMs > 0) {
-            (qState.currentPositionMs.toFloat() / qState.durationMs.toFloat()).coerceIn(0f, 1f)
-          } else {
-            (tick.toFloat() / totalTicks.toFloat()).coerceIn(0f, 1f)
-          }
-          val exactWordFloat = fraction * totalWordsCount
-          val wordIdx = exactWordFloat.toInt().coerceIn(0, totalWordsCount - 1)
-          val activeWord = arabicWords.getOrElse(wordIdx) { "" }
-          val wordInternalFraction = (exactWordFloat - wordIdx).coerceIn(0f, 0.999f)
-          val letterIdx = (wordInternalFraction * activeWord.length.coerceAtLeast(1)).toInt()
-            .coerceIn(0, (activeWord.length - 1).coerceAtLeast(0))
 
-          _playbackState.value = _playbackState.value.copy(
-            progressFraction = fraction,
-            activeWordIndex = wordIdx,
-            activeLetterIndexInWord = letterIdx,
-            totalWords = totalWordsCount
-          )
-        }
-        if (_playbackState.value.activeDuaId == dua.id) {
-          _playbackState.value = _playbackState.value.copy(
-            isPlaying = false,
-            progressFraction = 1f,
-            activeWordIndex = -1,
-            activeLetterIndexInWord = -1,
-            activeStageLabel = "Human Recitation Completed"
-          )
-        }
-      }
-      return
-    }
-
-    val repeatTarget = _playbackState.value.repeatCountTarget
-    val langMode = _playbackState.value.languageMode
-
-    _playbackState.value = _playbackState.value.copy(
-      isPlaying = true,
-      activeDuaId = dua.id,
-      activeDuaTitle = dua.title,
-      activeStageLabel = "Male Vocal Recitation (${langMode.label})",
-      currentRepeatIteration = 1,
-      progressFraction = 0f,
-      activeWordIndex = 0,
-      activeLetterIndexInWord = 0,
-      totalWords = totalWordsCount,
-      isHumanReciterAudio = false
-    )
-
-    activeProgressJob = scope.launch {
-      for (iteration in 1..repeatTarget) {
-        if (!isActive || !_playbackState.value.isPlaying) break
+      for (rep in 1..safeReps) {
+        if (!isActive) break
 
         _playbackState.value = _playbackState.value.copy(
-          currentRepeatIteration = iteration,
-          activeStageLabel = "Arabic Male Vocal ($iteration of $repeatTarget • Green Word & Letter Sync)"
+          currentRepetition = rep,
+          activeStageLabel = "Playing Exact Quranic Verse (${quranRef.first}:${quranRef.second}) • Rep $rep/$safeReps",
+          activeArabicWordIndex = 0,
+          totalArabicWords = arabicWords.size,
+          isComingSoonNotice = false
         )
 
-        speakSegmentWithWordSync(dua.arabicText, arabicWords, Locale("ar"))
-        val approxArabicDurationMs = (dua.arabicText.length * 46L).coerceIn(2800L, 10500L)
-        val tickMs = 45L
-        val totalTicks = (approxArabicDurationMs / tickMs).toInt().coerceAtLeast(20)
-        for (tick in 1..totalTicks) {
-          if (!isActive || !_playbackState.value.isPlaying) break
-          delay(tickMs)
-          val iterFraction = (tick.toFloat() / totalTicks.toFloat()).coerceIn(0f, 1f)
-          val baseProgress = (iteration - 1).toFloat() / repeatTarget.toFloat()
-          val overallProgress = (baseProgress + iterFraction / repeatTarget.toFloat()).coerceIn(0f, 1f)
+        // Play ONLY the exact single verse using authentic human reciter audio (no continuous Surah auto-advance)
+        quranAudioPlayerManager.playSingleAyahOnly(
+          surah = quranRef.first,
+          ayah = quranRef.second,
+          surahName = dua.title
+        )
 
-          val exactWordFloat = iterFraction * totalWordsCount
-          val wordIdx = exactWordFloat.toInt().coerceIn(0, totalWordsCount - 1)
-          val activeWord = arabicWords.getOrElse(wordIdx) { "" }
-          val wordInternalFraction = (exactWordFloat - wordIdx).coerceIn(0f, 0.999f)
-          val letterIdx = (wordInternalFraction * activeWord.length.coerceAtLeast(1)).toInt()
-            .coerceIn(0, (activeWord.length - 1).coerceAtLeast(0))
+        var elapsedMs = 0L
+        val maxWaitMs = 45000L
+        delay(250)
 
+        while (isActive && elapsedMs < maxWaitMs) {
+          val qState = quranAudioPlayerManager.audioState.value
+          if (qState.isAudioUnavailable) {
+            showRealVoiceComingSoon(duaId = dua.id, duaTitle = dua.title)
+            return@launch
+          }
+          if (!qState.isPlaying && !qState.isBuffering && elapsedMs >= 600L) {
+            break
+          }
+          val totalDur = qState.durationMs.coerceAtLeast(1500)
+          val pos = qState.currentPositionMs.coerceIn(0, totalDur)
+          val wordIdx = if (arabicWords.isNotEmpty()) {
+            ((pos.toFloat() / totalDur.toFloat()) * arabicWords.size).toInt()
+              .coerceIn(0, arabicWords.size - 1)
+          } else {
+            -1
+          }
           _playbackState.value = _playbackState.value.copy(
-            progressFraction = overallProgress,
-            activeWordIndex = wordIdx,
-            activeLetterIndexInWord = letterIdx,
-            totalWords = totalWordsCount
+            activeArabicWordIndex = wordIdx,
+            totalArabicWords = arabicWords.size,
+            activeStageLabel = "Authentic Quranic Verse (${quranRef.first}:${quranRef.second}) • Word ${wordIdx + 1}/${arabicWords.size.coerceAtLeast(1)}"
           )
+          delay(120)
+          elapsedMs += 120
         }
 
-        if (!isActive || !_playbackState.value.isPlaying) break
-
-        if (langMode == DuaAudioLanguageMode.ARABIC_AND_ENGLISH) {
-          _playbackState.value = _playbackState.value.copy(
-            activeWordIndex = -1,
-            activeLetterIndexInWord = -1,
-            activeStageLabel = "English Translation Male Read-Aloud ($iteration of $repeatTarget)"
-          )
-          speakSegmentIfAvailable(dua.englishTranslation, Locale.US)
-          delay((dua.englishTranslation.length * 34L).coerceIn(2000L, 6500L))
-        } else if (langMode == DuaAudioLanguageMode.ARABIC_AND_URDU) {
-          _playbackState.value = _playbackState.value.copy(
-            activeWordIndex = -1,
-            activeLetterIndexInWord = -1,
-            activeStageLabel = "Urdu Translation Male Read-Aloud ($iteration of $repeatTarget)"
-          )
-          speakSegmentIfAvailable(dua.urduTranslation, Locale("ur"))
-          delay((dua.urduTranslation.length * 36L).coerceIn(2000L, 6500L))
+        quranAudioPlayerManager.stop()
+        if (rep < safeReps && isActive) {
+          delay(350)
         }
       }
 
-      if (_playbackState.value.isPlaying && _playbackState.value.activeDuaId == dua.id) {
+      if (isActive) {
         _playbackState.value = _playbackState.value.copy(
           isPlaying = false,
-          progressFraction = 1f,
-          activeWordIndex = -1,
-          activeLetterIndexInWord = -1,
-          activeStageLabel = "Completed Playback • Tap Play to listen again"
+          activeDuaId = null,
+          activeDuaTitle = "",
+          activeStageLabel = "",
+          currentRepetition = 0,
+          totalRepetitions = 0,
+          activeArabicWordIndex = -1,
+          totalArabicWords = 0,
+          isComingSoonNotice = false
         )
       }
     }
   }
 
-  private fun speakSegmentWithWordSync(text: String, words: List<String>, locale: Locale) {
-    if (!isTtsReady) return
+  private fun showRealVoiceComingSoon(duaId: String, duaTitle: String) {
+    vocalJob?.cancel()
+    vocalJob = null
+    runCatching { quranAudioPlayerManager.stop() }
+
+    _playbackState.value = _playbackState.value.copy(
+      isPlaying = false,
+      activeDuaId = duaId,
+      activeDuaTitle = duaTitle,
+      activeStageLabel = REAL_VOICE_COMING_SOON_MESSAGE,
+      currentRepetition = 0,
+      totalRepetitions = 0,
+      activeArabicWordIndex = -1,
+      totalArabicWords = 0,
+      isComingSoonNotice = true
+    )
+
     runCatching {
-      val engine = tts ?: return
-      selectMaleVoiceForLocale(engine, locale)
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-          override fun onStart(utteranceId: String?) {}
-          override fun onDone(utteranceId: String?) {}
-          override fun onError(utteranceId: String?) {}
-          override fun onRangeStart(utteranceId: String?, start: Int, end: Int, frame: Int) {
-            // Map character range [start, end] to word index and letter index
-            var charCursor = 0
-            for (idx in words.indices) {
-              val wLen = words[idx].length
-              if (start <= charCursor + wLen) {
-                val letterOffset = (start - charCursor).coerceIn(0, (wLen - 1).coerceAtLeast(0))
-                _playbackState.value = _playbackState.value.copy(
-                  activeWordIndex = idx,
-                  activeLetterIndexInWord = letterOffset
-                )
-                break
-              }
-              charCursor += wLen + 1
-            }
-          }
-        })
-      }
-      val params = Bundle().apply {
-        putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 1.0f)
-      }
-      engine.speak(text, TextToSpeech.QUEUE_FLUSH, params, "dua_${System.currentTimeMillis()}")
+      Toast.makeText(context, REAL_VOICE_COMING_SOON_MESSAGE, Toast.LENGTH_SHORT).show()
     }
   }
 
-  private fun speakSegmentIfAvailable(text: String, locale: Locale) {
-    if (!isTtsReady) return
-    runCatching {
-      val engine = tts ?: return
-      selectMaleVoiceForLocale(engine, locale)
-      val params = Bundle().apply {
-        putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 1.0f)
-      }
-      engine.speak(text, TextToSpeech.QUEUE_FLUSH, params, "dua_${System.currentTimeMillis()}")
-    }
+  private fun tokenizeArabicWords(arabicText: String): List<String> {
+    return arabicText
+      .replace("۝", " ")
+      .trim()
+      .split(Regex("\\s+"))
+      .filter { it.isNotBlank() }
+  }
+
+  fun playFridaySalawatVocal(repetitions: Int = 3) {
+    showRealVoiceComingSoon(
+      duaId = "dua_jumuah_salawat_ibrahimiyyah",
+      duaTitle = "Salawat Ibrahimiyyah (Durood-e-Ibrahimi)"
+    )
   }
 
   fun stop() {
-    activeProgressJob?.cancel()
-    activeProgressJob = null
-    runCatching { tts?.stop() }
-    if (_playbackState.value.isHumanReciterAudio) {
-      runCatching { quranAudioPlayerManager.stop() }
+    vocalJob?.cancel()
+    vocalJob = null
+    try {
+      quranAudioPlayerManager.stop()
+    } catch (_: Exception) {
     }
     _playbackState.value = _playbackState.value.copy(
       isPlaying = false,
       activeDuaId = null,
       activeDuaTitle = "",
       activeStageLabel = "",
+      currentRepetition = 0,
+      totalRepetitions = 0,
+      activeArabicWordIndex = -1,
+      totalArabicWords = 0,
+      activeLetterIndexInWord = -1,
       progressFraction = 0f,
-      activeWordIndex = -1,
-      activeLetterIndexInWord = -1
+      isComingSoonNotice = false
     )
   }
 
   fun shutdown() {
     stop()
-    isTtsReady = false
-    runCatching { tts?.shutdown() }
-    tts = null
   }
 }

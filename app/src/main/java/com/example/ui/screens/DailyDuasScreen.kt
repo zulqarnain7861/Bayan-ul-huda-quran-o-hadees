@@ -325,15 +325,16 @@ fun DailyDuasScreen(
       }
     }
 
-    // 2. Active Pure-Vocal Dua Audio Playback Status Bar (if playing or recently active)
+    // 2. Active Dua Audio Playback Status Bar (Exact Quranic Verse or Real Voice Coming Soon Notice)
     if (duaAudioState.activeDuaId != null) {
       item {
+        val isComingSoon = duaAudioState.isComingSoonNotice
         Surface(
           modifier = Modifier
             .fillMaxWidth()
             .testTag("dua_audio_active_banner"),
           shape = RoundedCornerShape(16.dp),
-          color = Color(0xFF10231B),
+          color = if (isComingSoon) Color(0xFF4E342E) else Color(0xFF10231B),
           tonalElevation = 4.dp
         ) {
           Column(modifier = Modifier.padding(14.dp)) {
@@ -353,33 +354,40 @@ fun DailyDuasScreen(
                 Text(
                   text = duaAudioState.activeStageLabel,
                   style = MaterialTheme.typography.labelSmall.copy(
-                    color = Color.White.copy(alpha = 0.85f)
+                    color = if (isComingSoon) Color(0xFFFFE082) else Color.White.copy(alpha = 0.9f),
+                    fontWeight = if (isComingSoon) FontWeight.Bold else FontWeight.Normal
                   )
                 )
               }
               FilledTonalButton(
                 onClick = onStopDuaAudio,
                 colors = ButtonDefaults.filledTonalButtonColors(
-                  containerColor = Color(0xFFB71C1C),
+                  containerColor = if (isComingSoon) Color(0xFF6D4C41) else Color(0xFFB71C1C),
                   contentColor = Color.White
                 ),
                 modifier = Modifier.testTag("dua_audio_stop_button")
               ) {
-                Icon(Icons.Default.Stop, contentDescription = "Stop Dua Audio", modifier = Modifier.size(16.dp))
+                Icon(
+                  if (isComingSoon) Icons.Default.Clear else Icons.Default.Stop,
+                  contentDescription = "Stop Dua Audio",
+                  modifier = Modifier.size(16.dp)
+                )
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Stop", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text(if (isComingSoon) "Dismiss" else "Stop", fontSize = 11.sp, fontWeight = FontWeight.Bold)
               }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            LinearProgressIndicator(
-              progress = { duaAudioState.progressFraction },
-              modifier = Modifier
-                .fillMaxWidth()
-                .height(5.dp)
-                .clip(RoundedCornerShape(4.dp)),
-              color = GoldPrimary,
-              trackColor = Color.White.copy(alpha = 0.2f)
-            )
+            if (!isComingSoon) {
+              Spacer(modifier = Modifier.height(8.dp))
+              LinearProgressIndicator(
+                progress = { duaAudioState.progressFraction },
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .height(5.dp)
+                  .clip(RoundedCornerShape(4.dp)),
+                color = GoldPrimary,
+                trackColor = Color.White.copy(alpha = 0.2f)
+              )
+            }
           }
         }
       }
@@ -427,9 +435,9 @@ fun DailyDuasScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Translation & Pure-Vocal Audio Controls
+            // Translation & Authentic Verse Audio Controls (No AI/Synthesized Voice)
             Text(
-              text = "Translation Display & Pure Vocal Audio Playback (No Music):",
+              text = "Translation Display & Authentic Human Reciter Audio (Exact Quranic Verse Only — No AI Voice):",
               style = MaterialTheme.typography.labelSmall.copy(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -584,12 +592,14 @@ fun DailyDuasScreen(
           val isFav = remindersState.favoriteDuaIds.contains(dua.id)
           val tasbihCount = remindersState.duaTasbihCounts[dua.id] ?: 0
           val isPlayingThisDua = duaAudioState.isPlaying && duaAudioState.activeDuaId == dua.id
+          val isComingSoonThisDua = duaAudioState.isComingSoonNotice && duaAudioState.activeDuaId == dua.id
 
           MasnoonDuaCard(
             dua = dua,
             isFavorite = isFav,
             tasbihCount = tasbihCount,
             isPlayingThisDua = isPlayingThisDua,
+            isComingSoonThisDua = isComingSoonThisDua,
             activeWordIndex = if (isPlayingThisDua) duaAudioState.activeWordIndex else -1,
             activeLetterIndexInWord = if (isPlayingThisDua) duaAudioState.activeLetterIndexInWord else -1,
             showEnglish = showEnglish,
@@ -1088,6 +1098,7 @@ private fun MasnoonDuaCard(
   isFavorite: Boolean,
   tasbihCount: Int,
   isPlayingThisDua: Boolean,
+  isComingSoonThisDua: Boolean = false,
   activeWordIndex: Int = -1,
   activeLetterIndexInWord: Int = -1,
   showEnglish: Boolean,
@@ -1240,7 +1251,8 @@ private fun MasnoonDuaCard(
           style = MaterialTheme.typography.headlineSmall.copy(
             fontFamily = AmiriFontFamily,
             fontSize = 24.sp,
-            lineHeight = 42.sp
+            lineHeight = 42.sp,
+            letterSpacing = 0.sp
           ),
           textAlign = TextAlign.End,
           modifier = Modifier
@@ -1313,7 +1325,28 @@ private fun MasnoonDuaCard(
         }
       }
 
-      Spacer(modifier = Modifier.height(12.dp))
+      if (isComingSoonThisDua || dua.quranSurahAyah == null) {
+        Spacer(modifier = Modifier.height(6.dp))
+        Surface(
+          shape = RoundedCornerShape(8.dp),
+          color = if (isComingSoonThisDua) Color(0xFFFFF8E1) else Color(0xFFF5F5F5),
+          border = if (isComingSoonThisDua) androidx.compose.foundation.BorderStroke(1.dp, GoldPrimary) else null,
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          Text(
+            text = "Real voice coming soon, In Sha Allah.",
+            style = MaterialTheme.typography.labelSmall.copy(
+              fontWeight = if (isComingSoonThisDua) FontWeight.Bold else FontWeight.Medium,
+              color = if (isComingSoonThisDua) Color(0xFF5D4037) else MaterialTheme.colorScheme.onSurfaceVariant
+            ),
+            modifier = Modifier
+              .padding(horizontal = 10.dp, vertical = 6.dp)
+              .testTag("dua_coming_soon_label_${dua.id}")
+          )
+        }
+      }
+
+      Spacer(modifier = Modifier.height(10.dp))
 
       // Audio Playback & Tasbih Recitation Counter Controls
       FlowRow(
@@ -1331,7 +1364,7 @@ private fun MasnoonDuaCard(
             Spacer(modifier = Modifier.width(6.dp))
             Text("Stop Audio", fontSize = 11.sp, fontWeight = FontWeight.Bold)
           }
-        } else {
+        } else if (dua.quranSurahAyah != null) {
           Button(
             onClick = onPlayVocal,
             colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
@@ -1339,7 +1372,20 @@ private fun MasnoonDuaCard(
           ) {
             Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(4.dp))
-            Text("Listen (Vocal)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text(
+              "Play Exact Verse (${dua.quranSurahAyah.first}:${dua.quranSurahAyah.second})",
+              fontSize = 11.sp,
+              fontWeight = FontWeight.Bold
+            )
+          }
+        } else {
+          OutlinedButton(
+            onClick = onPlayVocal,
+            modifier = Modifier.testTag("dua_play_vocal_btn_${dua.id}")
+          ) {
+            Icon(Icons.Default.VolumeUp, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(4.dp))
+            Text("Real voice coming soon, In Sha Allah.", fontSize = 11.sp, fontWeight = FontWeight.Bold)
           }
         }
 
@@ -1350,7 +1396,7 @@ private fun MasnoonDuaCard(
           ) {
             Icon(Icons.Default.VolumeUp, contentDescription = null, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(4.dp))
-            Text("Quran Reciter", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text("Quran Reciter (${dua.quranSurahAyah.first}:${dua.quranSurahAyah.second})", fontSize = 11.sp, fontWeight = FontWeight.Bold)
           }
         }
 
