@@ -456,6 +456,7 @@ fun DailyDuasScreen(
                 )
                 listOf(
                   DuaCategory.MORNING_EVENING,
+                  DuaCategory.AFTER_SALAH,
                   DuaCategory.SLEEP_WAKE,
                   DuaCategory.HOME_MASJID,
                   DuaCategory.QURANIC_RABBANA
@@ -652,6 +653,8 @@ fun DailyDuasScreen(
                     fontFamily = AmiriFontFamily,
                     fontSize = 20.sp,
                     lineHeight = 32.sp,
+                    platformStyle = com.example.ui.theme.CompactPlatformTextStyle,
+                    lineHeightStyle = com.example.ui.theme.CompactLineHeightStyle,
                     color = MaterialTheme.colorScheme.onSurface
                   ),
                   textAlign = TextAlign.End,
@@ -1052,17 +1055,19 @@ private fun MasnoonDuaCard(
   onCopyDua: () -> Unit,
   onShareDua: () -> Unit
 ) {
+  val hasVerifiedHumanAudio = (!dua.humanAudioUrl.isNullOrBlank() || com.example.ui.audio.DuaAudioController.hasOfflineQaidaAudioAsset(null, dua.id)) && !isComingSoonThisDua
+
   ElevatedCard(
     modifier = Modifier
       .fillMaxWidth()
       .testTag("dua_card_${dua.id}"),
-    shape = RoundedCornerShape(18.dp),
+    shape = RoundedCornerShape(16.dp),
     colors = CardDefaults.elevatedCardColors(
       containerColor = MaterialTheme.colorScheme.surface
     ),
     elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
   ) {
-    Column(modifier = Modifier.padding(16.dp)) {
+    Column(modifier = Modifier.padding(14.dp)) {
       // Top Row: Category / Occasion Badge + Favorite & Share
       Row(
         modifier = Modifier.fillMaxWidth(),
@@ -1071,7 +1076,8 @@ private fun MasnoonDuaCard(
       ) {
         Surface(
           shape = RoundedCornerShape(8.dp),
-          color = EmeraldPrimary.copy(alpha = 0.12f)
+          color = EmeraldPrimary.copy(alpha = 0.12f),
+          modifier = Modifier.weight(1f, fill = false)
         ) {
           Text(
             text = dua.occasionBadge,
@@ -1086,7 +1092,9 @@ private fun MasnoonDuaCard(
         Row(verticalAlignment = Alignment.CenterVertically) {
           IconButton(
             onClick = onToggleFavorite,
-            modifier = Modifier.testTag("dua_fav_btn_${dua.id}")
+            modifier = Modifier
+              .size(36.dp)
+              .testTag("dua_fav_btn_${dua.id}")
           ) {
             Icon(
               imageVector = if (isFavorite) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
@@ -1094,7 +1102,10 @@ private fun MasnoonDuaCard(
               tint = if (isFavorite) GoldPrimary else MaterialTheme.colorScheme.onSurfaceVariant
             )
           }
-          IconButton(onClick = onCopyDua) {
+          IconButton(
+            onClick = onCopyDua,
+            modifier = Modifier.size(36.dp)
+          ) {
             Icon(
               imageVector = Icons.Default.ContentCopy,
               contentDescription = "Copy Dua",
@@ -1102,7 +1113,10 @@ private fun MasnoonDuaCard(
               modifier = Modifier.size(18.dp)
             )
           }
-          IconButton(onClick = onShareDua) {
+          IconButton(
+            onClick = onShareDua,
+            modifier = Modifier.size(36.dp)
+          ) {
             Icon(
               imageVector = Icons.Default.Share,
               contentDescription = "Share Dua",
@@ -1115,18 +1129,18 @@ private fun MasnoonDuaCard(
 
       Text(
         text = dua.title,
-        style = MaterialTheme.typography.titleMedium.copy(
+        style = MaterialTheme.typography.titleSmall.copy(
           fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.onSurface
         )
       )
 
-      Spacer(modifier = Modifier.height(10.dp))
+      Spacer(modifier = Modifier.height(6.dp))
 
       // Sacred Arabic Text Box with Synchronized Green Word-by-Word & Letter-by-Letter Highlighting
       Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
         color = if (isPlayingThisDua) Color(0xFF00C853).copy(alpha = 0.08f) else EmeraldPrimary.copy(alpha = 0.06f)
       ) {
         val baseTextColor = MaterialTheme.colorScheme.onSurface
@@ -1146,13 +1160,11 @@ private fun MasnoonDuaCard(
                   }
                 }
                 idx < activeWordIndex -> {
-                  // Already recited words highlighted in rich green
                   withStyle(SpanStyle(color = spokenGreen, fontWeight = FontWeight.Bold)) {
                     append(word)
                   }
                 }
                 idx == activeWordIndex -> {
-                  // Active word: letter-by-letter green highlighting
                   val splitPos = (activeLetterIndexInWord + 1).coerceIn(1, word.length)
                   val activePart = word.substring(0, splitPos)
                   val remainingPart = word.substring(splitPos)
@@ -1190,20 +1202,22 @@ private fun MasnoonDuaCard(
           text = annotatedArabic,
           style = MaterialTheme.typography.headlineSmall.copy(
             fontFamily = AmiriFontFamily,
-            fontSize = 24.sp,
-            lineHeight = 42.sp,
-            letterSpacing = 0.sp
+            fontSize = 22.sp,
+            lineHeight = 35.sp,
+            letterSpacing = 0.sp,
+            platformStyle = com.example.ui.theme.CompactPlatformTextStyle,
+            lineHeightStyle = com.example.ui.theme.CompactLineHeightStyle
           ),
           textAlign = TextAlign.End,
           modifier = Modifier
             .fillMaxWidth()
-            .padding(14.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
             .testTag("dua_arabic_text_${dua.id}")
         )
       }
 
       if (showTransliteration) {
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(6.dp))
         Text(
           text = dua.transliteration,
           style = MaterialTheme.typography.bodySmall.copy(
@@ -1214,24 +1228,26 @@ private fun MasnoonDuaCard(
       }
 
       if (showEnglish) {
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
         Text(
           text = dua.englishTranslation,
-          style = MaterialTheme.typography.bodyMedium.copy(
+          style = MaterialTheme.typography.bodySmall.copy(
             color = MaterialTheme.colorScheme.onSurface,
-            lineHeight = 21.sp
+            lineHeight = 19.sp
           )
         )
       }
 
       if (showUrdu) {
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
         Text(
           text = dua.urduTranslation,
           style = MaterialTheme.typography.bodyMedium.copy(
             fontFamily = com.example.ui.theme.UrduNastaliqFontFamily,
-            fontSize = 18.sp,
-            lineHeight = 30.sp,
+            fontSize = 15.sp,
+            lineHeight = 24.sp,
+            platformStyle = com.example.ui.theme.CompactPlatformTextStyle,
+            lineHeightStyle = com.example.ui.theme.CompactLineHeightStyle,
             color = MaterialTheme.colorScheme.onSurface
           ),
           textAlign = TextAlign.End,
@@ -1239,7 +1255,7 @@ private fun MasnoonDuaCard(
         )
       }
 
-      Spacer(modifier = Modifier.height(10.dp))
+      Spacer(modifier = Modifier.height(8.dp))
 
       // Authentic Reference & Virtue Note
       Surface(
@@ -1247,7 +1263,7 @@ private fun MasnoonDuaCard(
         shape = RoundedCornerShape(10.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
       ) {
-        Column(modifier = Modifier.padding(10.dp)) {
+        Column(modifier = Modifier.padding(8.dp)) {
           Text(
             text = "Reference: ${dua.authenticReference}",
             style = MaterialTheme.typography.labelSmall.copy(
@@ -1269,30 +1285,42 @@ private fun MasnoonDuaCard(
         Spacer(modifier = Modifier.height(6.dp))
         Surface(
           shape = RoundedCornerShape(8.dp),
-          color = if (isComingSoonThisDua) Color(0xFFFFF8E1) else Color(0xFFF5F5F5),
+          color = when {
+            hasVerifiedHumanAudio -> Color(0xFFE8F5E9)
+            isComingSoonThisDua -> Color(0xFFFFF8E1)
+            else -> Color(0xFFF5F5F5)
+          },
           border = if (isComingSoonThisDua) androidx.compose.foundation.BorderStroke(1.dp, GoldPrimary) else null,
           modifier = Modifier.fillMaxWidth()
         ) {
           Text(
-            text = "Real voice coming soon, In Sha Allah.",
+            text = if (hasVerifiedHumanAudio) {
+              "✓ Authentic Human Audio (Hisn al-Muslim / OpenDua)"
+            } else {
+              "Real voice coming soon, In Sha Allah."
+            },
             style = MaterialTheme.typography.labelSmall.copy(
-              fontWeight = if (isComingSoonThisDua) FontWeight.Bold else FontWeight.Medium,
-              color = if (isComingSoonThisDua) Color(0xFF5D4037) else MaterialTheme.colorScheme.onSurfaceVariant
+              fontWeight = if (hasVerifiedHumanAudio || isComingSoonThisDua) FontWeight.Bold else FontWeight.Medium,
+              color = when {
+                hasVerifiedHumanAudio -> Color(0xFF1B5E20)
+                isComingSoonThisDua -> Color(0xFF5D4037)
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
+              }
             ),
             modifier = Modifier
-              .padding(horizontal = 10.dp, vertical = 6.dp)
+              .padding(horizontal = 10.dp, vertical = 4.dp)
               .testTag("dua_coming_soon_label_${dua.id}")
           )
         }
       }
 
-      Spacer(modifier = Modifier.height(10.dp))
+      Spacer(modifier = Modifier.height(8.dp))
 
       // Audio Playback & Tasbih Recitation Counter Controls
       FlowRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
       ) {
         if (isPlayingThisDua) {
           Button(
@@ -1314,6 +1342,20 @@ private fun MasnoonDuaCard(
             Spacer(modifier = Modifier.width(4.dp))
             Text(
               "Play Exact Verse (${dua.quranSurahAyah.first}:${dua.quranSurahAyah.second})",
+              fontSize = 11.sp,
+              fontWeight = FontWeight.Bold
+            )
+          }
+        } else if (hasVerifiedHumanAudio) {
+          Button(
+            onClick = onPlayVocal,
+            colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+            modifier = Modifier.testTag("dua_play_vocal_btn_${dua.id}")
+          ) {
+            Icon(Icons.Default.VolumeUp, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+              "Listen Authentic Audio",
               fontSize = 11.sp,
               fontWeight = FontWeight.Bold
             )

@@ -1,9 +1,17 @@
 package com.example.ui.audio
 
 import android.content.Context
+import android.media.MediaPlayer
+import android.media.PlaybackParams
+import android.os.Build
 import android.widget.Toast
 import com.example.data.model.DailyDuaItem
 import com.example.data.model.DuaCategory
+import com.example.data.model.QaidaPracticeItem
+import java.io.File
+import java.io.FileInputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -14,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class DuaAudioLanguageMode(val label: String) {
   ARABIC_ONLY("Arabic Only"),
@@ -48,18 +57,19 @@ data class DuaVocalPlaybackState(
 typealias DuaAudioPlaybackState = DuaVocalPlaybackState
 
 /**
- * Authentic Audio Controller for Daily Duas, Iman, Kalimas, Wudu, Namaz, and Noorani Qaida.
+ * Authentic Audio Controller for Noorani Qaida, Daily Duas, Iman, Kalimas, Wudu, and Namaz.
  *
- * STRICT AUDIO POLICY:
- * - Iman, Kalimas, Namaz, Wudu, and Daily Duas NEVER use AI/TTS voice:
+ * STRICT AUDIO POLICY (ZERO AI / TTS VOICE):
+ * - Noorani Qaida (all 17 lessons, 149 items `l1_01`..`l17_07`):
+ *   - Plays 100% offline authentic human audio bundled in `assets/qaida_audio/{id}.mp3`.
+ *   - Never uses AI/TTS voice and never shows "Coming Soon".
+ * - Iman, Kalimas, Namaz, Wudu, and Daily Duas:
  *   - For Quranic Duas and verified Quranic verses (`quranSurahAyah != null`), plays ONLY the exact single
  *     verse using authentic human reciter audio (`AudioPlayerManager.playSingleAyahOnly`).
- *   - For non-Quranic items in Iman, Kalimas, Namaz, Wudu, and Daily Duas, displays:
+ *   - For Prophetic & Masnoon Duas with verified human audio (`humanAudioUrl != null` from Hisn al-Muslim /
+ *     OpenDua / EveryAyah), plays and caches the authentic human recording with zero AI voice.
+ *   - For non-Quranic items without verified human audio, displays:
  *     "Real voice coming soon, In Sha Allah."
- * - Noorani Qaida (`allowClearMaleAiVoiceFallback = true`):
- *   - Plays authentic human reciter audio whenever an exact Quranic verse (`quranSurahAyah != null`) is linked.
- *   - When real human audio is not available for a Qaida letter/harakat/syllable drill, plays a
- *     clear male Arabic teacher voice (TTS with male Arabic voice selection and 0.85f male Ustad pitch).
  */
 class DuaAudioController(
   private val context: Context,
@@ -68,6 +78,8 @@ class DuaAudioController(
 
   companion object {
     const val REAL_VOICE_COMING_SOON_MESSAGE = "Real voice coming soon, In Sha Allah."
+    const val QAIDA_ASSET_FOLDER = "qaida_audio"
+    private const val DUA_CACHE_SUBDIR = "dua_audio_cache"
 
     @Volatile
     private var instance: DuaAudioController? = null
@@ -79,9 +91,57 @@ class DuaAudioController(
     }
 
     /**
-     * Converts Noorani Qaida single letters, joined letters, standing vowels, and harakat drills
-     * into explicit full Arabic phonetic vocalization so the male Arabic teacher voice pronounces
-     * every letter name and vowel count accurately.
+     * Builds resilient mirror URLs for Hisn al-Muslim / OpenDua / EveryAyah human audio files
+     * so if one CDN is slow or unreachable, automatic fallback succeeds seamlessly.
+     */
+    fun buildCandidateHumanAudioUrls(primaryUrl: String): List<String> {
+      val trimmed = primaryUrl.trim()
+      if (trimmed.isEmpty()) return emptyList()
+      val urls = mutableListOf(trimmed)
+
+      val hisnNumber = Regex("""HisnulMuslimAudio_201510/n(\d+)\.mp3""").find(trimmed)?.groupValues?.getOrNull(1)?.toIntOrNull()
+        ?: Regex("""Hisnul_Muslim_Database/master/audio/(\d+)hm\.mp3""").find(trimmed)?.groupValues?.getOrNull(1)?.toIntOrNull()
+        ?: Regex("""audio\.opendua\.org/hisn/v0\.0\.2/OD-(\d+)\.mp3""").find(trimmed)?.groupValues?.getOrNull(1)?.toIntOrNull()
+
+      if (hisnNumber != null) {
+        val githubMirror = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/${hisnNumber}hm.mp3"
+        val archiveMirror = "https://archive.org/download/HisnulMuslimAudio_201510/n${hisnNumber}.mp3"
+        val openDuaMirror = "https://audio.opendua.org/hisn/v0.0.2/OD-${hisnNumber.toString().padStart(3, '0')}.mp3"
+        for (candidate in listOf(githubMirror, archiveMirror, openDuaMirror)) {
+          if (candidate !in urls) {
+            urls.add(candidate)
+          }
+        }
+      }
+      return urls
+    }
+
+    /**
+     * Checks whether an offline Noorani Qaida MP3 exists in `assets/qaida_audio/{id}.mp3`
+     * (works both on Android runtime via AssetManager and in local JVM unit tests).
+     */
+    fun hasOfflineQaidaAudioAsset(context: Context?, id: String): Boolean {
+      if (id.isBlank()) return false
+      val assetRelPath = "$QAIDA_ASSET_FOLDER/$id.mp3"
+      if (context != null) {
+        val existsInAssets = runCatching {
+          context.assets.openFd(assetRelPath).use { it.length > 0L }
+        }.getOrElse {
+          runCatching {
+            context.assets.open(assetRelPath).use { it.available() > 0 }
+          }.getOrDefault(false)
+        }
+        if (existsInAssets) return true
+      }
+      val candidateFiles = listOf(
+        File("app/src/main/assets/$assetRelPath"),
+        File("src/main/assets/$assetRelPath")
+      )
+      return candidateFiles.any { it.exists() && it.length() > 100L }
+    }
+
+    /**
+     * Returns the canonical vocalized Arabic phonetic script for Noorani Qaida items.
      */
     fun buildNooraniQaidaVocalizedArabicForMaleTts(
       id: String,
@@ -89,7 +149,6 @@ class DuaAudioController(
       transliteration: String
     ): String {
       return when (id) {
-        // Lesson 1: 29 Single Arabic Letters (Huroof-e-Mufradat)
         "l1_01" -> "أَلِفْ"
         "l1_02" -> "بَاءْ"
         "l1_03" -> "تَاءْ"
@@ -119,7 +178,6 @@ class DuaAudioController(
         "l1_27" -> "هَاءْ"
         "l1_28" -> "هَمْزَةْ"
         "l1_29" -> "يَاءْ"
-        // Lesson 2: Joined / Compound Letters (Huroof-e-Murakkabat)
         "l2_01" -> "لَامْ أَلِفْ"
         "l2_02" -> "بَاءْ أَلِفْ"
         "l2_03" -> "تَاءْ أَلِفْ"
@@ -130,92 +188,26 @@ class DuaAudioController(
         "l2_08" -> "بَاءْ تَاءْ ثَاءْ"
         "l2_09" -> "يَاءْ هَاءْ بَاءْ"
         "l2_10" -> "سِينْ لَامْ كَافْ"
-        // Lesson 4: Harakat
-        "l4_01" -> "أَ ، إِ ، أُ"
-        // Lesson 7: Standing vowels (2-count elongation)
-        "l7_01" -> "بَا ، بِي ، بُو"
-        "l7_02" -> "يَا ، يِي ، يُو"
-        "l7_03" -> "رَا ، رِي ، رُو"
-        "l7_06" -> "بِهِي"
-        "l7_07" -> "لَهُو"
-        else -> {
-          val normalized = arabicText
-            .replace("ـٰ", "ا")
-            .replace("\u0670", "ا")
-            .replace("\u0656", "ي")
-            .replace("\u0657", "و")
-            .trim()
-          val parts = normalized.split(Regex("\\s+")).filter { it.isNotBlank() }
-          if (parts.size in 2..4 && (id.startsWith("l4_") || id.startsWith("l5_") || id.startsWith("l8_") || id.startsWith("l10_") || id.startsWith("l12_"))) {
-            parts.joinToString(" ، ")
-          } else {
-            normalized.ifBlank { transliteration }
-          }
-        }
+        else -> arabicText.ifBlank { transliteration }
       }
     }
   }
 
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
   private var vocalJob: Job? = null
-  private var ttsEngine: android.speech.tts.TextToSpeech? = null
-  private var isTtsReady: Boolean = false
-  private var isArabicTtsSupported: Boolean = false
+  private var offlineMediaPlayer: MediaPlayer? = null
 
   private val _playbackState = MutableStateFlow(DuaVocalPlaybackState())
   val playbackState: StateFlow<DuaVocalPlaybackState> = _playbackState.asStateFlow()
 
-  private fun ensureMaleArabicTtsInitialized(onReady: () -> Unit) {
-    if (ttsEngine != null && isTtsReady) {
-      configureClearMaleArabicVoice(ttsEngine)
-      onReady()
-      return
-    }
-    try {
-      ttsEngine = android.speech.tts.TextToSpeech(context.applicationContext) { status ->
-        if (status == android.speech.tts.TextToSpeech.SUCCESS) {
-          isTtsReady = true
-          configureClearMaleArabicVoice(ttsEngine)
-          onReady()
-        } else {
-          isTtsReady = false
-          onReady()
-        }
-      }
-    } catch (_: Exception) {
-      isTtsReady = false
-      onReady()
-    }
-  }
-
-  private fun configureClearMaleArabicVoice(tts: android.speech.tts.TextToSpeech?) {
-    if (tts == null) return
-    try {
-      val arSa = java.util.Locale("ar", "SA")
-      val arGen = java.util.Locale("ar")
-      val res = tts.setLanguage(arSa)
-      isArabicTtsSupported = if (res == android.speech.tts.TextToSpeech.LANG_MISSING_DATA || res == android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED) {
-        val fallbackRes = tts.setLanguage(arGen)
-        fallbackRes != android.speech.tts.TextToSpeech.LANG_MISSING_DATA && fallbackRes != android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED
-      } else {
-        true
-      }
-
-      // Select a clear male Arabic voice if available on the device
-      val availableVoices = runCatching { tts.voices }.getOrNull().orEmpty()
-      val arabicVoices = availableVoices.filter { it.locale.language.equals("ar", ignoreCase = true) }
-      val preferredMaleVoice = arabicVoices.firstOrNull { v ->
-        val n = v.name.lowercase(java.util.Locale.US)
-        n.contains("male") || n.contains("ar-xa-x-ard") || n.contains("ar-xa-x-are") || n.contains("ar-xa-x-arz") || n.contains("m0") || n.contains("#male")
-      } ?: arabicVoices.firstOrNull { !it.isNetworkConnectionRequired } ?: arabicVoices.firstOrNull()
-
-      if (preferredMaleVoice != null) {
-        runCatching { tts.voice = preferredMaleVoice }
-      }
-
-      // Warm, clear male Ustad pitch (0.85f) and measured Tajweed articulation rate
-      tts.setPitch(0.85f)
-    } catch (_: Exception) {
+  fun clearComingSoonNotice() {
+    if (_playbackState.value.isComingSoonNotice) {
+      _playbackState.value = _playbackState.value.copy(
+        isComingSoonNotice = false,
+        activeDuaId = null,
+        activeDuaTitle = "",
+        activeStageLabel = ""
+      )
     }
   }
 
@@ -259,14 +251,16 @@ class DuaAudioController(
     )
   }
 
+  fun hasOfflineQaidaAudio(id: String): Boolean {
+    return hasOfflineQaidaAudioAsset(context, id)
+  }
+
   /**
    * Plays an item from Noorani Qaida, Iman/Kalimas, Wudu/Namaz, or Daily Duas.
-   * - When `allowClearMaleAiVoiceFallback == false` (Iman, Kalimas, Wudu, Namaz, Daily Duas):
-   *   Plays authentic human reciter audio ONLY when an exact Quranic verse (`quranSurahAyah`) is linked;
-   *   otherwise shows "Real voice coming soon, In Sha Allah." (Never uses AI/TTS voice).
-   * - When `allowClearMaleAiVoiceFallback == true` (Noorani Qaida ONLY):
-   *   Plays authentic human reciter audio when `quranSurahAyah != null`, and falls back to a clear
-   *   male Arabic teacher voice (AI/TTS) for Noorani Qaida letters, harakat, and syllable drills.
+   * - If a bundled offline authentic human MP3 exists in `assets/qaida_audio/{id}.mp3`, plays it offline immediately.
+   * - Otherwise, if `quranSurahAyah != null`, plays the exact Quranic verse via `quranAudioPlayerManager`.
+   * - Otherwise, if `humanAudioUrl` is provided, plays the verified human recording (cached for offline reuse).
+   * - Otherwise, shows "Real voice coming soon, In Sha Allah." (Never uses AI/TTS voice).
    */
   fun playLearningItem(
     id: String,
@@ -278,6 +272,7 @@ class DuaAudioController(
     urduMeaning: String = "",
     englishMeaning: String = "",
     quranSurahAyah: Pair<Int, Int>? = null,
+    humanAudioUrl: String? = null,
     speechRateOverride: Float? = null,
     repeatCountOverride: Int? = null,
     preferQuranReciterIfAvailable: Boolean = true,
@@ -287,8 +282,8 @@ class DuaAudioController(
     val targetReps = (repeatCountOverride ?: current.repeatCountPreset).coerceIn(1, 10)
     val targetRate = (speechRateOverride ?: current.speechRatePreset).coerceIn(0.5f, 1.5f)
 
-    if (quranSurahAyah == null && allowClearMaleAiVoiceFallback) {
-      playNooraniQaidaClearMaleVoice(
+    if (hasOfflineQaidaAudio(id)) {
+      playOfflineQaidaAsset(
         id = id,
         title = title,
         arabicText = arabicText,
@@ -311,7 +306,8 @@ class DuaAudioController(
       authenticReference = "",
       virtueAndTiming = "",
       recommendedCount = targetReps,
-      quranSurahAyah = quranSurahAyah
+      quranSurahAyah = quranSurahAyah,
+      humanAudioUrl = humanAudioUrl
     )
     playDuaVocal(
       dua = syntheticDua,
@@ -319,12 +315,66 @@ class DuaAudioController(
       repetitions = targetReps,
       speechRate = targetRate,
       includeUrduOverride = false,
-      preferQuranReciterIfAvailable = true,
-      allowClearMaleAiVoiceFallback = allowClearMaleAiVoiceFallback
+      preferQuranReciterIfAvailable = true
     )
   }
 
-  private fun playNooraniQaidaClearMaleVoice(
+  /**
+   * Plays all practice items of a Noorani Qaida lesson sequentially using their bundled offline human MP3s.
+   */
+  fun playQaidaLessonSequence(
+    lessonNumber: Int,
+    lessonTitle: String,
+    items: List<QaidaPracticeItem>
+  ) {
+    if (items.isEmpty()) return
+    val lessonSeqId = "qaida_lesson_seq_$lessonNumber"
+    if (_playbackState.value.isPlaying && _playbackState.value.activeDuaId == lessonSeqId) {
+      stop()
+      return
+    }
+
+    stop()
+    val targetRate = _playbackState.value.speechRatePreset.coerceIn(0.5f, 1.5f)
+    val targetReps = _playbackState.value.repeatCountPreset.coerceIn(1, 5)
+
+    vocalJob = scope.launch {
+      for ((idx, item) in items.withIndex()) {
+        if (!isActive) break
+        for (rep in 1..targetReps) {
+          if (!isActive) break
+          _playbackState.value = _playbackState.value.copy(
+            isPlaying = true,
+            activeDuaId = item.id,
+            activeDuaTitle = "${item.arabicText} (${item.transliteration})",
+            activeStageLabel = "Lesson $lessonNumber Offline Audio (${idx + 1}/${items.size}) • ${item.transliteration}",
+            currentRepetition = rep,
+            totalRepetitions = targetReps,
+            activeArabicWordIndex = 0,
+            totalArabicWords = 1,
+            progressFraction = (idx + 1).toFloat() / items.size.toFloat(),
+            isComingSoonNotice = false
+          )
+          playSingleAssetBlocking(
+            assetRelPath = "$QAIDA_ASSET_FOLDER/${item.id}.mp3",
+            speechRate = targetRate
+          )
+          if (rep < targetReps && isActive) {
+            delay(250)
+          }
+        }
+        if (isActive && idx < items.lastIndex) {
+          delay(320)
+        }
+      }
+
+      if (isActive) {
+        resetPlaybackState()
+      }
+    }
+  }
+
+  private fun playOfflineQaidaAsset(
     id: String,
     title: String,
     arabicText: String,
@@ -341,18 +391,14 @@ class DuaAudioController(
 
     val safeReps = repetitions.coerceIn(1, 10)
     val arabicWords = tokenizeArabicWords(arabicText)
-    val vocalizedSpeechText = buildNooraniQaidaVocalizedArabicForMaleTts(
-      id = id,
-      arabicText = arabicText,
-      transliteration = transliteration
-    )
+    val assetRelPath = "$QAIDA_ASSET_FOLDER/$id.mp3"
 
     vocalJob = scope.launch {
       _playbackState.value = _playbackState.value.copy(
         isPlaying = true,
         activeDuaId = id,
         activeDuaTitle = title,
-        activeStageLabel = "Noorani Qaida • Clear Male Teacher Voice ($transliteration)",
+        activeStageLabel = "Offline Authentic Audio • $transliteration",
         currentRepetition = 1,
         totalRepetitions = safeReps,
         activeArabicWordIndex = 0,
@@ -360,81 +406,298 @@ class DuaAudioController(
         isComingSoonNotice = false
       )
 
-      ensureMaleArabicTtsInitialized {}
-      // Give TTS engine a brief moment if initializing for the first time
-      var waitInitMs = 0L
-      while (isActive && !isTtsReady && waitInitMs < 900L) {
-        delay(100)
-        waitInitMs += 100
-      }
-
       for (rep in 1..safeReps) {
         if (!isActive) break
 
         _playbackState.value = _playbackState.value.copy(
           currentRepetition = rep,
-          activeStageLabel = "Noorani Qaida • Clear Male Teacher Voice • Rep $rep/$safeReps",
+          activeStageLabel = "Offline Authentic Audio ($transliteration) • Rep $rep/$safeReps",
           activeArabicWordIndex = 0,
           totalArabicWords = arabicWords.size.coerceAtLeast(1),
           isComingSoonNotice = false
         )
 
-        val tts = ttsEngine
-        if (tts != null && isTtsReady) {
-          configureClearMaleArabicVoice(tts)
-          tts.setPitch(0.85f)
-          tts.setSpeechRate((0.74f * speechRate).coerceIn(0.45f, 1.15f))
-          val textToSpeak = if (isArabicTtsSupported) vocalizedSpeechText else transliteration.ifBlank { vocalizedSpeechText }
-          val params = android.os.Bundle().apply {
-            putFloat(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_VOLUME, 1.0f)
-          }
-          runCatching {
-            tts.speak(
-              textToSpeak,
-              android.speech.tts.TextToSpeech.QUEUE_FLUSH,
-              params,
-              "qaida_${id}_$rep"
+        val playedOk = playSingleAssetBlocking(
+          assetRelPath = assetRelPath,
+          speechRate = speechRate,
+          onProgress = { posMs, durMs ->
+            val totalWords = arabicWords.size.coerceAtLeast(1)
+            val wordIdx = ((posMs.toFloat() / durMs.coerceAtLeast(1).toFloat()) * totalWords)
+              .toInt()
+              .coerceIn(0, totalWords - 1)
+            _playbackState.value = _playbackState.value.copy(
+              activeArabicWordIndex = wordIdx,
+              totalArabicWords = totalWords,
+              progressFraction = (posMs.toFloat() / durMs.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
             )
           }
-        }
+        )
 
-        val totalWords = arabicWords.size.coerceAtLeast(1)
-        val perWordMs = (750L / speechRate.coerceAtLeast(0.6f)).toLong().coerceIn(450L, 1200L)
-        for (wIdx in 0 until totalWords) {
-          if (!isActive) break
-          _playbackState.value = _playbackState.value.copy(
-            activeArabicWordIndex = wIdx,
-            totalArabicWords = totalWords,
-            progressFraction = (wIdx + 1).toFloat() / totalWords.toFloat()
-          )
-          delay(perWordMs)
-        }
-
-        // Wait if TTS is still speaking
-        var extraWaitMs = 0L
-        while (isActive && runCatching { ttsEngine?.isSpeaking == true }.getOrDefault(false) && extraWaitMs < 4000L) {
-          delay(120)
-          extraWaitMs += 120
+        if (!playedOk) {
+          break
         }
 
         if (rep < safeReps && isActive) {
-          delay(350)
+          delay(300)
         }
       }
 
       if (isActive) {
+        resetPlaybackState()
+      }
+    }
+  }
+
+  private suspend fun playSingleAssetBlocking(
+    assetRelPath: String,
+    speechRate: Float,
+    onProgress: ((Int, Int) -> Unit)? = null
+  ): Boolean {
+    releaseOfflineMediaPlayer()
+    var completed = false
+    var failed = false
+
+    val player = try {
+      MediaPlayer().apply {
+        context.assets.openFd(assetRelPath).use { afd ->
+          setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+        }
+        setOnCompletionListener {
+          completed = true
+        }
+        setOnErrorListener { _, _, _ ->
+          failed = true
+          true
+        }
+        prepare()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && speechRate != 1.0f) {
+          runCatching {
+            playbackParams = PlaybackParams().setSpeed(speechRate.coerceIn(0.5f, 1.5f))
+          }
+        }
+        start()
+      }
+    } catch (_: Exception) {
+      null
+    }
+
+    if (player == null) {
+      return false
+    }
+
+    offlineMediaPlayer = player
+    val durationMs = runCatching { player.duration.coerceAtLeast(400) }.getOrDefault(1500)
+    var waitedMs = 0L
+    val maxWaitMs = (durationMs * 2L + 4000L).coerceIn(3000L, 45000L)
+
+    while (!completed && !failed && waitedMs < maxWaitMs) {
+      val isStillPlaying = runCatching { player.isPlaying }.getOrDefault(false)
+      val currentPos = runCatching { player.currentPosition }.getOrDefault(waitedMs.toInt())
+      onProgress?.invoke(currentPos, durationMs)
+      if (!isStillPlaying && waitedMs >= 350L) {
+        break
+      }
+      delay(80)
+      waitedMs += 80
+    }
+
+    releaseOfflineMediaPlayer()
+    return !failed
+  }
+
+  private suspend fun playCachedFileBlocking(
+    audioFile: File,
+    speechRate: Float,
+    onProgress: ((Int, Int) -> Unit)? = null
+  ): Boolean {
+    if (!audioFile.exists() || audioFile.length() < 120L) return false
+    releaseOfflineMediaPlayer()
+    var completed = false
+    var failed = false
+
+    val player = try {
+      MediaPlayer().apply {
+        FileInputStream(audioFile).use { fis ->
+          setDataSource(fis.fd)
+        }
+        setOnCompletionListener {
+          completed = true
+        }
+        setOnErrorListener { _, _, _ ->
+          failed = true
+          true
+        }
+        prepare()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && speechRate != 1.0f) {
+          runCatching {
+            playbackParams = PlaybackParams().setSpeed(speechRate.coerceIn(0.5f, 1.5f))
+          }
+        }
+        start()
+      }
+    } catch (_: Exception) {
+      null
+    }
+
+    if (player == null) {
+      return false
+    }
+
+    offlineMediaPlayer = player
+    val durationMs = runCatching { player.duration.coerceAtLeast(500) }.getOrDefault(2500)
+    var waitedMs = 0L
+    val maxWaitMs = (durationMs * 2L + 5000L).coerceIn(4000L, 90000L)
+
+    while (!completed && !failed && waitedMs < maxWaitMs) {
+      val isStillPlaying = runCatching { player.isPlaying }.getOrDefault(false)
+      val currentPos = runCatching { player.currentPosition }.getOrDefault(waitedMs.toInt())
+      onProgress?.invoke(currentPos, durationMs)
+      if (!isStillPlaying && waitedMs >= 400L) {
+        break
+      }
+      delay(90)
+      waitedMs += 90
+    }
+
+    releaseOfflineMediaPlayer()
+    return !failed
+  }
+
+  private suspend fun resolveOrDownloadVerifiedHumanAudioFile(
+    duaId: String,
+    primaryUrl: String
+  ): File? = withContext(Dispatchers.IO) {
+    val safeName = duaId.replace(Regex("[^a-zA-Z0-9_\\-]"), "_").ifBlank { "dua_audio" }
+    val cacheDir = File(context.cacheDir, DUA_CACHE_SUBDIR).apply { mkdirs() }
+    val targetFile = File(cacheDir, "$safeName.mp3")
+    if (targetFile.exists() && targetFile.length() > 256L) {
+      return@withContext targetFile
+    }
+
+    val candidates = buildCandidateHumanAudioUrls(primaryUrl)
+    for (urlStr in candidates) {
+      val downloaded = runCatching {
+        val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
+          connectTimeout = 7000
+          readTimeout = 12000
+          instanceFollowRedirects = true
+          setRequestProperty("User-Agent", "BayanAlHuda-Android/1.0")
+        }
+        try {
+          if (conn.responseCode in 200..299) {
+            val tempFile = File(cacheDir, "${safeName}_tmp.mp3")
+            conn.inputStream.use { input ->
+              tempFile.outputStream().use { output ->
+                input.copyTo(output)
+              }
+            }
+            if (tempFile.exists() && tempFile.length() > 256L) {
+              tempFile.renameTo(targetFile)
+              true
+            } else {
+              tempFile.delete()
+              false
+            }
+          } else {
+            false
+          }
+        } finally {
+          conn.disconnect()
+        }
+      }.getOrDefault(false)
+
+      if (downloaded && targetFile.exists() && targetFile.length() > 256L) {
+        return@withContext targetFile
+      }
+    }
+    null
+  }
+
+  private fun playVerifiedHumanAudioUrl(
+    dua: DailyDuaItem,
+    primaryAudioUrl: String,
+    repetitions: Int,
+    speechRate: Float
+  ) {
+    stop()
+    val safeReps = repetitions.coerceIn(1, 10)
+    val arabicWords = tokenizeArabicWords(dua.arabicText)
+
+    vocalJob = scope.launch {
+      _playbackState.value = _playbackState.value.copy(
+        isPlaying = true,
+        activeDuaId = dua.id,
+        activeDuaTitle = dua.title,
+        activeStageLabel = "Loading Authentic Human Audio...",
+        currentRepetition = 1,
+        totalRepetitions = safeReps,
+        activeArabicWordIndex = 0,
+        totalArabicWords = arabicWords.size.coerceAtLeast(1),
+        isComingSoonNotice = false
+      )
+
+      val audioFile = resolveOrDownloadVerifiedHumanAudioFile(dua.id, primaryAudioUrl)
+      if (!isActive) return@launch
+
+      if (audioFile == null) {
+        showRealVoiceComingSoon(duaId = dua.id, duaTitle = dua.title)
+        return@launch
+      }
+
+      for (rep in 1..safeReps) {
+        if (!isActive) break
         _playbackState.value = _playbackState.value.copy(
-          isPlaying = false,
-          activeDuaId = null,
-          activeDuaTitle = "",
-          activeStageLabel = "",
-          currentRepetition = 0,
-          totalRepetitions = 0,
-          activeArabicWordIndex = -1,
-          totalArabicWords = 0,
-          progressFraction = 0f,
+          currentRepetition = rep,
+          activeStageLabel = "Authentic Human Recitation • Rep $rep/$safeReps",
+          activeArabicWordIndex = 0,
+          totalArabicWords = arabicWords.size.coerceAtLeast(1),
           isComingSoonNotice = false
         )
+
+        val playedOk = playCachedFileBlocking(
+          audioFile = audioFile,
+          speechRate = speechRate,
+          onProgress = { posMs, durMs ->
+            val totalWords = arabicWords.size.coerceAtLeast(1)
+            val wordIdx = ((posMs.toFloat() / durMs.coerceAtLeast(1).toFloat()) * totalWords)
+              .toInt()
+              .coerceIn(0, totalWords - 1)
+            _playbackState.value = _playbackState.value.copy(
+              activeArabicWordIndex = wordIdx,
+              totalArabicWords = totalWords,
+              progressFraction = (posMs.toFloat() / durMs.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f),
+              activeStageLabel = "Authentic Human Recitation • Word ${wordIdx + 1}/$totalWords (Rep $rep/$safeReps)"
+            )
+          }
+        )
+
+        if (!playedOk) {
+          showRealVoiceComingSoon(duaId = dua.id, duaTitle = dua.title)
+          return@launch
+        }
+
+        if (rep < safeReps && isActive) {
+          delay(320)
+        }
+      }
+
+      if (isActive) {
+        resetPlaybackState()
+      }
+    }
+  }
+
+  private fun releaseOfflineMediaPlayer() {
+    val player = offlineMediaPlayer
+    offlineMediaPlayer = null
+    if (player != null) {
+      runCatching {
+        if (player.isPlaying) {
+          player.stop()
+        }
+      }
+      runCatching {
+        player.release()
       }
     }
   }
@@ -453,14 +716,25 @@ class DuaAudioController(
       return
     }
 
+    if (hasOfflineQaidaAudio(dua.id)) {
+      playOfflineQaidaAsset(
+        id = dua.id,
+        title = dua.title,
+        arabicText = dua.arabicText,
+        transliteration = dua.transliteration,
+        repetitions = repetitions,
+        speechRate = speechRate
+      )
+      return
+    }
+
     val quranRef = dua.quranSurahAyah
     if (quranRef == null) {
-      if (allowClearMaleAiVoiceFallback) {
-        playNooraniQaidaClearMaleVoice(
-          id = dua.id,
-          title = dua.title,
-          arabicText = dua.arabicText,
-          transliteration = dua.transliteration,
+      val verifiedUrl = dua.humanAudioUrl?.trim().orEmpty()
+      if (verifiedUrl.isNotEmpty()) {
+        playVerifiedHumanAudioUrl(
+          dua = dua,
+          primaryAudioUrl = verifiedUrl,
           repetitions = repetitions,
           speechRate = speechRate
         )
@@ -513,19 +787,7 @@ class DuaAudioController(
         while (isActive && elapsedMs < maxWaitMs) {
           val qState = quranAudioPlayerManager.audioState.value
           if (qState.isAudioUnavailable) {
-            if (allowClearMaleAiVoiceFallback) {
-              quranAudioPlayerManager.stop()
-              playNooraniQaidaClearMaleVoice(
-                id = dua.id,
-                title = dua.title,
-                arabicText = dua.arabicText,
-                transliteration = dua.transliteration,
-                repetitions = safeReps,
-                speechRate = speechRate
-              )
-            } else {
-              showRealVoiceComingSoon(duaId = dua.id, duaTitle = dua.title)
-            }
+            showRealVoiceComingSoon(duaId = dua.id, duaTitle = dua.title)
             return@launch
           }
           if (!qState.isPlaying && !qState.isBuffering && elapsedMs >= 600L) {
@@ -555,17 +817,7 @@ class DuaAudioController(
       }
 
       if (isActive) {
-        _playbackState.value = _playbackState.value.copy(
-          isPlaying = false,
-          activeDuaId = null,
-          activeDuaTitle = "",
-          activeStageLabel = "",
-          currentRepetition = 0,
-          totalRepetitions = 0,
-          activeArabicWordIndex = -1,
-          totalArabicWords = 0,
-          isComingSoonNotice = false
-        )
+        resetPlaybackState()
       }
     }
   }
@@ -573,8 +825,8 @@ class DuaAudioController(
   private fun showRealVoiceComingSoon(duaId: String, duaTitle: String) {
     vocalJob?.cancel()
     vocalJob = null
+    releaseOfflineMediaPlayer()
     runCatching { quranAudioPlayerManager.stop() }
-    runCatching { ttsEngine?.stop() }
 
     _playbackState.value = _playbackState.value.copy(
       isPlaying = false,
@@ -602,23 +854,28 @@ class DuaAudioController(
   }
 
   fun playFridaySalawatVocal(repetitions: Int = 3) {
-    showRealVoiceComingSoon(
-      duaId = "dua_jumuah_salawat_ibrahimiyyah",
-      duaTitle = "Salawat Ibrahimiyyah (Durood-e-Ibrahimi)"
+    val salawatDua = DailyDuaItem(
+      id = "dua_jumuah_salawat_ibrahimiyyah",
+      title = "Salawat Ibrahimiyyah (Durood-e-Ibrahimi)",
+      category = DuaCategory.SPECIAL_OCCASIONS,
+      occasionBadge = "Jumu'ah Salawat",
+      arabicText = "اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ، كَمَا صَلَّيْتَ عَلَى إِبْرَاهِيمَ وَعَلَى آلِ إِبْرَاهِيمَ، إِنَّكَ حَمِيدٌ مَجِيدٌ، اللَّهُمَّ بَارِكْ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ، كَمَا بَارَكْتَ عَلَى إِبْرَاهِيمَ وَعَلَى آلِ إِبْرَاهِيمَ، إِنَّكَ حَمِيدٌ مَجِيدٌ",
+      transliteration = "Allahumma salli 'ala Muhammadin wa 'ala ali Muhammadin...",
+      englishTranslation = "",
+      urduTranslation = "",
+      authenticReference = "Sahih al-Bukhari 3370",
+      virtueAndTiming = "",
+      recommendedCount = repetitions,
+      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n53.mp3"
+    )
+    playDuaVocal(
+      dua = salawatDua,
+      repetitions = repetitions,
+      speechRate = _playbackState.value.speechRatePreset
     )
   }
 
-  fun stop() {
-    vocalJob?.cancel()
-    vocalJob = null
-    try {
-      quranAudioPlayerManager.stop()
-    } catch (_: Exception) {
-    }
-    try {
-      ttsEngine?.stop()
-    } catch (_: Exception) {
-    }
+  private fun resetPlaybackState() {
     _playbackState.value = _playbackState.value.copy(
       isPlaying = false,
       activeDuaId = null,
@@ -634,13 +891,18 @@ class DuaAudioController(
     )
   }
 
-  fun shutdown() {
-    stop()
+  fun stop() {
+    vocalJob?.cancel()
+    vocalJob = null
+    releaseOfflineMediaPlayer()
     try {
-      ttsEngine?.shutdown()
+      quranAudioPlayerManager.stop()
     } catch (_: Exception) {
     }
-    ttsEngine = null
-    isTtsReady = false
+    resetPlaybackState()
+  }
+
+  fun shutdown() {
+    stop()
   }
 }

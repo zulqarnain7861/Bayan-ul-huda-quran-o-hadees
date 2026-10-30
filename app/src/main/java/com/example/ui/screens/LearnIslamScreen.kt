@@ -24,18 +24,26 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.*
 import com.example.ui.audio.DuaAudioController
 import com.example.ui.theme.AmiriFontFamily
+import com.example.ui.theme.CompactLineHeightStyle
+import com.example.ui.theme.CompactPlatformTextStyle
 import com.example.ui.theme.UrduNastaliqFontFamily
 
 private val AmiriQuranFont = AmiriFontFamily
 private val NotoNastaliqUrduFont = UrduNastaliqFontFamily
+private val CompactArabicUrduTextStyle = TextStyle(
+    platformStyle = CompactPlatformTextStyle,
+    lineHeightStyle = CompactLineHeightStyle
+)
 
 enum class LearnIslamTab(
     val id: String,
@@ -91,6 +99,7 @@ fun LearnIslamScreen(
     fun selectLesson(index: Int) {
         val valid = index.coerceIn(0, LearnIslamCurriculumData.nooraniQaidaLessons.lastIndex)
         selectedLessonIndex = valid
+        duaAudioController.clearComingSoonNotice()
         prefs.edit().putInt("last_qaida_lesson_index", valid).apply()
     }
 
@@ -136,7 +145,7 @@ fun LearnIslamScreen(
                 .padding(innerPadding)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            // Audio Controls Bar (Authentic Quranic Verse Audio & "Real voice coming soon, In Sha Allah." status)
+            // Audio Controls Bar (Authentic Quranic Verse Audio & Verified Human Audio status)
             LearnIslamAudioControlBar(
                 isPlaying = playbackState.isPlaying,
                 activeTitle = playbackState.activeDuaTitle,
@@ -152,19 +161,22 @@ fun LearnIslamScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color(0xFF073B2E))
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(LearnIslamTab.entries) { tab ->
                     val isSelected = selectedTab == tab
                     Surface(
-                        onClick = { selectedTab = tab },
-                        shape = RoundedCornerShape(20.dp),
+                        onClick = {
+                            selectedTab = tab
+                            duaAudioController.clearComingSoonNotice()
+                        },
+                        shape = RoundedCornerShape(18.dp),
                         color = if (isSelected) Color(0xFFD4AF37) else Color.White.copy(alpha = 0.12f),
                         modifier = Modifier.testTag("learn_islam_tab_${tab.id}")
                     ) {
                         Column(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
@@ -175,8 +187,10 @@ fun LearnIslamScreen(
                             )
                             Text(
                                 text = tab.titleUrdu,
+                                style = CompactArabicUrduTextStyle,
                                 fontFamily = NotoNastaliqUrduFont,
                                 fontSize = 11.sp,
+                                lineHeight = 16.sp,
                                 color = if (isSelected) Color(0xFF073B2E) else Color(0xFFD8F3DC)
                             )
                         }
@@ -194,11 +208,17 @@ fun LearnIslamScreen(
                         showBookmarkedOnly = showBookmarkedOnly,
                         activePlayingId = playbackState.activeDuaId,
                         isPlaying = playbackState.isPlaying,
-                        isComingSoonNotice = playbackState.isComingSoonNotice,
                         onSelectLesson = { selectLesson(it) },
                         onToggleLessonComplete = { toggleLessonComplete(it) },
                         onToggleBookmark = { toggleBookmarkItem(it) },
                         onToggleShowBookmarkedOnly = { showBookmarkedOnly = !showBookmarkedOnly },
+                        onPlayFullLesson = { lesson ->
+                            duaAudioController.playQaidaLessonSequence(
+                                lessonNumber = lesson.lessonNumber,
+                                lessonTitle = lesson.titleEnglish,
+                                items = lesson.practiceItems
+                            )
+                        },
                         onPlayItem = { item ->
                             duaAudioController.playLearningItem(
                                 id = item.id,
@@ -207,8 +227,7 @@ fun LearnIslamScreen(
                                 transliteration = item.transliteration,
                                 englishText = item.makhrajOrRuleEnglish,
                                 urduText = item.makhrajOrRuleUrdu,
-                                quranSurahAyah = item.quranSurahAyah,
-                                allowClearMaleAiVoiceFallback = true
+                                quranSurahAyah = item.quranSurahAyah
                             )
                         }
                     )
@@ -228,7 +247,8 @@ fun LearnIslamScreen(
                                 transliteration = item.transliteration,
                                 englishText = item.englishTranslation,
                                 urduText = item.urduTranslation,
-                                quranSurahAyah = null
+                                quranSurahAyah = null,
+                                humanAudioUrl = item.humanAudioUrl
                             )
                         }
                     )
@@ -241,8 +261,6 @@ fun LearnIslamScreen(
                         isPlaying = playbackState.isPlaying,
                         isComingSoonNotice = playbackState.isComingSoonNotice,
                         onPlayStep = { step ->
-                            // Only play exact Quranic verse audio for Quranic Dua in Salah (14:40) or Surah Al-Fatiha/Ikhlas;
-                            // Wudu and non-Quranic Salah recitations never use AI voice and show "Real voice coming soon, In Sha Allah."
                             val exactQuranicRef = if (step.section == "NAMAZ_MUTARJAM" || step.section == "SHORT_SURAHS") {
                                 step.quranSurahNumber?.let { Pair(it, step.quranAyahRange?.first ?: 1) }
                             } else {
@@ -255,7 +273,8 @@ fun LearnIslamScreen(
                                 transliteration = step.transliteration,
                                 englishText = step.englishMeaning,
                                 urduText = step.urduMeaning,
-                                quranSurahAyah = exactQuranicRef
+                                quranSurahAyah = exactQuranicRef,
+                                humanAudioUrl = step.humanAudioUrl
                             )
                         },
                         onOpenQuranSurah = onOpenQuranSurah
@@ -276,7 +295,8 @@ fun LearnIslamScreen(
                                 transliteration = entry.transliteration,
                                 englishText = entry.englishTranslation,
                                 urduText = entry.urduTranslation,
-                                quranSurahAyah = entry.quranSurahAyah
+                                quranSurahAyah = entry.quranSurahAyah,
+                                humanAudioUrl = entry.humanAudioUrl
                             )
                         }
                     )
@@ -325,7 +345,7 @@ private fun LearnIslamAudioControlBar(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 6.dp)
+                .padding(horizontal = 12.dp, vertical = 4.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -342,7 +362,7 @@ private fun LearnIslamAudioControlBar(
                         onClick = onCycleRepeat,
                         label = {
                             Text(
-                                text = "Repeat Verse: ${repeatCountTarget}x",
+                                text = "Repeat: ${repeatCountTarget}x",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -371,10 +391,12 @@ private fun LearnIslamAudioControlBar(
                         } else if (isPlaying && activeStageLabel.isNotBlank()) {
                             activeStageLabel
                         } else {
-                            "Authentic Quranic Verse Audio Only (No AI Voice)"
+                            "Offline Authentic Noorani Qaida, Quran & Sunnah Audio (No AI Voice)"
                         },
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                         color = if (isComingSoonNotice) Color(0xFFFFD166) else Color(0xFFD8F3DC),
                         modifier = Modifier.testTag("learn_islam_audio_status_text")
                     )
@@ -404,6 +426,7 @@ private fun LearnIslamAudioControlBar(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun NooraniQaidaSectionContent(
     lessons: List<NooraniQaidaLesson>,
@@ -413,11 +436,11 @@ private fun NooraniQaidaSectionContent(
     showBookmarkedOnly: Boolean,
     activePlayingId: String?,
     isPlaying: Boolean,
-    isComingSoonNotice: Boolean,
     onSelectLesson: (Int) -> Unit,
     onToggleLessonComplete: (String) -> Unit,
     onToggleBookmark: (String) -> Unit,
     onToggleShowBookmarkedOnly: () -> Unit,
+    onPlayFullLesson: (NooraniQaidaLesson) -> Unit,
     onPlayItem: (QaidaPracticeItem) -> Unit
 ) {
     val currentLesson = lessons.getOrElse(selectedLessonIndex) { lessons.first() }
@@ -429,16 +452,16 @@ private fun NooraniQaidaSectionContent(
         modifier = Modifier
             .fillMaxSize()
             .testTag("noorani_qaida_lazy_column"),
-        contentPadding = PaddingValues(14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // Progress & Lesson Selector Header
         item {
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
+                Column(modifier = Modifier.padding(12.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -451,7 +474,7 @@ private fun NooraniQaidaSectionContent(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Classical 17-Lesson Haqqani Curriculum (with 21-lesson web cross-references)",
+                                text = "All 17 Lessons Available Offline with Authentic Human Audio",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -471,19 +494,19 @@ private fun NooraniQaidaSectionContent(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     LinearProgressIndicator(
                         progress = { completedLessons.size.toFloat() / lessons.size.coerceAtLeast(1).toFloat() },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(7.dp)
+                            .height(6.dp)
                             .clip(RoundedCornerShape(4.dp)),
                         color = Color(0xFF0A4D3C)
                     )
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.testTag("qaida_lesson_selector_row")
                     ) {
                         itemsIndexed(lessons) { idx, lesson ->
@@ -491,7 +514,7 @@ private fun NooraniQaidaSectionContent(
                             val isDone = completedLessons.contains(lesson.id)
                             Surface(
                                 onClick = { onSelectLesson(idx) },
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(10.dp),
                                 color = when {
                                     isSelected -> Color(0xFF0A4D3C)
                                     isDone -> Color(0xFF1B7A58).copy(alpha = 0.18f)
@@ -504,7 +527,7 @@ private fun NooraniQaidaSectionContent(
                                 modifier = Modifier.testTag("qaida_lesson_chip_${lesson.lessonNumber}")
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
@@ -533,28 +556,10 @@ private fun NooraniQaidaSectionContent(
         // Active Lesson Banner & Rule Explanation
         item {
             Card(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF0A4D3C))
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = currentLesson.titleArabic,
-                        fontFamily = AmiriQuranFont,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFD4AF37),
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.End
-                    )
-                    Text(
-                        text = currentLesson.titleUrdu,
-                        fontFamily = NotoNastaliqUrduFont,
-                        fontSize = 16.sp,
-                        color = Color.White,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.End
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
+                Column(modifier = Modifier.padding(12.dp)) {
                     Text(
                         text = currentLesson.titleEnglish,
                         style = MaterialTheme.typography.titleMedium,
@@ -566,9 +571,36 @@ private fun NooraniQaidaSectionContent(
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFD8F3DC)
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = currentLesson.titleUrdu,
+                            style = CompactArabicUrduTextStyle,
+                            fontFamily = NotoNastaliqUrduFont,
+                            fontSize = 14.sp,
+                            lineHeight = 22.sp,
+                            color = Color.White,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = currentLesson.titleArabic,
+                            style = CompactArabicUrduTextStyle,
+                            fontFamily = AmiriQuranFont,
+                            fontSize = 20.sp,
+                            lineHeight = 28.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFD4AF37),
+                            textAlign = TextAlign.End
+                        )
+                    }
 
                     HorizontalDivider(
-                        modifier = Modifier.padding(vertical = 10.dp),
+                        modifier = Modifier.padding(vertical = 8.dp),
                         color = Color.White.copy(alpha = 0.2f)
                     )
 
@@ -583,23 +615,49 @@ private fun NooraniQaidaSectionContent(
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = currentLesson.ruleSummaryUrdu,
+                        style = CompactArabicUrduTextStyle,
                         fontFamily = NotoNastaliqUrduFont,
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
+                        lineHeight = 21.sp,
                         color = Color(0xFFE9F5EC),
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.End
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = currentLesson.editionNote,
                         style = MaterialTheme.typography.labelSmall,
                         color = Color(0xFFB7E4C7)
                     )
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = { onPlayFullLesson(currentLesson) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFD4AF37),
+                            contentColor = Color(0xFF073B2E)
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("qaida_listen_full_lesson_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VolumeUp,
+                            contentDescription = "Listen Full Lesson Offline",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Listen Full Lesson ${currentLesson.lessonNumber} (Offline Audio)",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -610,24 +668,29 @@ private fun NooraniQaidaSectionContent(
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = if (isLessonCompleted) Color(0xFFD4AF37) else Color.White
                             ),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                             modifier = Modifier.testTag("qaida_complete_lesson_${currentLesson.lessonNumber}")
                         ) {
                             Icon(
                                 imageVector = if (isLessonCompleted) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(if (isLessonCompleted) "Lesson Completed" else "Mark Lesson Complete")
+                            Text(
+                                text = if (isLessonCompleted) "Lesson Completed" else "Mark Lesson Complete",
+                                fontSize = 12.sp
+                            )
                         }
 
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             if (selectedLessonIndex > 0) {
                                 FilledTonalButton(
                                     onClick = { onSelectLesson(selectedLessonIndex - 1) },
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                                     modifier = Modifier.testTag("qaida_prev_lesson_btn")
                                 ) {
-                                    Text("Prev")
+                                    Text("Prev", fontSize = 12.sp)
                                 }
                             }
                             if (selectedLessonIndex < lessons.lastIndex) {
@@ -637,9 +700,10 @@ private fun NooraniQaidaSectionContent(
                                         containerColor = Color(0xFFD4AF37),
                                         contentColor = Color(0xFF073B2E)
                                     ),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                                     modifier = Modifier.testTag("qaida_next_lesson_btn")
                                 ) {
-                                    Text("Next Lesson", fontWeight = FontWeight.Bold)
+                                    Text("Next Lesson", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 }
                             }
                         }
@@ -657,9 +721,9 @@ private fun NooraniQaidaSectionContent(
 
         items(displayedItems, key = { it.id }) { item ->
             val isItemPlaying = isPlaying && activePlayingId == item.id
-            val isItemComingSoon = isComingSoonNotice && activePlayingId == item.id
             val isBookmarked = bookmarkedItems.contains(item.id)
             val selfCheckResult = itemSelfCheckFeedback[item.id]
+            val isCompactInlineArabic = false
 
             Card(
                 onClick = { onPlayItem(item) },
@@ -675,110 +739,122 @@ private fun NooraniQaidaSectionContent(
                     .fillMaxWidth()
                     .testTag("qaida_item_${item.id}")
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
+                Column(modifier = Modifier.padding(12.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Left: Transliteration & Audio / Bookmark buttons
+                        // Left: Play button, Bookmark button, Transliteration & Audio status
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier.weight(1f)
                         ) {
                             FilledIconButton(
                                 onClick = { onPlayItem(item) },
                                 colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = if (isItemPlaying) Color(0xFFD4AF37) else if (item.quranSurahAyah != null) Color(0xFF0A4D3C) else Color(0xFF1B5E20),
+                                    containerColor = if (isItemPlaying) Color(0xFFD4AF37) else Color(0xFF0A4D3C),
                                     contentColor = if (isItemPlaying) Color(0xFF073B2E) else Color.White
                                 ),
                                 modifier = Modifier
-                                    .size(40.dp)
+                                    .size(38.dp)
                                     .testTag("qaida_play_${item.id}")
                             ) {
                                 Icon(
                                     imageVector = if (isItemPlaying) Icons.Default.Stop else Icons.Default.VolumeUp,
-                                    contentDescription = "Play pronunciation for ${item.transliteration}"
+                                    contentDescription = "Play pronunciation for ${item.transliteration}",
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
 
                             IconButton(
                                 onClick = { onToggleBookmark(item.id) },
-                                modifier = Modifier.testTag("qaida_bookmark_${item.id}")
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .testTag("qaida_bookmark_${item.id}")
                             ) {
                                 Icon(
                                     imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                                     contentDescription = "Bookmark ${item.transliteration}",
-                                    tint = if (isBookmarked) Color(0xFFD4AF37) else MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = if (isBookmarked) Color(0xFFD4AF37) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
 
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = item.transliteration,
-                                    style = MaterialTheme.typography.titleMedium,
+                                    style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0A4D3C)
+                                    color = Color(0xFF0A4D3C),
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
                                 )
-                                if (item.quranSurahAyah != null) {
-                                    Text(
-                                        text = "✓ Authentic Quran Verse (${item.quranSurahAyah.first}:${item.quranSurahAyah.second})",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color(0xFF1B7A58),
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                } else {
-                                    Text(
-                                        text = "🔊 Clear Male Teacher Voice",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color(0xFF1B5E20),
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
+                                Text(
+                                    text = if (item.quranSurahAyah != null) {
+                                        "✓ Offline Authentic Audio • Quran (${item.quranSurahAyah.first}:${item.quranSurahAyah.second})"
+                                    } else {
+                                        "✓ Offline Authentic Audio"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFF1B7A58),
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                         }
 
-                        // Right: Large Vocalized Arabic Script with zero letter-spacing so harakat & ligatures never disconnect
+                        if (isCompactInlineArabic) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color(0xFF0A4D3C).copy(alpha = 0.06f),
+                                modifier = Modifier
+                                    .padding(start = 8.dp)
+                                    .widthIn(min = 54.dp, max = 108.dp)
+                            ) {
+                                Text(
+                                    text = item.arabicText,
+                                    style = CompactArabicUrduTextStyle,
+                                    fontFamily = AmiriQuranFont,
+                                    fontSize = 28.sp,
+                                    lineHeight = 36.sp,
+                                    letterSpacing = 0.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF073B2E),
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    if (!isCompactInlineArabic) {
+                        Spacer(modifier = Modifier.height(6.dp))
                         Surface(
                             shape = RoundedCornerShape(10.dp),
-                            color = Color(0xFF0A4D3C).copy(alpha = 0.06f)
+                            color = Color(0xFF0A4D3C).copy(alpha = 0.06f),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
                                 text = item.arabicText,
+                                style = CompactArabicUrduTextStyle,
                                 fontFamily = AmiriQuranFont,
-                                fontSize = 32.sp,
-                                lineHeight = 52.sp,
+                                fontSize = 26.sp,
+                                lineHeight = 38.sp,
                                 letterSpacing = 0.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF073B2E),
                                 textAlign = TextAlign.End,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
                             )
                         }
                     }
 
-                    if (isItemComingSoon) {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFFFFF8E1),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD4AF37)),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("coming_soon_badge_${item.id}")
-                        ) {
-                            Text(
-                                text = DuaAudioController.REAL_VOICE_COMING_SOON_MESSAGE,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF5D4037),
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = "Makhraj & Harakat Rule: ${item.makhrajOrRuleEnglish}",
                         style = MaterialTheme.typography.bodySmall,
@@ -786,9 +862,10 @@ private fun NooraniQaidaSectionContent(
                     )
                     Text(
                         text = item.makhrajOrRuleUrdu,
+                        style = CompactArabicUrduTextStyle,
                         fontFamily = NotoNastaliqUrduFont,
-                        fontSize = 14.sp,
-                        lineHeight = 26.sp,
+                        fontSize = 13.sp,
+                        lineHeight = 21.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.End
@@ -800,11 +877,11 @@ private fun NooraniQaidaSectionContent(
                     )
 
                     // Interactive Makhraj & Harakat Correct / Incorrect Self-Check
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
+                    Spacer(modifier = Modifier.height(4.dp))
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.Center
                     ) {
                         Text(
                             text = when (selfCheckResult) {
@@ -819,7 +896,9 @@ private fun NooraniQaidaSectionContent(
                                 false -> Color(0xFFC62828)
                                 null -> MaterialTheme.colorScheme.onSurfaceVariant
                             },
-                            modifier = Modifier.testTag("qaida_self_check_status_${item.id}")
+                            modifier = Modifier
+                                .padding(vertical = 4.dp)
+                                .testTag("qaida_self_check_status_${item.id}")
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             FilterChip(
@@ -852,27 +931,27 @@ private fun NooraniQaidaSectionContent(
         if (currentLesson.quizQuestions.isNotEmpty() && !showBookmarkedOnly) {
             item {
                 Card(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("qaida_quiz_section")
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(12.dp)) {
                         Text(
                             text = "Lesson ${currentLesson.lessonNumber} Self-Check Quiz • مشق و امتحان",
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color(0xFF0A4D3C)
                         )
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         currentLesson.quizQuestions.forEachIndexed { qIdx, question ->
                             val selectedOption = selectedQuizAnswers[question.id]
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(bottom = 12.dp)
+                                    .padding(bottom = 10.dp)
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -881,34 +960,41 @@ private fun NooraniQaidaSectionContent(
                                 ) {
                                     Text(
                                         text = "Q${qIdx + 1}: ${question.questionEnglish}",
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.weight(1f)
                                     )
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
-                                        color = Color(0xFF0A4D3C).copy(alpha = 0.1f)
+                                        color = Color(0xFF0A4D3C).copy(alpha = 0.1f),
+                                        modifier = Modifier
+                                            .padding(start = 8.dp)
+                                            .widthIn(max = 120.dp)
                                     ) {
                                         Text(
                                             text = question.arabicPrompt,
+                                            style = CompactArabicUrduTextStyle,
                                             fontFamily = AmiriQuranFont,
-                                            fontSize = 22.sp,
-                                            lineHeight = 36.sp,
+                                            fontSize = 20.sp,
+                                            lineHeight = 28.sp,
                                             letterSpacing = 0.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = Color(0xFF0A4D3C),
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                         )
                                     }
                                 }
                                 Text(
                                     text = question.questionUrdu,
+                                    style = CompactArabicUrduTextStyle,
                                     fontFamily = NotoNastaliqUrduFont,
-                                    fontSize = 13.sp,
+                                    fontSize = 12.sp,
+                                    lineHeight = 20.sp,
                                     modifier = Modifier.fillMaxWidth(),
                                     textAlign = TextAlign.End
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(6.dp))
 
                                 question.options.forEachIndexed { optIdx, optionText ->
                                     val isChosen = selectedOption == optIdx
@@ -921,7 +1007,7 @@ private fun NooraniQaidaSectionContent(
                                     }
                                     Surface(
                                         onClick = { selectedQuizAnswers[question.id] = optIdx },
-                                        shape = RoundedCornerShape(10.dp),
+                                        shape = RoundedCornerShape(8.dp),
                                         color = containerColor,
                                         border = androidx.compose.foundation.BorderStroke(
                                             1.dp,
@@ -929,13 +1015,13 @@ private fun NooraniQaidaSectionContent(
                                         ),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(vertical = 3.dp)
+                                            .padding(vertical = 2.dp)
                                             .testTag("qaida_quiz_option_${question.id}_$optIdx")
                                     ) {
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(10.dp),
+                                                .padding(horizontal = 10.dp, vertical = 8.dp),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
@@ -959,9 +1045,9 @@ private fun NooraniQaidaSectionContent(
 
                                 if (selectedOption != null) {
                                     val isAnswerCorrect = selectedOption == question.correctIndex
-                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Spacer(modifier = Modifier.height(4.dp))
                                     Surface(
-                                        shape = RoundedCornerShape(10.dp),
+                                        shape = RoundedCornerShape(8.dp),
                                         color = if (isAnswerCorrect) Color(0xFFD8F3DC) else Color(0xFFFFEBEE),
                                         border = androidx.compose.foundation.BorderStroke(
                                             1.dp,
@@ -971,7 +1057,7 @@ private fun NooraniQaidaSectionContent(
                                             .fillMaxWidth()
                                             .testTag("quiz_feedback_${question.id}")
                                     ) {
-                                        Column(modifier = Modifier.padding(10.dp)) {
+                                        Column(modifier = Modifier.padding(8.dp)) {
                                             Text(
                                                 text = if (isAnswerCorrect) {
                                                     "✓ Correct! ${question.explanationEnglish}"
@@ -984,8 +1070,10 @@ private fun NooraniQaidaSectionContent(
                                             )
                                             Text(
                                                 text = question.explanationUrdu,
+                                                style = CompactArabicUrduTextStyle,
                                                 fontFamily = NotoNastaliqUrduFont,
                                                 fontSize = 12.sp,
+                                                lineHeight = 19.sp,
                                                 color = if (isAnswerCorrect) Color(0xFF0A4D3C) else Color(0xFFB71C1C),
                                                 modifier = Modifier.fillMaxWidth(),
                                                 textAlign = TextAlign.End
@@ -1015,25 +1103,27 @@ private fun ImanAndKalimasSectionContent(
         modifier = Modifier
             .fillMaxSize()
             .testTag("iman_kalimas_lazy_column"),
-        contentPadding = PaddingValues(14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF0A4D3C))
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(12.dp)) {
                     Text(
                         text = "Nimaz-e-Mutarjam Part 1: Six Kalimas, Iman-e-Mujmal & Iman-e-Mufassal",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White
                     )
                     Text(
                         text = "نصابِ تعلیمِ اسلام: کلمہ طیب، کلمہ شہادت، شش کلمے، ایمانِ مجمل، ایمانِ مفصل اور ارکانِ اسلام",
+                        style = CompactArabicUrduTextStyle,
                         fontFamily = NotoNastaliqUrduFont,
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
+                        lineHeight = 20.sp,
                         color = Color(0xFFD4AF37),
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.End
@@ -1045,9 +1135,10 @@ private fun ImanAndKalimasSectionContent(
         items(items, key = { it.id }) { item ->
             val isItemPlaying = isPlaying && activePlayingId == item.id
             val isItemComingSoon = isComingSoonNotice && activePlayingId == item.id
+            val hasHumanAudio = (!item.humanAudioUrl.isNullOrBlank() || DuaAudioController.hasOfflineQaidaAudioAsset(null, item.id)) && !isItemComingSoon
             val itemSelfCheck = selfCheckMap[item.id]
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = if (isItemPlaying) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surface
                 ),
@@ -1059,7 +1150,7 @@ private fun ImanAndKalimasSectionContent(
                     .fillMaxWidth()
                     .testTag("iman_item_${item.id}")
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(12.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1074,21 +1165,35 @@ private fun ImanAndKalimasSectionContent(
                             )
                             Text(
                                 text = item.titleUrdu,
+                                style = CompactArabicUrduTextStyle,
                                 fontFamily = NotoNastaliqUrduFont,
-                                fontSize = 14.sp,
+                                fontSize = 13.sp,
+                                lineHeight = 20.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(2.dp))
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = if (isItemComingSoon) Color(0xFFFFF8E1) else Color(0xFFF5F5F5),
+                                color = when {
+                                    hasHumanAudio -> Color(0xFFE8F5E9)
+                                    isItemComingSoon -> Color(0xFFFFF8E1)
+                                    else -> Color(0xFFF5F5F5)
+                                },
                                 border = if (isItemComingSoon) androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD4AF37)) else null
                             ) {
                                 Text(
-                                    text = "Real voice coming soon, In Sha Allah.",
+                                    text = if (hasHumanAudio) {
+                                        "✓ Authentic Human Audio (Hisn al-Muslim)"
+                                    } else {
+                                        "Real voice coming soon, In Sha Allah."
+                                    },
                                     style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = if (isItemComingSoon) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isItemComingSoon) Color(0xFF5D4037) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = if (hasHumanAudio || isItemComingSoon) FontWeight.Bold else FontWeight.Medium,
+                                    color = when {
+                                        hasHumanAudio -> Color(0xFF1B5E20)
+                                        isItemComingSoon -> Color(0xFF5D4037)
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
                                     modifier = Modifier
                                         .padding(horizontal = 8.dp, vertical = 2.dp)
                                         .testTag("iman_coming_soon_${item.id}")
@@ -1101,57 +1206,62 @@ private fun ImanAndKalimasSectionContent(
                                 containerColor = if (isItemPlaying) Color(0xFFD4AF37) else Color(0xFF0A4D3C),
                                 contentColor = if (isItemPlaying) Color(0xFF073B2E) else Color.White
                             ),
-                            modifier = Modifier.testTag("iman_play_${item.id}")
+                            modifier = Modifier
+                                .size(38.dp)
+                                .testTag("iman_play_${item.id}")
                         ) {
                             Icon(
                                 imageVector = if (isItemPlaying) Icons.Default.Stop else Icons.Default.VolumeUp,
-                                contentDescription = "Play ${item.titleEnglish}"
+                                contentDescription = "Play ${item.titleEnglish}",
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(10.dp),
                         color = Color(0xFF0A4D3C).copy(alpha = 0.06f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = item.arabicText,
+                            style = CompactArabicUrduTextStyle,
                             fontFamily = AmiriQuranFont,
-                            fontSize = 24.sp,
-                            lineHeight = 40.sp,
+                            fontSize = 22.sp,
+                            lineHeight = 34.sp,
                             letterSpacing = 0.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF073B2E),
                             textAlign = TextAlign.End,
-                            modifier = Modifier.padding(14.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = item.transliteration,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
                         color = Color(0xFF1B7A58)
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = item.urduTranslation,
+                        style = CompactArabicUrduTextStyle,
                         fontFamily = NotoNastaliqUrduFont,
-                        fontSize = 15.sp,
-                        lineHeight = 28.sp,
+                        fontSize = 14.sp,
+                        lineHeight = 22.sp,
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.End
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = item.englishTranslation,
                         style = MaterialTheme.typography.bodySmall
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1193,7 +1303,7 @@ private fun ImanAndKalimasSectionContent(
                         )
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
                     Text(
                         text = "Reference: ${item.authenticReference}",
                         style = MaterialTheme.typography.labelSmall,
@@ -1211,6 +1321,7 @@ private fun ImanAndKalimasSectionContent(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun NamazAndWuduSectionContent(
     steps: List<WuduAndSalahStepItem>,
@@ -1229,8 +1340,8 @@ private fun NamazAndWuduSectionContent(
         modifier = Modifier
             .fillMaxSize()
             .testTag("namaz_wudu_lazy_column"),
-        contentPadding = PaddingValues(14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1238,7 +1349,7 @@ private fun NamazAndWuduSectionContent(
                     "ALL" to "All Steps (${steps.size})",
                     "WUDU" to "Wudu (Ablution)",
                     "SALAH_PREREQUISITES" to "Prerequisites & Rak'at",
-                    "NAMAZ_MUTARJAM" to "Complete Salah Text",
+                    "NAMAZ_MUTARJAM" to "Complete Salah & Janaza",
                     "SHORT_SURAHS" to "Short Surahs"
                 )
                 items(filters) { (key, label) ->
@@ -1257,10 +1368,11 @@ private fun NamazAndWuduSectionContent(
             val isStepComingSoon = isComingSoonNotice && activePlayingId == step.id
             val hasExactQuranAudio = step.quranSurahNumber != null &&
                 (step.section == "NAMAZ_MUTARJAM" || step.section == "SHORT_SURAHS")
-            var showScholarlyDiff by remember { mutableStateOf(true) }
+            val hasVerifiedHumanAudio = (!step.humanAudioUrl.isNullOrBlank() || DuaAudioController.hasOfflineQaidaAudioAsset(null, step.id)) && !isStepComingSoon
+            var showScholarlyDiff by remember { mutableStateOf(false) }
 
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = if (isStepPlaying) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surface
                 ),
@@ -1272,16 +1384,16 @@ private fun NamazAndWuduSectionContent(
                     .fillMaxWidth()
                     .testTag("namaz_step_${step.id}")
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(12.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Row(
+                            FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Surface(
                                     shape = RoundedCornerShape(6.dp),
@@ -1298,21 +1410,21 @@ private fun NamazAndWuduSectionContent(
                                 Surface(
                                     shape = RoundedCornerShape(6.dp),
                                     color = when {
-                                        hasExactQuranAudio -> Color(0xFFE8F5E9)
+                                        hasExactQuranAudio || hasVerifiedHumanAudio -> Color(0xFFE8F5E9)
                                         isStepComingSoon -> Color(0xFFFFF8E1)
                                         else -> Color(0xFFF5F5F5)
                                     }
                                 ) {
                                     Text(
-                                        text = if (hasExactQuranAudio) {
-                                            "✓ Exact Quran Verse (${step.quranSurahNumber}:${step.quranAyahRange?.first ?: 1})"
-                                        } else {
-                                            "Real voice coming soon, In Sha Allah."
+                                        text = when {
+                                            hasExactQuranAudio -> "✓ Exact Quran Verse (${step.quranSurahNumber}:${step.quranAyahRange?.first ?: 1})"
+                                            hasVerifiedHumanAudio -> "✓ Authentic Human Audio (Hisn al-Muslim)"
+                                            else -> "Real voice coming soon, In Sha Allah."
                                         },
                                         style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = if (hasExactQuranAudio || isStepComingSoon) FontWeight.Bold else FontWeight.Medium,
+                                        fontWeight = if (hasExactQuranAudio || hasVerifiedHumanAudio || isStepComingSoon) FontWeight.Bold else FontWeight.Medium,
                                         color = when {
-                                            hasExactQuranAudio -> Color(0xFF1B5E20)
+                                            hasExactQuranAudio || hasVerifiedHumanAudio -> Color(0xFF1B5E20)
                                             isStepComingSoon -> Color(0xFF5D4037)
                                             else -> MaterialTheme.colorScheme.onSurfaceVariant
                                         },
@@ -1322,7 +1434,7 @@ private fun NamazAndWuduSectionContent(
                                     )
                                 }
                             }
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(3.dp))
                             Text(
                                 text = step.titleEnglish,
                                 style = MaterialTheme.typography.titleSmall,
@@ -1331,8 +1443,10 @@ private fun NamazAndWuduSectionContent(
                             )
                             Text(
                                 text = step.titleUrdu,
+                                style = CompactArabicUrduTextStyle,
                                 fontFamily = NotoNastaliqUrduFont,
-                                fontSize = 14.sp,
+                                fontSize = 13.sp,
+                                lineHeight = 20.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -1343,63 +1457,68 @@ private fun NamazAndWuduSectionContent(
                                 containerColor = if (isStepPlaying) Color(0xFFD4AF37) else Color(0xFF0A4D3C),
                                 contentColor = if (isStepPlaying) Color(0xFF073B2E) else Color.White
                             ),
-                            modifier = Modifier.testTag("namaz_play_${step.id}")
+                            modifier = Modifier
+                                .size(38.dp)
+                                .testTag("namaz_play_${step.id}")
                         ) {
                             Icon(
                                 imageVector = if (isStepPlaying) Icons.Default.Stop else Icons.Default.VolumeUp,
-                                contentDescription = "Play ${step.titleEnglish}"
+                                contentDescription = "Play ${step.titleEnglish}",
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(10.dp),
                         color = Color(0xFF0A4D3C).copy(alpha = 0.06f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = step.arabicRecitation,
+                            style = CompactArabicUrduTextStyle,
                             fontFamily = AmiriQuranFont,
-                            fontSize = 23.sp,
-                            lineHeight = 39.sp,
+                            fontSize = 21.sp,
+                            lineHeight = 33.sp,
                             letterSpacing = 0.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF073B2E),
                             textAlign = TextAlign.End,
-                            modifier = Modifier.padding(14.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = step.transliteration,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
                         color = Color(0xFF1B7A58)
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = step.urduMeaning,
+                        style = CompactArabicUrduTextStyle,
                         fontFamily = NotoNastaliqUrduFont,
-                        fontSize = 14.sp,
-                        lineHeight = 26.sp,
+                        fontSize = 13.sp,
+                        lineHeight = 21.sp,
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.End
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = step.englishMeaning,
                         style = MaterialTheme.typography.bodySmall
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(8.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.padding(10.dp)) {
+                        Column(modifier = Modifier.padding(8.dp)) {
                             Text(
                                 text = "Method & Posture:",
                                 style = MaterialTheme.typography.labelSmall,
@@ -1410,18 +1529,20 @@ private fun NamazAndWuduSectionContent(
                                 text = step.methodExplanationEnglish,
                                 style = MaterialTheme.typography.bodySmall
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = step.methodExplanationUrdu,
+                                style = CompactArabicUrduTextStyle,
                                 fontFamily = NotoNastaliqUrduFont,
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
+                                lineHeight = 19.sp,
                                 modifier = Modifier.fillMaxWidth(),
                                 textAlign = TextAlign.End
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Evidence & Reference: ${step.hadithOrFiqhReference}",
                         style = MaterialTheme.typography.labelSmall,
@@ -1430,14 +1551,14 @@ private fun NamazAndWuduSectionContent(
                     )
 
                     if (step.scholarlyDifferences.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         Surface(
                             onClick = { showScholarlyDiff = !showScholarlyDiff },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(8.dp),
                             color = Color(0xFFFFF8E1),
                             border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD4AF37))
                         ) {
-                            Column(modifier = Modifier.padding(10.dp)) {
+                            Column(modifier = Modifier.padding(8.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1458,7 +1579,7 @@ private fun NamazAndWuduSectionContent(
                                 AnimatedVisibility(visible = showScholarlyDiff) {
                                     Column(
                                         modifier = Modifier.padding(top = 6.dp),
-                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
                                         step.scholarlyDifferences.forEach { diff ->
                                             Column {
@@ -1469,8 +1590,10 @@ private fun NamazAndWuduSectionContent(
                                                 )
                                                 Text(
                                                     text = diff.positionSummaryUrdu,
+                                                    style = CompactArabicUrduTextStyle,
                                                     fontFamily = NotoNastaliqUrduFont,
                                                     fontSize = 12.sp,
+                                                    lineHeight = 19.sp,
                                                     color = Color(0xFF4E342E),
                                                     modifier = Modifier.fillMaxWidth(),
                                                     textAlign = TextAlign.End
@@ -1506,25 +1629,27 @@ private fun DailyDuasSequenceSectionContent(
         modifier = Modifier
             .fillMaxSize()
             .testTag("daily_duas_seq_lazy_column"),
-        contentPadding = PaddingValues(14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF0A4D3C))
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(12.dp)) {
                     Text(
                         text = "Daily Masnoon Duas in Chronological Sequence (Hisn al-Muslim & Sunnah.com)",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White
                     )
                     Text(
                         text = "صبح جاگنے سے رات سونے تک کی مستند مسنون دعائیں (بمعہ افطار کی مستند دعا — سنن ابی داؤد ۲۳۵۷)",
+                        style = CompactArabicUrduTextStyle,
                         fontFamily = NotoNastaliqUrduFont,
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
+                        lineHeight = 20.sp,
                         color = Color(0xFFD4AF37),
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.End
@@ -1536,9 +1661,11 @@ private fun DailyDuasSequenceSectionContent(
         items(duas, key = { it.duaId }) { entry ->
             val isEntryPlaying = isPlaying && activePlayingId == entry.duaId
             val isEntryComingSoon = isComingSoonNotice && activePlayingId == entry.duaId
+            val hasExactQuranAudio = entry.quranSurahAyah != null
+            val hasVerifiedHumanAudio = !entry.humanAudioUrl.isNullOrBlank() && !isEntryComingSoon
             val isIftarDua = entry.duaId == "dua_ramadan_iftar"
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = when {
                         isEntryPlaying -> Color(0xFFE8F5E9)
@@ -1558,7 +1685,7 @@ private fun DailyDuasSequenceSectionContent(
                     .fillMaxWidth()
                     .testTag("seq_dua_card_${entry.duaId}")
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(12.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1579,29 +1706,31 @@ private fun DailyDuasSequenceSectionContent(
                             )
                             Text(
                                 text = entry.titleUrdu,
+                                style = CompactArabicUrduTextStyle,
                                 fontFamily = NotoNastaliqUrduFont,
-                                fontSize = 14.sp,
+                                fontSize = 13.sp,
+                                lineHeight = 20.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(2.dp))
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
                                 color = when {
-                                    entry.quranSurahAyah != null -> Color(0xFFE8F5E9)
+                                    hasExactQuranAudio || hasVerifiedHumanAudio -> Color(0xFFE8F5E9)
                                     isEntryComingSoon -> Color(0xFFFFF8E1)
                                     else -> Color(0xFFF5F5F5)
                                 }
                             ) {
                                 Text(
-                                    text = if (entry.quranSurahAyah != null) {
-                                        "✓ Exact Quran Verse (${entry.quranSurahAyah.first}:${entry.quranSurahAyah.second})"
-                                    } else {
-                                        "Real voice coming soon, In Sha Allah."
+                                    text = when {
+                                        hasExactQuranAudio -> "✓ Exact Quran Verse (${entry.quranSurahAyah?.first}:${entry.quranSurahAyah?.second})"
+                                        hasVerifiedHumanAudio -> "✓ Authentic Human Audio (Hisn al-Muslim)"
+                                        else -> "Real voice coming soon, In Sha Allah."
                                     },
                                     style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = if (entry.quranSurahAyah != null || isEntryComingSoon) FontWeight.Bold else FontWeight.Medium,
+                                    fontWeight = if (hasExactQuranAudio || hasVerifiedHumanAudio || isEntryComingSoon) FontWeight.Bold else FontWeight.Medium,
                                     color = when {
-                                        entry.quranSurahAyah != null -> Color(0xFF1B5E20)
+                                        hasExactQuranAudio || hasVerifiedHumanAudio -> Color(0xFF1B5E20)
                                         isEntryComingSoon -> Color(0xFF5D4037)
                                         else -> MaterialTheme.colorScheme.onSurfaceVariant
                                     },
@@ -1617,38 +1746,42 @@ private fun DailyDuasSequenceSectionContent(
                                 containerColor = if (isEntryPlaying) Color(0xFFD4AF37) else Color(0xFF0A4D3C),
                                 contentColor = if (isEntryPlaying) Color(0xFF073B2E) else Color.White
                             ),
-                            modifier = Modifier.testTag("seq_dua_play_${entry.duaId}")
+                            modifier = Modifier
+                                .size(38.dp)
+                                .testTag("seq_dua_play_${entry.duaId}")
                         ) {
                             Icon(
                                 imageVector = if (isEntryPlaying) Icons.Default.Stop else Icons.Default.VolumeUp,
-                                contentDescription = "Play ${entry.titleEnglish}"
+                                contentDescription = "Play ${entry.titleEnglish}",
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(10.dp),
                         color = Color(0xFF0A4D3C).copy(alpha = 0.06f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = entry.arabicText,
+                            style = CompactArabicUrduTextStyle,
                             fontFamily = AmiriQuranFont,
-                            fontSize = 24.sp,
-                            lineHeight = 40.sp,
+                            fontSize = 22.sp,
+                            lineHeight = 34.sp,
                             letterSpacing = 0.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF073B2E),
                             textAlign = TextAlign.End,
-                            modifier = Modifier.padding(14.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = entry.transliteration,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF1B7A58)
                     )
@@ -1659,22 +1792,23 @@ private fun DailyDuasSequenceSectionContent(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = entry.urduTranslation,
+                        style = CompactArabicUrduTextStyle,
                         fontFamily = NotoNastaliqUrduFont,
-                        fontSize = 15.sp,
-                        lineHeight = 28.sp,
+                        fontSize = 14.sp,
+                        lineHeight = 22.sp,
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.End
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = entry.englishTranslation,
                         style = MaterialTheme.typography.bodySmall
                     )
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
                     Text(
                         text = "Reference: ${entry.authenticReference}",
                         style = MaterialTheme.typography.labelSmall,
@@ -1700,14 +1834,14 @@ fun SehriNiyatDedicatedSectionCard(
     onPlayFormula: (CustomaryNiyatFormula) -> Unit = {}
 ) {
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFD4AF37)),
         modifier = Modifier
             .fillMaxWidth()
             .testTag("sehri_niyat_section_card")
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1716,29 +1850,31 @@ fun SehriNiyatDedicatedSectionCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Sehri & Fasting Niyat — Authentic Prophetic Hadith (1st Priority)",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color(0xFF0A4D3C)
                     )
                     Text(
                         text = guidance.titleUrdu,
+                        style = CompactArabicUrduTextStyle,
                         fontFamily = NotoNastaliqUrduFont,
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
+                        lineHeight = 20.sp,
                         color = Color(0xFF1B7A58)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             // 1ST PRIORITY: Authentic Prophetic Hadiths on Sehri & Fasting Intention
             Surface(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(10.dp),
                 color = Color(0xFFE8F5E9),
                 border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFF1B7A58)),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = "1st Priority — Authentic Prophetic Hadiths (Sunan an-Nasa'i 2331 • Sahih al-Bukhari 1 & 1923):",
                         style = MaterialTheme.typography.labelMedium,
@@ -1747,9 +1883,10 @@ fun SehriNiyatDedicatedSectionCard(
                     )
                     Text(
                         text = "«مَنْ لَمْ يُبَيِّتِ الصِّيَامَ قَبْلَ الْفَجْرِ فَلَا صِيَامَ لَهُ» ۝ «تَسَحَّرُوا فَإِنَّ فِي السَّحُورِ بَرَكَةً» ۝ «إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ»",
+                        style = CompactArabicUrduTextStyle,
                         fontFamily = AmiriQuranFont,
-                        fontSize = 22.sp,
-                        lineHeight = 36.sp,
+                        fontSize = 20.sp,
+                        lineHeight = 31.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF073B2E),
                         modifier = Modifier.fillMaxWidth(),
@@ -1759,11 +1896,10 @@ fun SehriNiyatDedicatedSectionCard(
                         Text(
                             text = "• $ref",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF073B2E),
-                            modifier = Modifier.padding(top = 2.dp)
+                            color = Color(0xFF073B2E)
                         )
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = guidance.heartIntentionPrincipleEnglish,
                         style = MaterialTheme.typography.bodySmall,
@@ -1771,8 +1907,10 @@ fun SehriNiyatDedicatedSectionCard(
                     )
                     Text(
                         text = guidance.heartIntentionPrincipleUrdu,
+                        style = CompactArabicUrduTextStyle,
                         fontFamily = NotoNastaliqUrduFont,
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
+                        lineHeight = 19.sp,
                         color = Color(0xFF073B2E),
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.End
@@ -1780,27 +1918,27 @@ fun SehriNiyatDedicatedSectionCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = "Note on Customary Verbal Formulas (Educational Aids — NOT Prophetic Hadiths):",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF5D4037)
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             guidance.customaryFormulas.forEach { formula ->
                 val isFormulaPlaying = isPlaying && activePlayingId == formula.id
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(10.dp),
                     color = Color(0xFFFFF8E1),
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD4AF37)),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp)
+                        .padding(vertical = 3.dp)
                         .testTag("sehri_niyat_formula_${formula.id}")
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
+                    Column(modifier = Modifier.padding(10.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1820,7 +1958,7 @@ fun SehriNiyatDedicatedSectionCard(
                             }
                             IconButton(
                                 onClick = { onPlayFormula(formula) },
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(30.dp)
                             ) {
                                 Icon(
                                     imageVector = if (isFormulaPlaying) Icons.Default.Stop else Icons.Default.VolumeUp,
@@ -1837,8 +1975,10 @@ fun SehriNiyatDedicatedSectionCard(
                         )
                         Text(
                             text = formula.arabicText,
+                            style = CompactArabicUrduTextStyle,
                             fontFamily = AmiriQuranFont,
-                            fontSize = 22.sp,
+                            fontSize = 20.sp,
+                            lineHeight = 31.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF073B2E),
                             modifier = Modifier.fillMaxWidth(),
@@ -1852,8 +1992,10 @@ fun SehriNiyatDedicatedSectionCard(
                         )
                         Text(
                             text = formula.urduTranslation,
+                            style = CompactArabicUrduTextStyle,
                             fontFamily = NotoNastaliqUrduFont,
-                            fontSize = 14.sp,
+                            fontSize = 13.sp,
+                            lineHeight = 20.sp,
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.End
                         )
@@ -1861,7 +2003,7 @@ fun SehriNiyatDedicatedSectionCard(
                             text = formula.englishTranslation,
                             style = MaterialTheme.typography.bodySmall
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = formula.attributionAndStatusNote,
                             style = MaterialTheme.typography.labelSmall,
@@ -1887,8 +2029,8 @@ private fun SehriNiyatAndSourcesSectionContent(
         modifier = Modifier
             .fillMaxSize()
             .testTag("sehri_niyat_sources_lazy_column"),
-        contentPadding = PaddingValues(14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {
             SehriNiyatDedicatedSectionCard(
@@ -1904,7 +2046,7 @@ private fun SehriNiyatAndSourcesSectionContent(
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
-                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = "Curriculum & Scholarly Attribution",
                         style = MaterialTheme.typography.titleSmall,

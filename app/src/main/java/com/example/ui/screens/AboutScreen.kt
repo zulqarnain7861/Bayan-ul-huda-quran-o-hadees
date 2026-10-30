@@ -1183,9 +1183,13 @@ fun DeveloperApiSourcesAndLicencesDialog(
     if (selectedCategory == "All") allSources else allSources.filter { it.category == selectedCategory }
   }
   var showLearnIslamInvestigatedSources by remember { mutableStateOf(false) }
+  var showDuaContentAudioAudit by remember { mutableStateOf(false) }
   var showHadithManifestProvenance by remember { mutableStateOf(false) }
   val learnIslamSources = remember {
     com.example.data.model.LearnIslamCurriculumData.verifiedSourceRegistry
+  }
+  val duaAuditSections = remember {
+    com.example.data.repository.SourceRegistryRepository.getDuaContentAndAudioAuditReport()
   }
   val hadithManifestEntries = remember {
     com.example.data.local.OfflineHadithAssetLoader.loadManifest(context)
@@ -1530,6 +1534,75 @@ fun DeveloperApiSourcesAndLicencesDialog(
                           text = "Licence & Attribution: ${src.licenseAndAttributionNote}",
                           style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
                         )
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          // Intelligent Dua Content & Audio Audit Report (9 Locations, 1,001+ Dua Verification & Audio Mapping)
+          if (duaAuditSections.isNotEmpty()) {
+            item {
+              Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .testTag("dev_dua_content_audio_audit_card")
+              ) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                  Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                      Text(
+                        text = "Intelligent Dua Content & Audio Audit Report (${duaAuditSections.size} Sections)",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                          fontWeight = FontWeight.Bold,
+                          color = MaterialTheme.colorScheme.primary
+                        )
+                      )
+                      Text(
+                        text = "9 Dua Locations Audited • 1,001+ Dataset Verification • Authentic Human Audio Mapping",
+                        style = MaterialTheme.typography.labelSmall.copy(color = GoldPrimary)
+                      )
+                    }
+                    OutlinedButton(
+                      onClick = { showDuaContentAudioAudit = !showDuaContentAudioAudit },
+                      contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                      modifier = Modifier.testTag("toggle_dua_audit_report_button")
+                    ) {
+                      Text(if (showDuaContentAudioAudit) "Hide" else "Show", fontSize = 11.sp)
+                    }
+                  }
+
+                  if (showDuaContentAudioAudit) {
+                    duaAuditSections.forEach { sec ->
+                      Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                        modifier = Modifier.fillMaxWidth()
+                      ) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                          Text(
+                            text = "${sec.sectionNumber}. ${sec.title}",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                              fontWeight = FontWeight.Bold,
+                              color = MaterialTheme.colorScheme.primary
+                            )
+                          )
+                          Text(
+                            text = sec.summary,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                              color = MaterialTheme.colorScheme.onSurfaceVariant,
+                              lineHeight = 15.sp
+                            )
+                          )
+                        }
                       }
                     }
                   }

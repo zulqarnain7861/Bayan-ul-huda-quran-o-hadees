@@ -48,24 +48,29 @@ import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -1582,8 +1587,11 @@ fun SpecialRamadanDuasShowcaseCard(
   modifier: Modifier = Modifier
 ) {
   val context = LocalContext.current
+  val duaAudioController = remember(context) { com.example.ui.audio.DuaAudioController.getInstance(context) }
+  val playbackState by duaAudioController.playbackState.collectAsState()
   var selectedDuaIndex by remember { mutableIntStateOf(0) }
   val activeDua = duas.getOrElse(selectedDuaIndex) { duas.first() }
+  val isThisRamadanDuaPlaying = playbackState.isPlaying && playbackState.activeDuaId == activeDua.id
 
   ElevatedCard(
     modifier = modifier.fillMaxWidth(),
@@ -1913,8 +1921,8 @@ fun SpecialRamadanDuasShowcaseCard(
         Column(
           modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-          verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+          verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
           Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1937,36 +1945,69 @@ fun SpecialRamadanDuasShowcaseCard(
                 )
               )
             }
-            IconButton(
-              onClick = {
-                val clip = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                val text =
-                  "${activeDua.title}\n${activeDua.arabicText}\n${activeDua.transliteration}\n${activeDua.englishTranslation}\n${activeDua.urduTranslation}\n(${activeDua.authenticReference})"
-                clip.setPrimaryClip(ClipData.newPlainText(activeDua.title, text))
-                Toast.makeText(context, "Fasting Dua copied", Toast.LENGTH_SHORT).show()
-              },
-              modifier = Modifier.size(32.dp)
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-              Icon(
-                imageVector = Icons.Default.ContentCopy,
-                contentDescription = "Copy Fasting Dua",
-                tint = EmeraldPrimary,
-                modifier = Modifier.size(16.dp)
-              )
+              FilledIconButton(
+                onClick = {
+                  if (isThisRamadanDuaPlaying) {
+                    duaAudioController.stop()
+                  } else {
+                    duaAudioController.playDuaVocal(
+                      dua = activeDua,
+                      includeTranslations = false,
+                      preferQuranReciterIfAvailable = true
+                    )
+                  }
+                },
+                colors = IconButtonDefaults.filledIconButtonColors(
+                  containerColor = if (isThisRamadanDuaPlaying) GoldPrimary else EmeraldPrimary,
+                  contentColor = if (isThisRamadanDuaPlaying) Color(0xFF073B2E) else Color.White
+                ),
+                modifier = Modifier
+                  .size(32.dp)
+                  .testTag("play_ramadan_dua_btn_${activeDua.id}")
+              ) {
+                Icon(
+                  imageVector = if (isThisRamadanDuaPlaying) Icons.Default.Stop else Icons.Default.VolumeUp,
+                  contentDescription = "Play ${activeDua.title}",
+                  modifier = Modifier.size(16.dp)
+                )
+              }
+              IconButton(
+                onClick = {
+                  val clip = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                  val text =
+                    "${activeDua.title}\n${activeDua.arabicText}\n${activeDua.transliteration}\n${activeDua.englishTranslation}\n${activeDua.urduTranslation}\n(${activeDua.authenticReference})"
+                  clip.setPrimaryClip(ClipData.newPlainText(activeDua.title, text))
+                  Toast.makeText(context, "Fasting Dua copied", Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier.size(32.dp)
+              ) {
+                Icon(
+                  imageVector = Icons.Default.ContentCopy,
+                  contentDescription = "Copy Fasting Dua",
+                  tint = EmeraldPrimary,
+                  modifier = Modifier.size(16.dp)
+                )
+              }
             }
           }
 
-          // Arabic Text with Scheherazade / Amiri Calligraphy
+          // Arabic Text with Scheherazade / Amiri Calligraphy (Compact line height & zero font ascent padding)
           Text(
             text = activeDua.arabicText,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.End,
             style = MaterialTheme.typography.headlineSmall.copy(
               fontFamily = ScheherazadeFontFamily,
-              fontSize = 24.sp,
-              lineHeight = 40.sp,
+              fontSize = 22.sp,
+              lineHeight = 33.sp,
               letterSpacing = 0.sp,
               fontWeight = FontWeight.Bold,
+              platformStyle = com.example.ui.theme.CompactPlatformTextStyle,
+              lineHeightStyle = com.example.ui.theme.CompactLineHeightStyle,
               textDirection = TextDirection.Rtl
             )
           )
@@ -1982,7 +2023,7 @@ fun SpecialRamadanDuasShowcaseCard(
             Row(
               modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .padding(horizontal = 10.dp, vertical = 5.dp),
               horizontalArrangement = Arrangement.SpaceBetween,
               verticalAlignment = Alignment.CenterVertically
             ) {
@@ -2006,7 +2047,7 @@ fun SpecialRamadanDuasShowcaseCard(
               modifier = Modifier
                 .fillMaxWidth()
                 .testTag("expanded_fasting_dua_translation"),
-              verticalArrangement = Arrangement.spacedBy(6.dp)
+              verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
               // Transliteration
               Text(
@@ -2015,19 +2056,21 @@ fun SpecialRamadanDuasShowcaseCard(
                   fontStyle = FontStyle.Italic,
                   color = EmeraldPrimary,
                   fontWeight = FontWeight.SemiBold,
-                  lineHeight = 19.sp
+                  lineHeight = 18.sp
                 )
               )
 
-              // Urdu Translation with Nastaliq Font
+              // Urdu Translation with Nastaliq Font (Compact line height & zero font ascent padding)
               Text(
                 text = activeDua.urduTranslation,
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.End,
                 style = MaterialTheme.typography.bodyMedium.copy(
                   fontFamily = UrduNastaliqFontFamily,
-                  fontSize = 15.sp,
-                  lineHeight = 28.sp,
+                  fontSize = 14.sp,
+                  lineHeight = 22.sp,
+                  platformStyle = com.example.ui.theme.CompactPlatformTextStyle,
+                  lineHeightStyle = com.example.ui.theme.CompactLineHeightStyle,
                   textDirection = TextDirection.Rtl
                 )
               )
@@ -2036,7 +2079,7 @@ fun SpecialRamadanDuasShowcaseCard(
               Text(
                 text = activeDua.englishTranslation,
                 style = MaterialTheme.typography.bodySmall.copy(
-                  lineHeight = 20.sp,
+                  lineHeight = 18.sp,
                   color = MaterialTheme.colorScheme.onSurface
                 )
               )
@@ -2047,7 +2090,7 @@ fun SpecialRamadanDuasShowcaseCard(
                 style = MaterialTheme.typography.labelSmall.copy(
                   color = MaterialTheme.colorScheme.onSurfaceVariant,
                   fontSize = 11.sp,
-                  lineHeight = 16.sp
+                  lineHeight = 15.sp
                 )
               )
             }

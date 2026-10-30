@@ -73,9 +73,9 @@ class LearnIslamAndUpgradeVerificationTest {
   @Test
   fun verifyWuduAndNamazMutarjamAndScholarlyDifferences() {
     val salahSteps = LearnIslamCurriculumData.wuduAndSalahSteps
-    assertEquals(13, salahSteps.size)
+    assertEquals(14, salahSteps.size)
 
-    // Verify Wudu, Sana, Ta'awwudh, Fatiha, Short Surahs, Ruku, Sajdah, Tashahhud, Durood Ibrahim, Dua after Durood, Salam
+    // Verify Wudu, Sana, Ta'awwudh, Fatiha, Short Surahs, Ruku, Sajdah, Tashahhud, Durood Ibrahim, Dua after Durood, Salam, Salat al-Janaza
     assertTrue(salahSteps.any { it.section == "WUDU" })
     assertTrue(salahSteps.any { it.titleEnglish.contains("Sana", ignoreCase = true) })
     assertTrue(salahSteps.any { it.titleEnglish.contains("Ta'awwudh", ignoreCase = true) })
@@ -85,6 +85,7 @@ class LearnIslamAndUpgradeVerificationTest {
     assertTrue(salahSteps.any { it.titleEnglish.contains("Tashahhud", ignoreCase = true) })
     assertTrue(salahSteps.any { it.titleEnglish.contains("Durood-e-Ibrahimi", ignoreCase = true) })
     assertTrue(salahSteps.any { it.titleEnglish.contains("Salam", ignoreCase = true) })
+    assertTrue(salahSteps.any { it.id == "namaz_step_10_salatul_janaza" && it.titleEnglish.contains("Janaza", ignoreCase = true) })
 
     // Verify scholarly differences are documented with school attribution and evidence
     val stepsWithScholarlyViews = salahSteps.filter { it.scholarlyDifferences.isNotEmpty() }
@@ -193,7 +194,7 @@ class LearnIslamAndUpgradeVerificationTest {
   @Test
   fun verifyDeveloperOptionsApiSourcesAndLicencesAndZeroSecretExposure() {
     val devSources = com.example.data.repository.SourceRegistryRepository.getDeveloperApiSourcesAndLicences()
-    assertEquals(30, devSources.size)
+    assertEquals(38, devSources.size)
 
     // Verify all 6 categories are represented
     val categories = devSources.map { it.category }.toSet()
@@ -251,9 +252,15 @@ class LearnIslamAndUpgradeVerificationTest {
   @Test
   fun verifyNooraniQaidaVoiceAndQuranMicrophoneRecordingEvaluation() {
     val lessons = LearnIslamCurriculumData.nooraniQaidaLessons
+    val allItems = lessons.flatMap { it.practiceItems }
+    assertEquals(149, allItems.size)
 
-    // Verify Noorani Qaida items have either real Quranic verse audio or vocalized Arabic for the Clear Male Teacher Voice
-    lessons.flatMap { it.practiceItems }.forEach { item ->
+    // Verify all 149 Noorani Qaida items across all 17 lessons have offline human MP3 audio bundled in assets/qaida_audio/
+    allItems.forEach { item ->
+      assertTrue(
+        "Bundled offline MP3 must exist in assets/qaida_audio/${item.id}.mp3",
+        com.example.ui.audio.DuaAudioController.hasOfflineQaidaAudioAsset(null, item.id)
+      )
       val vocalized = com.example.ui.audio.DuaAudioController.buildNooraniQaidaVocalizedArabicForMaleTts(
         id = item.id,
         arabicText = item.arabicText,
@@ -261,20 +268,6 @@ class LearnIslamAndUpgradeVerificationTest {
       )
       assertTrue("Vocalized text must be non-blank for ${item.id}", vocalized.isNotBlank())
     }
-
-    // Verify Lesson 1 single letters map to full Arabic letter names for clear male pronunciation
-    assertEquals(
-      "أَلِفْ",
-      com.example.ui.audio.DuaAudioController.buildNooraniQaidaVocalizedArabicForMaleTts("l1_01", "ا", "Alif")
-    )
-    assertEquals(
-      "بَاءْ",
-      com.example.ui.audio.DuaAudioController.buildNooraniQaidaVocalizedArabicForMaleTts("l1_02", "ب", "Baa")
-    )
-    assertEquals(
-      "عَيْنْ",
-      com.example.ui.audio.DuaAudioController.buildNooraniQaidaVocalizedArabicForMaleTts("l1_18", "ع", "'Ayn")
-    )
 
     // Verify Quran microphone recording & cadence evaluation produces full word-by-word grading
     val fatihaVerse1 = "بِسْمِ اللّٰهِ الرَّحْمٰنِ الرَّحِيمِ"
@@ -289,6 +282,83 @@ class LearnIslamAndUpgradeVerificationTest {
     assertEquals(4, cadenceEval.matchedCount)
     assertEquals(100, cadenceEval.accuracyPercentage)
     assertTrue(cadenceEval.feedbackSummary.contains("Microphone Recording Complete"))
+  }
+
+  @Test
+  fun verifyIntelligentDuaContentAndAudioAuditCompleteness() {
+    val allDuas = DailyDuasDataProvider.allDuas
+    assertEquals(67, allDuas.size)
+
+    // Verify every single Dua has Arabic, Roman Urdu transliteration, English translation, Urdu translation, and authentic reference
+    allDuas.forEach { dua ->
+      assertTrue("Arabic text must be non-blank for ${dua.id}", dua.arabicText.isNotBlank())
+      assertTrue("Transliteration (Roman Urdu) must be non-blank for ${dua.id}", dua.transliteration.isNotBlank())
+      assertTrue("English translation must be non-blank for ${dua.id}", dua.englishTranslation.isNotBlank())
+      assertTrue("Urdu translation must be non-blank for ${dua.id}", dua.urduTranslation.isNotBlank())
+      assertTrue("Authentic reference must be non-blank for ${dua.id}", dua.authenticReference.isNotBlank())
+    }
+
+    // Verify 100% of all 67 Duas have verified human audio (offline asset, Quranic Ayah audio, or verified human MP3 URL)
+    val duasWithVerifiedAudio = allDuas.count {
+      it.quranSurahAyah != null ||
+        !it.humanAudioUrl.isNullOrBlank() ||
+        com.example.ui.audio.DuaAudioController.hasOfflineQaidaAudioAsset(null, it.id)
+    }
+    assertEquals("Expected all 67 Duas to have verified human audio", allDuas.size, duasWithVerifiedAudio)
+
+    // Verify 100% of all 9 Iman & 6 Kalima items have both humanAudioUrl and bundled offline MP3
+    val imanItems = LearnIslamCurriculumData.imanAndKalimaItems
+    assertEquals(9, imanItems.size)
+    imanItems.forEach { item ->
+      assertTrue("Iman/Kalima item ${item.id} must have humanAudioUrl", !item.humanAudioUrl.isNullOrBlank())
+      assertTrue(
+        "Iman/Kalima item ${item.id} must have bundled offline MP3",
+        com.example.ui.audio.DuaAudioController.hasOfflineQaidaAudioAsset(null, item.id)
+      )
+    }
+
+    // Verify 100% of all 14 Wudu & Namaz-e-Mutarjam steps have humanAudioUrl and bundled offline MP3
+    val salahSteps = LearnIslamCurriculumData.wuduAndSalahSteps
+    assertEquals(14, salahSteps.size)
+    salahSteps.forEach { step ->
+      assertTrue("Wudu/Salah step ${step.id} must have humanAudioUrl", !step.humanAudioUrl.isNullOrBlank())
+      assertTrue(
+        "Wudu/Salah step ${step.id} must have bundled offline MP3",
+        com.example.ui.audio.DuaAudioController.hasOfflineQaidaAudioAsset(null, step.id)
+      )
+    }
+
+    // Verify After-Salah Adhkar section (6 duas)
+    val afterSalahDuas = allDuas.filter { it.category == com.example.data.model.DuaCategory.AFTER_SALAH }
+    assertEquals(6, afterSalahDuas.size)
+    assertTrue(afterSalahDuas.any { it.id == "dua_after_salah_istighfar_salam" })
+    assertTrue(afterSalahDuas.any { it.id == "dua_after_salah_tahlil_la_mani" })
+    assertTrue(afterSalahDuas.any { it.id == "dua_after_salah_ainni_dhikrika" })
+    assertTrue(afterSalahDuas.any { it.id == "dua_after_salah_tasbih_fatimi" })
+    assertTrue(afterSalahDuas.any { it.id == "dua_after_salah_fajr_ilman_nafian" })
+    assertTrue(afterSalahDuas.any { it.id == "dua_after_adhan_wasilah" })
+
+    // Verify Janaza & Funeral section (5 duas) including both masculine & feminine Arabic pronouns for minor boy & girl
+    val janazaDuas = allDuas.filter { it.occasionType == com.example.data.model.SpecialOccasionType.JANAZA_FUNERAL }
+    assertEquals(5, janazaDuas.size)
+    val childDua = janazaDuas.firstOrNull { it.id == "dua_janaza_child_boy_girl" }
+    assertNotNull(childDua)
+    assertTrue(childDua!!.arabicText.contains("فَرَطًا"))
+    assertTrue(childDua.arabicText.contains("اجْعَلْهُ"))
+    assertTrue(childDua.arabicText.contains("اجْعَلْهَا"))
+
+    // Verify candidate mirror URL builder produces Primary + Archive + OpenDua mirrors
+    val mirrors = com.example.ui.audio.DuaAudioController.buildCandidateHumanAudioUrls(
+      "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/65hm.mp3"
+    )
+    assertTrue(mirrors.any { it.contains("65hm.mp3") })
+    assertTrue(mirrors.any { it.contains("HisnulMuslimAudio_201510/n65.mp3") })
+    assertTrue(mirrors.any { it.contains("audio.opendua.org/hisn/v0.0.2/OD-065.mp3") })
+
+    // Verify the Intelligent Dua Content & Audio Audit Report is populated
+    val auditReport = com.example.data.repository.SourceRegistryRepository.getDuaContentAndAudioAuditReport()
+    assertEquals(5, auditReport.size)
+    assertTrue(auditReport.any { it.summary.contains("779") && it.summary.contains("222") })
   }
 }
 
