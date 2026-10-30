@@ -411,14 +411,14 @@ object LearnIslamCurriculumData {
             ruleSummaryUrdu = "حرکات اور تنوین والے مکمل قرآنی الفاظ کی مشق کریں۔ ہر حرف کو اس کی حرکت کے مطابق بغیر کھینچے ملا کر پڑھیں۔",
             editionNote = "Lesson 6 in classical 17-lesson Haqqani Qaida (split into Lessons 6–7 in 21-lesson web editions).",
             practiceItems = listOf(
-                QaidaPracticeItem("l6_01", "أَبَدًا", "Abadan", "Hamzah Fatha A + Baa Fatha Ba + Daal two Zabar Dan = Abadan", "ہمزہ زبر اَ، با زبر بَ (اَبَ)، دال دو زبر دًا = اَبَدًا", "Do not elongate A or Ba."),
+                QaidaPracticeItem("l6_01", "أَبَدًا", "Abadan", "Surah An-Naba 78:23 — Hamzah Fatha A + Baa Fatha Ba + Daal two Zabar Dan = Abadan", "ہمزہ زبر اَ، با زبر بَ (اَبَ)، دال دو زبر دًا = اَبَدًا", "Do not elongate A or Ba.", Pair(78, 23)),
                 QaidaPracticeItem("l6_02", "أَحَدٌ", "Ahadun", "Surah Al-Ikhlas 112:1 — A-ha-dun", "ہمزہ زبر اَ، حا زبر حَ (اَحَ)، دال دو پیش دٌ = اَحَدٌ", "Middle-throat Haa, turns to Qalqalah on Daal when stopping.", Pair(112, 1)),
-                QaidaPracticeItem("l6_03", "أَخَذَ", "Akhadha", "A-kha-dha (Light Hamzah, Heavy Khaa, Soft Dhaal)", "اَخَذَ", "Distinguish heavy Khaa between two light letters."),
-                QaidaPracticeItem("l6_04", "أَذِنَ", "Adhina", "A-dhi-na", "اَذِنَ", "Crisp Kasra on Dhaal."),
-                QaidaPracticeItem("l6_05", "أَمَرَ", "Amara", "A-ma-ra (Raa is heavy because it has Fatha)", "اَمَرَ", "Raa with Fatha is read heavy (Pura)."),
-                QaidaPracticeItem("l6_06", "بَخِلَ", "Bakhila", "Ba-khi-la", "بَخِلَ", "Crisp Kasra on Khaa."),
+                QaidaPracticeItem("l6_03", "أَخَذَ", "Akhadha", "Surah An-Nazi'at 79:25 — A-kha-dha (Light Hamzah, Heavy Khaa, Soft Dhaal)", "اَخَذَ", "Distinguish heavy Khaa between two light letters.", Pair(79, 25)),
+                QaidaPracticeItem("l6_04", "أَذِنَ", "Adhina", "Surah An-Naba 78:38 — A-dhi-na", "اَذِنَ", "Crisp Kasra on Dhaal.", Pair(78, 38)),
+                QaidaPracticeItem("l6_05", "أَمَرَ", "Amara", "Surah 'Abasa 80:23 — A-ma-ra (Raa is heavy because it has Fatha)", "اَمَرَ", "Raa with Fatha is read heavy (Pura).", Pair(80, 23)),
+                QaidaPracticeItem("l6_06", "بَخِلَ", "Bakhila", "Surah Al-Layl 92:8 — Ba-khi-la", "بَخِلَ", "Crisp Kasra on Khaa.", Pair(92, 8)),
                 QaidaPracticeItem("l6_07", "بَرَرَةٍ", "Bararatin", "Surah 'Abasa 80:16 — Ba-ra-ra-tin", "بَرَرَةٍ", "Four syllables read evenly.", Pair(80, 16)),
-                QaidaPracticeItem("l6_08", "حَسَنَةً", "Hasanatan", "Ha-sa-na-tan", "حَسَنَةً", "All letters light (Mustafilah)."),
+                QaidaPracticeItem("l6_08", "حَسَنَةً", "Hasanatan", "Surah Al-Baqarah 2:201 — Ha-sa-na-tan", "حَسَنَةً", "All letters light (Mustafilah).", Pair(2, 201)),
                 QaidaPracticeItem("l6_09", "سَفَرَةٍ", "Safaratin", "Surah 'Abasa 80:15 — Sa-fa-ra-tin", "سَفَرَةٍ", "Keep Seen and Faa light, Raa heavy.", Pair(80, 15)),
                 QaidaPracticeItem("l6_10", "كُفُوًا", "Kufuwan", "Surah Al-Ikhlas 112:4 — Ku-fu-wan", "كُفُوًا", "Round lips smoothly on Ku-fu.", Pair(112, 4))
             ),
@@ -514,8 +514,8 @@ object LearnIslamCurriculumData {
                 QaidaPracticeItem("l9_01", "آمَنَ", "Aamana", "Hamzah Standing Fatha Aa (Madd Badal 2 counts) + Ma-na", "آ مَنَ", "Stretch initial Hamzah 2 counts."),
                 QaidaPracticeItem("l9_02", "إِيْلَافِهِمْ", "Eelaafihim", "Surah Quraysh 106:2 — Yaa Maddah + Standing Fatha on Laam", "اِيْلٰفِهِمْ (سورۃ قریش ۱۰۶:۲)", "Stretch both Ee and Laa 2 counts.", Pair(106, 2)),
                 QaidaPracticeItem("l9_03", "جَآءَ", "Jaa'a", "Surah An-Nasr 110:1 — Madd Wajib Muttasil (4–5 counts before Hamzah)", "جَآءَ (سورۃ النصر ۱۱۰:۱ — مدِ واجب متصل)", "Stretch Jaa 4–5 counts before crisp final Hamzah.", Pair(110, 1)),
-                QaidaPracticeItem("l9_04", "شَآءَ", "Shaa'a", "Madd Wajib Muttasil (4–5 counts)", "شَآءَ", "Light Sheen stretched 4–5 counts."),
-                QaidaPracticeItem("l9_05", "مَالِئُونَ", "Maali'oona", "Alif Maddah + Waaw Maddah", "مَالِئُوْنَ", "Balance 2-count elongations."),
+                QaidaPracticeItem("l9_04", "شَآءَ", "Shaa'a", "Surah 'Abasa 80:12 — Madd Wajib Muttasil (4–5 counts)", "شَآءَ", "Light Sheen stretched 4–5 counts.", Pair(80, 12)),
+                QaidaPracticeItem("l9_05", "مَالِئُونَ", "Maali'oona", "Surah Al-Waqi'ah 56:53 — Alif Maddah + Waaw Maddah", "مَالِئُوْنَ", "Balance 2-count elongations.", Pair(56, 53)),
                 QaidaPracticeItem("l9_06", "مَوْءُودَةُ", "Maw'oodatu", "Surah At-Takwir 81:8 — Waaw Leen + Inverted Damma/Waaw Maddah", "مَوْءٗدَةُ", "Soft Waaw Leen followed by Hamzah with 2-count Damma.", Pair(81, 8))
             ),
             quizQuestions = listOf(
@@ -578,7 +578,7 @@ object LearnIslamCurriculumData {
                 QaidaPracticeItem("l11_02", "أَطْعَمَهُمْ", "At'amahum", "Surah Quraysh 106:4 — Heavy Qalqalah on Taa Sakinah", "اَطْعَمَهُمْ (سورۃ قریش ۱۰۶:۴)", "Heavy Qalqalah on Taa before 'Ayn.", Pair(106, 4)),
                 QaidaPracticeItem("l11_03", "أَنْعَمْتَ", "An'amta", "Surah Al-Fatiha 1:7 — Izhar on Noon Sakinah before 'Ayn & Meem Sakinah before Taa", "اَنْعَمْتَ (سورۃ الفاتحہ ۱:۷)", "Read Noon and Meem clearly without Ghunnah delay.", Pair(1, 7)),
                 QaidaPracticeItem("l11_04", "الْحَمْدُ", "Al-Hamdu", "Surah Al-Fatiha 1:2 — Laam Qamariyyah + Meem Sakinah Izhar", "اَلْحَمْدُ (سورۃ الفاتحہ ۱:۲)", "Do not bounce Laam or Meem.", Pair(1, 2)),
-                QaidaPracticeItem("l11_05", "خَلَقْنَا", "Khalaqnaa", "Heavy Qalqalah on Qaaf Sakinah", "خَلَقْنَا", "Distinct bounce on Qaaf before Noon."),
+                QaidaPracticeItem("l11_05", "خَلَقْنَا", "Khalaqnaa", "Surah At-Tin 95:4 — Heavy Qalqalah on Qaaf Sakinah", "خَلَقْنَا (سورۃ التین ۹۵:۴)", "Distinct bounce on Qaaf before Noon.", Pair(95, 4)),
                 QaidaPracticeItem("l11_06", "كَالْعِهْنِ", "Kal-'ihni", "Surah Al-Qari'ah 101:5 — Throat Haa Sakinah", "كَالْعِهْنِ (سورۃ القارعہ ۱۰۱:۵)", "Soft breath on Haa Sakinah.", Pair(101, 5)),
                 QaidaPracticeItem("l11_07", "فَصَلِّ لِرَبِّكَ وَانْحَرْ", "Fasalli li-Rabbika wanhar", "Surah Al-Kawthar 108:2 — Izhar of Noon before Haa + heavy Raa on stop", "فَصَلِّ لِرَبِّكَ وَانْحَرْ (سورۃ الکوثر ۱۰۸:۲)", "Clear Noon before Haa, heavy Raa Sakinah.", Pair(108, 2)),
                 QaidaPracticeItem("l11_08", "أَلَمْ نَشْرَحْ", "Alam Nashrah", "Surah Ash-Sharh 94:1 — Tafashshi on Sheen Sakinah, Hams on Haa", "اَلَمْ نَشْرَحْ (سورۃ الانشراح ۹۴:۱)", "Spreading breath on Sheen, clean throat Haa.", Pair(94, 1))
@@ -636,10 +636,10 @@ object LearnIslamCurriculumData {
             ruleSummaryUrdu = "تشدید والے قرآنی الفاظ کی مشق۔ لفظِ اللہ (اللّٰه) کا قاعدہ: لفظِ اللہ کے لام سے پہلے زبر یا پیش ہو تو پُر (موٹا) اور زیر ہو تو باریک پڑھا جاتا ہے۔",
             editionNote = "Lesson 13 in classical 17-lesson Haqqani Qaida.",
             practiceItems = listOf(
-                QaidaPracticeItem("l13_01", "إِنَّ", "Inna", "Noon Mushaddad with 2-count Ghunnah", "اِنَّ (غنہ کے ساتھ)", "Hold Noon nasal sound for 2 counts."),
-                QaidaPracticeItem("l13_02", "ثُمَّ", "Thumma", "Meem Mushaddad with 2-count Ghunnah", "ثُمَّ (غنہ کے ساتھ)", "Hold Meem nasal sound for 2 counts."),
+                QaidaPracticeItem("l13_01", "إِنَّ", "Inna", "Surah Al-Kawthar 108:3 — Noon Mushaddad with 2-count Ghunnah", "اِنَّ (غنہ کے ساتھ)", "Hold Noon nasal sound for 2 counts.", Pair(108, 3)),
+                QaidaPracticeItem("l13_02", "ثُمَّ", "Thumma", "Surah At-Takathur 102:4 — Meem Mushaddad with 2-count Ghunnah", "ثُمَّ (غنہ کے ساتھ)", "Hold Meem nasal sound for 2 counts.", Pair(102, 4)),
                 QaidaPracticeItem("l13_03", "رَبِّ", "Rabbi", "Surah Al-Fatiha 1:2 — Baa Mushaddad", "رَبِّ", "Heavy Raa + firm Baa Mushaddad.", Pair(1, 2)),
-                QaidaPracticeItem("l13_04", "قُوَّةٍ", "Quwwatin", "Waaw Mushaddad pressed firmly", "قُوَّةٍ", "Round lips firmly on doubled Waaw."),
+                QaidaPracticeItem("l13_04", "قُوَّةٍ", "Quwwatin", "Surah At-Tariq 86:10 — Waaw Mushaddad pressed firmly", "قُوَّةٍ", "Round lips firmly on doubled Waaw.", Pair(86, 10)),
                 QaidaPracticeItem("l13_05", "سُيِّرَتْ", "Suyyirat", "Surah At-Takwir 81:3 — Yaa Mushaddad", "سُيِّرَتْ (سورۃ التکویر ۸۱:۳)", "Press middle tongue firmly on Yaa.", Pair(81, 3)),
                 QaidaPracticeItem("l13_06", "تَبَّتْ", "Tabbat", "Surah Al-Masad 111:1 — Baa Mushaddad + Taa Sakinah", "تَبَّتْ (سورۃ المسد ۱۱۱:۱)", "Firm Baa, gentle breath on final Taa.", Pair(111, 1)),
                 QaidaPracticeItem("l13_07", "الْجَنَّةِ", "Al-Jannati", "Surah An-Nas 114:6 — Noon Mushaddad with Ghunnah", "الْجَنَّةِ (سورۃ الناس ۱۱۴:۶)", "2-count Ghunnah on Noon.", Pair(114, 6))
@@ -729,13 +729,13 @@ object LearnIslamCurriculumData {
             ruleSummaryUrdu = "نون ساکن اور تنوین کے ۴ قواعد: (۱) اظہارِ حلقی (ء ہ ع ح غ خ سے پہلے بغیر غنہ صاف پڑھنا)؛ (۲) ادغام ('یَرْمَلُوْنَ' کے حروف سے پہلے ملانا: ی م و ن میں غنہ کے ساتھ، ل اور ر میں بغیر غنہ)؛ (۳) اقلاب (ب سے پہلے نون کو چھوٹی م سے بدل کر غنہ کرنا)؛ (۴) اخفاء (باقی ۱۵ حروف سے پہلے ناک میں آواز چھپا کر غنہ کرنا)۔ علاماتِ وقف: 〇 (آیت کا اختتام)، مـ (وقفِ لازم)، ط (وقفِ مطلق)، ج (وقفِ جائز)۔",
             editionNote = "Lesson 16 in classical 17-lesson Haqqani Qaida (corresponds to Lessons 16–20 in 21-lesson web editions).",
             practiceItems = listOf(
-                QaidaPracticeItem("l16_01", "مِنْ بَعْدِ", "Mim-ba'di (Iqlab)", "Noon Sakinah before Baa turns into Meem with 2-count Ghunnah", "مِنْ بَعْدِ (اقلاب — نون کو میم سے بدل کر غنہ کریں)", "Notice the miniature Meem over Noon."),
-                QaidaPracticeItem("l16_02", "سَمِيعٌ بَصِيرٌ", "Samee'um-Baseer (Iqlab)", "Tanween before Baa turns into Meem with Ghunnah", "سَمِيْعٌۢ بَصِيْرٌ (اقلاب)", "Gentle labial contact with 2-count Ghunnah."),
+                QaidaPracticeItem("l16_01", "مِنْ بَعْدِ", "Mim-ba'di (Iqlab)", "Surah Al-Bayyinah 98:4 — Noon Sakinah before Baa turns into Meem with 2-count Ghunnah", "مِنْ بَعْدِ (اقلاب — نون کو میم سے بدل کر غنہ کریں)", "Notice the miniature Meem over Noon.", Pair(98, 4)),
+                QaidaPracticeItem("l16_02", "سَمِيعٌ بَصِيرٌ", "Samee'um-Baseer (Iqlab)", "Surah Al-Hajj 22:75 — Tanween before Baa turns into Meem with Ghunnah", "سَمِيْعٌۢ بَصِيْرٌ (اقلاب)", "Gentle labial contact with 2-count Ghunnah.", Pair(22, 75)),
                 QaidaPracticeItem("l16_03", "مَنْ يَقُولُ", "May-yaqoolu (Idgham bi-Ghunnah)", "Surah Al-Baqarah 2:8 — Noon merges into Yaa with 2-count Ghunnah", "مَنْ يَّقُوْلُ (ادغام مع الغنہ)", "Merge Noon into Yaa with nasal resonance.", Pair(2, 8)),
                 QaidaPracticeItem("l16_04", "مِنْ رَبِّهِمْ", "Mir-Rabbihim (Idgham bila Ghunnah)", "Surah Al-Baqarah 2:5 — Noon merges completely into Raa WITHOUT Ghunnah", "مِنْ رَّبِّهِمْ (ادغام بلا غنہ)", "No nasal sound on Raa; merge cleanly.", Pair(2, 5)),
-                QaidaPracticeItem("l16_05", "مِنْ لَدُنْهُ", "Mil-ladunhu (Idgham bila Ghunnah)", "Noon merges completely into Laam WITHOUT Ghunnah", "مِنْ لَّدُنْهُ (ادغام بلا غنہ)", "Merge directly into Laam."),
+                QaidaPracticeItem("l16_05", "مِنْ لَدُنْهُ", "Mil-ladunhu (Idgham bila Ghunnah)", "Surah Al-Kahf 18:2 — Noon merges completely into Laam WITHOUT Ghunnah", "مِنْ لَّدُنْهُ (ادغام بلا غنہ)", "Merge directly into Laam.", Pair(18, 2)),
                 QaidaPracticeItem("l16_06", "مِنْ شَرِّ", "Min-sharri (Ikhfa Haqiqi)", "Surah Al-Falaq 113:2 — Hide Noon in the nose for 2 counts before Sheen", "مِنْ شَرِّ (سورۃ الفلق ۱۱۳:۲ — اخفاء حقیقی)", "2-count light nasal Ikhfa.", Pair(113, 2)),
-                QaidaPracticeItem("l16_07", "أَنْتُمْ", "Antum (Ikhfa)", "Noon Sakinah before Taa has 2-count Ikhfa", "اَنْتُمْ (اخفاء)", "Do not press tongue tip onto Taa during the Ghunnah."),
+                QaidaPracticeItem("l16_07", "أَنْتُمْ", "Antum (Ikhfa)", "Surah Al-Kafirun 109:3 — Noon Sakinah before Taa has 2-count Ikhfa", "اَنْتُمْ (اخفاء)", "Do not press tongue tip onto Taa during the Ghunnah.", Pair(109, 3)),
                 QaidaPracticeItem("l16_08", "تَرْمِيهِمْ بِحِجَارَةٍ", "Tarmeehim-bi-hijarah (Ikhfa Shafawi)", "Surah Al-Fil 105:4 — Meem Sakinah before Baa has labial Ghunnah", "تَرْمِيْهِمْ بِحِجَارَةٍ (سورۃ الفیل ۱۰۵:۴ — اخفاء شفوی)", "Hold Meem before Baa for 2 counts.", Pair(105, 4))
             ),
             quizQuestions = listOf(

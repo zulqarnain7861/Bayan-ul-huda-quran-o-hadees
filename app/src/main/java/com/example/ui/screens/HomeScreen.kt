@@ -152,50 +152,7 @@ fun HomeScreen(
       Spacer(modifier = Modifier.height(12.dp))
     }
 
-    // 1. PRIORITY 1 ON HOME: Sehri / Iftari Timings & Fasting Duas (Prophetic Hadith First)
-    item {
-      val adjustedSehri = prayerSchedule?.fajrTime?.let { rawFajr ->
-        com.example.data.prayer.SehriIftarTimetableEngine.applyMinuteAdjustment(
-          rawFajr,
-          prayerConfig.sehriAdjustmentMinutes
-        )
-      }
-      val adjustedIftar = prayerSchedule?.maghribTime?.let { rawMaghrib ->
-        com.example.data.prayer.SehriIftarTimetableEngine.applyMinuteAdjustment(
-          rawMaghrib,
-          prayerConfig.iftarAdjustmentMinutes
-        )
-      }
-      SpecialRamadanDuasShowcaseCard(
-        duas = DailyDuasDataProvider.ramadanSpecialDuas,
-        onOpenSehriIftarTimetable = onNavigateToSehriIftar,
-        todaySehriEnds = adjustedSehri,
-        todayIftarTime = adjustedIftar,
-        cityName = "${prayerConfig.city}, ${prayerConfig.country}",
-        prayerConfig = prayerConfig,
-        onUpdatePrayerConfig = onUpdatePrayerConfig,
-        modifier = Modifier.testTag("home_ramadan_duas_and_timetable_card")
-      )
-      Spacer(modifier = Modifier.height(16.dp))
-    }
-
-    // 2. PRIORITY 2 ON HOME: Five Daily Salah Times, Adhan & Real-Time Alarm Audio Level
-    item {
-      SalahAndFajrAlarmCard(
-        schedule = prayerSchedule,
-        config = prayerConfig,
-        alarmPlaybackState = alarmPlaybackState,
-        onUpdateConfig = onUpdatePrayerConfig,
-        onRefreshSchedule = onRefreshPrayerSchedule,
-        onTestAzanOrFajrAlarm = onTestAzanOrFajrAlarm,
-        onStopActiveAlarm = onStopActiveAlarm,
-        onSnoozeActiveAlarm = onSnoozeActiveAlarm,
-        onOpenQiblaCompass = onNavigateToQibla
-      )
-      Spacer(modifier = Modifier.height(16.dp))
-    }
-
-    // 3. Learn Quran & Noorani Qaida Card (Restored on Home screen, above "Resume")
+    // 1. TOP ON HOME: Start Learning — Learn Quran & Noorani Qaida (above Sehri/Iftari & Resume)
     item {
       Card(
         modifier = Modifier
@@ -208,7 +165,7 @@ fun HomeScreen(
         ),
         border = androidx.compose.foundation.BorderStroke(1.5.dp, GoldPrimary)
       ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
           Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -220,7 +177,7 @@ fun HomeScreen(
                 color = GoldPrimary.copy(alpha = 0.22f)
               ) {
                 Text(
-                  text = "DARASGAH & MADRASAH CURRICULUM",
+                  text = "START LEARNING • DARASGAH & MADRASAH CURRICULUM",
                   style = MaterialTheme.typography.labelSmall.copy(
                     color = GoldPrimary,
                     fontWeight = FontWeight.ExtraBold
@@ -247,9 +204,9 @@ fun HomeScreen(
               )
             }
           }
-          Spacer(modifier = Modifier.height(8.dp))
+          Spacer(modifier = Modifier.height(6.dp))
           Text(
-            text = "21 Noorani Qaida lessons (Makharij, Harakat, Tanween, Madd & Tajweed), Six Kalimas, Iman-e-Mufassal/Mujmal, Complete Namaz & Wudu, and Daily Duas with authentic Quranic verse audio & quizzes.",
+            text = "17 Noorani Qaida lessons (Makharij, Harakat, Tanween, Madd & Tajweed with Voice), Six Kalimas, Iman-e-Mufassal/Mujmal, Complete Namaz & Wudu, and Daily Duas.",
             style = MaterialTheme.typography.bodySmall.copy(
               color = Color.White.copy(alpha = 0.9f),
               lineHeight = 18.sp
@@ -270,12 +227,55 @@ fun HomeScreen(
             Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-              text = "Open Learn Quran & Noorani Qaida",
+              text = "Start Learning — Noorani Qaida & Quran",
               style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold)
             )
           }
         }
       }
+      Spacer(modifier = Modifier.height(14.dp))
+    }
+
+    // 2. Sehri / Iftari Timings & Fasting Duas (Prophetic Hadith First)
+    item {
+      val adjustedSehri = prayerSchedule?.fajrTime?.let { rawFajr ->
+        com.example.data.prayer.SehriIftarTimetableEngine.applyMinuteAdjustment(
+          rawFajr,
+          prayerConfig.sehriAdjustmentMinutes
+        )
+      }
+      val adjustedIftar = prayerSchedule?.maghribTime?.let { rawMaghrib ->
+        com.example.data.prayer.SehriIftarTimetableEngine.applyMinuteAdjustment(
+          rawMaghrib,
+          prayerConfig.iftarAdjustmentMinutes
+        )
+      }
+      SpecialRamadanDuasShowcaseCard(
+        duas = DailyDuasDataProvider.ramadanSpecialDuas,
+        onOpenSehriIftarTimetable = onNavigateToSehriIftar,
+        todaySehriEnds = adjustedSehri,
+        todayIftarTime = adjustedIftar,
+        cityName = "${prayerConfig.city}, ${prayerConfig.country}",
+        prayerConfig = prayerConfig,
+        onUpdatePrayerConfig = onUpdatePrayerConfig,
+        modifier = Modifier.testTag("home_ramadan_duas_and_timetable_card")
+      )
+      Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    // 3. Five Daily Salah Times, Adhan & Real-Time Alarm Audio Level
+    item {
+      SalahAndFajrAlarmCard(
+        schedule = prayerSchedule,
+        config = prayerConfig,
+        alarmPlaybackState = alarmPlaybackState,
+        onUpdateConfig = onUpdatePrayerConfig,
+        onRefreshSchedule = onRefreshPrayerSchedule,
+        onTestAzanOrFajrAlarm = onTestAzanOrFajrAlarm,
+        onStopActiveAlarm = onStopActiveAlarm,
+        onSnoozeActiveAlarm = onSnoozeActiveAlarm,
+        onOpenQiblaCompass = onNavigateToQibla
+      )
       Spacer(modifier = Modifier.height(16.dp))
     }
 

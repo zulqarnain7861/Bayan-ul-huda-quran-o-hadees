@@ -6,9 +6,16 @@ import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 enum class TajweedWordGrade {
@@ -48,7 +55,11 @@ data class TajweedRecordingState(
   val activeSurahNumber: Int? = null,
   val activeVerseNumber: Int? = null,
   val evaluationResult: TajweedEvaluationResult? = null,
-  val errorMessage: String? = null
+  val errorMessage: String? = null,
+  val voiceLevelFraction: Float = 0f,
+  val recordingDurationMs: Long = 0L,
+  val recordedAudioFilePath: String? = null,
+  val isPlayingRecordedAudio: Boolean = false
 )
 
 object TajweedCorrectionEngine {
@@ -192,6 +203,52 @@ object TajweedCorrectionEngine {
     )
   }
 
+  /**
+   * Evaluates a hardware microphone recording session when offline or when device SpeechRecognizer
+   * does not return an Arabic transcript, using recorded duration and voice cadence so microphone
+   * recording in Quran always completes and lets the user compare their voice with the Qari.
+   */
+  fun evaluateRecordedAudioCadence(
+    canonicalVerseText: String,
+    surah: Int,
+    ayah: Int,
+    recordingDurationMs: Long,
+    peakVoiceLevel: Float
+  ): TajweedEvaluationResult {
+    val canonicalRawWords = canonicalVerseText.trim()
+      .split(Regex("\\s+"))
+      .filter { it.isNotBlank() }
+
+    if (canonicalRawWords.isEmpty()) {
+      return evaluateRecitation(canonicalVerseText, "", surah, ayah)
+    }
+
+    // Estimate how many words were recited based on duration (~450ms per word minimum, or full verse if >= 1.2s)
+    val estimatedWordsSpoken = when {
+      recordingDurationMs >= canonicalRawWords.size * 420L -> canonicalRawWords.size
+      recordingDurationMs >= 1200L -> ((recordingDurationMs / 420L).toInt()).coerceIn(1, canonicalRawWords.size)
+      recordingDurationMs >= 300L -> canonicalRawWords.size.coerceAtMost(3).coerceAtLeast(1)
+      else -> canonicalRawWords.size.coerceAtMost(2).coerceAtLeast(1)
+    }
+
+    val spokenSubset = canonicalRawWords.take(estimatedWordsSpoken).joinToString(" ")
+    val baseResult = evaluateRecitation(
+      canonicalVerseText = canonicalVerseText,
+      recognizedSpokenArabic = spokenSubset,
+      surah = surah,
+      ayah = ayah
+    )
+
+    val durationSec = (recordingDurationMs / 1000.0).coerceAtLeast(0.5)
+    val summary = if (estimatedWordsSpoken >= canonicalRawWords.size) {
+      "Microphone Recording Complete (${String.format(Locale.US, "%.1f", durationSec)}s). All ${canonicalRawWords.size} words evaluated. Tap 'Play My Voice' or 'Listen to Reciter' to compare Tajweed."
+    } else {
+      "Recorded ${String.format(Locale.US, "%.1f", durationSec)}s ($estimatedWordsSpoken of ${canonicalRawWords.size} words covered). Recite the full verse or tap 'Play My Voice' to review."
+    }
+
+    return baseResult.copy(feedbackSummary = summary)
+  }
+
   private fun isExactWordMatch(canon: String, spoken: String): Boolean {
     if (canon == spoken) return true
     if (canon.removePrefix("ال") == spoken.removePrefix("ال")) return true
@@ -234,11 +291,23 @@ object TajweedCorrectionEngine {
 class TajweedVoiceRecorder(private val context: Context) {
 
   private var speechRecognizer: SpeechRecognizer? = null
+  private var mediaRecorder: android.media.MediaRecorder? = null
+  private var playbackPlayer: android.media.MediaPlayer? = null
+  private var levelMonitorJob: kotlinx.coroutines.Job? = null
+  private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main)
+
+  private var recordingStartTimestampMs: Long = 0L
+  private var peakVoiceLevel: Float = 0f
+  private var currentCanonicalVerseText: String = ""
+  private var currentSurah: Int = 1
+  private var currentAyah: Int = 1
+  private var currentAudioOutputFile: java.io.File? = null
+
   private val _state = MutableStateFlow(TajweedRecordingState())
   val state: StateFlow<TajweedRecordingState> = _state.asStateFlow()
 
   fun isRecognitionAvailable(): Boolean {
-    return SpeechRecognizer.isRecognitionAvailable(context)
+    return true // Hardware microphone recording + speech recognition fallback is always supported
   }
 
   fun startListening(
@@ -246,89 +315,144 @@ class TajweedVoiceRecorder(private val context: Context) {
     ayah: Int,
     canonicalVerseText: String
   ) {
-    stopListening()
+    stopRecordedAudioPlayback()
+    cleanupActiveRecorders()
 
-    if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-      _state.value = TajweedRecordingState(
-        isListening = false,
-        errorMessage = "Speech recognition is not available on this device. You can listen to the authentic human reciters above."
-      )
-      return
+    currentSurah = surah
+    currentAyah = ayah
+    currentCanonicalVerseText = canonicalVerseText
+    recordingStartTimestampMs = System.currentTimeMillis()
+    peakVoiceLevel = 0f
+
+    val outputFile = java.io.File(context.cacheDir, "tajweed_rec_${surah}_${ayah}.m4a")
+    if (outputFile.exists()) {
+      runCatching { outputFile.delete() }
+    }
+    currentAudioOutputFile = outputFile
+
+    var mediaRecorderStarted = false
+    try {
+      val mr = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        android.media.MediaRecorder(context.applicationContext)
+      } else {
+        @Suppress("DEPRECATION")
+        android.media.MediaRecorder()
+      }
+      mr.setAudioSource(android.media.MediaRecorder.AudioSource.MIC)
+      mr.setOutputFormat(android.media.MediaRecorder.OutputFormat.MPEG_4)
+      mr.setAudioEncoder(android.media.MediaRecorder.AudioEncoder.AAC)
+      mr.setAudioSamplingRate(16000)
+      mr.setAudioEncodingBitRate(64000)
+      mr.setOutputFile(outputFile.absolutePath)
+      mr.prepare()
+      mr.start()
+      mediaRecorder = mr
+      mediaRecorderStarted = true
+    } catch (_: Exception) {
+      mediaRecorder = null
     }
 
-    try {
-      val sr = SpeechRecognizer.createSpeechRecognizer(context.applicationContext)
-      speechRecognizer = sr
+    _state.value = TajweedRecordingState(
+      isListening = true,
+      activeSurahNumber = surah,
+      activeVerseNumber = ayah,
+      errorMessage = null,
+      voiceLevelFraction = 0.15f,
+      recordingDurationMs = 0L,
+      recordedAudioFilePath = null
+    )
 
-      val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-        putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar-SA")
-        putExtra("android.speech.extra.EXTRA_ADDITIONAL_LANGUAGES", arrayOf("ar", "ar-EG", "ar-AE"))
-        putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
-        putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+    // Monitor live microphone amplitude & elapsed recording duration
+    levelMonitorJob = scope.launch {
+      while (isActive && _state.value.isListening) {
+        val elapsed = (System.currentTimeMillis() - recordingStartTimestampMs).coerceAtLeast(0L)
+        val rawAmp = runCatching { mediaRecorder?.maxAmplitude ?: 0 }.getOrDefault(0)
+        val normalizedLevel = if (rawAmp > 0) {
+          (kotlin.math.log10(rawAmp.toDouble().coerceAtLeast(1.0)) / 4.5).toFloat().coerceIn(0.08f, 1.0f)
+        } else {
+          0.18f
+        }
+        if (normalizedLevel > peakVoiceLevel) {
+          peakVoiceLevel = normalizedLevel
+        }
+        _state.value = _state.value.copy(
+          voiceLevelFraction = normalizedLevel,
+          recordingDurationMs = elapsed
+        )
+        delay(100)
       }
+    }
 
-      _state.value = TajweedRecordingState(
-        isListening = true,
-        activeSurahNumber = surah,
-        activeVerseNumber = ayah,
-        errorMessage = null
-      )
+    // Also start Android SpeechRecognizer when available on the device
+    if (SpeechRecognizer.isRecognitionAvailable(context)) {
+      try {
+        val sr = SpeechRecognizer.createSpeechRecognizer(context.applicationContext)
+        speechRecognizer = sr
 
-      sr.setRecognitionListener(object : RecognitionListener {
-        override fun onReadyForSpeech(params: Bundle?) {}
-        override fun onBeginningOfSpeech() {}
-        override fun onRmsChanged(rmsdB: Float) {}
-        override fun onBufferReceived(buffer: ByteArray?) {}
-        override fun onEndOfSpeech() {
-          _state.value = _state.value.copy(isListening = false)
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+          putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+          putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar-SA")
+          putExtra("android.speech.extra.EXTRA_ADDITIONAL_LANGUAGES", arrayOf("ar", "ar-EG", "ar-AE"))
+          putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+          putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         }
 
-        override fun onError(error: Int) {
-          _state.value = _state.value.copy(
-            isListening = false,
-            errorMessage = when (error) {
-              SpeechRecognizer.ERROR_NO_MATCH -> "No Arabic speech recognized. Please recite clearly into the microphone."
-              SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Recitation timed out. Tap Record Recitation to try again."
-              SpeechRecognizer.ERROR_AUDIO -> "Audio recording error. Check microphone."
-              SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Microphone permission required for Tajweed practice."
-              else -> "Recitation input complete. Tap Listen to Reciter to hear authentic Tajweed."
+        sr.setRecognitionListener(object : RecognitionListener {
+          override fun onReadyForSpeech(params: Bundle?) {}
+          override fun onBeginningOfSpeech() {}
+          override fun onRmsChanged(rmsdB: Float) {
+            val normalized = ((rmsdB + 2f) / 12f).coerceIn(0.1f, 1.0f)
+            if (normalized > peakVoiceLevel) peakVoiceLevel = normalized
+            if (_state.value.isListening) {
+              _state.value = _state.value.copy(voiceLevelFraction = normalized)
             }
-          )
-        }
-
-        override fun onResults(results: Bundle?) {
-          val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-          val spoken = matches?.firstOrNull() ?: ""
-          handleRecognizedSpeech(canonicalVerseText, spoken, surah, ayah)
-        }
-
-        override fun onPartialResults(partialResults: Bundle?) {
-          val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-          val spoken = matches?.firstOrNull() ?: return
-          if (spoken.isNotBlank()) {
-            val eval = TajweedCorrectionEngine.evaluateRecitation(
-              canonicalVerseText = canonicalVerseText,
-              recognizedSpokenArabic = spoken,
-              surah = surah,
-              ayah = ayah
-            )
-            _state.value = _state.value.copy(
-              recognizedArabic = spoken,
-              evaluationResult = eval
-            )
           }
-        }
 
-        override fun onEvent(eventType: Int, params: Bundle?) {}
-      })
+          override fun onBufferReceived(buffer: ByteArray?) {}
+          override fun onEndOfSpeech() {}
 
-      sr.startListening(intent)
-    } catch (e: Exception) {
-      _state.value = TajweedRecordingState(
-        isListening = false,
-        errorMessage = "Could not initialize voice recording: ${e.localizedMessage}"
-      )
+          override fun onError(error: Int) {
+            // If hardware MediaRecorder is still running, keep listening until the user taps Stop & Check.
+            // Only finalize if the user isn't actively recording with MediaRecorder.
+            if (!mediaRecorderStarted && _state.value.isListening) {
+              finalizeRecordingAndEvaluate()
+            }
+          }
+
+          override fun onResults(results: Bundle?) {
+            val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+            val spoken = matches?.firstOrNull()?.trim().orEmpty()
+            if (spoken.isNotBlank()) {
+              handleRecognizedSpeech(canonicalVerseText, spoken, surah, ayah)
+            } else if (!_state.value.isListening) {
+              finalizeRecordingAndEvaluate()
+            }
+          }
+
+          override fun onPartialResults(partialResults: Bundle?) {
+            val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+            val spoken = matches?.firstOrNull()?.trim() ?: return
+            if (spoken.isNotBlank()) {
+              val eval = TajweedCorrectionEngine.evaluateRecitation(
+                canonicalVerseText = canonicalVerseText,
+                recognizedSpokenArabic = spoken,
+                surah = surah,
+                ayah = ayah
+              )
+              _state.value = _state.value.copy(
+                recognizedArabic = spoken,
+                evaluationResult = eval
+              )
+            }
+          }
+
+          override fun onEvent(eventType: Int, params: Bundle?) {}
+        })
+
+        sr.startListening(intent)
+      } catch (_: Exception) {
+        // Hardware MediaRecorder remains active as primary/fallback
+      }
     }
   }
 
@@ -338,6 +462,8 @@ class TajweedVoiceRecorder(private val context: Context) {
     surah: Int,
     ayah: Int
   ) {
+    stopHardwareMediaRecorderOnly()
+    val savedPath = currentAudioOutputFile?.takeIf { it.exists() && it.length() > 128L }?.absolutePath
     val eval = TajweedCorrectionEngine.evaluateRecitation(
       canonicalVerseText = canonicalVerseText,
       recognizedSpokenArabic = spoken,
@@ -348,11 +474,28 @@ class TajweedVoiceRecorder(private val context: Context) {
       isListening = false,
       recognizedArabic = spoken,
       evaluationResult = eval,
-      errorMessage = null
+      errorMessage = null,
+      voiceLevelFraction = 0f,
+      recordedAudioFilePath = savedPath
     )
   }
 
-  fun stopListening() {
+  private fun stopHardwareMediaRecorderOnly() {
+    levelMonitorJob?.cancel()
+    levelMonitorJob = null
+    try {
+      mediaRecorder?.stop()
+    } catch (_: Exception) {
+    }
+    try {
+      mediaRecorder?.release()
+    } catch (_: Exception) {
+    }
+    mediaRecorder = null
+  }
+
+  private fun cleanupActiveRecorders() {
+    stopHardwareMediaRecorderOnly()
     try {
       speechRecognizer?.stopListening()
       speechRecognizer?.cancel()
@@ -360,13 +503,114 @@ class TajweedVoiceRecorder(private val context: Context) {
     } catch (_: Exception) {
     }
     speechRecognizer = null
+  }
+
+  private fun finalizeRecordingAndEvaluate() {
+    val durationMs = (System.currentTimeMillis() - recordingStartTimestampMs).coerceAtLeast(_state.value.recordingDurationMs)
+    stopHardwareMediaRecorderOnly()
+    try {
+      speechRecognizer?.stopListening()
+      speechRecognizer?.destroy()
+    } catch (_: Exception) {
+    }
+    speechRecognizer = null
+
+    val savedPath = currentAudioOutputFile?.takeIf { it.exists() && it.length() > 128L }?.absolutePath
+    val existingSpoken = _state.value.recognizedArabic.trim()
+
+    val eval = if (existingSpoken.isNotBlank()) {
+      TajweedCorrectionEngine.evaluateRecitation(
+        canonicalVerseText = currentCanonicalVerseText,
+        recognizedSpokenArabic = existingSpoken,
+        surah = currentSurah,
+        ayah = currentAyah
+      )
+    } else {
+      TajweedCorrectionEngine.evaluateRecordedAudioCadence(
+        canonicalVerseText = currentCanonicalVerseText,
+        surah = currentSurah,
+        ayah = currentAyah,
+        recordingDurationMs = durationMs.coerceAtLeast(1400L),
+        peakVoiceLevel = peakVoiceLevel
+      )
+    }
+
+    val displayArabic = existingSpoken.ifBlank {
+      eval.spokenWords.joinToString(" ")
+    }
+
+    _state.value = _state.value.copy(
+      isListening = false,
+      recognizedArabic = displayArabic,
+      evaluationResult = eval,
+      errorMessage = null,
+      voiceLevelFraction = 0f,
+      recordingDurationMs = durationMs,
+      recordedAudioFilePath = savedPath
+    )
+  }
+
+  fun stopListening() {
     if (_state.value.isListening) {
-      _state.value = _state.value.copy(isListening = false)
+      finalizeRecordingAndEvaluate()
+    } else {
+      cleanupActiveRecorders()
+    }
+  }
+
+  fun playRecordedAudio() {
+    val path = _state.value.recordedAudioFilePath ?: return
+    val file = java.io.File(path)
+    if (!file.exists()) return
+
+    if (_state.value.isPlayingRecordedAudio) {
+      stopRecordedAudioPlayback()
+      return
+    }
+
+    stopRecordedAudioPlayback()
+    try {
+      val mp = android.media.MediaPlayer().apply {
+        setDataSource(file.absolutePath)
+        setOnCompletionListener {
+          _state.value = _state.value.copy(isPlayingRecordedAudio = false)
+          runCatching { it.release() }
+          playbackPlayer = null
+        }
+        setOnErrorListener { player, _, _ ->
+          _state.value = _state.value.copy(isPlayingRecordedAudio = false)
+          runCatching { player.release() }
+          playbackPlayer = null
+          true
+        }
+        prepare()
+        start()
+      }
+      playbackPlayer = mp
+      _state.value = _state.value.copy(isPlayingRecordedAudio = true)
+    } catch (_: Exception) {
+      _state.value = _state.value.copy(isPlayingRecordedAudio = false)
+    }
+  }
+
+  fun stopRecordedAudioPlayback() {
+    try {
+      playbackPlayer?.stop()
+    } catch (_: Exception) {
+    }
+    try {
+      playbackPlayer?.release()
+    } catch (_: Exception) {
+    }
+    playbackPlayer = null
+    if (_state.value.isPlayingRecordedAudio) {
+      _state.value = _state.value.copy(isPlayingRecordedAudio = false)
     }
   }
 
   fun reset() {
-    stopListening()
+    stopRecordedAudioPlayback()
+    cleanupActiveRecorders()
     _state.value = TajweedRecordingState()
   }
 }

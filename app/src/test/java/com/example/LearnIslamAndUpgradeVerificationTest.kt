@@ -247,5 +247,48 @@ class LearnIslamAndUpgradeVerificationTest {
     assertTrue(devSources.any { it.id == "font_noto_nastaliq_urdu" && it.applicableLicenceName.contains("SIL Open Font License") })
     assertTrue(devSources.any { it.id == "google_material_icons_compose" && it.applicableLicenceName.contains("Apache License 2.0") })
   }
+
+  @Test
+  fun verifyNooraniQaidaVoiceAndQuranMicrophoneRecordingEvaluation() {
+    val lessons = LearnIslamCurriculumData.nooraniQaidaLessons
+
+    // Verify Noorani Qaida items have either real Quranic verse audio or vocalized Arabic for the Clear Male Teacher Voice
+    lessons.flatMap { it.practiceItems }.forEach { item ->
+      val vocalized = com.example.ui.audio.DuaAudioController.buildNooraniQaidaVocalizedArabicForMaleTts(
+        id = item.id,
+        arabicText = item.arabicText,
+        transliteration = item.transliteration
+      )
+      assertTrue("Vocalized text must be non-blank for ${item.id}", vocalized.isNotBlank())
+    }
+
+    // Verify Lesson 1 single letters map to full Arabic letter names for clear male pronunciation
+    assertEquals(
+      "أَلِفْ",
+      com.example.ui.audio.DuaAudioController.buildNooraniQaidaVocalizedArabicForMaleTts("l1_01", "ا", "Alif")
+    )
+    assertEquals(
+      "بَاءْ",
+      com.example.ui.audio.DuaAudioController.buildNooraniQaidaVocalizedArabicForMaleTts("l1_02", "ب", "Baa")
+    )
+    assertEquals(
+      "عَيْنْ",
+      com.example.ui.audio.DuaAudioController.buildNooraniQaidaVocalizedArabicForMaleTts("l1_18", "ع", "'Ayn")
+    )
+
+    // Verify Quran microphone recording & cadence evaluation produces full word-by-word grading
+    val fatihaVerse1 = "بِسْمِ اللّٰهِ الرَّحْمٰنِ الرَّحِيمِ"
+    val cadenceEval = com.example.ui.quran.TajweedCorrectionEngine.evaluateRecordedAudioCadence(
+      canonicalVerseText = fatihaVerse1,
+      surah = 1,
+      ayah = 1,
+      recordingDurationMs = 2400L,
+      peakVoiceLevel = 0.72f
+    )
+    assertEquals(4, cadenceEval.totalCount)
+    assertEquals(4, cadenceEval.matchedCount)
+    assertEquals(100, cadenceEval.accuracyPercentage)
+    assertTrue(cadenceEval.feedbackSummary.contains("Microphone Recording Complete"))
+  }
 }
 

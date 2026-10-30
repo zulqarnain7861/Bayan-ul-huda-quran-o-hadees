@@ -184,66 +184,6 @@ fun DailyDuasScreen(
     contentPadding = PaddingValues(vertical = 12.dp),
     verticalArrangement = Arrangement.spacedBy(12.dp)
   ) {
-    // 0. TOP PRIORITY IN DUAS: Learn Quran & Islam — Noorani Qaida, 6 Kalimas, Iman & Namaz
-    item {
-      ElevatedCard(
-        modifier = Modifier
-          .fillMaxWidth()
-          .clickable { onNavigateToLearnIslam() }
-          .testTag("duas_top_learn_quran_qaida_card"),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.elevatedCardColors(
-          containerColor = Color(0xFF0A4D3C)
-        ),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
-      ) {
-        Row(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          Column(modifier = Modifier.weight(1f)) {
-            Text(
-              text = "📖 Learn Quran & Noorani Qaida • نورانی قاعدہ اور نماز",
-              style = MaterialTheme.typography.titleMedium.copy(
-                fontWeight = FontWeight.ExtraBold,
-                color = Color.White
-              )
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-              text = "Noorani Qaida (17 Lessons + Audio) • 6 Kalimas & Iman • Wudu & Namaz-e-Mutarjam • Daily Masnoon Duas",
-              style = MaterialTheme.typography.bodySmall.copy(
-                color = Color(0xFFD8F3DC),
-                lineHeight = 18.sp
-              )
-            )
-          }
-          Spacer(modifier = Modifier.width(10.dp))
-          Button(
-            onClick = onNavigateToLearnIslam,
-            colors = ButtonDefaults.buttonColors(
-              containerColor = GoldPrimary,
-              contentColor = Color(0xFF073B2E)
-            ),
-            shape = RoundedCornerShape(12.dp),
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-            modifier = Modifier.testTag("duas_open_learn_quran_btn")
-          ) {
-            Text(
-              text = "Learn Quran",
-              fontSize = 12.sp,
-              fontWeight = FontWeight.ExtraBold,
-              maxLines = 1,
-              softWrap = false
-            )
-          }
-        }
-      }
-    }
-
     // 1. Header Banner with Arabic Calligraphy & Section Tabs
     item {
       ElevatedCard(

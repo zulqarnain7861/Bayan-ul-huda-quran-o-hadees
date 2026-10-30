@@ -546,20 +546,33 @@ fun TajweedPracticeDialog(
             border = BorderStroke(1.dp, Color(0xFF00E676)),
             modifier = Modifier.fillMaxWidth()
           ) {
-            Row(
+            Column(
               modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-              verticalAlignment = Alignment.CenterVertically
+                .padding(12.dp)
             ) {
-              CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color(0xFF00E676), strokeWidth = 2.dp)
-              Spacer(modifier = Modifier.width(10.dp))
-              Text(
-                text = "Listening... Recite word #1 → #${canonicalWords.size} aloud in Arabic now.",
-                style = MaterialTheme.typography.bodySmall.copy(
-                  fontWeight = FontWeight.SemiBold,
-                  color = Color(0xFF00E676)
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color(0xFF00E676), strokeWidth = 2.dp)
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                  text = "Recording (${String.format(java.util.Locale.US, "%.1f", recordingState.recordingDurationMs / 1000f)}s)... Recite word #1 → #${canonicalWords.size} aloud now.",
+                  style = MaterialTheme.typography.bodySmall.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF00E676)
+                  )
                 )
+              }
+              Spacer(modifier = Modifier.height(6.dp))
+              androidx.compose.material3.LinearProgressIndicator(
+                progress = { recordingState.voiceLevelFraction.coerceIn(0.05f, 1f) },
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .height(6.dp),
+                color = Color(0xFF00E676),
+                trackColor = Color.White.copy(alpha = 0.2f)
               )
             }
           }
@@ -658,6 +671,30 @@ fun TajweedPracticeDialog(
               fontWeight = FontWeight.Bold,
               maxLines = 1,
               overflow = TextOverflow.Ellipsis
+            )
+          }
+        }
+
+        if (recordingState.recordedAudioFilePath != null && !recordingState.isListening) {
+          Spacer(modifier = Modifier.height(8.dp))
+          OutlinedButton(
+            onClick = { recorder.playRecordedAudio() },
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("tajweed_play_my_voice_button")
+          ) {
+            Icon(
+              imageVector = if (recordingState.isPlayingRecordedAudio) Icons.Default.MicOff else Icons.Default.VolumeUp,
+              contentDescription = "Play My Recorded Voice",
+              tint = GoldPrimary,
+              modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+              text = if (recordingState.isPlayingRecordedAudio) "Stop My Recorded Voice" else "Play My Recorded Voice (Compare with Qari)",
+              fontWeight = FontWeight.Bold,
+              fontSize = 12.sp
             )
           }
         }

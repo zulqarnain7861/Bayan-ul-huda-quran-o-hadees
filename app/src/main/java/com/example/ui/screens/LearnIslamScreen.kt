@@ -207,7 +207,8 @@ fun LearnIslamScreen(
                                 transliteration = item.transliteration,
                                 englishText = item.makhrajOrRuleEnglish,
                                 urduText = item.makhrajOrRuleUrdu,
-                                quranSurahAyah = item.quranSurahAyah
+                                quranSurahAyah = item.quranSurahAyah,
+                                allowClearMaleAiVoiceFallback = true
                             )
                         }
                     )
@@ -689,7 +690,7 @@ private fun NooraniQaidaSectionContent(
                             FilledIconButton(
                                 onClick = { onPlayItem(item) },
                                 colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = if (isItemPlaying) Color(0xFFD4AF37) else if (item.quranSurahAyah != null) Color(0xFF0A4D3C) else Color(0xFF5D4037),
+                                    containerColor = if (isItemPlaying) Color(0xFFD4AF37) else if (item.quranSurahAyah != null) Color(0xFF0A4D3C) else Color(0xFF1B5E20),
                                     contentColor = if (isItemPlaying) Color(0xFF073B2E) else Color.White
                                 ),
                                 modifier = Modifier
@@ -729,9 +730,10 @@ private fun NooraniQaidaSectionContent(
                                     )
                                 } else {
                                     Text(
-                                        text = "Teacher Voice: Coming Soon",
+                                        text = "🔊 Clear Male Teacher Voice",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = Color(0xFF1B5E20),
+                                        fontWeight = FontWeight.Medium
                                     )
                                 }
                             }
