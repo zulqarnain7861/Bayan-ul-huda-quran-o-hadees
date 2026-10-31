@@ -261,10 +261,8 @@ fun LearnIslamScreen(
                         isPlaying = playbackState.isPlaying,
                         isComingSoonNotice = playbackState.isComingSoonNotice,
                         onPlayStep = { step ->
-                            val exactQuranicRef = if (step.section == "NAMAZ_MUTARJAM" || step.section == "SHORT_SURAHS") {
-                                step.quranSurahNumber?.let { Pair(it, step.quranAyahRange?.first ?: 1) }
-                            } else {
-                                null
+                            val exactQuranicRef = step.quranSurahNumber?.let {
+                                Pair(it, step.quranAyahRange?.first ?: 1)
                             }
                             duaAudioController.playLearningItem(
                                 id = step.id,
@@ -1099,6 +1097,13 @@ private fun ImanAndKalimasSectionContent(
     onPlayItem: (ImanAndKalimaItem) -> Unit
 ) {
     val selfCheckMap = remember { mutableStateMapOf<String, Boolean>() }
+    val sortedItems = remember(items) {
+        items.sortedBy { item ->
+            val hasAudio = !item.humanAudioUrl.isNullOrBlank() ||
+                DuaAudioController.hasOfflineQaidaAudioAsset(null, item.id)
+            if (hasAudio) 0 else 1
+        }
+    }
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -1132,7 +1137,7 @@ private fun ImanAndKalimasSectionContent(
             }
         }
 
-        items(items, key = { it.id }) { item ->
+        items(sortedItems, key = { it.id }) { item ->
             val isItemPlaying = isPlaying && activePlayingId == item.id
             val isItemComingSoon = isComingSoonNotice && activePlayingId == item.id
             val hasHumanAudio = (!item.humanAudioUrl.isNullOrBlank() || DuaAudioController.hasOfflineQaidaAudioAsset(null, item.id)) && !isItemComingSoon
@@ -1185,7 +1190,7 @@ private fun ImanAndKalimasSectionContent(
                                     text = if (hasHumanAudio) {
                                         "✓ Authentic Human Audio (Hisn al-Muslim)"
                                     } else {
-                                        "Real voice coming soon, In Sha Allah."
+                                        "No audio available"
                                     },
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = if (hasHumanAudio || isItemComingSoon) FontWeight.Bold else FontWeight.Medium,
@@ -1200,21 +1205,23 @@ private fun ImanAndKalimasSectionContent(
                                 )
                             }
                         }
-                        FilledIconButton(
-                            onClick = { onPlayItem(item) },
-                            colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = if (isItemPlaying) Color(0xFFD4AF37) else Color(0xFF0A4D3C),
-                                contentColor = if (isItemPlaying) Color(0xFF073B2E) else Color.White
-                            ),
-                            modifier = Modifier
-                                .size(38.dp)
-                                .testTag("iman_play_${item.id}")
-                        ) {
-                            Icon(
-                                imageVector = if (isItemPlaying) Icons.Default.Stop else Icons.Default.VolumeUp,
-                                contentDescription = "Play ${item.titleEnglish}",
-                                modifier = Modifier.size(20.dp)
-                            )
+                        if (hasHumanAudio) {
+                            FilledIconButton(
+                                onClick = { onPlayItem(item) },
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = if (isItemPlaying) Color(0xFFD4AF37) else Color(0xFF0A4D3C),
+                                    contentColor = if (isItemPlaying) Color(0xFF073B2E) else Color.White
+                                ),
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .testTag("iman_play_${item.id}")
+                            ) {
+                                Icon(
+                                    imageVector = if (isItemPlaying) Icons.Default.Stop else Icons.Default.VolumeUp,
+                                    contentDescription = "Play ${item.titleEnglish}",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
 
@@ -1333,7 +1340,13 @@ private fun NamazAndWuduSectionContent(
 ) {
     var selectedSectionFilter by remember { mutableStateOf("ALL") }
     val filteredSteps = remember(steps, selectedSectionFilter) {
-        if (selectedSectionFilter == "ALL") steps else steps.filter { it.section == selectedSectionFilter }
+        val base = if (selectedSectionFilter == "ALL") steps else steps.filter { it.section == selectedSectionFilter }
+        base.sortedBy { step ->
+            val hasAudio = step.quranSurahNumber != null ||
+                !step.humanAudioUrl.isNullOrBlank() ||
+                DuaAudioController.hasOfflineQaidaAudioAsset(null, step.id)
+            if (hasAudio) 0 else 1
+        }
     }
 
     LazyColumn(
@@ -1366,8 +1379,7 @@ private fun NamazAndWuduSectionContent(
         items(filteredSteps, key = { it.id }) { step ->
             val isStepPlaying = isPlaying && activePlayingId == step.id
             val isStepComingSoon = isComingSoonNotice && activePlayingId == step.id
-            val hasExactQuranAudio = step.quranSurahNumber != null &&
-                (step.section == "NAMAZ_MUTARJAM" || step.section == "SHORT_SURAHS")
+            val hasExactQuranAudio = step.quranSurahNumber != null
             val hasVerifiedHumanAudio = (!step.humanAudioUrl.isNullOrBlank() || DuaAudioController.hasOfflineQaidaAudioAsset(null, step.id)) && !isStepComingSoon
             var showScholarlyDiff by remember { mutableStateOf(false) }
 
@@ -1418,8 +1430,8 @@ private fun NamazAndWuduSectionContent(
                                     Text(
                                         text = when {
                                             hasExactQuranAudio -> "✓ Exact Quran Verse (${step.quranSurahNumber}:${step.quranAyahRange?.first ?: 1})"
-                                            hasVerifiedHumanAudio -> "✓ Authentic Human Audio (Hisn al-Muslim)"
-                                            else -> "Real voice coming soon, In Sha Allah."
+                                            hasVerifiedHumanAudio -> "✓ Authentic Human Audio (Hisn al-Muslim / Masnun Dua)"
+                                            else -> "No audio available"
                                         },
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = if (hasExactQuranAudio || hasVerifiedHumanAudio || isStepComingSoon) FontWeight.Bold else FontWeight.Medium,
@@ -1451,21 +1463,23 @@ private fun NamazAndWuduSectionContent(
                             )
                         }
 
-                        FilledIconButton(
-                            onClick = { onPlayStep(step) },
-                            colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = if (isStepPlaying) Color(0xFFD4AF37) else Color(0xFF0A4D3C),
-                                contentColor = if (isStepPlaying) Color(0xFF073B2E) else Color.White
-                            ),
-                            modifier = Modifier
-                                .size(38.dp)
-                                .testTag("namaz_play_${step.id}")
-                        ) {
-                            Icon(
-                                imageVector = if (isStepPlaying) Icons.Default.Stop else Icons.Default.VolumeUp,
-                                contentDescription = "Play ${step.titleEnglish}",
-                                modifier = Modifier.size(20.dp)
-                            )
+                        if (hasExactQuranAudio || hasVerifiedHumanAudio) {
+                            FilledIconButton(
+                                onClick = { onPlayStep(step) },
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = if (isStepPlaying) Color(0xFFD4AF37) else Color(0xFF0A4D3C),
+                                    contentColor = if (isStepPlaying) Color(0xFF073B2E) else Color.White
+                                ),
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .testTag("namaz_play_${step.id}")
+                            ) {
+                                Icon(
+                                    imageVector = if (isStepPlaying) Icons.Default.Stop else Icons.Default.VolumeUp,
+                                    contentDescription = "Play ${step.titleEnglish}",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
 
@@ -1625,6 +1639,12 @@ private fun DailyDuasSequenceSectionContent(
     isComingSoonNotice: Boolean = false,
     onPlayDua: (DailyDuaSequenceEntry) -> Unit
 ) {
+    val sortedDuas = remember(duas) {
+        duas.sortedBy { entry ->
+            val hasAudio = entry.quranSurahAyah != null || !entry.humanAudioUrl.isNullOrBlank()
+            if (hasAudio) 0 else 1
+        }
+    }
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -1658,7 +1678,7 @@ private fun DailyDuasSequenceSectionContent(
             }
         }
 
-        items(duas, key = { it.duaId }) { entry ->
+        items(sortedDuas, key = { it.duaId }) { entry ->
             val isEntryPlaying = isPlaying && activePlayingId == entry.duaId
             val isEntryComingSoon = isComingSoonNotice && activePlayingId == entry.duaId
             val hasExactQuranAudio = entry.quranSurahAyah != null
@@ -1725,7 +1745,7 @@ private fun DailyDuasSequenceSectionContent(
                                     text = when {
                                         hasExactQuranAudio -> "✓ Exact Quran Verse (${entry.quranSurahAyah?.first}:${entry.quranSurahAyah?.second})"
                                         hasVerifiedHumanAudio -> "✓ Authentic Human Audio (Hisn al-Muslim)"
-                                        else -> "Real voice coming soon, In Sha Allah."
+                                        else -> "No audio available"
                                     },
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = if (hasExactQuranAudio || hasVerifiedHumanAudio || isEntryComingSoon) FontWeight.Bold else FontWeight.Medium,
@@ -1740,21 +1760,23 @@ private fun DailyDuasSequenceSectionContent(
                                 )
                             }
                         }
-                        FilledIconButton(
-                            onClick = { onPlayDua(entry) },
-                            colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = if (isEntryPlaying) Color(0xFFD4AF37) else Color(0xFF0A4D3C),
-                                contentColor = if (isEntryPlaying) Color(0xFF073B2E) else Color.White
-                            ),
-                            modifier = Modifier
-                                .size(38.dp)
-                                .testTag("seq_dua_play_${entry.duaId}")
-                        ) {
-                            Icon(
-                                imageVector = if (isEntryPlaying) Icons.Default.Stop else Icons.Default.VolumeUp,
-                                contentDescription = "Play ${entry.titleEnglish}",
-                                modifier = Modifier.size(20.dp)
-                            )
+                        if (hasExactQuranAudio || hasVerifiedHumanAudio) {
+                            FilledIconButton(
+                                onClick = { onPlayDua(entry) },
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = if (isEntryPlaying) Color(0xFFD4AF37) else Color(0xFF0A4D3C),
+                                    contentColor = if (isEntryPlaying) Color(0xFF073B2E) else Color.White
+                                ),
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .testTag("seq_dua_play_${entry.duaId}")
+                            ) {
+                                Icon(
+                                    imageVector = if (isEntryPlaying) Icons.Default.Stop else Icons.Default.VolumeUp,
+                                    contentDescription = "Play ${entry.titleEnglish}",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
 
@@ -1956,14 +1978,16 @@ fun SehriNiyatDedicatedSectionCard(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
                             }
-                            IconButton(
-                                onClick = { onPlayFormula(formula) },
-                                modifier = Modifier.size(30.dp)
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = Color(0xFFF5F5F5)
                             ) {
-                                Icon(
-                                    imageVector = if (isFormulaPlaying) Icons.Default.Stop else Icons.Default.VolumeUp,
-                                    contentDescription = "Play ${formula.labelEnglish}",
-                                    tint = Color(0xFF0A4D3C)
+                                Text(
+                                    text = "No audio available",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
                             }
                         }

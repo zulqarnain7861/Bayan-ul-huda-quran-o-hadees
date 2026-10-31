@@ -107,7 +107,18 @@ object SecurityIntegrityGuard {
     "software.sil.org",
     "fonts.google.com",
     "developer.android.com",
-    "firebase.google.com"
+    "firebase.google.com",
+    "youtube.com",
+    "www.youtube.com",
+    "youtube-nocookie.com",
+    "www.youtube-nocookie.com",
+    "youtu.be",
+    "ahlesunnatpak.com",
+    "www.ahlesunnatpak.com",
+    "askemam.pk",
+    "readmaududi.com",
+    "www.readmaududi.com",
+    "openlibrary.org"
   )
 
   private val ALLOWED_HTTPS_DOMAIN_SUFFIXES = listOf(

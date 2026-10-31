@@ -127,37 +127,37 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Whoever recites this with conviction in the morning and passes away before evening enters Paradise; whoever recites it with conviction in the evening and passes away before morning enters Paradise.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "sayyidul istighfar maghfirat ki dua tauba ki dua bakhshish ki dua gunah maaf karne ki dua استغفار کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n79.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/79hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_morning_remembrance",
       title = "Entering the Morning in Allah's Sovereignty (Subah Ki Dua / صبح کی دعا)",
       category = DuaCategory.MORNING_EVENING,
       occasionBadge = "Daily Morning Adhkar",
-      arabicText = "أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ",
-      transliteration = "Asbahna wa asbahal-mulku lillahi, walhamdu lillahi, la ilaha illallahu wahdahu la sharika lahu, lahul-mulku wa lahul-hamdu wa Huwa 'ala kulli shay'in Qadir.",
-      englishTranslation = "We have reached the morning and at this very time all sovereignty belongs to Allah, and all praise is for Allah. None has the right to be worshipped except Allah, alone, without partner; to Him belongs all sovereignty and praise, and He is over all things Omnipotent.",
-      urduTranslation = "ہم نے صبح کی اور اللہ کے ملک نے صبح کی، اور سب تعریف اللہ ہی کے لیے ہے، اللہ کے سوا کوئی معبود نہیں، وہ اکیلا ہے اس کا کوئی شریک نہیں، اسی کی بادشاہی ہے اور اسی کے لیے تعریف ہے اور وہ ہر چیز پر قادر ہے۔",
+      arabicText = "أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ، رَبِّ أَسْأَلُكَ خَيْرَ مَا فِي هَذَا الْيَوْمِ وَخَيْرَ مَا بَعْدَهُ، وَأَعُوذُ بِكَ مِنْ شَرِّ مَا فِي هَذَا الْيَوْمِ وَشَرِّ مَا بَعْدَهُ، رَبِّ أَعُوذُ بِكَ مِنَ الْكَسَلِ وَسُوءِ الْكِبَرِ، رَبِّ أَعُوذُ بِكَ مِنْ عَذَابٍ فِي النَّارِ وَعَذَابٍ فِي الْقَبْرِ",
+      transliteration = "Asbahna wa asbahal-mulku lillahi, walhamdu lillahi, la ilaha illallahu wahdahu la sharika lahu, lahul-mulku wa lahul-hamdu wa Huwa 'ala kulli shay'in Qadir. Rabbi as'aluka khayra ma fi hadhal-yawmi wa khayra ma ba'dahu, wa a'udhu bika min sharri ma fi hadhal-yawmi wa sharri ma ba'dahu, Rabbi a'udhu bika minal-kasali wa su'il-kibari, Rabbi a'udhu bika min 'adhabin fin-nari wa 'adhabin fil-qabr.",
+      englishTranslation = "We have reached the morning and at this very time all sovereignty belongs to Allah, and all praise is for Allah. None has the right to be worshipped except Allah, alone, without partner; to Him belongs all sovereignty and praise, and He is over all things Omnipotent. My Lord, I ask You for the good of this day and the good of what follows it, and I seek refuge in You from the evil of this day and the evil of what follows it. My Lord, I seek refuge in You from laziness and the misery of old age. My Lord, I seek refuge in You from punishment in the Fire and punishment in the grave.",
+      urduTranslation = "ہم نے صبح کی اور اللہ کے ملک نے صبح کی، اور سب تعریف اللہ ہی کے لیے ہے، اللہ کے سوا کوئی معبود نہیں، وہ اکیلا ہے اس کا کوئی شریک نہیں، اسی کی بادشاہی ہے اور اسی کے لیے تعریف ہے اور وہ ہر چیز پر قادر ہے۔ اے میرے رب! میں تجھ سے اس دن کی بھلائی اور اس کے بعد کی بھلائی مانگتا ہوں، اور اس دن کے شر اور اس کے بعد کے شر سے تیری پناہ مانگتا ہوں۔ اے میرے رب! میں سستی اور بڑھاپے کی برائی سے تیری پناہ مانگتا ہوں، اے میرے رب! میں دوزخ کے عذاب اور قبر کے عذاب سے تیری پناہ مانگتا ہوں۔",
       authenticReference = "Sahih Muslim 2723 (Narrated by Abdullah ibn Mas'ud, may Allah be pleased with him) • Hisn al-Muslim #77",
       virtueAndTiming = "Recite every morning after Fajr to begin the day affirming Tawhid and gratitude.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "subah ki dua subha ki dua morning dua fajr ke baad ki dua صبح کے اذکار",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n77.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/77hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_evening_remembrance",
       title = "Entering the Evening in Allah's Sovereignty (Shaam Ki Dua / شام کی دعا)",
       category = DuaCategory.MORNING_EVENING,
       occasionBadge = "Daily Evening Adhkar",
-      arabicText = "أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ",
-      transliteration = "Amsayna wa amsal-mulku lillahi, walhamdu lillahi, la ilaha illallahu wahdahu la sharika lahu, lahul-mulku wa lahul-hamdu wa Huwa 'ala kulli shay'in Qadir.",
-      englishTranslation = "We have reached the evening and at this very time all sovereignty belongs to Allah, and all praise is for Allah. None has the right to be worshipped except Allah, alone, without partner; to Him belongs all sovereignty and praise, and He is over all things Omnipotent.",
-      urduTranslation = "ہم نے شام کی اور اللہ کے ملک نے شام کی، اور سب تعریف اللہ ہی کے لیے ہے، اللہ کے سوا کوئی معبود نہیں، وہ اکیلا ہے اس کا کوئی شریک نہیں، اسی کی بادشاہی ہے اور اسی کے لیے تعریف ہے اور وہ ہر چیز پر قادر ہے۔",
+      arabicText = "أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ، رَبِّ أَسْأَلُكَ خَيْرَ مَا فِي هَذِهِ اللَّيْلَةِ وَخَيْرَ مَا بَعْدَهَا، وَأَعُوذُ بِكَ مِنْ شَرِّ مَا فِي هَذِهِ اللَّيْلَةِ وَشَرِّ مَا بَعْدَهَا، رَبِّ أَعُوذُ بِكَ مِنَ الْكَسَلِ وَسُوءِ الْكِبَرِ، رَبِّ أَعُوذُ بِكَ مِنْ عَذَابٍ فِي النَّارِ وَعَذَابٍ فِي الْقَبْرِ",
+      transliteration = "Amsayna wa amsal-mulku lillahi, walhamdu lillahi, la ilaha illallahu wahdahu la sharika lahu, lahul-mulku wa lahul-hamdu wa Huwa 'ala kulli shay'in Qadir. Rabbi as'aluka khayra ma fi hadhihil-laylati wa khayra ma ba'daha, wa a'udhu bika min sharri ma fi hadhihil-laylati wa sharri ma ba'daha, Rabbi a'udhu bika minal-kasali wa su'il-kibari, Rabbi a'udhu bika min 'adhabin fin-nari wa 'adhabin fil-qabr.",
+      englishTranslation = "We have reached the evening and at this very time all sovereignty belongs to Allah, and all praise is for Allah. None has the right to be worshipped except Allah, alone, without partner; to Him belongs all sovereignty and praise, and He is over all things Omnipotent. My Lord, I ask You for the good of this night and the good of what follows it, and I seek refuge in You from the evil of this night and the evil of what follows it. My Lord, I seek refuge in You from laziness and the misery of old age. My Lord, I seek refuge in You from punishment in the Fire and punishment in the grave.",
+      urduTranslation = "ہم نے شام کی اور اللہ کے ملک نے شام کی، اور سب تعریف اللہ ہی کے لیے ہے، اللہ کے سوا کوئی معبود نہیں، وہ اکیلا ہے اس کا کوئی شریک نہیں، اسی کی بادشاہی ہے اور اسی کے لیے تعریف ہے اور وہ ہر چیز پر قادر ہے۔ اے میرے رب! میں تجھ سے اس رات کی بھلائی اور اس کے بعد کی بھلائی مانگتا ہوں، اور اس رات کے شر اور اس کے بعد کے شر سے تیری پناہ مانگتا ہوں۔ اے میرے رب! میں سستی اور بڑھاپے کی برائی سے تیری پناہ مانگتا ہوں، اے میرے رب! میں دوزخ کے عذاب اور قبر کے عذاب سے تیری پناہ مانگتا ہوں۔",
       authenticReference = "Sahih Muslim 2723 • Hisn al-Muslim #78",
       virtueAndTiming = "Recite every evening after Asr or Maghrib.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "shaam ki dua sham ki dua evening dua maghrib ki dua شام کے اذکار",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n78.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/islamicapi/masnun-dua/main/audio/79.mp3"
     ),
     DailyDuaItem(
       id = "dua_protection_harm",
@@ -172,7 +172,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Recite 3 times every morning and 3 times every evening; nothing will harm the reciter.",
       recommendedCount = 3,
       searchKeywordsRomanUrduAndAliases = "hifazat ki dua nuqsan se bachne ki dua bismillahillazi la yadurru مصیبت اور نقصان سے حفاظت کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n86.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/86hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_hasbiyallah",
@@ -195,15 +195,15 @@ object DailyDuasDataProvider {
       title = "Supplication for Health in Body, Hearing & Sight (Sehat Aur Afiyat Ki Dua / صحت و عافیت کی دعا)",
       category = DuaCategory.MORNING_EVENING,
       occasionBadge = "Morning & Evening (3 Times)",
-      arabicText = "اللَّهُمَّ عَافِنِي فِي بَدَنِي، اللَّهُمَّ عَافِنِي فِي سَمْعِي، اللَّهُمَّ عَافِنِي فِي بَصَرِي، لَا إِلَهَ إِلَّا أَنْتَ",
-      transliteration = "Allahumma 'afini fi badani, Allahumma 'afini fi sam'i, Allahumma 'afini fi basari, la ilaha illa Anta.",
-      englishTranslation = "O Allah, grant health to my body; O Allah, grant health to my hearing; O Allah, grant health to my sight. There is no deity worthy of worship except You.",
-      urduTranslation = "اے اللہ! مجھے میرے بدن میں عافیت عطا فرما، اے اللہ! مجھے میری سماعت (کانوں) میں عافیت عطا فرما، اے اللہ! مجھے میری بصارت (آنکھوں) میں عافیت عطا فرما، تیرے سوا کوئی معبود نہیں۔",
+      arabicText = "اللَّهُمَّ عَافِنِي فِي بَدَنِي، اللَّهُمَّ عَافِنِي فِي سَمْعِي، اللَّهُمَّ عَافِنِي فِي بَصَرِي، لَا إِلَهَ إِلَّا أَنْتَ، اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْكُفْرِ وَالْفَقْرِ، وَأَعُوذُ بِكَ مِنْ عَذَابِ الْقَبْرِ، لَا إِلَهَ إِلَّا أَنْتَ",
+      transliteration = "Allahumma 'afini fi badani, Allahumma 'afini fi sam'i, Allahumma 'afini fi basari, la ilaha illa Anta. Allahumma inni a'udhu bika minal-kufri wal-faqri, wa a'udhu bika min 'adhabil-qabri, la ilaha illa Anta.",
+      englishTranslation = "O Allah, grant health to my body; O Allah, grant health to my hearing; O Allah, grant health to my sight. There is no deity worthy of worship except You. O Allah, I seek refuge in You from disbelief and poverty, and I seek refuge in You from the punishment of the grave. There is no deity worthy of worship except You.",
+      urduTranslation = "اے اللہ! مجھے میرے بدن میں عافیت عطا فرما، اے اللہ! مجھے میری سماعت (کانوں) میں عافیت عطا فرما، اے اللہ! مجھے میری بصارت (آنکھوں) میں عافیت عطا فرما، تیرے سوا کوئی معبود نہیں۔ اے اللہ! میں کفر اور محتاجی سے تیری پناہ مانگتا ہوں، اور قبر کے عذاب سے تیری پناہ مانگتا ہوں، تیرے سوا کوئی معبود نہیں۔",
       authenticReference = "Sunan Abi Dawud 5090 • Musnad Ahmad 20430 (Hasan) • Hisn al-Muslim #82",
       virtueAndTiming = "Recite 3 times in the morning and 3 times in the evening for lifelong preservation of health, hearing, and eyesight.",
       recommendedCount = 3,
       searchKeywordsRomanUrduAndAliases = "sehat ki dua afiyat ki dua badani sam'i basari aankhon aur kaanon ki hifazat صحت اور عافیت کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n82.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/82hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_morning_evening_raditu_billahi",
@@ -218,7 +218,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Whoever recites this 3 times in the morning and 3 times in the evening, it is a promise from Allah to make him pleased on the Day of Resurrection.",
       recommendedCount = 3,
       searchKeywordsRomanUrduAndAliases = "raditu billahi rabban razi hone ki dua iman ki tajdeed صبح و شام راضی ہونے کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n87.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/87hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_morning_evening_ya_hayyu_ya_qayyum",
@@ -233,7 +233,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Taught by the Prophet ﷺ to his daughter Fatimah (RA) to recite every morning and evening.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "ya hayyu ya qayyum birahmatika astaghith pareshani ki dua kaam sanwarne ki dua یا حی یا قیوم برحمتک استغیث",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n88.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/88hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_morning_evening_subhanallahi_wa_bihamdihi",
@@ -248,7 +248,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "The Prophet ﷺ told Juwayriyah (RA) that reciting these four phrases 3 times outweighs sitting in remembrance from Fajr until mid-morning.",
       recommendedCount = 3,
       searchKeywordsRomanUrduAndAliases = "subhanallahi wa bihamdihi adada khalqihi fajr ke baad ki tasbih سبحان اللہ وبحمدہ عدد خلقہ",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n94.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/94hm.mp3"
     ),
 
     // =========================================================================
@@ -267,7 +267,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Whenever the Messenger of Allah ﷺ concluded his prayer with Salam, he would immediately seek forgiveness three times and recite this praise.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "namaz ke baad ki dua farz namaz ke baad ki dua allahumma antas salam astaghfirullah نماز کے بعد کے اذکار",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n66.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/66hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_after_salah_tahlil_la_mani",
@@ -282,7 +282,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Recited by the Prophet ﷺ at the conclusion of every obligatory prayer.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "namaz ke baad ki dua allahumma la mania lima atayta farz نماز کے بعد کی مسنون دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n67.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/67hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_after_salah_ainni_dhikrika",
@@ -297,7 +297,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "The Prophet ﷺ took Mu'adh ibn Jabal (RA) by the hand and said: 'O Mu'adh, by Allah I love you; never forget to say at the end of every prayer: Allahumma a'inni 'ala dhikrika wa shukrika wa husni 'ibadatika.'",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "allahumma ainni ala zikrika wa shukrika wa husni ibadatika muadh namaz ke baad ki dua اللھم اعنی علی ذکرک",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n59.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/59hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_after_salah_tasbih_fatimi",
@@ -312,7 +312,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Whoever recites this after every prayer will have his sins forgiven even if they are like the foam of the sea (Sahih Muslim 597).",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "tasbih fatimi subhanallah 33 alhamdulillah 33 allahu akbar 34 namaz ke baad tasbih تسبیح فاطمی",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n69.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/69hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_after_salah_fajr_ilman_nafian",
@@ -327,7 +327,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "The Prophet ﷺ used to recite this supplication every morning after concluding the Fajr prayer.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "fajr ke baad ki dua ilman nafian rizqan tayyiban amalan mutaqabbalan اللھم انی اسئلک علما نافعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n73.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/73hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_after_adhan_wasilah",
@@ -342,7 +342,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Repeat after the Mu'adhin, send Salawat upon the Prophet ﷺ (Sahih Muslim 384), then recite this Dua to earn the Prophet's ﷺ intercession on the Day of Judgment.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "azan ki dua adhan ke baad ki dua allahumma rabba hazihid dawatit tammah اذان کے بعد کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n25.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/25hm.mp3"
     ),
 
     // =========================================================================
@@ -361,7 +361,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Perform Wudu before sleeping, lie on the right side, dust the bed, and recite this supplication.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "sone se pehle ki dua sonay se pehlay ki dua sone ki dua sote waqt ki dua neend ki dua sleeping dua before sleep رات کو سونے کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n105.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/105hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_waking_up",
@@ -376,7 +376,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Recite immediately upon opening your eyes from sleep.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "so kar uthne ki dua neend se uthne ki dua jaagne ki dua jagne ki dua waking up dua نیند سے جاگنے کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n1.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/1hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_wearing_garment",
@@ -387,11 +387,11 @@ object DailyDuasDataProvider {
       transliteration = "Alhamdu lillahilladhi kasani hadhath-thawba wa razaqanihi min ghayri hawlin minni wa la quwwah.",
       englishTranslation = "All praise is for Allah Who has clothed me with this garment and provided it for me, without any power or might from myself.",
       urduTranslation = "تمام تعریفیں اس اللہ کے لیے ہیں جس نے مجھے یہ لباس پہنایا اور میری کسی طاقت اور قوت کے بغیر مجھے یہ عطا فرمایا۔",
-      authenticReference = "Sunan Abi Dawud 4023 • Jami' at-Tirmidhi 3458 (Hasan) • Hisn al-Muslim #6",
+      authenticReference = "Sunan Abi Dawud 4023 • Jami' at-Tirmidhi 3458 (Hasan) • Hisn al-Muslim #5",
       virtueAndTiming = "Whoever recites this when putting on a garment has their previous minor sins forgiven.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "kapde pehanne ki dua kapray pehnay ki dua libas ki dua new dress clothes لباس پہننے کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n6.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/5hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_looking_mirror_aaina",
@@ -425,22 +425,22 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Drink water with the right hand while sitting, in three breaths: say 'Bismillah' before drinking and 'Alhamdulillah' (or this complete praise) after finishing.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "pani peene ki dua paani peenay ki dua pani pina water drinking dua پینے کا پانی پانی پینے کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n12.mp3"
+      humanAudioUrl = null
     ),
     DailyDuaItem(
       id = "dua_before_eating_khana",
       title = "Dua Before Eating a Meal (Khana Khane Se Pehle Ki Dua / کھانا کھانے سے پہلے کی دعا)",
       category = DuaCategory.HOME_MASJID,
       occasionBadge = "Before Eating & Drinking",
-      arabicText = "بِسْمِ اللَّهِ وَعَلَى بَرَكَةِ اللَّهِ ۝ بِسْمِ اللَّهِ أَوَّلَهُ وَآخِرَهُ",
-      transliteration = "Bismillahi wa 'ala barakatillahi. (If forgotten at start: Bismillahi awwalahu wa akhirahu.)",
-      englishTranslation = "In the Name of Allah and with the blessings of Allah. (If one forgets at the beginning: In the Name of Allah at its beginning and at its end.)",
-      urduTranslation = "اللہ کے نام کے ساتھ اور اللہ کی برکت پر۔ (اگر شروع میں بھول جائے تو پڑھے: اللہ کے نام کے ساتھ اس کے اول اور آخر میں۔)",
+      arabicText = "بِسْمِ اللَّهِ ۝ (فَإِنْ نَسِيَ فِي أَوَّلِهِ فَلْيَقُلْ: بِسْمِ اللَّهِ فِي أَوَّلِهِ وَآخِرِهِ)",
+      transliteration = "Bismillah. (Fa-in nasiya fi awwalihi fal-yaqul: Bismillahi fi awwalihi wa akhirihi.)",
+      englishTranslation = "In the Name of Allah. (If one forgets at the beginning, let him say: In the Name of Allah at its beginning and at its end.)",
+      urduTranslation = "اللہ کے نام سے۔ (اور اگر شروع میں بھول جائے تو کہے: اللہ کے نام کے ساتھ اس کے اول اور آخر میں۔)",
       authenticReference = "Sunan Abi Dawud 3767 • Jami' at-Tirmidhi 1858 (Sahih) • Al-Mustadrak al-Hakim 7076 • Hisn al-Muslim #178",
       virtueAndTiming = "Recite before starting any meal and eat with the right hand from what is nearest to you.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "khana khane ki dua khana khane se pehle ki dua khana shuru karne ki dua eating food meal کھانا کھانے کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n178.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/178hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_after_eating",
@@ -455,7 +455,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Whoever recites this after eating a meal has their past minor sins forgiven.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "khana khane ke baad ki dua khana khatam karne ki dua after eating food کھانا کھانے کے بعد کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n180.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/180hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_drinking_milk_doodh",
@@ -470,7 +470,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Taught by the Prophet ﷺ specifically when drinking milk, as milk nourishes both hunger and thirst.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "doodh peene ki dua dudh peenay ki dua milk dua دودھ پینے کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n179.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/islamicapi/masnun-dua/main/audio/504.mp3"
     ),
     DailyDuaItem(
       id = "dua_leaving_home",
@@ -485,22 +485,22 @@ object DailyDuasDataProvider {
       virtueAndTiming = "It is said to the one who recites this upon leaving home: 'You are guided, sufficed, and protected,' and Satan steps aside.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "ghar se nikalne ki dua ghar se bahar jane ki dua leaving home house باہر نکلنے کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n16.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/16hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_entering_home",
       title = "Dua When Entering the Home (Ghar Mein Dakhil Hone Ki Dua / گھر میں داخل ہونے کی دعا)",
       category = DuaCategory.HOME_MASJID,
       occasionBadge = "Entering Home",
-      arabicText = "بِسْمِ اللَّهِ وَلَجْنَا، وَبِسْمِ اللَّهِ خَرَجْنَا، وَعَلَى رَبِّنَا تَوَكَّلْنَا",
-      transliteration = "Bismillahi walajna, wa bismillahi kharajna, wa 'ala Rabbina tawakkalna.",
-      englishTranslation = "In the Name of Allah we enter, in the Name of Allah we leave, and upon our Lord we rely.",
-      urduTranslation = "اللہ ہی کے نام کے ساتھ ہم داخل ہوئے، اور اللہ ہی کے نام کے ساتھ ہم نکلے، اور اپنے رب ہی پر ہم نے بھروسہ کیا۔",
+      arabicText = "بِسْمِ اللَّهِ وَلَجْنَا، وَبِسْمِ اللَّهِ خَرَجْنَا، وَعَلَى رَبِّنَا تَوَكَّلْنَا، ثُمَّ لِيُسَلِّمْ عَلَى أَهْلِهِ",
+      transliteration = "Bismillahi walajna, wa bismillahi kharajna, wa 'ala Rabbina tawakkalna, thumma liyusallim 'ala ahlihi.",
+      englishTranslation = "In the Name of Allah we enter, in the Name of Allah we leave, and upon our Lord we rely — then let him greet his family with Salam.",
+      urduTranslation = "اللہ ہی کے نام کے ساتھ ہم داخل ہوئے، اور اللہ ہی کے نام کے ساتھ ہم نکلے، اور اپنے رب ہی پر ہم نے بھروسہ کیا، پھر اپنے گھر والوں کو سلام کرے۔",
       authenticReference = "Sunan Abi Dawud 5096 • Sahih Muslim 2018 (Mentioning Allah's Name upon entering) • Hisn al-Muslim #18",
       virtueAndTiming = "Mention Allah's Name when entering the home and greet your family with 'As-Salamu Alaykum' so blessing descends upon the household.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "ghar mein dakhil hone ki dua ghar aane ki dua entering home گھر آنے کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n18.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/18hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_entering_masjid",
@@ -515,22 +515,22 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Enter the Masjid with the right foot first while reciting this supplication.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "masjid mein dakhil hone ki dua masjid jane ki dua entering mosque مسجد کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n20.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/islamicapi/masnun-dua/main/audio/175.mp3"
     ),
     DailyDuaItem(
       id = "dua_leaving_masjid",
       title = "Dua When Leaving the Masjid (Masjid Se Nikalne Ki Dua / مسجد سے نکلنے کی دعا)",
       category = DuaCategory.HOME_MASJID,
       occasionBadge = "Leaving Mosque (Left Foot First)",
-      arabicText = "بِسْمِ اللَّهِ وَالصَّلَاةُ وَالسَّلَامُ عَلَى رَسُولِ اللَّهِ، اللَّهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ",
-      transliteration = "Bismillahi was-salatu was-salamu 'ala Rasulillahi, Allahumma inni as'aluka min fadlik.",
-      englishTranslation = "In the Name of Allah, and peace and blessings be upon the Messenger of Allah. O Allah, I ask You from Your bounty.",
-      urduTranslation = "اللہ کے نام کے ساتھ، اور رسول اللہ ﷺ پر درود و سلام ہو۔ اے اللہ! میں تجھ سے تیرے فضل کا سوال کرتا ہوں۔",
+      arabicText = "بِسْمِ اللَّهِ وَالصَّلَاةُ وَالسَّلَامُ عَلَى رَسُولِ اللَّهِ، اللَّهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ، اللَّهُمَّ اعْصِمْنِي مِنَ الشَّيْطَانِ الرَّجِيمِ",
+      transliteration = "Bismillahi was-salatu was-salamu 'ala Rasulillahi, Allahumma inni as'aluka min fadlika, Allahumma'simni minash-shaytanir-rajim.",
+      englishTranslation = "In the Name of Allah, and peace and blessings be upon the Messenger of Allah. O Allah, I ask You from Your bounty. O Allah, protect me from Satan, the accursed.",
+      urduTranslation = "اللہ کے نام کے ساتھ، اور رسول اللہ ﷺ پر درود و سلام ہو۔ اے اللہ! میں تجھ سے تیرے فضل کا سوال کرتا ہوں۔ اے اللہ! مجھے شیطان مردود سے محفوظ رکھ۔",
       authenticReference = "Sahih Muslim 713 • Sunan Ibn Majah 773 • Hisn al-Muslim #21",
-      virtueAndTiming = "Step out of the Masjid with the left foot first and ask Allah for His lawful bounty.",
+      virtueAndTiming = "Step out of the Masjid with the left foot first and ask Allah for His lawful bounty and protection.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "masjid se nikalne ki dua masjid se bahar aane ki dua leaving mosque مسجد سے نکلنے کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n21.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/21hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_after_wudu",
@@ -545,37 +545,37 @@ object DailyDuasDataProvider {
       virtueAndTiming = "All eight gates of Paradise are opened for the one who performs Wudu thoroughly and recites this testimony.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "wazu ki dua wudu ki dua wazu ke baad ki dua ablution وضو کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n13.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/13hm.mp3|https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/14hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_entering_washroom",
       title = "Dua Before Entering the Restroom (Bait-ul-Khala Mein Dakhil Hone Ki Dua / بیت الخلاء میں داخل ہونے کی دعا)",
       category = DuaCategory.HOME_MASJID,
       occasionBadge = "Entering Restroom (Left Foot First)",
-      arabicText = "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْخُبُثِ وَالْخَبَائِثِ",
-      transliteration = "Allahumma inni a'udhu bika minal-khubuthi wal-khaba'ith.",
-      englishTranslation = "O Allah, I seek refuge in You from all impure and evil spirits (male and female devils).",
-      urduTranslation = "اے اللہ! میں خبیث جنوں اور خبیث جنیوں (ہر قسم کی ناپاکی اور شر) سے تیری پناہ مانگتا ہوں۔",
+      arabicText = "بِسْمِ اللَّهِ، اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْخُبُثِ وَالْخَبَائِثِ",
+      transliteration = "Bismillahi, Allahumma inni a'udhu bika minal-khubuthi wal-khaba'ith.",
+      englishTranslation = "In the Name of Allah. O Allah, I seek refuge in You from all impure and evil spirits (male and female devils).",
+      urduTranslation = "اللہ کے نام سے۔ اے اللہ! میں خبیث جنوں اور خبیث جنیوں (ہر قسم کی ناپاکی اور شر) سے تیری پناہ مانگتا ہوں۔",
       authenticReference = "Sahih al-Bukhari 142 • Sahih Muslim 375 • Hisn al-Muslim #10",
       virtueAndTiming = "Recite before stepping into the washroom with your left foot.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "bait ul khala ki dua washroom jane ki dua toilet ki dua bathroom mein dakhil hone ki dua بیت الخلاء کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n10.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/10hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_leaving_washroom",
       title = "Dua Upon Leaving the Restroom (Bait-ul-Khala Se Nikalne Ki Dua / بیت الخلاء سے نکلنے کی دعا)",
       category = DuaCategory.HOME_MASJID,
       occasionBadge = "Leaving Restroom (Right Foot First)",
-      arabicText = "غُفْرَانَكَ، الْحَمْدُ لِلَّهِ الَّذِي أَذْهَبَ عَنِّي الْأَذَى وَعَافَانِي",
-      transliteration = "Ghufranaka. Alhamdu lillahilladhi adh-haba 'annil-adha wa 'afani.",
-      englishTranslation = "I seek Your forgiveness. All praise is for Allah Who has removed harm from me and granted me relief and health.",
-      urduTranslation = "اے اللہ! میں تیری بخشش چاہتا ہوں۔ تمام تعریفیں اللہ کے لیے ہیں جس نے مجھ سے تکلیف دہ چیز کو دور کیا اور مجھے عافیت دی۔",
-      authenticReference = "Sunan Abi Dawud 30 • Sunan Ibn Majah 301 • Hisn al-Muslim #11",
-      virtueAndTiming = "Step out of the washroom with the right foot and recite this supplication.",
+      arabicText = "غُفْرَانَكَ",
+      transliteration = "Ghufranaka.",
+      englishTranslation = "I seek Your forgiveness (O Allah).",
+      urduTranslation = "اے اللہ! میں تیری بخشش چاہتا ہوں۔",
+      authenticReference = "Sunan Abi Dawud 30 • Jami' at-Tirmidhi 7 • Sunan Ibn Majah 300 (Sahih) • Hisn al-Muslim #11",
+      virtueAndTiming = "Step out of the washroom with the right foot and say 'Ghufranaka' (Sunan Abi Dawud 30; also reported in Ibn Majah 301: 'Alhamdu lillahilladhi adh-haba 'annil-adha wa 'afani').",
       recommendedCount = 1,
-      searchKeywordsRomanUrduAndAliases = "bait ul khala se nikalne ki dua washroom se bahar aane ki dua toilet leaving dua بیت الخلاء سے نکلنے کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n11.mp3"
+      searchKeywordsRomanUrduAndAliases = "bait ul khala se nikalne ki dua washroom se bahar aane ki dua toilet leaving dua ghufranaka بیت الخلاء سے نکلنے کی دعا",
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/11hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_entering_market_bazar",
@@ -590,7 +590,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Remembering Allah in a place of heedlessness such as the marketplace carries immense reward and protection.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "bazar ki dua bazaar mein jane ki dua market shopping dua بازار میں داخل ہونے کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n209.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/209hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_when_angry_ghussa",
@@ -601,11 +601,11 @@ object DailyDuasDataProvider {
       transliteration = "A'udhu billahi minash-shaytanir-rajim.",
       englishTranslation = "I seek refuge in Allah from Satan, the accursed.",
       urduTranslation = "میں اللہ کی پناہ مانگتا ہوں شیطان مردود کے شر سے۔",
-      authenticReference = "Sahih al-Bukhari 6115 • Sahih Muslim 2610 • Hisn al-Muslim #192",
+      authenticReference = "Sahih al-Bukhari 6115 • Sahih Muslim 2610 • Hisn al-Muslim #193",
       virtueAndTiming = "The Prophet ﷺ said: 'I know a word which, if he were to say it, what he feels (of anger) would go away: A'udhu billahi minash-shaytanir-rajim.'",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "gusse ki dua ghussa kam karne ki dua anger dua غصے کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n192.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/193hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_protection_evil_eye_nazar",
@@ -620,7 +620,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Prophet Ibrahim (AS) used to seek protection with these words for Isma'il and Ishaq (AS), and Prophet Muhammad ﷺ recited them for Imam Hasan and Imam Husayn (AS).",
       recommendedCount = 3,
       searchKeywordsRomanUrduAndAliases = "nazar ki dua nazar e bad ki dua buri nazar se bachne ki dua bachon ki hifazat evil eye نظر بد کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n146.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/146hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_sneezing_chheenk",
@@ -635,7 +635,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Responding to a Muslim who sneezes and praises Allah (Tashmit al-'Atis) is one of the mutual rights of a Muslim over another (Sahih al-Bukhari 1240).",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "chheenk ki dua cheenk aane ki dua yarhamukallah yahdikumullahu sneezing dua چھینک کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n188.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/188hm.mp3"
     ),
 
     // =========================================================================
@@ -719,7 +719,7 @@ object DailyDuasDataProvider {
       recommendedCount = 1,
       quranSurahAyah = 14 to 40,
       searchKeywordsRomanUrduAndAliases = "namaz ki pabandi ki dua walidain ki maghfirat ki dua rabbij alni muqimas salah",
-      humanAudioUrl = "https://everyayah.com/data/Alafasy_128kbps/014040.mp3"
+      humanAudioUrl = "https://everyayah.com/data/Alafasy_128kbps/014040.mp3|https://everyayah.com/data/Alafasy_128kbps/014041.mp3"
     ),
     DailyDuaItem(
       id = "dua_rabbana_hab_lana",
@@ -751,7 +751,7 @@ object DailyDuasDataProvider {
       recommendedCount = 1,
       quranSurahAyah = 20 to 25,
       searchKeywordsRomanUrduAndAliases = "rabbishrah li sadri imtihan ki dua speech confidence kaam asan hone ki dua",
-      humanAudioUrl = "https://everyayah.com/data/Alafasy_128kbps/020025.mp3"
+      humanAudioUrl = "https://everyayah.com/data/Alafasy_128kbps/020025.mp3|https://everyayah.com/data/Alafasy_128kbps/020026.mp3|https://everyayah.com/data/Alafasy_128kbps/020027.mp3|https://everyayah.com/data/Alafasy_128kbps/020028.mp3"
     ),
 
     // =========================================================================
@@ -771,7 +771,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "The Prophet ﷺ said: 'Increase your supplications for blessings upon me on Friday and the night of Friday, for your Salawat is presented to me.'",
       recommendedCount = 10,
       searchKeywordsRomanUrduAndAliases = "durood sharif durood ibrahimi salawat jumuah ki dua درود شریف",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n53.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/53hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_ramadan_sehri_niyyah",
@@ -787,7 +787,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Form the sincere intention before Fajr to fast tomorrow for Allah's sake and partake of the blessed pre-dawn Suhoor (Sehri) meal.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "sehri ki dua sehri ki niyat roza rakhne ki dua suhoor dua wabi soum gadan nowut wa bisawmi ghadin nawaytu سحری کی دعا روزہ رکھنے کی نیت",
-      humanAudioUrl = "https://everyayah.com/data/Alafasy_128kbps/002187.mp3"
+      humanAudioUrl = null
     ),
     DailyDuaItem(
       id = "dua_ramadan_iftar",
@@ -803,7 +803,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Break the fast at Maghrib sunset with dates or water saying 'Bismillah', then recite this authentic Prophetic supplication (Sunan Abi Dawud 2357).",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "iftar ki dua roza kholne ki dua roza iftar dua zahaba al-zama'u wabtallatil-'urooqu dhahabadh-dhama'u افطار کی دعا روزہ کھولنے کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n176.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/176hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_ramadan_first_ashra_mercy",
@@ -836,7 +836,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Recite frequently throughout the middle ten days (Second Ashra) of Ramadan for sincere repentance and forgiveness of sins.",
       recommendedCount = 7,
       searchKeywordsRomanUrduAndAliases = "doosre ashre ki dua second ashra dua maghfirat ki dua دوسرا عشرہ مغفرت",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n248.mp3"
+      humanAudioUrl = null
     ),
     DailyDuaItem(
       id = "dua_ramadan_third_ashra_nijat",
@@ -884,7 +884,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Recited whenever sighting the new crescent moon at the start of Ramadan, Shawwal (Eid al-Fitr), Dhul-Hijjah, or any Hijri month.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "chand dekhne ki dua naya chand dekhne ki dua hilal crescent moon چاند دیکھنے کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n175.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/islamicapi/masnun-dua/main/audio/312.mp3"
     ),
     DailyDuaItem(
       id = "dua_eid_greeting",
@@ -900,7 +900,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "The Companions of the Prophet ﷺ used to greet one another with these words when meeting on the day of Eid.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "eid ki dua taqabbalallahu minna wa minkum عید کی دعا",
-      humanAudioUrl = "https://raw.githubusercontent.com/islamicapi/masnun-dua/main/audio/930.mp3"
+      humanAudioUrl = null
     ),
 
     // =========================================================================
@@ -912,15 +912,15 @@ object DailyDuasDataProvider {
       category = DuaCategory.SPECIAL_OCCASIONS,
       occasionType = SpecialOccasionType.JANAZA_FUNERAL,
       occasionBadge = "Janaza Prayer (After 3rd Takbeer)",
-      arabicText = "اللَّهُمَّ اغْفِرْ لِحَيِّنَا وَمَيِّتِنَا، وَشَاهِدِنَا وَغَائِبِنَا، وَصَغِيرِنَا وَكَبِيرِنَا، وَذَكَرِنَا وَأُنْثَانَا، اللَّهُمَّ مَنْ أَحْيَيْتَهُ مِنَّا فَأَحْيِهِ عَلَى الْإِسْلَامِ، وَمَنْ تَوَفَّيْتَهُ مِنَّا فَتَوَفَّهُ عَلَى الْإِيمَانِ",
-      transliteration = "Allahummaghfir lihayyina wa mayyitina, wa shahidina wa gha'ibina, wa saghirina wa kabirina, wa dhakarina wa unthana. Allahumma man ahyaytahu minna fa-ahyihi 'alal-Islam, wa man tawaffaytahu minna fatawaffahu 'alal-iman.",
-      englishTranslation = "O Allah, forgive our living and our deceased, those of us who are present and those who are absent, our young and our old, our males and our females. O Allah, whomever among us You keep alive, keep him alive upon Islam, and whomever among us You cause to die, cause him to die upon Faith (Iman).",
-      urduTranslation = "اے اللہ! ہمارے زندوں اور ہمارے فوت شدگان کی مغفرت فرما، ہمارے حاضر اور غائب کو، ہمارے چھوٹوں اور بڑوں کو، اور ہمارے مردوں اور عورتوں کو بخش دے۔ اے اللہ! ہم میں سے جسے تو زندہ رکھے اسے اسلام پر زندہ رکھ، اور ہم میں سے جسے تو وفات دے اسے ایمان پر وفات نصیب فرما۔",
+      arabicText = "اللَّهُمَّ اغْفِرْ لِحَيِّنَا وَمَيِّتِنَا، وَشَاهِدِنَا وَغَائِبِنَا، وَصَغِيرِنَا وَكَبِيرِنَا، وَذَكَرِنَا وَأُنْثَانَا، اللَّهُمَّ مَنْ أَحْيَيْتَهُ مِنَّا فَأَحْيِهِ عَلَى الْإِسْلَامِ، وَمَنْ تَوَفَّيْتَهُ مِنَّا فَتَوَفَّهُ عَلَى الْإِيمَانِ، اللَّهُمَّ لَا تَحْرِمْنَا أَجْرَهُ وَلَا تُضِلَّنَا بَعْدَهُ",
+      transliteration = "Allahummaghfir lihayyina wa mayyitina, wa shahidina wa gha'ibina, wa saghirina wa kabirina, wa dhakarina wa unthana. Allahumma man ahyaytahu minna fa-ahyihi 'alal-Islam, wa man tawaffaytahu minna fatawaffahu 'alal-iman. Allahumma la tahrimna ajrahu wa la tudillana ba'dahu.",
+      englishTranslation = "O Allah, forgive our living and our deceased, those of us who are present and those who are absent, our young and our old, our males and our females. O Allah, whomever among us You keep alive, keep him alive upon Islam, and whomever among us You cause to die, cause him to die upon Faith (Iman). O Allah, do not deprive us of his reward and do not let us go astray after him.",
+      urduTranslation = "اے اللہ! ہمارے زندوں اور ہمارے فوت شدگان کی مغفرت فرما، ہمارے حاضر اور غائب کو، ہمارے چھوٹوں اور بڑوں کو، اور ہمارے مردوں اور عورتوں کو بخش دے۔ اے اللہ! ہم میں سے جسے تو زندہ رکھے اسے اسلام پر زندہ رکھ، اور ہم میں سے جسے تو وفات دے اسے ایمان پر وفات نصیب فرما۔ اے اللہ! ہمیں اس کے اجر سے محروم نہ فرما اور اس کے بعد ہمیں گمراہی میں نہ ڈال۔",
       authenticReference = "Sunan Abi Dawud 3201 • Jami' at-Tirmidhi 1024 • Sunan Ibn Majah 1498 (Sahih) • Hisn al-Muslim #157",
       virtueAndTiming = "Recited in Salat al-Janaza after the 3rd Takbeer (following Sana after the 1st Takbeer and Durood-e-Ibrahimi after the 2nd Takbeer).",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "namaz e janaza ki dua janaze ki dua mayyat ki dua बालिग مرد و عورت کے جنازے کی دعا allahummaghfir lihayyina wa mayyitina نماز جنازہ کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n157.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/157hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_janaza_adult_comprehensive",
@@ -936,7 +936,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Recited by the Prophet ﷺ over a deceased Muslim in Salat al-Janaza.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "janaza dua sahih muslim allahummaghfir lahu warhamhu mayyat ki maghfirat ki dua جنازے کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n156.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/156hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_janaza_child_boy_girl",
@@ -952,7 +952,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Recited after the 3rd Takbeer in the funeral prayer of a minor child (using the masculine pronoun 'hu' for a boy and feminine pronoun 'ha' for a girl).",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "bache ke janaze ki dua bachi ke janaze ki dua nabaligh ke janaze ki dua allahummaj alhu lana faratan بچے کے جنازے کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n161.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/160hm.mp3|https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/161hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_janaza_placing_in_grave",
@@ -968,7 +968,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Recited when gently placing the deceased Muslim into the grave facing the Qiblah.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "mayyat ko qabar mein rakhne ki dua dafan karne ki dua bismillahi wa ala millati rasulillah قبر میں رکھنے کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n163.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/163hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_janaza_visiting_graves",
@@ -984,7 +984,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Taught by the Prophet ﷺ to his Companions whenever they went out to visit the graves.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "qabristan ki dua qabar par jane ki dua as salamu alaykum ahlad diyari قبرستان کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n165.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/165hm.mp3"
     ),
 
     DailyDuaItem(
@@ -1002,7 +1002,7 @@ object DailyDuasDataProvider {
       recommendedCount = 1,
       quranSurahAyah = 43 to 13,
       searchKeywordsRomanUrduAndAliases = "safar ki dua safar shuru karne ki dua sawari ki dua gari mein baithne ki dua travel journey dua سفر کی دعا سواری کی دعا",
-      humanAudioUrl = "https://everyayah.com/data/Alafasy_128kbps/043013.mp3"
+      humanAudioUrl = "https://everyayah.com/data/Alafasy_128kbps/043013.mp3|https://everyayah.com/data/Alafasy_128kbps/043014.mp3"
     ),
     DailyDuaItem(
       id = "dua_rain_falling",
@@ -1018,7 +1018,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "The time of rainfall is a blessed time when supplications are accepted by Allah.",
       recommendedCount = 3,
       searchKeywordsRomanUrduAndAliases = "barish ki dua baarish hone ki dua rain dua بارش کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n172.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/172hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_illness_shifa",
@@ -1030,11 +1030,11 @@ object DailyDuasDataProvider {
       transliteration = "Allahumma Rabban-nasi, adh-hibil-ba'sa, ishfi Antash-Shafi, la shifa'a illa shifa'uka, shifa'an la yughadiru saqama.",
       englishTranslation = "O Allah, Lord of mankind, remove the affliction; cure, for You are the Healer. There is no cure except Your cure — a cure that leaves no illness behind.",
       urduTranslation = "اے اللہ! انسانوں کے رب! تکلیف کو دور فرما دے، شفا عطا فرما کیونکہ تو ہی شفا دینے والا ہے، تیری شفا کے سوا کوئی شفا نہیں، ایسی شفا عطا فرما جو کسی بیماری کو باقی نہ چھوڑے۔",
-      authenticReference = "Sahih al-Bukhari 5743 • Sahih Muslim 2191 • Hisn al-Muslim #147–148",
+      authenticReference = "Sahih al-Bukhari 5743 • Sahih Muslim 2191 • Hisn al-Muslim #147",
       virtueAndTiming = "The Prophet ﷺ used to place his right hand on the patient and recite this supplication for complete healing.",
       recommendedCount = 3,
       searchKeywordsRomanUrduAndAliases = "bimari ki dua beemari ki dua shifa ki dua mareez ki ayadat ki dua bukhar dard illness healing بیماری کی دعا شفا کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n148.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/islamicapi/masnun-dua/main/audio/534.mp3"
     ),
     DailyDuaItem(
       id = "dua_distress_yunus",
@@ -1067,7 +1067,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Anas (RA) served the Prophet ﷺ for years and heard him recite this comprehensive protection frequently.",
       recommendedCount = 3,
       searchKeywordsRomanUrduAndAliases = "gham aur pareshani ki dua qarz ki dua karz se nijat ki dua depression anxiety قرض اور پریشانی کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n121.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/121hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_relief_from_debt_qarz",
@@ -1083,7 +1083,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Imam Ali (AS) taught that even if a person had a debt as huge as Mount Sabir, Allah would pay it off for them through this supplication.",
       recommendedCount = 3,
       searchKeywordsRomanUrduAndAliases = "qarz ki dua karz utarne ki dua rizq mein barakat ki dua halal rizq قرض اتارنے کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n136.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/136hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_al_faraj_ahlulbayt",
@@ -1099,7 +1099,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Recited across the Shia tradition for relief from severe tribulation and steadfastness.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "dua e faraj dua faraj mushkil kusha ahlulbayt دعائے فرج",
-      humanAudioUrl = "https://raw.githubusercontent.com/islamicapi/masnun-dua/main/audio/88.mp3"
+      humanAudioUrl = null
     ),
     DailyDuaItem(
       id = "dua_kumayl_opening",
@@ -1115,7 +1115,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Recited on Thursday nights (Laylatul Jumu'ah) and the Night of Mid-Sha'ban for forgiveness and spiritual humility.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "dua e kumayl dua kumail imam ali shab e jumuah دعائے کمیل",
-      humanAudioUrl = "https://raw.githubusercontent.com/islamicapi/masnun-dua/main/audio/75.mp3"
+      humanAudioUrl = null
     ),
     DailyDuaItem(
       id = "dua_istikharah",
@@ -1131,7 +1131,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Pray two Rak'ahs of voluntary (Nafl) prayer and then recite this supplication when making any major permissible life decision.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "istikhara ki dua istikharah ki dua استخارہ کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n74.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/74hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_nikah_newlyweds",
@@ -1147,7 +1147,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "The Prophetic congratulatory supplication taught for blessing a newly married couple.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "nikah ki dua shadi ki dua dulha dulhan ki dua شادی اور نکاح کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n190.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/190hm.mp3"
     ),
     DailyDuaItem(
       id = "dua_kaffaratul_majlis",
@@ -1163,7 +1163,7 @@ object DailyDuasDataProvider {
       virtueAndTiming = "Recite at the conclusion of any sitting, meeting, or study circle to expiate any unintentional shortcomings in speech.",
       recommendedCount = 1,
       searchKeywordsRomanUrduAndAliases = "majlis ki dua kaffaratul majlis mehfil khatam hone ki dua مجلس کے اختتام کی دعا",
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n196.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/196hm.mp3"
     )
   )
 
@@ -1634,14 +1634,18 @@ object DailyDuasDataProvider {
    */
   val ramadanSpecialDuas: List<DailyDuaItem> by lazy {
     val targetIds = listOf(
-      "dua_ramadan_sehri_niyyah",
       "dua_ramadan_iftar",
       "dua_ramadan_first_ashra_mercy",
-      "dua_ramadan_second_ashra_forgiveness",
       "dua_ramadan_third_ashra_nijat",
       "dua_laylatul_qadr",
-      "dua_new_moon_hilal"
+      "dua_new_moon_hilal",
+      "dua_ramadan_sehri_niyyah",
+      "dua_ramadan_second_ashra_forgiveness"
     )
     targetIds.mapNotNull { id -> allDuas.find { it.id == id } }
+      .sortedBy { dua ->
+        val hasAudio = dua.quranSurahAyah != null || !dua.humanAudioUrl.isNullOrBlank()
+        if (hasAudio) 0 else 1
+      }
   }
 }

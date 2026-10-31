@@ -153,10 +153,16 @@ fun DailyDuasScreen(
         else -> dua.category == selectedMasnoonCategory
       }
     }
-    if (query.isEmpty()) {
+    val rawList = if (query.isEmpty()) {
       categoryCandidates
     } else {
       DailyDuasDataProvider.searchDuasFuzzy(query, categoryCandidates)
+    }
+    rawList.sortedBy { dua ->
+      val hasAudio = dua.quranSurahAyah != null ||
+        !dua.humanAudioUrl.isNullOrBlank() ||
+        com.example.ui.audio.DuaAudioController.hasOfflineQaidaAudioAsset(null, dua.id)
+      if (hasAudio) 0 else 1
     }
   }
 
@@ -169,10 +175,16 @@ fun DailyDuasScreen(
         dua.occasionType == selectedOccasionType
       isOccasion && typeMatch
     }
-    if (query.isEmpty()) {
+    val rawList = if (query.isEmpty()) {
       occasionCandidates
     } else {
       DailyDuasDataProvider.searchDuasFuzzy(query, occasionCandidates)
+    }
+    rawList.sortedBy { dua ->
+      val hasAudio = dua.quranSurahAyah != null ||
+        !dua.humanAudioUrl.isNullOrBlank() ||
+        com.example.ui.audio.DuaAudioController.hasOfflineQaidaAudioAsset(null, dua.id)
+      if (hasAudio) 0 else 1
     }
   }
 
@@ -1295,9 +1307,9 @@ private fun MasnoonDuaCard(
         ) {
           Text(
             text = if (hasVerifiedHumanAudio) {
-              "✓ Authentic Human Audio (Hisn al-Muslim / OpenDua)"
+              "✓ Authentic Human Audio (Hisn al-Muslim / Masnun Dua)"
             } else {
-              "Real voice coming soon, In Sha Allah."
+              "No audio available"
             },
             style = MaterialTheme.typography.labelSmall.copy(
               fontWeight = if (hasVerifiedHumanAudio || isComingSoonThisDua) FontWeight.Bold else FontWeight.Medium,
@@ -1363,11 +1375,12 @@ private fun MasnoonDuaCard(
         } else {
           OutlinedButton(
             onClick = onPlayVocal,
+            enabled = false,
             modifier = Modifier.testTag("dua_play_vocal_btn_${dua.id}")
           ) {
             Icon(Icons.Default.VolumeUp, contentDescription = null, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(4.dp))
-            Text("Real voice coming soon, In Sha Allah.", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text("No audio available", fontSize = 11.sp, fontWeight = FontWeight.Bold)
           }
         }
 

@@ -75,6 +75,13 @@ fun AuthScreen(
   var errorMessage by remember { mutableStateOf<String?>(null) }
   var showAddAccountAction by remember { mutableStateOf(false) }
 
+  androidx.compose.runtime.LaunchedEffect(Unit) {
+    val autoUser = AuthManager.attemptAutoSignIn(context)
+    if (autoUser != null) {
+      onSignInSuccess(autoUser)
+    }
+  }
+
   Box(
     modifier = modifier
       .fillMaxSize()
@@ -251,7 +258,8 @@ fun AuthScreen(
                 }.onFailure { err ->
                   when (err) {
                     is GetCredentialCancellationException -> {
-                      errorMessage = "Sign-in was cancelled. You can try again or continue in Guest Mode below."
+                      showAddAccountAction = true
+                      errorMessage = "Sign-in was cancelled or no Google account was selected. You can try again, add a Google account in Device Settings, or continue in Guest Mode below."
                     }
                     is NoCredentialException -> {
                       showAddAccountAction = true

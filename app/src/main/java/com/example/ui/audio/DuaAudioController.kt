@@ -77,9 +77,9 @@ class DuaAudioController(
 ) {
 
   companion object {
-    const val REAL_VOICE_COMING_SOON_MESSAGE = "Real voice coming soon, In Sha Allah."
+    const val REAL_VOICE_COMING_SOON_MESSAGE = "No audio available"
     const val QAIDA_ASSET_FOLDER = "qaida_audio"
-    private const val DUA_CACHE_SUBDIR = "dua_audio_cache"
+    private const val DUA_CACHE_SUBDIR = "dua_audio_cache_v3"
 
     @Volatile
     private var instance: DuaAudioController? = null
@@ -91,29 +91,36 @@ class DuaAudioController(
     }
 
     /**
-     * Builds resilient mirror URLs for Hisn al-Muslim / OpenDua / EveryAyah human audio files
-     * so if one CDN is slow or unreachable, automatic fallback succeeds seamlessly.
+     * Builds verified human audio URLs for Hisn al-Muslim / Masnun Dua / EveryAyah recordings.
+     * Note: Archive.org's `HisnulMuslimAudio_201510/n{N}.mp3` has shifted track numbering for N >= 24
+     * because rows #24 and #26 in `hisnul_database.csv` have no audio, so `n{N}.mp3` must NEVER be
+     * used as a 1-to-1 mirror for `{N}hm.mp3` when N >= 24. Instead, any legacy `n{N}.mp3` URL is
+     * mapped directly to `sheikhhanif/Hisnul_Muslim_Database/master/audio/{N}hm.mp3`.
      */
     fun buildCandidateHumanAudioUrls(primaryUrl: String): List<String> {
       val trimmed = primaryUrl.trim()
       if (trimmed.isEmpty()) return emptyList()
-      val urls = mutableListOf(trimmed)
+      val urls = mutableListOf<String>()
 
-      val hisnNumber = Regex("""HisnulMuslimAudio_201510/n(\d+)\.mp3""").find(trimmed)?.groupValues?.getOrNull(1)?.toIntOrNull()
-        ?: Regex("""Hisnul_Muslim_Database/master/audio/(\d+)hm\.mp3""").find(trimmed)?.groupValues?.getOrNull(1)?.toIntOrNull()
-        ?: Regex("""audio\.opendua\.org/hisn/v0\.0\.2/OD-(\d+)\.mp3""").find(trimmed)?.groupValues?.getOrNull(1)?.toIntOrNull()
+      val legacyArchiveHisnNumber = Regex("""HisnulMuslimAudio_201510/n(\d+)\.mp3""")
+        .find(trimmed)?.groupValues?.getOrNull(1)?.toIntOrNull()
+      val githubHisnNumber = Regex("""Hisnul_Muslim_Database/master/audio/(\d+)hm\.mp3""")
+        .find(trimmed)?.groupValues?.getOrNull(1)?.toIntOrNull()
 
+      val hisnNumber = githubHisnNumber ?: legacyArchiveHisnNumber
       if (hisnNumber != null) {
-        val githubMirror = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/${hisnNumber}hm.mp3"
-        val archiveMirror = "https://archive.org/download/HisnulMuslimAudio_201510/n${hisnNumber}.mp3"
-        val openDuaMirror = "https://audio.opendua.org/hisn/v0.0.2/OD-${hisnNumber.toString().padStart(3, '0')}.mp3"
-        for (candidate in listOf(githubMirror, archiveMirror, openDuaMirror)) {
-          if (candidate !in urls) {
-            urls.add(candidate)
+        val canonicalGithubUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/${hisnNumber}hm.mp3"
+        urls.add(canonicalGithubUrl)
+        if (hisnNumber < 24) {
+          val archiveMirrorForEarlyTracks = "https://archive.org/download/HisnulMuslimAudio_201510/n${hisnNumber}.mp3"
+          if (archiveMirrorForEarlyTracks !in urls) {
+            urls.add(archiveMirrorForEarlyTracks)
           }
         }
+      } else {
+        urls.add(trimmed)
       }
-      return urls
+      return urls.filter { com.example.data.remote.SecurityIntegrityGuard.isUrlTrustedAndAllowed(it) }
     }
 
     /**
@@ -563,54 +570,95 @@ class DuaAudioController(
     return !failed
   }
 
-  private suspend fun resolveOrDownloadVerifiedHumanAudioFile(
+  private suspend fun resolveOrDownloadVerifiedHumanAudioFiles(
     duaId: String,
-    primaryUrl: String
-  ): File? = withContext(Dispatchers.IO) {
-    val safeName = duaId.replace(Regex("[^a-zA-Z0-9_\\-]"), "_").ifBlank { "dua_audio" }
-    val cacheDir = File(context.cacheDir, DUA_CACHE_SUBDIR).apply { mkdirs() }
-    val targetFile = File(cacheDir, "$safeName.mp3")
-    if (targetFile.exists() && targetFile.length() > 256L) {
-      return@withContext targetFile
+    rawAudioUrls: String
+  ): List<File>? = withContext(Dispatchers.IO) {
+    runCatching {
+      File(context.cacheDir, "dua_audio_cache").deleteRecursively()
+      File(context.cacheDir, "dua_audio_cache_v2").deleteRecursively()
     }
+    val segments = rawAudioUrls
+      .split("|")
+      .map { it.trim() }
+      .filter { it.isNotEmpty() }
+    if (segments.isEmpty()) return@withContext null
 
-    val candidates = buildCandidateHumanAudioUrls(primaryUrl)
-    for (urlStr in candidates) {
-      val downloaded = runCatching {
-        val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
-          connectTimeout = 7000
-          readTimeout = 12000
-          instanceFollowRedirects = true
-          setRequestProperty("User-Agent", "BayanAlHuda-Android/1.0")
+    val safeBaseName = duaId.replace(Regex("[^a-zA-Z0-9_\\-]"), "_").ifBlank { "dua_audio" }
+    val cacheDir = File(context.cacheDir, DUA_CACHE_SUBDIR).apply { mkdirs() }
+    val resolvedFiles = mutableListOf<File>()
+
+    for ((segIdx, segmentUrl) in segments.withIndex()) {
+      val fileSuffix = if (segments.size == 1) "" else "_part${segIdx + 1}"
+      val targetFile = File(cacheDir, "${safeBaseName}${fileSuffix}.mp3")
+      if (targetFile.exists() && targetFile.length() > 256L) {
+        resolvedFiles.add(targetFile)
+        continue
+      }
+
+      val candidates = buildCandidateHumanAudioUrls(segmentUrl)
+      var segmentDownloaded = false
+      for (urlStr in candidates) {
+        if (!com.example.data.remote.SecurityIntegrityGuard.isUrlTrustedAndAllowed(urlStr)) {
+          continue
         }
-        try {
-          if (conn.responseCode in 200..299) {
-            val tempFile = File(cacheDir, "${safeName}_tmp.mp3")
-            conn.inputStream.use { input ->
-              tempFile.outputStream().use { output ->
-                input.copyTo(output)
+        val downloaded = runCatching {
+          val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
+            connectTimeout = 7000
+            readTimeout = 12000
+            instanceFollowRedirects = true
+            setRequestProperty("User-Agent", "BayanAlHuda-Android/1.0")
+          }
+          try {
+            val contentLength = conn.contentLengthLong
+            if (contentLength > com.example.data.remote.SecurityIntegrityGuard.MAX_HTTP_RESPONSE_BYTES) {
+              false
+            } else if (conn.responseCode in 200..299) {
+              val tempFile = File(cacheDir, "${safeBaseName}${fileSuffix}_tmp.mp3")
+              var totalBytesRead = 0L
+              var exceededMax = false
+              conn.inputStream.use { input ->
+                tempFile.outputStream().use { output ->
+                  val buffer = ByteArray(8192)
+                  while (true) {
+                    val read = input.read(buffer)
+                    if (read <= 0) break
+                    totalBytesRead += read
+                    if (totalBytesRead > com.example.data.remote.SecurityIntegrityGuard.MAX_HTTP_RESPONSE_BYTES) {
+                      exceededMax = true
+                      break
+                    }
+                    output.write(buffer, 0, read)
+                  }
+                }
               }
-            }
-            if (tempFile.exists() && tempFile.length() > 256L) {
-              tempFile.renameTo(targetFile)
-              true
+              if (!exceededMax && tempFile.exists() && tempFile.length() > 256L) {
+                tempFile.renameTo(targetFile)
+                true
+              } else {
+                tempFile.delete()
+                false
+              }
             } else {
-              tempFile.delete()
               false
             }
-          } else {
-            false
+          } finally {
+            conn.disconnect()
           }
-        } finally {
-          conn.disconnect()
-        }
-      }.getOrDefault(false)
+        }.getOrDefault(false)
 
-      if (downloaded && targetFile.exists() && targetFile.length() > 256L) {
-        return@withContext targetFile
+        if (downloaded && targetFile.exists() && targetFile.length() > 256L) {
+          resolvedFiles.add(targetFile)
+          segmentDownloaded = true
+          break
+        }
+      }
+      if (!segmentDownloaded) {
+        return@withContext null
       }
     }
-    null
+
+    resolvedFiles.takeIf { it.size == segments.size }
   }
 
   private fun playVerifiedHumanAudioUrl(
@@ -636,14 +684,15 @@ class DuaAudioController(
         isComingSoonNotice = false
       )
 
-      val audioFile = resolveOrDownloadVerifiedHumanAudioFile(dua.id, primaryAudioUrl)
+      val audioFiles = resolveOrDownloadVerifiedHumanAudioFiles(dua.id, primaryAudioUrl)
       if (!isActive) return@launch
 
-      if (audioFile == null) {
+      if (audioFiles.isNullOrEmpty()) {
         showRealVoiceComingSoon(duaId = dua.id, duaTitle = dua.title)
         return@launch
       }
 
+      val totalSegments = audioFiles.size
       for (rep in 1..safeReps) {
         if (!isActive) break
         _playbackState.value = _playbackState.value.copy(
@@ -654,26 +703,33 @@ class DuaAudioController(
           isComingSoonNotice = false
         )
 
-        val playedOk = playCachedFileBlocking(
-          audioFile = audioFile,
-          speechRate = speechRate,
-          onProgress = { posMs, durMs ->
-            val totalWords = arabicWords.size.coerceAtLeast(1)
-            val wordIdx = ((posMs.toFloat() / durMs.coerceAtLeast(1).toFloat()) * totalWords)
-              .toInt()
-              .coerceIn(0, totalWords - 1)
-            _playbackState.value = _playbackState.value.copy(
-              activeArabicWordIndex = wordIdx,
-              totalArabicWords = totalWords,
-              progressFraction = (posMs.toFloat() / durMs.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f),
-              activeStageLabel = "Authentic Human Recitation • Word ${wordIdx + 1}/$totalWords (Rep $rep/$safeReps)"
-            )
-          }
-        )
+        for ((segIdx, audioFile) in audioFiles.withIndex()) {
+          if (!isActive) break
+          val playedOk = playCachedFileBlocking(
+            audioFile = audioFile,
+            speechRate = speechRate,
+            onProgress = { posMs, durMs ->
+              val totalWords = arabicWords.size.coerceAtLeast(1)
+              val segFrac = (posMs.toFloat() / durMs.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
+              val overallFrac = ((segIdx.toFloat() + segFrac) / totalSegments.toFloat()).coerceIn(0f, 1f)
+              val wordIdx = (overallFrac * totalWords).toInt().coerceIn(0, totalWords - 1)
+              _playbackState.value = _playbackState.value.copy(
+                activeArabicWordIndex = wordIdx,
+                totalArabicWords = totalWords,
+                progressFraction = overallFrac,
+                activeStageLabel = "Authentic Human Recitation • Word ${wordIdx + 1}/$totalWords (Rep $rep/$safeReps)"
+              )
+            }
+          )
 
-        if (!playedOk) {
-          showRealVoiceComingSoon(duaId = dua.id, duaTitle = dua.title)
-          return@launch
+          if (!playedOk) {
+            showRealVoiceComingSoon(duaId = dua.id, duaTitle = dua.title)
+            return@launch
+          }
+
+          if (segIdx < audioFiles.lastIndex && isActive) {
+            delay(180)
+          }
         }
 
         if (rep < safeReps && isActive) {
@@ -729,8 +785,8 @@ class DuaAudioController(
     }
 
     val quranRef = dua.quranSurahAyah
-    if (quranRef == null) {
-      val verifiedUrl = dua.humanAudioUrl?.trim().orEmpty()
+    val verifiedUrl = dua.humanAudioUrl?.trim().orEmpty()
+    if (quranRef == null || verifiedUrl.contains("|")) {
       if (verifiedUrl.isNotEmpty()) {
         playVerifiedHumanAudioUrl(
           dua = dua,
@@ -866,7 +922,7 @@ class DuaAudioController(
       authenticReference = "Sahih al-Bukhari 3370",
       virtueAndTiming = "",
       recommendedCount = repetitions,
-      humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n53.mp3"
+      humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/53hm.mp3"
     )
     playDuaVocal(
       dua = salawatDua,

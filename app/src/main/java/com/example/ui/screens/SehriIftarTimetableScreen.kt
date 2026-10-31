@@ -1949,31 +1949,52 @@ fun SpecialRamadanDuasShowcaseCard(
               verticalAlignment = Alignment.CenterVertically,
               horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-              FilledIconButton(
-                onClick = {
-                  if (isThisRamadanDuaPlaying) {
-                    duaAudioController.stop()
-                  } else {
-                    duaAudioController.playDuaVocal(
-                      dua = activeDua,
-                      includeTranslations = false,
-                      preferQuranReciterIfAvailable = true
-                    )
-                  }
-                },
-                colors = IconButtonDefaults.filledIconButtonColors(
-                  containerColor = if (isThisRamadanDuaPlaying) GoldPrimary else EmeraldPrimary,
-                  contentColor = if (isThisRamadanDuaPlaying) Color(0xFF073B2E) else Color.White
-                ),
-                modifier = Modifier
-                  .size(32.dp)
-                  .testTag("play_ramadan_dua_btn_${activeDua.id}")
-              ) {
-                Icon(
-                  imageVector = if (isThisRamadanDuaPlaying) Icons.Default.Stop else Icons.Default.VolumeUp,
-                  contentDescription = "Play ${activeDua.title}",
-                  modifier = Modifier.size(16.dp)
-                )
+              val activeDuaHasAudio = activeDua.quranSurahAyah != null ||
+                !activeDua.humanAudioUrl.isNullOrBlank() ||
+                com.example.ui.audio.DuaAudioController.hasOfflineQaidaAudioAsset(null, activeDua.id)
+              if (activeDuaHasAudio) {
+                FilledIconButton(
+                  onClick = {
+                    if (isThisRamadanDuaPlaying) {
+                      duaAudioController.stop()
+                    } else {
+                      duaAudioController.playDuaVocal(
+                        dua = activeDua,
+                        includeTranslations = false,
+                        preferQuranReciterIfAvailable = true
+                      )
+                    }
+                  },
+                  colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = if (isThisRamadanDuaPlaying) GoldPrimary else EmeraldPrimary,
+                    contentColor = if (isThisRamadanDuaPlaying) Color(0xFF073B2E) else Color.White
+                  ),
+                  modifier = Modifier
+                    .size(32.dp)
+                    .testTag("play_ramadan_dua_btn_${activeDua.id}")
+                ) {
+                  Icon(
+                    imageVector = if (isThisRamadanDuaPlaying) Icons.Default.Stop else Icons.Default.VolumeUp,
+                    contentDescription = "Play ${activeDua.title}",
+                    modifier = Modifier.size(16.dp)
+                  )
+                }
+              } else {
+                Surface(
+                  shape = RoundedCornerShape(8.dp),
+                  color = MaterialTheme.colorScheme.surfaceVariant,
+                  modifier = Modifier.testTag("no_audio_ramadan_dua_badge_${activeDua.id}")
+                ) {
+                  Text(
+                    text = "No audio available",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      color = MaterialTheme.colorScheme.onSurfaceVariant,
+                      fontWeight = FontWeight.SemiBold,
+                      fontSize = 10.sp
+                    ),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                  )
+                }
               }
               IconButton(
                 onClick = {

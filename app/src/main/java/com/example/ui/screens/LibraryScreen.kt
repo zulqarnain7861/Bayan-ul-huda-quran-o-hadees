@@ -474,6 +474,32 @@ fun LibraryScreen(
             )
           }
         )
+        Tab(
+          selected = selectedTab == 5,
+          onClick = { selectedTab = 5 },
+          modifier = Modifier.testTag("library_tab_video_lectures"),
+          text = {
+            Text(
+              text = "Video Lectures",
+              fontWeight = FontWeight.Bold,
+              fontSize = 12.sp,
+              maxLines = 1
+            )
+          }
+        )
+        Tab(
+          selected = selectedTab == 6,
+          onClick = { selectedTab = 6 },
+          modifier = Modifier.testTag("library_tab_maududi_library"),
+          text = {
+            Text(
+              text = "Fikr-e-Maududi",
+              fontWeight = FontWeight.Bold,
+              fontSize = 12.sp,
+              maxLines = 1
+            )
+          }
+        )
       }
 
       when (selectedTab) {
@@ -985,6 +1011,50 @@ fun LibraryScreen(
                 }
                 Text(
                   text = "Open →",
+                  style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = EmeraldPrimary
+                  )
+                )
+              }
+            }
+
+            // Video Assets to Understand Islam (Engineer Muhammad Ali Mirza Lectures Since 2013) Card inside Books Tab
+            Surface(
+              shape = RoundedCornerShape(10.dp),
+              color = GoldPrimary.copy(alpha = 0.14f),
+              border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.45f)),
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 4.dp)
+                .clickable { selectedTab = 5 }
+                .testTag("library_books_open_video_assets_card")
+            ) {
+              Row(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+              ) {
+                Column(modifier = Modifier.weight(1f)) {
+                  Text(
+                    text = "Video Assets · Understand Islam (Engr. Muhammad Ali Mirza Since 2013)",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                      fontWeight = FontWeight.Bold,
+                      color = EmeraldPrimary
+                    )
+                  )
+                  Text(
+                    text = "Smart Watch-Time Topic Suggestions: Imam Hussain A.S. → Karbala & Reality of Yazeed • Tafseer 1–344 • Salah & Azan",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      fontSize = 10.sp,
+                      color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                  )
+                }
+                Text(
+                  text = "Watch →",
                   style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = FontWeight.Bold,
                     color = EmeraldPrimary
@@ -1520,6 +1590,14 @@ fun LibraryScreen(
             onSelectThemeMode = onSelectThemeMode,
             onPlayDownloadedAudio = onPlayDownloadedAudio
           )
+        }
+
+        5 -> {
+          com.example.ui.discover.DiscoverScreen()
+        }
+
+        6 -> {
+          com.example.ui.discover.MaududiLibraryScreen()
         }
       }
     }

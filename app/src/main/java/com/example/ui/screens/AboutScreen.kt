@@ -97,6 +97,7 @@ fun AboutScreen(
   isGuestMode: Boolean = false,
   remainingGuestDays: Int = 7,
   onSignOut: () -> Unit = {},
+  onSignInSuccess: (com.google.firebase.auth.FirebaseUser) -> Unit = {},
   onClearAudioCache: () -> Unit = {},
   currentAppLanguageCode: String = "en",
   onSelectAppLanguage: (String, Boolean) -> Unit = { _, _ -> },
@@ -476,6 +477,29 @@ fun AboutScreen(
               text = signInStatusMessage!!,
               style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.error)
             )
+            Spacer(modifier = Modifier.height(6.dp))
+            OutlinedButton(
+              onClick = {
+                runCatching {
+                  val intent = Intent(android.provider.Settings.ACTION_ADD_ACCOUNT).apply {
+                    putExtra(android.provider.Settings.EXTRA_ACCOUNT_TYPES, arrayOf("com.google"))
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                  }
+                  context.startActivity(intent)
+                }.onFailure {
+                  runCatching {
+                    context.startActivity(
+                      Intent(android.provider.Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                  }
+                }
+              },
+              modifier = Modifier
+                .fillMaxWidth()
+                .testTag("about_add_google_account_settings_button")
+            ) {
+              Text("Add Google Account in Device Settings", fontSize = 12.sp)
+            }
           }
           Spacer(modifier = Modifier.height(12.dp))
           if (isGuestMode && userEmail == null) {
@@ -492,6 +516,7 @@ fun AboutScreen(
                       val result = com.example.data.auth.AuthManager.signInWithGoogle(context)
                       isSigningInDirect = false
                       result.onSuccess { user ->
+                        onSignInSuccess(user)
                         Toast.makeText(
                           context,
                           "Signed in as ${user.email ?: user.displayName ?: "Google User"}",

@@ -336,6 +336,39 @@ class BayanViewModel(application: Application) : AndroidViewModel(application) {
     )
   }
 
+  fun onGoogleSignInSuccess(user: FirebaseUser) {
+    val app = getApplication<Application>()
+    AuthManager.endGuestSession(app)
+    _uiState.value = _uiState.value.copy(
+      isGuestModeActive = false
+    )
+    val cloudRepo = cloudRepository ?: return
+    viewModelScope.launch(Dispatchers.IO) {
+      runCatching {
+        bookmarks.value.forEach { localBookmark ->
+          val cloudBookmark = CloudBookmark(
+            itemType = if (localBookmark.itemType == "QURAN") "AYAH" else "HADITH",
+            referenceKey = localBookmark.itemKey,
+            title = localBookmark.title,
+            arabicSnippet = localBookmark.arabicSnippet.take(1500),
+            translationSnippet = localBookmark.subtitle.take(1500)
+          )
+          cloudRepo.saveBookmark(user.uid, localBookmark.itemKey, cloudBookmark)
+        }
+        notes.value.forEach { localNote ->
+          val noteId = "note_${localNote.id}"
+          val cloudNote = CloudNote(
+            itemType = "AYAH",
+            referenceKey = localNote.referenceKey.ifBlank { "General" }.take(100),
+            title = localNote.title.take(200),
+            content = localNote.content.take(5000)
+          )
+          cloudRepo.saveNote(user.uid, noteId, cloudNote)
+        }
+      }
+    }
+  }
+
   fun selectTab(tab: MainNavigationTab) {
     _uiState.value = _uiState.value.copy(currentTab = tab)
   }

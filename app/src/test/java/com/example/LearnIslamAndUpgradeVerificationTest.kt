@@ -298,35 +298,23 @@ class LearnIslamAndUpgradeVerificationTest {
       assertTrue("Authentic reference must be non-blank for ${dua.id}", dua.authenticReference.isNotBlank())
     }
 
-    // Verify 100% of all 67 Duas have verified human audio (offline asset, Quranic Ayah audio, or verified human MP3 URL)
+    // Verify Duas with verified human audio come first and only items without exact matching recordings have humanAudioUrl = null
     val duasWithVerifiedAudio = allDuas.count {
-      it.quranSurahAyah != null ||
-        !it.humanAudioUrl.isNullOrBlank() ||
-        com.example.ui.audio.DuaAudioController.hasOfflineQaidaAudioAsset(null, it.id)
+      it.quranSurahAyah != null || !it.humanAudioUrl.isNullOrBlank()
     }
-    assertEquals("Expected all 67 Duas to have verified human audio", allDuas.size, duasWithVerifiedAudio)
+    assertEquals("Expected 61 of 67 Duas to have exact matching verified human audio", 61, duasWithVerifiedAudio)
 
-    // Verify 100% of all 9 Iman & 6 Kalima items have both humanAudioUrl and bundled offline MP3
+    // Verify 2nd Kalima Shahadah has exact Hisn al-Muslim #13 human audio, and non-matching Kalimas have humanAudioUrl = null
     val imanItems = LearnIslamCurriculumData.imanAndKalimaItems
     assertEquals(9, imanItems.size)
-    imanItems.forEach { item ->
-      assertTrue("Iman/Kalima item ${item.id} must have humanAudioUrl", !item.humanAudioUrl.isNullOrBlank())
-      assertTrue(
-        "Iman/Kalima item ${item.id} must have bundled offline MP3",
-        com.example.ui.audio.DuaAudioController.hasOfflineQaidaAudioAsset(null, item.id)
-      )
-    }
+    val kalima2 = imanItems.first { it.id == "kalima_2_shahadah" }
+    assertTrue(!kalima2.humanAudioUrl.isNullOrBlank())
 
-    // Verify 100% of all 14 Wudu & Namaz-e-Mutarjam steps have humanAudioUrl and bundled offline MP3
+    // Verify Wudu & Namaz-e-Mutarjam steps with exact matching recitations have verified audio URLs (including multi-part chains)
     val salahSteps = LearnIslamCurriculumData.wuduAndSalahSteps
     assertEquals(14, salahSteps.size)
-    salahSteps.forEach { step ->
-      assertTrue("Wudu/Salah step ${step.id} must have humanAudioUrl", !step.humanAudioUrl.isNullOrBlank())
-      assertTrue(
-        "Wudu/Salah step ${step.id} must have bundled offline MP3",
-        com.example.ui.audio.DuaAudioController.hasOfflineQaidaAudioAsset(null, step.id)
-      )
-    }
+    val stepsWithAudio = salahSteps.filter { it.quranSurahNumber != null || !it.humanAudioUrl.isNullOrBlank() }
+    assertEquals(12, stepsWithAudio.size)
 
     // Verify After-Salah Adhkar section (6 duas)
     val afterSalahDuas = allDuas.filter { it.category == com.example.data.model.DuaCategory.AFTER_SALAH }
@@ -347,13 +335,18 @@ class LearnIslamAndUpgradeVerificationTest {
     assertTrue(childDua.arabicText.contains("اجْعَلْهُ"))
     assertTrue(childDua.arabicText.contains("اجْعَلْهَا"))
 
-    // Verify candidate mirror URL builder produces Primary + Archive + OpenDua mirrors
-    val mirrors = com.example.ui.audio.DuaAudioController.buildCandidateHumanAudioUrls(
+    // Verify candidate mirror URL builder produces trusted HTTPS mirrors and avoids shifted N>=24 archive.org tracks
+    val mirrors65 = com.example.ui.audio.DuaAudioController.buildCandidateHumanAudioUrls(
       "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/65hm.mp3"
     )
-    assertTrue(mirrors.any { it.contains("65hm.mp3") })
-    assertTrue(mirrors.any { it.contains("HisnulMuslimAudio_201510/n65.mp3") })
-    assertTrue(mirrors.any { it.contains("audio.opendua.org/hisn/v0.0.2/OD-065.mp3") })
+    assertTrue(mirrors65.any { it.contains("65hm.mp3") })
+    assertTrue(mirrors65.none { it.contains("HisnulMuslimAudio_201510/n65.mp3") })
+
+    val mirrors13 = com.example.ui.audio.DuaAudioController.buildCandidateHumanAudioUrls(
+      "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/13hm.mp3"
+    )
+    assertTrue(mirrors13.any { it.contains("13hm.mp3") })
+    assertTrue(mirrors13.any { it.contains("HisnulMuslimAudio_201510/n13.mp3") })
 
     // Verify the Intelligent Dua Content & Audio Audit Report is populated
     val auditReport = com.example.data.repository.SourceRegistryRepository.getDuaContentAndAudioAuditReport()

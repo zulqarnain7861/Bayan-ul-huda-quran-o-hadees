@@ -216,7 +216,8 @@ fun BayanApp(
     if (currentUser == null && !uiState.isGuestModeActive) {
       AuthScreen(
         remainingGuestDays = uiState.remainingGuestDays,
-        onContinueAsGuest = { viewModel.continueAsGuest() }
+        onContinueAsGuest = { viewModel.continueAsGuest() },
+        onSignInSuccess = { user -> viewModel.onGoogleSignInSuccess(user) }
       )
       return@CompositionLocalProvider
     }
@@ -712,6 +713,7 @@ fun BayanApp(
               navController.popBackStack()
               viewModel.signOut()
             },
+            onSignInSuccess = { user -> viewModel.onGoogleSignInSuccess(user) },
             onClearAudioCache = { viewModel.clearAudioCache() },
             currentAppLanguageCode = uiState.prayerConfig.appInterfaceLanguageCode,
             onSelectAppLanguage = { langCode, syncContent ->

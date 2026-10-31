@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "generatedUtc": "2026-10-31T01:15:00Z",
+  "defaultPlaybackProfile": "BALANCED",
+  "wifiOnlyDefault": false,
+  "playerMenuHelperNote": "Picture quality is set inside the YouTube player's ⋮ menu.",
+  "playbackProfiles": [
+    {
+      "profile": "SAVER",
+      "label": "Data Saver (~240p–360p)",
+      "targetResolutionLabel": "~240p–360p",
+      "approxKbps": 350,
+      "approxMbPerHour": 158,
+      "description": "Recommended on metered mobile data. Prefers audio-light clip previews and advises ~240p–360p in the player menu."
+    },
+    {
+      "profile": "BALANCED",
+      "label": "Balanced (~360p–480p)",
+      "targetResolutionLabel": "~360p–480p",
+      "approxKbps": 650,
+      "approxMbPerHour": 292,
+      "description": "Default profile balancing clear whiteboard Arabic text with moderate data consumption (~292 MB/hr)."
+    },
+    {
+      "profile": "QUALITY",
+      "label": "High Clarity (~720p HD)",
+      "targetResolutionLabel": "~720p",
+      "approxKbps": 1800,
+      "approxMbPerHour": 810,
+      "description": "Best for reading small Arabic/Urdu Hadith references on the lecture board (~810 MB/hr)."
+    },
+    {
+      "profile": "AUTO",
+      "label": "Auto Network Adaptive",
+      "targetResolutionLabel": "~360p–720p (Adaptive)",
+      "approxKbps": 900,
+      "approxMbPerHour": 405,
+      "description": "Adapts to current Wi-Fi or mobile signal conditions via the YouTube player."
+    }
+  ],
+  "qualityLadderApproxKbps": {
+    "240p": 300,
+    "360p": 500,
+    "480p": 900,
+    "720p": 1800
+  },
+  "bm25Weights": {
+    "title": 10.0,
+    "verifiedTitle": 8.0,
+    "topics": 6.0,
+    "summary": 3.0,
+    "references": 4.0
+  },
+  "watchTimeRecommendationConfig": {
+    "minWatchSecondsForSignal": 5,
+    "directTopicWeight": 5.0,
+    "relatedTopicWeight": 3.2,
+    "keywordOverlapWeight": 2.0,
+    "confirmedLiveBoost": 1.5,
+    "officialTierBoost": 1.25
+  },
+  "topics": [
+    {
+      "id": "karbala_hussain",
+      "titleEn": "Imam Hussain A.S. & Karbala",
+      "titleUr": "سیدنا امام حسین علیہ السلام اور واقعہ کربلا",
+      "minimumRecordsToShow": 3,
+      "relatedTopicIds": ["reality_of_yazeed", "ahl_al_bayt", "islamic_history", "sahaba_unity"],
+      "keywords": ["hussain", "husayn", "karbala", "ashura", "martyrdom", "shahadat", "kufa", "ahle bait", "yazeed"]
+    },
+    {
+      "id": "reality_of_yazeed",
+      "titleEn": "Reality of Yazeed & Historical Evidence",
+      "titleUr": "یزید کی حقیقت اور تاریخی دلائل",
+      "minimumRecordsToShow": 3,
+      "relatedTopicIds": ["karbala_hussain", "ahl_al_bayt", "islamic_history", "hadith_sciences"],
+      "keywords": ["yazeed", "yazid", "karbala", "hussain", "harrah", "madinah", "kufa", "history", "qسطنطنیہ"]
+    },
+    {
+      "id": "ahl_al_bayt",
+      "titleEn": "Fazail-e-Ahl al-Bayt & Sahaba",
+      "titleUr": "فضائلِ اہلِ بیت اور صحابہ کرام",
+      "minimumRecordsToShow": 3,
+      "relatedTopicIds": ["karbala_hussain", "reality_of_yazeed", "sahaba_unity", "hadith_sciences"],
+      "keywords": ["ahl al-bayt", "ahle bait", "ali", "fatima", "hasan", "hussain", "sahaba", "kisa", "thaqalayn"]
+    },
+    {
+      "id": "salah_azan",
+      "titleEn": "Salah, Azan & Sunnah Prayer",
+      "titleUr": "نماز، اذان اور سنتِ نبوی ﷺ",
+      "minimumRecordsToShow": 3,
+      "relatedTopicIds": ["tahara_wudu", "hadith_sciences", "dua_adhkar"],
+      "keywords": ["azan", "adhan", "salah", "namaz", "raf ul yadain", "iqamah", "witr", "sujud", "tashahhud"]
+    },
+    {
+      "id": "tafseer_quran",
+      "titleEn": "Quran Class & Tafseer Series",
+      "titleUr": "قرآن کلاس اور تفسیر القرآن",
+      "minimumRecordsToShow": 5,
+      "relatedTopicIds": ["aqeedah_tawheed", "seerah_prophets", "ethical_reform"],
+      "keywords": ["tafseer", "quran", "surah", "ayah", "tarjuma", "baqarah", "fatiha", "kahf", "rahman"]
+    },
+    {
+      "id": "aqeedah_tawheed",
+      "titleEn": "Tawheed, Aqeedah & Eliminating Sectarianism",
+      "titleUr": "توحید، عقیدہ اور فرقہ واریت کا خاتمہ",
+      "minimumRecordsToShow": 3,
+      "relatedTopicIds": ["tafseer_quran", "hadith_sciences", "sahaba_unity"],
+      "keywords": ["tawheed", "aqeedah", "shirk", "biddah", "sectarianism", "muslim", "islah", "imaan"]
+    },
+    {
+      "id": "hadith_sciences",
+      "titleEn": "Ilm-ul-Hadith & Authenticity Verification",
+      "titleUr": "علم الحدیث اور تحقیقِ روایت",
+      "minimumRecordsToShow": 3,
+      "relatedTopicIds": ["salah_azan", "aqeedah_tawheed", "karbala_hussain"],
+      "keywords": ["hadith", "bukhari", "muslim", "isnad", "sahih", "daif", "mishkat", "tirmidhi", "verification"]
+    },
+    {
+      "id": "tahara_wudu",
+      "titleEn": "Tahara, Wudu & Everyday Fiqh",
+      "titleUr": "طہارت، وضو اور روزمرہ فقہی مسائل",
+      "minimumRecordsToShow": 2,
+      "relatedTopicIds": ["salah_azan", "dua_adhkar"],
+      "keywords": ["wudu", "ghusl", "tayammum", "tahara", "masah", "purity"]
+    },
+    {
+      "id": "dua_adhkar",
+      "titleEn": "Masnoon Duas, Adhkar & Istighfar",
+      "titleUr": "مسنون دعائیں اور اذکار",
+      "minimumRecordsToShow": 2,
+      "relatedTopicIds": ["salah_azan", "aqeedah_tawheed"],
+      "keywords": ["dua", "adhkar", "azkar", "istighfar", "salawat", "durood", "morning", "evening"]
+    },
+    {
+      "id": "islamic_history",
+      "titleEn": "Islamic History & Scholarly Heritage",
+      "titleUr": "اسلامی تاریخ اور علمی ورثہ",
+      "minimumRecordsToShow": 3,
+      "relatedTopicIds": ["karbala_hussain", "reality_of_yazeed", "ahl_al_bayt", "sahaba_unity"],
+      "keywords": ["history", "khilafah", "karbala", "yazeed", "maududi", "scholars", "umayyad", "seerah"]
+    },
+    {
+      "id": "sahaba_unity",
+      "titleEn": "Seerah of Sahaba & Ummah Unity",
+      "titleUr": "سیرتِ صحابہ اور اتحادِ امت",
+      "minimumRecordsToShow": 3,
+      "relatedTopicIds": ["ahl_al_bayt", "karbala_hussain", "aqeedah_tawheed"],
+      "keywords": ["sahaba", "abu bakr", "umar", "uthman", "ali", "unity", "brotherhood", "ummah"]
+    },
+    {
+      "id": "seerah_prophets",
+      "titleEn": "Seerah of Prophet Muhammad ﷺ & Prophets",
+      "titleUr": "سیرت النبی ﷺ اور انبیاء کرام",
+      "minimumRecordsToShow": 3,
+      "relatedTopicIds": ["tafseer_quran", "aqeedah_tawheed", "sahaba_unity"],
+      "keywords": ["seerah", "prophet", "muhammad", "ibrahim", "musa", "isa", "makkah", "madinah"]
+    },
+    {
+      "id": "ethical_reform",
+      "titleEn": "Social Ethics, Rights & Self-Reform",
+      "titleUr": "اخلاقیات، حقوق العباد اور اصلاحِ معاشرہ",
+      "minimumRecordsToShow": 3,
+      "relatedTopicIds": ["tafseer_quran", "dua_adhkar"],
+      "keywords": ["ethics", "akhlaq", "parents", "halal", "rizq", "justice", "marriage", "repentance"]
+    },
+    {
+      "id": "experimental_micro_topic",
+      "titleEn": "Rare Archival Notes (Gated < Min Threshold)",
+      "titleUr": "نایاب تحقیقی نوٹس",
+      "minimumRecordsToShow": 5,
+      "relatedTopicIds": ["islamic_history"],
+      "keywords": ["archival_micro"]
+    }
+  ]
+}

@@ -324,7 +324,7 @@ class SehriIftarAndAboutVerificationTest {
   @Test
   fun `Quranic duas map only to exact Quran verses and non-Quranic duas show Real voice coming soon without AI TTS`() {
     assertEquals(
-      "Real voice coming soon, In Sha Allah.",
+      "No audio available",
       com.example.ui.audio.DuaAudioController.REAL_VOICE_COMING_SOON_MESSAGE
     )
 

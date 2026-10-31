@@ -816,7 +816,7 @@ object LearnIslamCurriculumData {
             englishTranslation = "There is no deity worthy of worship except Allah, and Muhammad ﷺ is the Messenger of Allah.",
             authenticReference = "Quran 37:35 & 47:19 (لَا إِلٰهَ إِلَّا اللّٰهُ); Quran 48:29 (مُحَمَّدٌ رَسُولُ اللّٰهِ); Sahih al-Bukhari 8; Sahih Muslim 16.",
             scholarlyAndCurriculumNote = "The two clauses are verbatim Quranic statements (37:35, 48:29) and form the core creed of Islam taught first in traditional Darasgah/Madrasah curricula.",
-            humanAudioUrl = "https://raw.githubusercontent.com/islamicapi/masnun-dua/main/audio/89.mp3"
+            humanAudioUrl = null
         ),
         ImanAndKalimaItem(
             id = "kalima_2_shahadah",
@@ -831,7 +831,7 @@ object LearnIslamCurriculumData {
             englishTranslation = "I bear witness that there is no deity worthy of worship except Allah alone, without partner, and I bear witness that Muhammad ﷺ is His servant and Messenger.",
             authenticReference = "Sahih al-Bukhari 8; Sahih Muslim 234 (also recited after Wudu in Sahih Muslim 234 and in Tashahhud of every Salah).",
             scholarlyAndCurriculumNote = "Directly established in Mutawatir Hadith as the formal testimony of Islam, Tashahhud, Adhan response, and post-Wudu supplication.",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n13.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/13hm.mp3"
         ),
         ImanAndKalimaItem(
             id = "kalima_3_tamjeed",
@@ -846,7 +846,7 @@ object LearnIslamCurriculumData {
             englishTranslation = "Glory be to Allah, all praise is due to Allah, there is no deity except Allah, and Allah is the Greatest; there is no power and no strength except with Allah, the Most High, the Supreme.",
             authenticReference = "Sahih Muslim 2137 (Al-Baqiyat as-Salihat); Sahih al-Bukhari 6409; Sunan Abi Dawud 832.",
             scholarlyAndCurriculumNote = "Combines the four most beloved phrases to Allah (Sahih Muslim 2137) with the treasure of Paradise ('La hawla wa la quwwata illa billah').",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n253.mp3"
+            humanAudioUrl = null
         ),
         ImanAndKalimaItem(
             id = "kalima_4_tawheed",
@@ -861,7 +861,7 @@ object LearnIslamCurriculumData {
             englishTranslation = "There is no deity except Allah alone, without partner. To Him belongs sovereignty and all praise; He gives life and causes death, and He is Ever-Living and never dies. Possessor of Majesty and Honor; in His hand is all good, and He has power over all things.",
             authenticReference = "Sahih al-Bukhari 3293 & Sahih Muslim 2691 (core Tahlil); Jami' at-Tirmidhi 3428; Quran 3:26 & 55:27.",
             scholarlyAndCurriculumNote = "Synthesizes authentic Prophetic Adhkar of Tawheed with Quranic attributes from Surah Aal-e-Imran (3:26) and Surah Ar-Rahman (55:27).",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n209.mp3"
+            humanAudioUrl = null
         ),
         ImanAndKalimaItem(
             id = "kalima_5_istighfar",
@@ -876,7 +876,7 @@ object LearnIslamCurriculumData {
             englishTranslation = "I seek forgiveness from Allah, my Lord, for every sin I committed knowingly or unknowingly, secretly or openly, and I turn in repentance to Him for the sin I know and the sin I do not know. Truly You are the Knower of the unseen, the Concealer of faults, and the Forgiver of sins; and there is no power and no strength except with Allah, the Most High, the Supreme.",
             authenticReference = "Based on Quran 5:109 (عَلَّامُ الْغُيُوبِ), Musnad Ahmad 4/403 & Al-Adab Al-Mufrad 716 (seeking refuge from known and unknown sins); compiled in traditional Darasgah primers.",
             scholarlyAndCurriculumNote = "Scholarly Transparency Note: While the individual concepts and phrases derive from the Quran and Sunnah, the exact combined paragraph of the 5th and 6th Kalimas is a classical South Asian educational compilation (Nimaz-e-Mutarjam curriculum) rather than a single verbatim Prophetic Hadith. For the highest-graded verbatim Prophetic Istighfar, see Sayyidul-Istighfar (Sahih al-Bukhari 6306).",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n203.mp3"
+            humanAudioUrl = null
         ),
         ImanAndKalimaItem(
             id = "kalima_6_radde_kufr",
@@ -891,7 +891,7 @@ object LearnIslamCurriculumData {
             englishTranslation = "O Allah! I seek refuge in You from associating anything with You knowingly, and I seek Your forgiveness for that which I do not know. I repent from it and declare myself free from disbelief, polytheism, falsehood, backbiting, innovation, tale-bearing, indecencies, slander, and all sins; I submit in Islam and say: There is no deity except Allah, Muhammad ﷺ is the Messenger of Allah.",
             authenticReference = "Opening clause is a verbatim Hasan Hadith in Al-Adab Al-Mufrad 716 & Musnad Ahmad 19606 (اَللّٰهُمَّ إِنِّي أَعُوذُ بِكَ أَنْ أُشْرِكَ بِكَ وَأَنَا أَعْلَمُ، وَأَسْتَغْفِرُكَ لِمَا لَا أَعْلَمُ); closing clause is the comprehensive repentance formula in traditional Nimaz-e-Mutarjam.",
             scholarlyAndCurriculumNote = "Distinguishes the verbatim Prophetic supplication against hidden Shirk (Al-Adab Al-Mufrad 716) from the expanded educational pledge of repentance appended by classical Madrasah scholars.",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n203.mp3"
+            humanAudioUrl = null
         ),
         ImanAndKalimaItem(
             id = "iman_mujmal",
@@ -906,7 +906,7 @@ object LearnIslamCurriculumData {
             englishTranslation = "I believe in Allah as He is with all His Names and Attributes, and I have accepted all His commandments—affirming with the tongue and verifying with the heart.",
             authenticReference = "Creedal summary based on Quran 7:180 (وَلِلّٰهِ الْأَسْمَاءُ الْحُسْنَىٰ), Quran 2:285, and classical Aqeedah texts (Al-Fiqh Al-Akbar / Aqeedah Tahawiyyah).",
             scholarlyAndCurriculumNote = "Expresses comprehensive faith in Allah's Names, Attributes, and Commands before detailing individual articles in Iman-e-Mufassal.",
-            humanAudioUrl = "https://raw.githubusercontent.com/islamicapi/masnun-dua/main/audio/370.mp3"
+            humanAudioUrl = null
         ),
         ImanAndKalimaItem(
             id = "iman_mufassal",
@@ -921,7 +921,7 @@ object LearnIslamCurriculumData {
             englishTranslation = "I believe in Allah, in His Angels, in His Scriptures, in His Messengers, in the Last Day, and that Divine Decree (both good and adversity) is from Allah the Exalted, and in resurrection after death.",
             authenticReference = "Sahih Muslim 8 (Hadith Jibreel: أَنْ تُؤْمِنَ بِاللّٰهِ وَمَلَائِكَتِهِ وَكُتُبِهِ وَرُسُلِهِ وَالْيَوْمِ الْآخِرِ وَتُؤْمِنَ بِالْقَدَرِ خَيْرِهِ وَشَرِّهِ) & Quran 2:285, 4:136.",
             scholarlyAndCurriculumNote = "Directly derived from the famous Hadith of Jibreel (Sahih Muslim 8) and Surah An-Nisa 4:136.",
-            humanAudioUrl = "https://raw.githubusercontent.com/islamicapi/masnun-dua/main/audio/92.mp3"
+            humanAudioUrl = null
         ),
         ImanAndKalimaItem(
             id = "five_pillars_of_islam",
@@ -936,7 +936,7 @@ object LearnIslamCurriculumData {
             englishTranslation = "Islam is built upon five pillars: (1) Testifying that there is no deity worthy of worship except Allah and that Muhammad ﷺ is the Messenger of Allah, (2) Establishing the five daily Prayers (Salah), (3) Paying obligatory Charity (Zakat), (4) Pilgrimage to the House (Hajj for those able), and (5) Fasting the month of Ramadan.",
             authenticReference = "Sahih al-Bukhari 8; Sahih Muslim 16 (Narrated by Abdullah ibn Umar رضي الله عنهما).",
             scholarlyAndCurriculumNote = "Note on Sunni & Shia Jurisprudence: The four Sunni schools hold these 5 Arkan as the foundational pillars; Ja'fari (Twelver Shia) jurisprudence organizes fundamentals into 5 Usool ad-Deen (Tawheed, 'Adl, Nubuwwah, Imamah, Ma'ad) and 10 Furoo' ad-Deen (Salah, Sawm, Zakat, Khums, Hajj, Jihad, Amr bil-Ma'ruf, Nahi 'anil-Munkar, Tawalla, Tabarra).",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n27.mp3"
+            humanAudioUrl = null
         )
     )
 
@@ -964,7 +964,9 @@ object LearnIslamCurriculumData {
                 ScholarlyDifferenceEntry("Hanafi", "Niyyah and Tasmiyah are Sunnah Mu'akkadah in Wudu; the 4 Fara'id of Wudu are specified in Surah Al-Ma'idah 5:6 (washing face, washing arms with elbows, wiping 1/4 of head, washing feet with ankles).", "حنفی فقہ میں وضو کی نیت اور تسمیہ سنتِ مؤکدہ ہیں جبکہ وضو کے فرائض سورۃ المائدہ ۵:۶ کی نص سے چار ہیں۔", "Al-Hidayah; Radd al-Muhtar"),
                 ScholarlyDifferenceEntry("Shafi'i, Maliki & Hanbali", "Intention (Niyyah in the heart) at the start of washing the face is Fard (obligatory pillar) of Wudu.", "شافعی، مالکی اور حنبلی فقہ میں وضو کے شروع میں دل سے نیت کرنا فرض ہے۔", "Al-Majmu' (An-Nawawi); Al-Mughni (Ibn Qudamah)")
             ),
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n12.mp3"
+            quranSurahNumber = 1,
+            quranAyahRange = 1..1,
+            humanAudioUrl = "https://everyayah.com/data/Alafasy_128kbps/001001.mp3"
         ),
         WuduAndSalahStepItem(
             id = "wudu_step_2_mouth_nose_face",
@@ -981,9 +983,9 @@ object LearnIslamCurriculumData {
             methodExplanationEnglish = "Rinse the mouth 3 times (using Miswak if available), draw water into the nostrils 3 times and blow it out with the left hand, then wash the entire face 3 times from the hairline of the forehead down to beneath the chin, and from earlobe to earlobe.",
             methodExplanationUrdu = "تین بار کلی کریں، تین بار ناک میں نرم ہڈی تک پانی ڈال کر بائیں ہاتھ سے صاف کریں، پھر پیشانی کے بالوں سے ٹھوڑی کے نیچے تک اور ایک کان کی لو سے دوسرے کان کی لو تک پورا چہرہ تین بار دھوئیں۔",
             hadithOrFiqhReference = "Quran 5:6; Sahih al-Bukhari 159; Sahih Muslim 226.",
-            quranSurahNumber = 5,
-            quranAyahRange = 6..6,
-            humanAudioUrl = "https://everyayah.com/data/Alafasy_128kbps/005006.mp3"
+            quranSurahNumber = null,
+            quranAyahRange = null,
+            humanAudioUrl = null
         ),
         WuduAndSalahStepItem(
             id = "wudu_step_3_arms_head_feet_dua",
@@ -1004,7 +1006,7 @@ object LearnIslamCurriculumData {
                 ScholarlyDifferenceEntry("Sunni Consensus (Hanafi, Maliki, Shafi'i, Hanbali)", "Both feet are washed completely including the ankles (or wiped over leather socks/Khuffayn when conditions are met).", "اہلِ سنت کے چاروں مذاہب میں پاؤں کو ٹخنوں سمیت دھونا فرض ہے (یا شرائط کے ساتھ موزوں پر مسح)۔", "Sahih al-Bukhari 163; Sahih Muslim 241"),
                 ScholarlyDifferenceEntry("Ja'fari (Twelver Shia)", "Face and arms (from elbows down to fingertips) are washed twice at most, followed by wiping the front of the head and wiping the tops of both feet to the ankle bones with the remaining moisture of Wudu.", "فقہ جعفریہ میں چہرہ اور بازو (کہنی سے انگلیوں تک) دھوئے جاتے ہیں اور سر کے اگلے حصے اور دونوں پاؤں کی پشت پر وضو کی تری سے مسح کیا جاتا ہے۔", "Al-Kafi; Tahrir al-Wasilah")
             ),
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n13.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/13hm.mp3|https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/14hm.mp3"
         ),
         WuduAndSalahStepItem(
             id = "salah_prereq_and_rakat",
@@ -1021,9 +1023,9 @@ object LearnIslamCurriculumData {
             methodExplanationEnglish = "Outer Prerequisites (Shara'it-e-Salah): (1) Purity of body (Wudu/Ghusl), (2) Purity of clothes, (3) Purity of place, (4) Covering the 'Awrah (Satr-e-'Awrah), (5) Entry of prayer time, (6) Facing the Qiblah, (7) Intention (Niyyah in the heart).\nInner Pillars (Fara'id-e-Salah): (1) Takbeer-e-Tahreema, (2) Qiyam (standing), (3) Qira'ah (recitation), (4) Ruku (bowing), (5) Sujood (two prostrations per Rak'ah), (6) Qa'dah Akhirah (final sitting for Tashahhud).\nDaily Rak'at Summary:\n• Fajr: 2 Sunnah Mu'akkadah + 2 Fard (Total 4)\n• Dhuhr: 4 Sunnah Mu'akkadah + 4 Fard + 2 Sunnah Mu'akkadah + 2 Nafl (Total 12)\n• Asr: 4 Sunnah Ghayr Mu'akkadah + 4 Fard (Total 8)\n• Maghrib: 3 Fard + 2 Sunnah Mu'akkadah + 2 Nafl (Total 7)\n• Isha: 4 Sunnah Ghayr Mu'akkadah + 4 Fard + 2 Sunnah Mu'akkadah + 2 Nafl + 3 Witr + 2 Nafl (Total 17)",
             methodExplanationUrdu = "شرائطِ نماز (باہر کے فرائض): (۱) بدن کا پاک ہونا، (۲) کپڑوں کا پاک ہونا، (۳) جگہ کا پاک ہونا، (۴) سترِ عورت، (۵) نماز کا وقت ہونا، (۶) قبلہ رخ ہونا، (۷) دل میں نیت کرنا۔\nارکانِ نماز (اندر کے فرائض): (۱) تکبیرِ تحریمہ، (۲) قیام، (۳) قراءت، (۴) رکوع، (۵) دونوں سجدے، (۶) قعدہ اخیرہ۔\nپانچوں نمازوں کی رکعات:\n• فجر: ۲ سنت مؤکدہ + ۲ فرض = ۴\n• ظہر: ۴ سنت مؤکدہ + ۴ فرض + ۲ سنت مؤکدہ + ۲ نفل = ۱۲\n• عصر: ۴ سنت غیر مؤکدہ + ۴ فرض = ۸\n• مغرب: ۳ فرض + ۲ سنت مؤکدہ + ۲ نفل = ۷\n• عشاء: ۴ سنت غیر مؤکدہ + ۴ فرض + ۲ سنت مؤکدہ + ۲ نفل + ۳ وتر + ۲ نفل = ۱۷",
             hadithOrFiqhReference = "Quran 4:103; Sahih al-Bukhari 757 (Hadith of the man who prayed badly); Sahih Muslim 728 (12 daily Sunnah Rawatib).",
-            quranSurahNumber = 4,
-            quranAyahRange = 103..103,
-            humanAudioUrl = "https://everyayah.com/data/Alafasy_128kbps/004103.mp3"
+            quranSurahNumber = null,
+            quranAyahRange = null,
+            humanAudioUrl = null
         ),
         WuduAndSalahStepItem(
             id = "namaz_step_1_takbeer_sana",
@@ -1045,7 +1047,7 @@ object LearnIslamCurriculumData {
                 ScholarlyDifferenceEntry("Shafi'i", "Place hands above the navel / below the chest and recite 'Wajjahtu wajhiya lilladhi fataras-samawati wal-ard...' (Sahih Muslim 771) or 'Subhanaka Allahumma...'.", "شافعی فقہ میں سینے کے نیچے ہاتھ باندھے جاتے ہیں اور دعائے استفتاح 'وجھت وجھی...' یا 'سبحانک اللھم' پڑھی جاتی ہے۔", "Sahih Muslim 771"),
                 ScholarlyDifferenceEntry("Maliki & Ja'fari", "In the well-known Maliki view (Sadl in Fard) and in Ja'fari jurisprudence (Irsal), the arms are left naturally at the sides during Qiyam.", "مالکی مشہور قول اور فقہ جعفریہ میں قیام کی حالت میں ہاتھ کھلے (ارسال/سدل) رکھے جاتے ہیں۔", "Al-Mudawwanah; Wasa'il ash-Shi'ah")
             ),
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n28.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/28hm.mp3"
         ),
         WuduAndSalahStepItem(
             id = "namaz_step_2_taawwudh_tasmiyah_fatiha",
@@ -1069,7 +1071,7 @@ object LearnIslamCurriculumData {
                 ScholarlyDifferenceEntry("Shafi'i & Hanbali", "'Aameen' is said aloud in audible prayers; Shafi'i school counts 'Bismillah' as the first verse recited aloud in audible prayers.", "شافعی اور حنبلی فقہ میں جہری نمازوں میں آمین بلند آواز سے کہی جاتی ہے، اور شافعیہ کے نزدیک بسم اللہ بھی بلند آواز سے پڑھی جاتی ہے۔", "Sahih al-Bukhari 780; Sahih Muslim 400"),
                 ScholarlyDifferenceEntry("Ja'fari (Twelver Shia)", "'Bismillah' is an obligatory part of every Surah and is recited aloud; after Al-Fatiha, 'Al-hamdu lillahi Rabbil-'alameen' is said instead of 'Aameen'.", "فقہ جعفریہ میں بسم اللہ ہر سورت کا جزو ہے اور سورۃ الفاتحہ کے بعد 'الحمد للہ رب العالمین' کہا جاتا ہے۔", "Al-Kafi")
             ),
-            humanAudioUrl = "https://everyayah.com/data/Alafasy_128kbps/001001.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/193hm.mp3|https://everyayah.com/data/Alafasy_128kbps/001001.mp3|https://everyayah.com/data/Alafasy_128kbps/001002.mp3|https://everyayah.com/data/Alafasy_128kbps/001003.mp3|https://everyayah.com/data/Alafasy_128kbps/001004.mp3|https://everyayah.com/data/Alafasy_128kbps/001005.mp3|https://everyayah.com/data/Alafasy_128kbps/001006.mp3|https://everyayah.com/data/Alafasy_128kbps/001007.mp3"
         ),
         WuduAndSalahStepItem(
             id = "namaz_step_3_short_surahs",
@@ -1088,7 +1090,7 @@ object LearnIslamCurriculumData {
             hadithOrFiqhReference = "Quran 73:20 (فَاقْرَءُوا مَا تَيَسَّرَ مِنَ الْقُرْآنِ); Sahih al-Bukhari 757; Sahih Muslim 451.",
             quranSurahNumber = 112,
             quranAyahRange = 1..4,
-            humanAudioUrl = "https://everyayah.com/data/Alafasy_128kbps/112001.mp3"
+            humanAudioUrl = "https://everyayah.com/data/Alafasy_128kbps/112001.mp3|https://everyayah.com/data/Alafasy_128kbps/112002.mp3|https://everyayah.com/data/Alafasy_128kbps/112003.mp3|https://everyayah.com/data/Alafasy_128kbps/112004.mp3|https://everyayah.com/data/Alafasy_128kbps/108001.mp3|https://everyayah.com/data/Alafasy_128kbps/108002.mp3|https://everyayah.com/data/Alafasy_128kbps/108003.mp3|https://everyayah.com/data/Alafasy_128kbps/103001.mp3|https://everyayah.com/data/Alafasy_128kbps/103002.mp3|https://everyayah.com/data/Alafasy_128kbps/103003.mp3"
         ),
         WuduAndSalahStepItem(
             id = "namaz_step_4_ruku_qaumah",
@@ -1105,7 +1107,7 @@ object LearnIslamCurriculumData {
             methodExplanationEnglish = "Say 'Allahu Akbar' and bow into Ruku, grasping the knees with fingers spread and keeping the back level. Recite 'Subhana Rabbiyal-'Azim' 3, 5, or 7 times. Then rise upright saying 'Sami'Allahu liman hamidah' and while standing calm in Qaumah say 'Rabbana lakal-hamd'.",
             methodExplanationUrdu = "'اللہ اکبر' کہتے ہوئے رکوع میں جائیں، ہاتھوں سے گھٹنوں کو پکڑیں اور کمر سیدھی رکھیں۔ کم از کم تین بار 'سُبْحَانَ رَبِّيَ الْعَظِيمِ' پڑھیں۔ پھر 'سَمِعَ اللّٰهُ لِمَنْ حَمِدَهُ' کہتے ہوئے سیدھے کھڑے ہو جائیں اور قومہ میں 'رَبَّنَا لَكَ الْحَمْدُ' کہیں۔",
             hadithOrFiqhReference = "Sahih Muslim 772; Sunan Abi Dawud 869; Sahih al-Bukhari 799.",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n33.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/33hm.mp3|https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/38hm.mp3|https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/39hm.mp3"
         ),
         WuduAndSalahStepItem(
             id = "namaz_step_5_sajdah_jalsah",
@@ -1122,7 +1124,7 @@ object LearnIslamCurriculumData {
             methodExplanationEnglish = "Say 'Allahu Akbar' and prostrate on 7 bones: the forehead with the nose, both palms, both knees, and the toes of both feet facing the Qiblah. Recite 'Subhana Rabbiyal-A'la' 3 times. Rise to sit calmly in Jalsah and say 'Rabbighfir li / Allahummaghfir li...', then perform the second Sajdah.",
             methodExplanationUrdu = "'اللہ اکبر' کہتے ہوئے سات اعضاء (پیشانی مع ناک، دونوں ہتھیلیوں، دونوں گھٹنوں اور دونوں پاؤں کی انگلیوں) پر سجدہ کریں اور تین بار 'سُبْحَانَ رَبِّيَ الْأَعْلَىٰ' پڑھیں۔ پھر 'اللہ اکبر' کہہ کر اطمینان سے بیٹھیں (جلسہ) اور مغفرت کی دعا پڑھیں، پھر دوسرا سجدہ کریں۔",
             hadithOrFiqhReference = "Sahih al-Bukhari 812 (Prostration on 7 bones); Sahih Muslim 772; Sunan Abi Dawud 850; Sunan Ibn Majah 898.",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n41.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/41hm.mp3|https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/48hm.mp3"
         ),
         WuduAndSalahStepItem(
             id = "namaz_step_6_tashahhud",
@@ -1144,7 +1146,7 @@ object LearnIslamCurriculumData {
                 ScholarlyDifferenceEntry("Shafi'i", "Prefer the Tashahhud narrated by Abdullah ibn 'Abbas رضي الله عنهما ('At-tahiyyatul-mubarakatas-salawatut-tayyibatu lillah...' — Sahih Muslim 403).", "شافعی فقہ میں حضرت عبداللہ بن عباس رضی اللہ عنہما سے مروی تشہد مختار ہے؛ دونوں ہی صحیح احادیث سے ثابت ہیں۔", "Sahih Muslim 403"),
                 ScholarlyDifferenceEntry("Maliki", "Prefer the Tashahhud of 'Umar ibn al-Khattab رضي الله عنه recorded in Muwatta Imam Malik.", "مالکی فقہ میں موطا امام مالک میں مروی حضرت عمر رضی اللہ عنہ کا تشہد مختار ہے۔", "Muwatta Malik")
             ),
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n52.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/52hm.mp3"
         ),
         WuduAndSalahStepItem(
             id = "namaz_step_7_durood_ibrahim",
@@ -1161,7 +1163,7 @@ object LearnIslamCurriculumData {
             methodExplanationEnglish = "In the final sitting (Qa'dah Akhirah), immediately after Tashahhud, recite Durood-e-Ibrahimi.",
             methodExplanationUrdu = "آخری قعدہ میں تشہد (التحیات) کے فوراً بعد درودِ ابراہیمی پڑھیں۔",
             hadithOrFiqhReference = "Sahih al-Bukhari 3370; Sahih Muslim 406 (Narrated by Ka'b ibn 'Ujrah رضي الله عنه).",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n53.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/53hm.mp3"
         ),
         WuduAndSalahStepItem(
             id = "namaz_step_8_dua_masoorah_salam",
@@ -1180,7 +1182,7 @@ object LearnIslamCurriculumData {
             hadithOrFiqhReference = "Sahih al-Bukhari 834 & Sahih Muslim 2705 (Dua taught to Abu Bakr as-Siddiq رضي الله عنه); Quran 14:40–41; Sahih Muslim 582 (Salam).",
             quranSurahNumber = 14,
             quranAyahRange = 40..41,
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n57.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/57hm.mp3|https://everyayah.com/data/Alafasy_128kbps/014040.mp3|https://everyayah.com/data/Alafasy_128kbps/014041.mp3"
         ),
         WuduAndSalahStepItem(
             id = "namaz_step_9_dua_qunoot",
@@ -1201,7 +1203,7 @@ object LearnIslamCurriculumData {
                 ScholarlyDifferenceEntry("Hanafi", "Witr is 3 Rak'ahs with one Salam; Qunoot is recited silently in the 3rd Rak'ah after Surah recitation and BEFORE Ruku, raising the hands for Takbeer-e-Qunoot.", "حنفی فقہ میں وتر تین رکعت ایک سلام کے ساتھ واجب ہے اور تیسری رکعت میں قراءت کے بعد رکوع سے پہلے تکبیر کہہ کر دعائے قنوت پڑھی جاتی ہے۔", "Al-Hidayah; Sunan an-Nasa'i 1699"),
                 ScholarlyDifferenceEntry("Shafi'i & Hanbali", "Qunoot is recited AFTER rising from Ruku in the final Rak'ah of Witr (and in Fajr prayer according to the Shafi'i school).", "شافعی اور حنبلی فقہ میں وتر کی آخری رکعت میں رکوع سے اٹھنے کے بعد قنوت پڑھی جاتی ہے (اور شافعیہ کے نزدیک فجر میں بھی)۔", "Sunan Abi Dawud 1425; Al-Majmu'")
             ),
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n58.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/118hm.mp3|https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/116hm.mp3"
         ),
         WuduAndSalahStepItem(
             id = "namaz_step_10_salatul_janaza",
@@ -1222,7 +1224,7 @@ object LearnIslamCurriculumData {
                 ScholarlyDifferenceEntry("Hanafi & Maliki", "After the 1st Takbeer, Sana ('Subhanaka Allahumma wa bihamdika...') is recited without Surah Al-Fatiha (Maliki goes straight to Dua after Takbeers).", "حنفی فقہ میں پہلی تکبیر کے بعد ثناء پڑھی جاتی ہے۔", "Al-Hidayah; Radd al-Muhtar"),
                 ScholarlyDifferenceEntry("Shafi'i & Hanbali", "After the 1st Takbeer, reciting Surah Al-Fatiha is a pillar (Rukn) of Salat al-Janaza.", "شافعی اور حنبلی فقہ میں پہلی تکبیر کے بعد سورۃ الفاتحہ پڑھنا فرض ہے۔", "Sahih al-Bukhari 1335")
             ),
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n157.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/157hm.mp3|https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/160hm.mp3|https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/161hm.mp3"
         )
     )
 
@@ -1310,7 +1312,7 @@ object LearnIslamCurriculumData {
             urduTranslation = "تمام تعریفیں اللہ ہی کے لیے ہیں جس نے ہمیں موت (نیند) کے بعد زندگی عطا فرمائی اور اسی کی طرف اٹھ کر جانا ہے۔",
             authenticReference = "Sahih al-Bukhari 6312; Sahih Muslim 2711 (Hisn al-Muslim #1)",
             verificationNote = "Muttafaqun 'Alayh (Sahih al-Bukhari & Sahih Muslim).",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n1.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/1hm.mp3"
         ),
         DailyDuaSequenceEntry(
             sequenceOrder = 2,
@@ -1325,7 +1327,7 @@ object LearnIslamCurriculumData {
             urduTranslation = "اللہ کے نام سے۔ اے اللہ! میں خبیث جنوں اور خبیث جننیوں کے شر سے تیری پناہ مانگتا ہوں۔",
             authenticReference = "Sahih al-Bukhari 142; Sahih Muslim 375 (Hisn al-Muslim #10)",
             verificationNote = "Step in with the left foot after reciting outside.",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n10.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/10hm.mp3"
         ),
         DailyDuaSequenceEntry(
             sequenceOrder = 3,
@@ -1340,7 +1342,7 @@ object LearnIslamCurriculumData {
             urduTranslation = "(اے اللہ!) میں تیری بخشش طلب کرتا ہوں۔",
             authenticReference = "Sunan Abi Dawud 30; Jami' at-Tirmidhi 7 (Sahih — Hisn al-Muslim #11)",
             verificationNote = "Step out with the right foot.",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n11.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/11hm.mp3"
         ),
         DailyDuaSequenceEntry(
             sequenceOrder = 4,
@@ -1355,7 +1357,7 @@ object LearnIslamCurriculumData {
             urduTranslation = "میں گواہی دیتا ہوں کہ اللہ کے سوا کوئی معبود نہیں وہ اکیلا ہے اور محمد ﷺ اس کے بندے اور رسول ہیں۔ اے اللہ! مجھے توبہ کرنے والوں اور پاک رہنے والوں میں شامل فرما۔",
             authenticReference = "Sahih Muslim 234; Jami' at-Tirmidhi 55 (Hisn al-Muslim #13)",
             verificationNote = "Sahih Muslim 234.",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n13.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/13hm.mp3|https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/14hm.mp3"
         ),
         DailyDuaSequenceEntry(
             sequenceOrder = 5,
@@ -1368,9 +1370,9 @@ object LearnIslamCurriculumData {
             transliteration = "Al-hamdu lillaahilladhee kasaanee haadhath-thawba wa razaqaneehi min ghayri hawlim-minnee wa laa quwwah",
             englishTranslation = "All praise is for Allah who clothed me with this garment and provided it for me without any power or might from myself.",
             urduTranslation = "تمام تعریفیں اس اللہ کے لیے ہیں جس نے مجھے یہ لباس پہنایا اور میری کسی طاقت اور قوت کے بغیر مجھے یہ عطا فرمایا۔",
-            authenticReference = "Sunan Abi Dawud 4023; Jami' at-Tirmidhi 3458 (Hasan — Hisn al-Muslim #6)",
+            authenticReference = "Sunan Abi Dawud 4023; Jami' at-Tirmidhi 3458 (Hasan — Hisn al-Muslim #5)",
             verificationNote = "Graded Hasan.",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n6.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/5hm.mp3"
         ),
         DailyDuaSequenceEntry(
             sequenceOrder = 6,
@@ -1385,7 +1387,7 @@ object LearnIslamCurriculumData {
             urduTranslation = "اللہ کے نام کے ساتھ، میں نے اللہ پر بھروسہ کیا، اور گناہ سے بچنے کی طاقت اور نیکی کرنے کی قوت اللہ ہی کی مدد سے ہے۔",
             authenticReference = "Sunan Abi Dawud 5095; Jami' at-Tirmidhi 3426 (Sahih — Hisn al-Muslim #16)",
             verificationNote = "The angels say: 'You are guided, sufficed, and protected.'",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n16.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/16hm.mp3"
         ),
         DailyDuaSequenceEntry(
             sequenceOrder = 7,
@@ -1394,13 +1396,13 @@ object LearnIslamCurriculumData {
             duaId = "dua_home_entering",
             titleEnglish = "When Entering the House",
             titleUrdu = "گھر میں داخل ہونے کی دعا",
-            arabicText = "بِسْمِ اللّٰهِ وَلَجْنَا، وَبِسْمِ اللّٰهِ خَرَجْنَا، وَعَلَىٰ رَبِّنَا تَوَكَّلْنَا",
-            transliteration = "Bismillaahi walajnaa, wa bismillaahi kharajnaa, wa 'alaa Rabbinaa tawakkalnaa",
-            englishTranslation = "In the name of Allah we enter, in the name of Allah we leave, and upon our Lord we rely (then greet the family with Salam).",
-            urduTranslation = "اللہ کے نام سے ہم داخل ہوئے اور اللہ کے نام سے ہم نکلے اور اپنے رب ہی پر ہم نے بھروسہ کیا (پھر گھر والوں کو سلام کریں)۔",
+            arabicText = "بِسْمِ اللّٰهِ وَلَجْنَا، وَبِسْمِ اللّٰهِ خَرَجْنَا، وَعَلَىٰ رَبِّنَا تَوَكَّلْنَا، ثُمَّ لِيُسَلِّمْ عَلَىٰ أَهْلِهِ",
+            transliteration = "Bismillaahi walajnaa, wa bismillaahi kharajnaa, wa 'alaa Rabbinaa tawakkalnaa, thumma liyusallim 'alaa ahlih",
+            englishTranslation = "In the name of Allah we enter, in the name of Allah we leave, and upon our Lord we rely — then let him greet his family with Salam.",
+            urduTranslation = "اللہ کے نام سے ہم داخل ہوئے اور اللہ کے نام سے ہم نکلے اور اپنے رب ہی پر ہم نے بھروسہ کیا، پھر اپنے گھر والوں کو سلام کرے۔",
             authenticReference = "Sunan Abi Dawud 5096; Sahih Muslim 2018 (remembering Allah upon entering & eating — Hisn al-Muslim #18)",
             verificationNote = "Sahih Muslim 2018 confirms mentioning Allah's name upon entering home.",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n18.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/18hm.mp3"
         ),
         DailyDuaSequenceEntry(
             sequenceOrder = 8,
@@ -1409,13 +1411,13 @@ object LearnIslamCurriculumData {
             duaId = "dua_masjid_entering",
             titleEnglish = "Entering & Leaving the Mosque",
             titleUrdu = "مسجد میں داخل ہوتے اور نکلتے وقت کی دعا",
-            arabicText = "﴿عِنْدَ الدُّخُولِ﴾ بِسْمِ اللّٰهِ وَالصَّلَاةُ وَالسَّلَامُ عَلَىٰ رَسُولِ اللّٰهِ، اَللّٰهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ\n﴿عِنْدَ الْخُرُوجِ﴾ اَللّٰهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ",
-            transliteration = "Entering: Bismillaahi was-salaatu was-salaamu 'alaa Rasoolillaah, Allaahummaftah lee abwaaba rahmatik.\nLeaving: Allaahumma innee as'aluka min fadlik.",
-            englishTranslation = "Entering (right foot): In the name of Allah, blessings and peace be upon the Messenger of Allah. O Allah, open for me the gates of Your mercy.\nLeaving (left foot): O Allah, I ask You from Your bounty.",
-            urduTranslation = "داخل ہوتے وقت (دایاں قدم): اے اللہ! میرے لیے اپنی رحمت کے دروازے کھول دے۔\nنکلتے وقت (بایاں قدم): اے اللہ! میں تجھ سے تیرے فضل کا سوال کرتا ہوں۔",
+            arabicText = "﴿عِنْدَ الدُّخُولِ﴾ بِسْمِ اللّٰهِ وَالصَّلَاةُ وَالسَّلَامُ عَلَىٰ رَسُولِ اللّٰهِ، اَللّٰهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ\n﴿عِنْدَ الْخُرُوجِ﴾ بِسْمِ اللّٰهِ وَالصَّلَاةُ وَالسَّلَامُ عَلَىٰ رَسُولِ اللّٰهِ، اَللّٰهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ، اَللّٰهُمَّ اعْصِمْنِي مِنَ الشَّيْطَانِ الرَّجِيمِ",
+            transliteration = "Entering: Bismillaahi was-salaatu was-salaamu 'alaa Rasoolillaah, Allaahummaftah lee abwaaba rahmatik.\nLeaving: Bismillaahi was-salaatu was-salaamu 'alaa Rasoolillaah, Allaahumma innee as'aluka min fadlika, Allaahumma'simnee minash-shaytaanir-rajeem.",
+            englishTranslation = "Entering (right foot): In the name of Allah, blessings and peace be upon the Messenger of Allah. O Allah, open for me the gates of Your mercy.\nLeaving (left foot): In the name of Allah, blessings and peace be upon the Messenger of Allah. O Allah, I ask You from Your bounty. O Allah, protect me from Satan, the accursed.",
+            urduTranslation = "داخل ہوتے وقت (دایاں قدم): اللہ کے نام سے اور رسول اللہ ﷺ پر درود و سلام ہو، اے اللہ! میرے لیے اپنی رحمت کے دروازے کھول دے۔\nنکلتے وقت (بایاں قدم): اللہ کے نام سے اور رسول اللہ ﷺ پر درود و سلام ہو، اے اللہ! میں تجھ سے تیرے فضل کا سوال کرتا ہوں، اے اللہ! مجھے شیطان مردود سے محفوظ رکھ۔",
             authenticReference = "Sahih Muslim 713; Sunan Abi Dawud 465 (Hisn al-Muslim #20–21)",
             verificationNote = "Sahih Muslim 713.",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n20.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/islamicapi/masnun-dua/main/audio/175.mp3|https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/21hm.mp3"
         ),
         DailyDuaSequenceEntry(
             sequenceOrder = 9,
@@ -1440,13 +1442,13 @@ object LearnIslamCurriculumData {
             duaId = "dua_food_before",
             titleEnglish = "Before Eating or Drinking ( & If Forgotten at Start)",
             titleUrdu = "کھانا شروع کرنے کی دعا (اور شروع میں بھول جانے کی دعا)",
-            arabicText = "بِسْمِ اللّٰهِ وَعَلَىٰ بَرَكَةِ اللّٰهِ ۝ (وَإِذَا نَسِيَ فِي أَوَّلِهِ فَلْيَقُلْ: بِسْمِ اللّٰهِ أَوَّلَهُ وَآخِرَهُ)",
-            transliteration = "Bismillaahi wa 'alaa barakatillaah. (If forgotten at start: Bismillaahi awwalahoo wa aakhirahoo)",
-            englishTranslation = "In the name of Allah and upon the blessings of Allah. (If one forgets at the beginning: In the name of Allah at its beginning and at its end).",
-            urduTranslation = "اللہ کے نام سے اور اللہ کی برکت پر۔ (اور اگر شروع میں بھول جائے تو کہے: اللہ کے نام سے اس کے اول اور آخر میں)۔",
+            arabicText = "بِسْمِ اللّٰهِ ۝ (فَإِنْ نَسِيَ فِي أَوَّلِهِ فَلْيَقُلْ: بِسْمِ اللّٰهِ فِي أَوَّلِهِ وَآخِرِهِ)",
+            transliteration = "Bismillaah. (Fa-in nasiya fee awwalihee fal-yaqul: Bismillaahi fee awwalihee wa aakhirih)",
+            englishTranslation = "In the name of Allah. (If one forgets at the beginning, let him say: In the name of Allah at its beginning and at its end).",
+            urduTranslation = "اللہ کے نام سے۔ (اور اگر شروع میں بھول جائے تو کہے: اللہ کے نام سے اس کے اول اور آخر میں)۔",
             authenticReference = "Sahih al-Bukhari 5376 ('Mention Allah's Name and eat with your right hand'); Sunan Abi Dawud 3767; Jami' at-Tirmidhi 1858 (Hisn al-Muslim #178)",
             verificationNote = "Sahih Hadith.",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n178.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/178hm.mp3"
         ),
         DailyDuaSequenceEntry(
             sequenceOrder = 11,
@@ -1455,13 +1457,13 @@ object LearnIslamCurriculumData {
             duaId = "dua_food_after",
             titleEnglish = "After Finishing a Meal or Drink",
             titleUrdu = "کھانا کھانے کے بعد کی مسنون دعا",
-            arabicText = "الْحَمْدُ لِلّٰهِ الَّذِي أَطْعَمَنَا وَسَقَانَا وَجَعَلَنَا مُسْلِمِينَ ۝ الْحَمْدُ لِلّٰهِ الَّذِي أَطْعَمَنِي هٰذَا وَرَزَقَنِيهِ مِنْ غَيْرِ حَوْلٍ مِنِّي وَلَا قُوَّةٍ",
-            transliteration = "Al-hamdu lillaahilladhee at'amanaa wa saqaanaa wa ja'alanaa Muslimeen. Al-hamdu lillaahilladhee at'amanee haadhaa wa razaqaneehi min ghayri hawlim-minnee wa laa quwwah",
-            englishTranslation = "All praise is due to Allah who fed us, gave us drink, and made us Muslims. All praise is due to Allah who fed me this and provided it for me without any power or strength from me.",
-            urduTranslation = "تمام تعریفیں اس اللہ کے لیے ہیں جس نے ہمیں کھلایا اور پلایا اور ہمیں مسلمان بنایا۔ تمام تعریفیں اللہ کے لیے ہیں جس نے مجھے یہ کھانا کھلایا اور میری طاقت و قوت کے بغیر مجھے یہ عطا فرمایا۔",
-            authenticReference = "Sunan Abi Dawud 3850 & 4023; Jami' at-Tirmidhi 3458 (Hasan — Hisn al-Muslim #180)",
-            verificationNote = "Whoever recites the second formula after eating has their past minor sins forgiven (Jami' at-Tirmidhi 3458).",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n180.mp3"
+            arabicText = "الْحَمْدُ لِلّٰهِ الَّذِي أَطْعَمَنِي هٰذَا وَرَزَقَنِيهِ مِنْ غَيْرِ حَوْلٍ مِنِّي وَلَا قُوَّةٍ",
+            transliteration = "Al-hamdu lillaahilladhee at'amanee haadhaa wa razaqaneehi min ghayri hawlim-minnee wa laa quwwah",
+            englishTranslation = "All praise is due to Allah who fed me this and provided it for me without any power or strength from me.",
+            urduTranslation = "تمام تعریفیں اس اللہ کے لیے ہیں جس نے مجھے یہ کھانا کھلایا اور میری کسی طاقت اور قوت کے بغیر مجھے یہ عطا فرمایا۔",
+            authenticReference = "Sunan Abi Dawud 4023; Jami' at-Tirmidhi 3458 (Hasan — Hisn al-Muslim #180)",
+            verificationNote = "Whoever recites this formula after eating has their past minor sins forgiven (Jami' at-Tirmidhi 3458).",
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/180hm.mp3"
         ),
         DailyDuaSequenceEntry(
             sequenceOrder = 12,
@@ -1477,7 +1479,7 @@ object LearnIslamCurriculumData {
             urduTranslation = "پیاس چلی گئی، رگیں تر ہو گئیں اور ان شاء اللہ اجر پکا ہو گیا۔",
             authenticReference = "Sunan Abi Dawud 2357 (Graded Hasan by Al-Daraqutni, Al-Hakim 1/422, Ibn Hajar & Al-Albani — Hisn al-Muslim #176)",
             verificationNote = "Most authentic Prophetic narration upon breaking the fast, narrated by Abdullah ibn 'Umar رضي الله عنهما in Sunan Abi Dawud 2357. (Note: The popular phrase 'Allahumma inni laka sumtu wa bika aamantu wa 'ala rizqika aftartu' in Sunan Abi Dawud 2358 is a Mursal narration of Mu'adh ibn Zuhrah).",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n176.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/176hm.mp3"
         ),
         DailyDuaSequenceEntry(
             sequenceOrder = 13,
@@ -1493,7 +1495,7 @@ object LearnIslamCurriculumData {
             authenticReference = "Quran 43:13–14; Sahih Muslim 1342 (Hisn al-Muslim #207)",
             verificationNote = "Verbatim Quranic verse (Az-Zukhruf 43:13) & Sahih Muslim 1342 — plays authentic human reciter verse audio.",
             quranSurahAyah = 43 to 13,
-            humanAudioUrl = "https://everyayah.com/data/Alafasy_128kbps/043013.mp3"
+            humanAudioUrl = "https://everyayah.com/data/Alafasy_128kbps/043013.mp3|https://everyayah.com/data/Alafasy_128kbps/043014.mp3"
         ),
         DailyDuaSequenceEntry(
             sequenceOrder = 14,
@@ -1508,7 +1510,7 @@ object LearnIslamCurriculumData {
             urduTranslation = "اے اللہ! میں تیرے ہی نام کے ساتھ مرتا (سوتا) ہوں اور جیتا (جاگتا) ہوں۔",
             authenticReference = "Sahih al-Bukhari 6324; Sahih Muslim 2711 (Hisn al-Muslim #105)",
             verificationNote = "Recited alongside Ayat al-Kursi (2:255) and the Three Quls (112, 113, 114).",
-            humanAudioUrl = "https://archive.org/download/HisnulMuslimAudio_201510/n105.mp3"
+            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/105hm.mp3"
         )
     )
 }
