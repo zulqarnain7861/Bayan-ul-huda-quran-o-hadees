@@ -1,0 +1,165 @@
+================================================================================
+BAYAN AL-HUDA (com.bayanulhuda.com) — FULL APPLICATION SECURITY AUDIT &
+VIDEO LIBRARY UPDATE VERIFICATION REPORT (v1.0.2, VersionCode 3)
+================================================================================
+
+1. EXECUTIVE SUMMARY & AUDIT METHODOLOGY
+--------------------------------------------------------------------------------
+An evidence-based security assessment and regression verification was executed
+across the entire Bayan al-Huda Android codebase (`com.bayanulhuda.com`),
+evaluating compliance against:
+  - OWASP MASVS v2.1 / MASTG (MASVS-STORAGE, MASVS-CRYPTO, MASVS-AUTH,
+    MASVS-NETWORK, MASVS-PLATFORM, MASVS-CODE, MASVS-RESILIENCE)
+  - Static Code & Secret Analysis (Gitleaks-equivalent pattern scan, Semgrep-
+    style sink/source inspection, Android Lint / Gradle dependency verification)
+  - Firebase Firestore Zero-Trust Security Rules Audit (`firestore.rules`)
+  - Third-Party SDK & Video Pipeline Audit (`androidx.media3` ExoPlayer,
+    Primary InnerTube/Piped/Invidious ad-free pipelines, Vine Music / yMusic SDK
+    fallback stream extractor, and Ad-Shielded Bridge WebView)
+
+All identified Medium and Low findings were remediated in code without disabling
+or altering any existing application features (Quran, Sunni/Shia Hadith, Tafsir,
+Audio, Prayer Times, Qibla, Fikr-e-Maududi, Unlimited Offline Guest Mode, and
+Google Sign-In). Zero Critical or High vulnerabilities remain.
+
+================================================================================
+2. SEVERITY-RANKED SECURITY FINDINGS & REMEDIATIONS
+================================================================================
+
+--------------------------------------------------------------------------------
+[FINDING-01] Cross-Protocol Redirects Enabled in Media3 ExoPlayer HTTP Source
+--------------------------------------------------------------------------------
+- Severity:          MEDIUM (CVSS v3.1: 5.3)
+- Category:          OWASP MASVS-NETWORK-1 / CWE-319 (Cleartext Transmission)
+- Affected Component: `app/src/main/java/com/example/player/YtEmbedHost.kt`
+                      (`DefaultHttpDataSource.Factory` at line 671)
+- Evidence:          `DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)`
+                     was configured for ExoPlayer media streaming. Although the
+                     app's `network_security_config.xml` blocks cleartext HTTP
+                     globally (`cleartextTrafficPermitted="false"`), allowing
+                     cross-protocol redirects in the media data source could
+                     permit an upstream 302 redirect from `https://` to `http://`
+                     to be attempted before failing or leaking path metadata.
+- Remediation:       Changed `.setAllowCrossProtocolRedirects(true)` to
+                     `.setAllowCrossProtocolRedirects(false)` in `YtEmbedHost.kt`
+                     and enforced `SsrfRedirectValidator.isSafeExternalHttpsUrl(...)`
+                     on all extracted stream URLs in `VideoStreamExtractor.kt`.
+- Status:            REMEDIATED & VERIFIED
+
+--------------------------------------------------------------------------------
+[FINDING-02] Unconditional Production Log Emission in Auth & Firestore Handlers
+--------------------------------------------------------------------------------
+- Severity:          LOW (CVSS v3.1: 3.1)
+- Category:          OWASP MASVS-STORAGE-2 / CWE-532 (Log Exposure)
+- Affected Component: `app/src/main/java/com/example/data/remote/FirestoreErrorHandler.kt`
+                      `app/src/main/java/com/example/data/auth/AuthManager.kt`
+- Evidence:          `FirestoreErrorHandler.kt` emitted `Log.e("FirestoreError", ...)`
+                     unconditionally (even though PII fields were redacted), and
+                     `AuthManager.kt` called `Log.w`/`Log.e` directly instead of
+                     routing through `SanitizedLogger` (which gates logs behind
+                     `BuildConfig.DEBUG` and scrubs Bearer/JWT/email tokens).
+- Remediation:       Gated `FirestoreErrorHandler.kt` logging behind
+                     `if (com.example.BuildConfig.DEBUG)` and replaced all raw
+                     `Log.w`/`Log.e` calls in `AuthManager.kt` with
+                     `com.example.security.SanitizedLogger`.
+- Status:            REMEDIATED & VERIFIED
+
+--------------------------------------------------------------------------------
+[FINDING-03] BroadcastReceiver Intent Extra Sanitization Hardening
+--------------------------------------------------------------------------------
+- Severity:          LOW (CVSS v3.1: 2.8)
+- Category:          OWASP MASVS-PLATFORM-1 / CWE-20 (Improper Input Validation)
+- Affected Component: `app/src/main/java/com/example/ui/prayer/PrayerAlarmReceivers.kt`
+                      (`PrayerAlarmReceiver` and `BootAndTimeChangeReceiver`)
+- Evidence:          Both receivers already enforced `android:exported="false"`
+                     (or system-only `BOOT_COMPLETED`/`TIME_SET` actions) and
+                     checked `intent?.action` against an explicit allowlist, but
+                     did not invoke `PathTraversalAndIntentGuard.sanitizeIncomingIntent(intent)`
+                     prior to reading extras.
+- Remediation:       Added `if (!PathTraversalAndIntentGuard.sanitizeIncomingIntent(intent)) return`
+                     at the entry of both `PrayerAlarmReceiver.onReceive` and
+                     `BootAndTimeChangeReceiver.onReceive`.
+- Status:            REMEDIATED & VERIFIED
+
+================================================================================
+3. DOMAIN-BY-DOMAIN SECURITY AUDIT SUMMARY
+================================================================================
+
+A. ANDROID MANIFEST, EXPORTED COMPONENTS, PERMISSIONS & WEBVIEW
+   - `android:allowBackup="false"`, `android:usesCleartextTraffic="false"`,
+     `android:enableOnBackInvokedCallback="true"`.
+   - `MainActivity` is the sole exported launcher activity (`android:exported="true"`).
+   - `AzanForegroundService` (`android:exported="false"`), `PrayerAlarmReceiver`
+     (`android:exported="false"`), and `BootAndTimeChangeReceiver`
+     (`android:exported="false"`) are protected against external IPC spoofing.
+   - WebView (`AdShieldConfig.hardenWebViewSettings` & `AdShieldWebViewClient`):
+     * `allowFileAccess = false`, `allowContentAccess = false`,
+       `allowFileAccessFromFileURLs = false`, `allowUniversalAccessFromFileURLs = false`.
+     * `mixedContentMode = MIXED_CONTENT_NEVER_ALLOW`, `safeBrowsingEnabled = true`.
+     * Blocks 100+ ad/tracker domains (`doubleclick.net`, `googlesyndication.com`,
+       `googleadservices.com`, `/api/stats/ads`, `/pagead/`, etc.) with an empty
+       204 sinkhole response.
+     * Overrides `onRenderProcessGone` (`didCrash`) to detach and recover the
+       WebView in-place (`rendererRecoveryKey`) without crashing the host
+       Android process (`aw_browser_terminator.cc` mitigation).
+   - Tapjacking protection (`Window.setHideOverlayWindows(true)` +
+     `filterTouchesWhenObscured = true`) is active on `MainActivity`.
+
+B. AUTHENTICATION, SESSIONS, TOKENS & DATA ISOLATION
+   - Uses Jetpack `CredentialManager` (`GetSignInWithGoogleOption` with fallback
+     to `GetGoogleIdOption`) for Google Sign-In.
+   - Unlimited Offline Guest Mode (`AuthManager.isGuestSessionValid`) never
+     blocks or locks out offline users while keeping local SQLite study notes
+     and bookmarks isolated on-device.
+   - `AppCheckConfig.kt` automatically purges stale debug secrets so Google
+     Sign-In never fails with `[Firebase App Check token is invalid.]`.
+
+C. NETWORK SECURITY, TLS & SSRF PROTECTION
+   - `res/xml/network_security_config.xml` enforces `cleartextTrafficPermitted="false"`
+     across base and domain configurations.
+   - `SecureNetworkClient` (`GiantWallSecuritySuite.kt` Layer 6) enforces TLS 1.3
+     and TLS 1.2 with AEAD cipher suites (`TLS_AES_256_GCM_SHA384`,
+     `TLS_AES_128_GCM_SHA256`, `TLS_CHACHA20_POLY1305_SHA256`).
+   - `SsrfRedirectValidator` (Layer 5) blocks RFC1918 private IPs (`10.0.0.0/8`,
+     `172.16.0.0/12`, `192.168.0.0/16`), loopback (`127.0.0.0/8`, `::1`),
+     link-local/cloud metadata (`169.254.169.254`), and non-HTTPS schemes.
+
+D. FIREBASE & FIRESTORE SECURITY RULES
+   - `firestore.rules` enforces strict default-deny (`match /{document=**} { allow read, write: if false; }`)
+     and owner-only access (`request.auth != null && request.auth.uid == userId`)
+     for `/users/{userId}/bookmarks/{bookmarkId}` and `/users/{userId}/notes/{noteId}`
+     with field-level schema, type, and length bounds (`isValidBookmark`, `isValidNote`).
+   - No admin credentials, service account keys, or private signing passwords are
+     stored in source code or assets.
+
+E. SDKs, VINE / yMUSIC SDK FALLBACK & DEPENDENCIES
+   - Primary playback uses ad-free InnerTube (`Pipeline 1`), Piped (`Pipeline 2`),
+     and Invidious (`Pipeline 3`) stream extraction into native `androidx.media3`
+     `ExoPlayer`.
+   - Automatic fallback (`tryVineYMusicSdkFallback` / `PipelineOption.VINE_YMUSIC_SDK`)
+     extracts ad-free streams via the Vine Music / yMusic SDK (`ANDROID_MUSIC` &
+     `WEB_REMIX` endpoints) when primary pipelines fail, before falling back to
+     `Pipeline 4` (Ad-Shielded Player Bridge).
+   - Bounded retries (`MAX_PROVIDER_RETRIES = 2`) and provider cooldowns
+     (`PROVIDER_COOLDOWN_MS = 45_000L`) prevent infinite retry loops.
+   - Every extracted stream is strictly bound to the clicked `lecture.youtubeId`
+     so a 9m 30s lecture never jumps to a 2h 53m unrelated lecture.
+
+================================================================================
+4. VIDEO LIBRARY UPDATE & REGRESSION TEST SUMMARY (T1 – T19)
+================================================================================
+- T1..T18: All existing Quran, Hadith (Sunni & Shia), Tafsir, Prayer Times,
+  Qibla, Fikr-e-Maududi, FTS4 Search, Giant Wall Security Suite, and Video ID
+  binding tests PASSED.
+- T19 (`T19_videoLibraryUpdateAndSecurityRemediation_verified`):
+  * Verified `computeEmamRelevanceScore` across name variations ("Engineer
+    Muhammad Ali Mirza", "Engineer Mohammad Ali Mirza", "EMAM") and confirmed
+    non-EMAM videos score 0.
+  * Verified all 10 Islamic video categories (`Quran / Tafsir`, `Hadith`,
+    `Aqeedah`, `Fiqh`, `Seerah`, `Islamic History`, `Comparative Religion`,
+    `Q&A`, `Contemporary Issues`, `Special Lectures`) match seeded lectures.
+  * Verified bounded retries & cooldowns (`MAX_PROVIDER_RETRIES = 2`,
+    `PROVIDER_COOLDOWN_MS = 45_000L`) and `PipelineOption.VINE_YMUSIC_SDK`.
+  * Verified watch history, search history, completion-percentage
+    recommendations, and `clearWatchAndSearchHistory()`.
+================================================================================

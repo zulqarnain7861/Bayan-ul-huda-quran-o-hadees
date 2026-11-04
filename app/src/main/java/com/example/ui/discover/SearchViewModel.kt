@@ -5,16 +5,24 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.BuildConfig
 import com.example.data.model.DiscoveryTopicDefinition
+import com.example.data.model.IslamicVideoCategory
+import com.example.data.model.LectureDateFilter
+import com.example.data.model.LectureDurationFilter
 import com.example.data.model.LectureFormat
 import com.example.data.model.LectureRecord
 import com.example.data.model.LectureSeedCounts
+import com.example.data.model.LectureSortOption
 import com.example.data.model.MaududiLibraryCategory
 import com.example.data.model.MaududiWorkRecord
 import com.example.data.model.PlaybackDataProfile
+import com.example.data.model.RecommendationShelfTab
 import com.example.data.model.RecommendedLectureItem
 import com.example.data.model.SourceTier
 import com.example.data.repository.DiscoverRepository
+import com.example.data.repository.LectureRepository
 import com.example.data.repository.MaududiRepository
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,12 +38,22 @@ data class ChannelFilterItem(
 
 data class DiscoverUiState(
   val isLoading: Boolean = true,
+  val isSearchingYouTube: Boolean = false,
+  val isSyncingOnline: Boolean = false,
+  val syncStatusMessage: String? = null,
   val isDebugBuild: Boolean = BuildConfig.DEBUG,
-  val coverageDisclosure: String = "169 seed records · 159 unverified · Tafseer series runs to 344 — tap to load more",
-  val seedCounts: LectureSeedCounts = LectureSeedCounts(169, 10, 159, 120, 49, 1, 344),
+  val coverageDisclosure: String = "480 seed records · 321 confirmed live · Tafseer series runs to 344 — tap to load more",
+  val seedCounts: LectureSeedCounts = LectureSeedCounts(480, 321, 159, 264, 216, 1, 344),
   val allLectures: List<LectureRecord> = emptyList(),
   val visibleLectures: List<LectureRecord> = emptyList(),
   val recommendedByWatchTime: List<RecommendedLectureItem> = emptyList(),
+  val continueWatchingLectures: List<RecommendedLectureItem> = emptyList(),
+  val recentlyAddedLectures: List<RecommendedLectureItem> = emptyList(),
+  val newLectures: List<RecommendedLectureItem> = emptyList(),
+  val relatedTopicsLectures: List<RecommendedLectureItem> = emptyList(),
+  val similarLectures: List<RecommendedLectureItem> = emptyList(),
+  val unwatchedLectures: List<RecommendedLectureItem> = emptyList(),
+  val selectedShelfTab: RecommendationShelfTab = RecommendationShelfTab.RECOMMENDED,
   val visibleTopics: List<DiscoverRepository.TopicChipItem> = emptyList(),
   val allTopicDefinitions: List<DiscoveryTopicDefinition> = emptyList(),
   val availableChannels: List<ChannelFilterItem> = emptyList(),
@@ -43,8 +61,14 @@ data class DiscoverUiState(
   val selectedChannelHandle: String? = null,
   val onlyFanChannels: Boolean = false,
   val selectedTopicId: String? = null,
+  val selectedCategory: IslamicVideoCategory = IslamicVideoCategory.ALL,
+  val selectedDateFilter: LectureDateFilter = LectureDateFilter.ALL,
+  val selectedDurationFilter: LectureDurationFilter = LectureDurationFilter.ALL,
+  val selectedSortOption: LectureSortOption = LectureSortOption.RELEVANCE,
   val selectedFormatFilter: LectureFormat? = null,
   val onlyConfirmedLive: Boolean = false,
+  val currentPageLimit: Int = 30,
+  val bookmarkedYoutubeIds: Set<String> = emptySet(),
   val searchQuery: String = "",
   val searchResults: DiscoverRepository.UnifiedSearchResults? = null,
   val selectedLecture: LectureRecord? = null,
@@ -61,6 +85,7 @@ data class DiscoverUiState(
 class SearchViewModel(application: Application) : AndroidViewModel(application) {
 
   private val repository = DiscoverRepository(application.applicationContext)
+  private var liveSearchJob: Job? = null
 
   private val _uiState = MutableStateFlow(DiscoverUiState())
   val uiState: StateFlow<DiscoverUiState> = _uiState.asStateFlow()
@@ -72,53 +97,379 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
   fun refreshAll() {
     viewModelScope.launch {
       _uiState.update { it.copy(isLoading = true) }
-      repository.initializeAll()
-      val dataset = repository.lectureRepository.loadSeedDataset()
-      val config = repository.lectureRepository.loadDiscoveryConfig()
-      val maududiWorks = repository.maududiRepository.getAllWorksMemory()
-      val watchVideoMap = repository.lectureRepository.getWatchTimeMap()
-      val watchTopicMap = repository.lectureRepository.getTopicWatchTimeMap()
-      val profile = repository.lectureRepository.getPlaybackDataProfile()
-      val wifiOnly = repository.lectureRepository.isWifiOnlyEnabled()
+      runCatching {
+        val dataset = repository.lectureRepository.loadSeedDataset()
+        val config = repository.lectureRepository.loadDiscoveryConfig()
+        val watchVideoMap = repository.lectureRepository.getWatchTimeMap()
+        val watchTopicMap = repository.lectureRepository.getTopicWatchTimeMap()
+        val bookmarkedIds = repository.lectureRepository.getBookmarkedYoutubeIds()
+        val profile = repository.lectureRepository.getPlaybackDataProfile()
+        val wifiOnly = repository.lectureRepository.isWifiOnlyEnabled()
 
+        val isDebug = _uiState.value.isDebugBuild
+        val seedRecords = dataset.records
+        val visible = seedRecords.filter { it.shouldShowInUi(isDebug) }
+        val visibleTopics = repository.buildVisibleTopics(
+          allLectures = seedRecords,
+          allTopics = config.topics,
+          topicWatchMap = watchTopicMap,
+          isDebugBuild = isDebug
+        )
+        val recommendations = repository.getWatchTimeRecommendations(isDebugBuild = isDebug, limit = 24)
+        val shelves = buildRecommendationShelves(
+          visible = visible,
+          watchVideoMap = watchVideoMap,
+          watchTopicMap = watchTopicMap,
+          bookmarkedIds = bookmarkedIds,
+          topicDefs = config.topics
+        )
+        val channelItems = buildChannelFilterList(visible)
+        val fanTotal = visible.count { it.sourceTier == SourceTier.FAN_CHANNEL }
+
+        // Populate UI state immediately from mirza_lectures_v3.json so Video Library is never empty
+        val filteredVisible = applyFilters(
+          lectures = visible,
+          topicId = _uiState.value.selectedTopicId,
+          category = _uiState.value.selectedCategory,
+          dateFilter = _uiState.value.selectedDateFilter,
+          durationFilter = _uiState.value.selectedDurationFilter,
+          sortOption = _uiState.value.selectedSortOption,
+          format = _uiState.value.selectedFormatFilter,
+          onlyConfirmed = _uiState.value.onlyConfirmedLive,
+          onlyFan = _uiState.value.onlyFanChannels,
+          channelHandle = _uiState.value.selectedChannelHandle
+        )
+        com.example.player.VideoStreamExtractor.prewarmLecturesInBackground(
+          (recommendations.map { it.lecture } + filteredVisible).take(8)
+        )
+        _uiState.update { state ->
+          state.copy(
+            isLoading = false,
+            coverageDisclosure = dataset.coverageDisclosure,
+            seedCounts = dataset.counts,
+            allLectures = seedRecords,
+            visibleLectures = filteredVisible,
+            recommendedByWatchTime = recommendations,
+            continueWatchingLectures = shelves.continueWatching,
+            recentlyAddedLectures = shelves.recentlyAdded,
+            newLectures = shelves.newLectures,
+            relatedTopicsLectures = shelves.relatedTopics,
+            similarLectures = shelves.similarLectures,
+            unwatchedLectures = shelves.unwatched,
+            visibleTopics = visibleTopics,
+            allTopicDefinitions = config.topics,
+            availableChannels = channelItems,
+            fanChannelTotalCount = fanTotal,
+            bookmarkedYoutubeIds = bookmarkedIds,
+            playbackProfile = profile,
+            wifiOnlyEnabled = wifiOnly,
+            watchTimeByVideo = watchVideoMap,
+            watchTimeByTopic = watchTopicMap
+          )
+        }
+
+        // Seed Room FTS4 index & Maududi library safely
+        runCatching {
+          repository.initializeAll()
+          val maududiWorks = repository.maududiRepository.getAllWorksMemory()
+          _uiState.update { it.copy(maududiWorks = maududiWorks) }
+        }
+      }.onFailure {
+        _uiState.update { it.copy(isLoading = false) }
+      }
+
+      // Fetch newly added or missed Engineer Muhammad Ali Mirza lectures online in background
+      runCatching {
+        val isDebug = _uiState.value.isDebugBuild
+        val config = repository.lectureRepository.loadDiscoveryConfig()
+        val watchTopicMap = repository.lectureRepository.getTopicWatchTimeMap()
+        val watchVideoMap = repository.lectureRepository.getWatchTimeMap()
+        val bookmarkedIds = repository.lectureRepository.getBookmarkedYoutubeIds()
+        val onlineNew = repository.lectureRepository.syncNewlyAddedOnlineLectures(manualRefresh = false)
+        if (onlineNew.isNotEmpty()) {
+          val updatedDataset = repository.lectureRepository.loadSeedDataset()
+          val updatedVisible = updatedDataset.records.filter { it.shouldShowInUi(isDebug) }
+          val updatedTopics = repository.buildVisibleTopics(
+            allLectures = updatedDataset.records,
+            allTopics = config.topics,
+            topicWatchMap = watchTopicMap,
+            isDebugBuild = isDebug
+          )
+          val shelves = buildRecommendationShelves(
+            visible = updatedVisible,
+            watchVideoMap = watchVideoMap,
+            watchTopicMap = watchTopicMap,
+            bookmarkedIds = bookmarkedIds,
+            topicDefs = config.topics
+          )
+          val updatedChannels = buildChannelFilterList(updatedVisible)
+          _uiState.update { state ->
+            state.copy(
+              coverageDisclosure = updatedDataset.coverageDisclosure,
+              seedCounts = updatedDataset.counts,
+              allLectures = updatedDataset.records,
+              visibleLectures = applyFilters(
+                lectures = updatedVisible,
+                topicId = state.selectedTopicId,
+                category = state.selectedCategory,
+                dateFilter = state.selectedDateFilter,
+                durationFilter = state.selectedDurationFilter,
+                sortOption = state.selectedSortOption,
+                format = state.selectedFormatFilter,
+                onlyConfirmed = state.onlyConfirmedLive,
+                onlyFan = state.onlyFanChannels,
+                channelHandle = state.selectedChannelHandle
+              ),
+              continueWatchingLectures = shelves.continueWatching,
+              recentlyAddedLectures = shelves.recentlyAdded,
+              newLectures = shelves.newLectures,
+              relatedTopicsLectures = shelves.relatedTopics,
+              similarLectures = shelves.similarLectures,
+              unwatchedLectures = shelves.unwatched,
+              visibleTopics = updatedTopics,
+              availableChannels = updatedChannels,
+              fanChannelTotalCount = updatedVisible.count { it.sourceTier == SourceTier.FAN_CHANNEL }
+            )
+          }
+        }
+      }
+    }
+  }
+
+  fun triggerManualLibrarySync() {
+    viewModelScope.launch {
+      _uiState.update { it.copy(isSyncingOnline = true, syncStatusMessage = "Syncing new & missed EMAM lectures…") }
+      runCatching {
+        val onlineNew = repository.lectureRepository.syncNewlyAddedOnlineLectures(manualRefresh = true)
+        val updatedDataset = repository.lectureRepository.loadSeedDataset()
+        val isDebug = _uiState.value.isDebugBuild
+        val config = repository.lectureRepository.loadDiscoveryConfig()
+        val watchTopicMap = repository.lectureRepository.getTopicWatchTimeMap()
+        val watchVideoMap = repository.lectureRepository.getWatchTimeMap()
+        val bookmarkedIds = repository.lectureRepository.getBookmarkedYoutubeIds()
+        val updatedVisible = updatedDataset.records.filter { it.shouldShowInUi(isDebug) }
+        val updatedTopics = repository.buildVisibleTopics(
+          allLectures = updatedDataset.records,
+          allTopics = config.topics,
+          topicWatchMap = watchTopicMap,
+          isDebugBuild = isDebug
+        )
+        val recommendations = repository.getWatchTimeRecommendations(isDebugBuild = isDebug, limit = 24)
+        val shelves = buildRecommendationShelves(
+          visible = updatedVisible,
+          watchVideoMap = watchVideoMap,
+          watchTopicMap = watchTopicMap,
+          bookmarkedIds = bookmarkedIds,
+          topicDefs = config.topics
+        )
+        val updatedChannels = buildChannelFilterList(updatedVisible)
+        val statusMsg = if (onlineNew.isNotEmpty()) {
+          "Synced ${onlineNew.size} verified EMAM lectures (${updatedVisible.size} total)"
+        } else {
+          "Library up to date (${updatedVisible.size} verified EMAM lectures)"
+        }
+        _uiState.update { state ->
+          state.copy(
+            isSyncingOnline = false,
+            syncStatusMessage = statusMsg,
+            coverageDisclosure = updatedDataset.coverageDisclosure,
+            seedCounts = updatedDataset.counts,
+            allLectures = updatedDataset.records,
+            visibleLectures = applyFilters(
+              lectures = updatedVisible,
+              topicId = state.selectedTopicId,
+              category = state.selectedCategory,
+              dateFilter = state.selectedDateFilter,
+              durationFilter = state.selectedDurationFilter,
+              sortOption = state.selectedSortOption,
+              format = state.selectedFormatFilter,
+              onlyConfirmed = state.onlyConfirmedLive,
+              onlyFan = state.onlyFanChannels,
+              channelHandle = state.selectedChannelHandle
+            ),
+            recommendedByWatchTime = recommendations,
+            continueWatchingLectures = shelves.continueWatching,
+            recentlyAddedLectures = shelves.recentlyAdded,
+            newLectures = shelves.newLectures,
+            relatedTopicsLectures = shelves.relatedTopics,
+            similarLectures = shelves.similarLectures,
+            unwatchedLectures = shelves.unwatched,
+            visibleTopics = updatedTopics,
+            availableChannels = updatedChannels,
+            fanChannelTotalCount = updatedVisible.count { it.sourceTier == SourceTier.FAN_CHANNEL }
+          )
+        }
+      }.onFailure {
+        _uiState.update {
+          it.copy(
+            isSyncingOnline = false,
+            syncStatusMessage = "Offline catalog active (${it.allLectures.size} lectures)"
+          )
+        }
+      }
+    }
+  }
+
+  fun clearHistoryAndResetRecommendations() {
+    viewModelScope.launch {
+      repository.lectureRepository.clearWatchAndSearchHistory()
       val isDebug = _uiState.value.isDebugBuild
-      val visible = dataset.records.filter { it.shouldShowInUi(isDebug) }
+      val recs = repository.getWatchTimeRecommendations(isDebugBuild = isDebug, limit = 24)
+      val visible = _uiState.value.allLectures.filter { it.shouldShowInUi(isDebug) }
       val visibleTopics = repository.buildVisibleTopics(
-        allLectures = dataset.records,
-        allTopics = config.topics,
-        topicWatchMap = watchTopicMap,
+        allLectures = _uiState.value.allLectures,
+        allTopics = _uiState.value.allTopicDefinitions,
+        topicWatchMap = emptyMap(),
         isDebugBuild = isDebug
       )
-      val recommendations = repository.getWatchTimeRecommendations(isDebugBuild = isDebug, limit = 24)
-      val channelItems = buildChannelFilterList(visible)
-      val fanTotal = visible.count { it.sourceTier == SourceTier.FAN_CHANNEL }
-
+      val shelves = buildRecommendationShelves(
+        visible = visible,
+        watchVideoMap = emptyMap(),
+        watchTopicMap = emptyMap(),
+        bookmarkedIds = _uiState.value.bookmarkedYoutubeIds,
+        topicDefs = _uiState.value.allTopicDefinitions
+      )
       _uiState.update { state ->
         state.copy(
-          isLoading = false,
-          coverageDisclosure = dataset.coverageDisclosure,
-          seedCounts = dataset.counts,
-          allLectures = dataset.records,
-          visibleLectures = applyFilters(
-            lectures = visible,
-            topicId = state.selectedTopicId,
-            format = state.selectedFormatFilter,
-            onlyConfirmed = state.onlyConfirmedLive,
-            onlyFan = state.onlyFanChannels,
-            channelHandle = state.selectedChannelHandle
-          ),
-          recommendedByWatchTime = recommendations,
+          recommendedByWatchTime = recs,
+          continueWatchingLectures = shelves.continueWatching,
+          recentlyAddedLectures = shelves.recentlyAdded,
+          newLectures = shelves.newLectures,
+          relatedTopicsLectures = shelves.relatedTopics,
+          similarLectures = shelves.similarLectures,
+          unwatchedLectures = shelves.unwatched,
           visibleTopics = visibleTopics,
-          allTopicDefinitions = config.topics,
-          availableChannels = channelItems,
-          fanChannelTotalCount = fanTotal,
-          maududiWorks = maududiWorks,
-          playbackProfile = profile,
-          wifiOnlyEnabled = wifiOnly,
-          watchTimeByVideo = watchVideoMap,
-          watchTimeByTopic = watchTopicMap
+          watchTimeByVideo = emptyMap(),
+          watchTimeByTopic = emptyMap(),
+          syncStatusMessage = "Watch history & recommendations reset"
         )
       }
+    }
+  }
+
+  fun toggleBookmarkLecture(lecture: LectureRecord) {
+    viewModelScope.launch {
+      repository.lectureRepository.toggleLectureBookmark(lecture)
+      val bookmarkedIds = repository.lectureRepository.getBookmarkedYoutubeIds()
+      val isDebug = _uiState.value.isDebugBuild
+      val recs = repository.getWatchTimeRecommendations(isDebugBuild = isDebug, limit = 24)
+      val visible = _uiState.value.allLectures.filter { it.shouldShowInUi(isDebug) }
+      val shelves = buildRecommendationShelves(
+        visible = visible,
+        watchVideoMap = _uiState.value.watchTimeByVideo,
+        watchTopicMap = _uiState.value.watchTimeByTopic,
+        bookmarkedIds = bookmarkedIds,
+        topicDefs = _uiState.value.allTopicDefinitions
+      )
+      _uiState.update { state ->
+        state.copy(
+          bookmarkedYoutubeIds = bookmarkedIds,
+          recommendedByWatchTime = recs,
+          continueWatchingLectures = shelves.continueWatching,
+          recentlyAddedLectures = shelves.recentlyAdded,
+          newLectures = shelves.newLectures,
+          relatedTopicsLectures = shelves.relatedTopics,
+          similarLectures = shelves.similarLectures,
+          unwatchedLectures = shelves.unwatched
+        )
+      }
+    }
+  }
+
+  fun selectShelfTab(tab: RecommendationShelfTab) {
+    _uiState.update { it.copy(selectedShelfTab = tab) }
+  }
+
+  fun selectCategory(category: IslamicVideoCategory) {
+    _uiState.update { state ->
+      val visible = state.allLectures.filter { it.shouldShowInUi(state.isDebugBuild) }
+      state.copy(
+        selectedCategory = category,
+        currentPageLimit = 30,
+        visibleLectures = applyFilters(
+          visible,
+          state.selectedTopicId,
+          category,
+          state.selectedDateFilter,
+          state.selectedDurationFilter,
+          state.selectedSortOption,
+          state.selectedFormatFilter,
+          state.onlyConfirmedLive,
+          state.onlyFanChannels,
+          state.selectedChannelHandle
+        )
+      )
+    }
+  }
+
+  fun selectDateFilter(filter: LectureDateFilter) {
+    _uiState.update { state ->
+      val visible = state.allLectures.filter { it.shouldShowInUi(state.isDebugBuild) }
+      state.copy(
+        selectedDateFilter = filter,
+        currentPageLimit = 30,
+        visibleLectures = applyFilters(
+          visible,
+          state.selectedTopicId,
+          state.selectedCategory,
+          filter,
+          state.selectedDurationFilter,
+          state.selectedSortOption,
+          state.selectedFormatFilter,
+          state.onlyConfirmedLive,
+          state.onlyFanChannels,
+          state.selectedChannelHandle
+        )
+      )
+    }
+  }
+
+  fun selectDurationFilter(filter: LectureDurationFilter) {
+    _uiState.update { state ->
+      val visible = state.allLectures.filter { it.shouldShowInUi(state.isDebugBuild) }
+      state.copy(
+        selectedDurationFilter = filter,
+        currentPageLimit = 30,
+        visibleLectures = applyFilters(
+          visible,
+          state.selectedTopicId,
+          state.selectedCategory,
+          state.selectedDateFilter,
+          filter,
+          state.selectedSortOption,
+          state.selectedFormatFilter,
+          state.onlyConfirmedLive,
+          state.onlyFanChannels,
+          state.selectedChannelHandle
+        )
+      )
+    }
+  }
+
+  fun selectSortOption(sort: LectureSortOption) {
+    _uiState.update { state ->
+      val visible = state.allLectures.filter { it.shouldShowInUi(state.isDebugBuild) }
+      state.copy(
+        selectedSortOption = sort,
+        visibleLectures = applyFilters(
+          visible,
+          state.selectedTopicId,
+          state.selectedCategory,
+          state.selectedDateFilter,
+          state.selectedDurationFilter,
+          sort,
+          state.selectedFormatFilter,
+          state.onlyConfirmedLive,
+          state.onlyFanChannels,
+          state.selectedChannelHandle
+        )
+      )
+    }
+  }
+
+  fun loadMoreLectures() {
+    _uiState.update { state ->
+      state.copy(currentPageLimit = state.currentPageLimit + 30)
     }
   }
 
@@ -127,9 +478,14 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
       val visible = state.allLectures.filter { it.shouldShowInUi(state.isDebugBuild) }
       state.copy(
         selectedChannelHandle = handle,
+        currentPageLimit = 30,
         visibleLectures = applyFilters(
           visible,
           state.selectedTopicId,
+          state.selectedCategory,
+          state.selectedDateFilter,
+          state.selectedDurationFilter,
+          state.selectedSortOption,
           state.selectedFormatFilter,
           state.onlyConfirmedLive,
           state.onlyFanChannels,
@@ -145,9 +501,14 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
       val visible = state.allLectures.filter { it.shouldShowInUi(state.isDebugBuild) }
       state.copy(
         onlyFanChannels = nextFan,
+        currentPageLimit = 30,
         visibleLectures = applyFilters(
           visible,
           state.selectedTopicId,
+          state.selectedCategory,
+          state.selectedDateFilter,
+          state.selectedDurationFilter,
+          state.selectedSortOption,
           state.selectedFormatFilter,
           state.onlyConfirmedLive,
           nextFan,
@@ -162,9 +523,14 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
       val visible = state.allLectures.filter { it.shouldShowInUi(state.isDebugBuild) }
       state.copy(
         selectedTopicId = topicId,
+        currentPageLimit = 30,
         visibleLectures = applyFilters(
           visible,
           topicId,
+          state.selectedCategory,
+          state.selectedDateFilter,
+          state.selectedDurationFilter,
+          state.selectedSortOption,
           state.selectedFormatFilter,
           state.onlyConfirmedLive,
           state.onlyFanChannels,
@@ -179,9 +545,14 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
       val visible = state.allLectures.filter { it.shouldShowInUi(state.isDebugBuild) }
       state.copy(
         selectedFormatFilter = format,
+        currentPageLimit = 30,
         visibleLectures = applyFilters(
           visible,
           state.selectedTopicId,
+          state.selectedCategory,
+          state.selectedDateFilter,
+          state.selectedDurationFilter,
+          state.selectedSortOption,
           format,
           state.onlyConfirmedLive,
           state.onlyFanChannels,
@@ -197,9 +568,14 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
       val visible = state.allLectures.filter { it.shouldShowInUi(state.isDebugBuild) }
       state.copy(
         onlyConfirmedLive = nextConfirmed,
+        currentPageLimit = 30,
         visibleLectures = applyFilters(
           visible,
           state.selectedTopicId,
+          state.selectedCategory,
+          state.selectedDateFilter,
+          state.selectedDurationFilter,
+          state.selectedSortOption,
           state.selectedFormatFilter,
           nextConfirmed,
           state.onlyFanChannels,
@@ -211,12 +587,42 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
   fun onSearchQueryChange(query: String) {
     _uiState.update { it.copy(searchQuery = query) }
+    liveSearchJob?.cancel()
+    if (query.isBlank()) {
+      _uiState.update { it.copy(searchResults = null, isSearchingYouTube = false) }
+      return
+    }
     viewModelScope.launch {
-      if (query.isBlank()) {
-        _uiState.update { it.copy(searchResults = null) }
-      } else {
-        val res = repository.searchAll(query, _uiState.value.isDebugBuild)
-        _uiState.update { it.copy(searchResults = res) }
+      val instantRes = repository.searchAll(
+        rawQuery = query,
+        isDebugBuild = _uiState.value.isDebugBuild,
+        includeLiveYouTube = false
+      )
+      if (_uiState.value.searchQuery == query) {
+        _uiState.update { it.copy(searchResults = instantRes) }
+      }
+    }
+    if (query.trim().length >= 3) {
+      liveSearchJob = viewModelScope.launch {
+        delay(320L)
+        _uiState.update { it.copy(isSearchingYouTube = true) }
+        val liveRes = repository.searchAll(
+          rawQuery = query,
+          isDebugBuild = _uiState.value.isDebugBuild,
+          includeLiveYouTube = true
+        )
+        if (_uiState.value.searchQuery == query) {
+          val updatedDataset = repository.lectureRepository.loadSeedDataset()
+          _uiState.update {
+            it.copy(
+              searchResults = liveRes,
+              allLectures = updatedDataset.records,
+              seedCounts = updatedDataset.counts,
+              coverageDisclosure = updatedDataset.coverageDisclosure,
+              isSearchingYouTube = false
+            )
+          }
+        }
       }
     }
   }
@@ -238,15 +644,29 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
       val watchTopicMap = repository.lectureRepository.getTopicWatchTimeMap()
       val isDebug = _uiState.value.isDebugBuild
       val recs = repository.getWatchTimeRecommendations(isDebugBuild = isDebug, limit = 24)
+      val visible = _uiState.value.allLectures.filter { it.shouldShowInUi(isDebug) }
       val visibleTopics = repository.buildVisibleTopics(
         allLectures = _uiState.value.allLectures,
         allTopics = _uiState.value.allTopicDefinitions,
         topicWatchMap = watchTopicMap,
         isDebugBuild = isDebug
       )
+      val shelves = buildRecommendationShelves(
+        visible = visible,
+        watchVideoMap = watchVideoMap,
+        watchTopicMap = watchTopicMap,
+        bookmarkedIds = _uiState.value.bookmarkedYoutubeIds,
+        topicDefs = _uiState.value.allTopicDefinitions
+      )
       _uiState.update { state ->
         state.copy(
           recommendedByWatchTime = recs,
+          continueWatchingLectures = shelves.continueWatching,
+          recentlyAddedLectures = shelves.recentlyAdded,
+          newLectures = shelves.newLectures,
+          relatedTopicsLectures = shelves.relatedTopics,
+          similarLectures = shelves.similarLectures,
+          unwatchedLectures = shelves.unwatched,
           visibleTopics = visibleTopics,
           watchTimeByVideo = watchVideoMap,
           watchTimeByTopic = watchTopicMap
@@ -284,6 +704,139 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     _uiState.update { it.copy(selectedMaududiWork = null) }
   }
 
+  private data class ShelfBundle(
+    val continueWatching: List<RecommendedLectureItem>,
+    val recentlyAdded: List<RecommendedLectureItem>,
+    val newLectures: List<RecommendedLectureItem>,
+    val relatedTopics: List<RecommendedLectureItem>,
+    val similarLectures: List<RecommendedLectureItem>,
+    val unwatched: List<RecommendedLectureItem>
+  )
+
+  private fun buildRecommendationShelves(
+    visible: List<LectureRecord>,
+    watchVideoMap: Map<String, Int>,
+    watchTopicMap: Map<String, Int>,
+    bookmarkedIds: Set<String>,
+    topicDefs: List<DiscoveryTopicDefinition>
+  ): ShelfBundle {
+    val topicNames = topicDefs.associate { it.id to it.titleEn }
+
+    val continueWatching = visible
+      .filter { rec ->
+        val watched = watchVideoMap[rec.youtubeId] ?: 0
+        val dur = (rec.durationSec ?: 1800).coerceAtLeast(60)
+        watched > 0 && (watched.toDouble() / dur.toDouble()) < 0.90
+      }
+      .sortedByDescending { watchVideoMap[it.youtubeId] ?: 0 }
+      .take(12)
+      .map { rec ->
+        val watched = watchVideoMap[rec.youtubeId] ?: 0
+        val dur = (rec.durationSec ?: 1800).coerceAtLeast(60)
+        val pct = ((watched.toDouble() / dur.toDouble()) * 100).toInt().coerceIn(1, 99)
+        RecommendedLectureItem(
+          lecture = rec,
+          score = watched.toDouble(),
+          reasonLabel = "Continue Watching ($pct% completed)",
+          matchedTopicIds = rec.topics,
+          userWatchedSecondsOnTopic = watched
+        )
+      }
+
+    val recentlyAdded = visible
+      .sortedByDescending { it.recordedYear ?: 2013 }
+      .take(12)
+      .map { rec ->
+        RecommendedLectureItem(
+          lecture = rec,
+          score = (rec.recordedYear ?: 2024).toDouble(),
+          reasonLabel = "Recently Indexed (${rec.recordedYear ?: 2024})",
+          matchedTopicIds = rec.topics,
+          userWatchedSecondsOnTopic = 0
+        )
+      }
+
+    val newLectures = visible
+      .filter { (it.recordedYear ?: 2013) >= 2022 }
+      .sortedByDescending { it.recordedYear ?: 2022 }
+      .ifEmpty { visible.sortedByDescending { it.recordedYear ?: 2013 } }
+      .take(12)
+      .map { rec ->
+        RecommendedLectureItem(
+          lecture = rec,
+          score = (rec.recordedYear ?: 2024).toDouble(),
+          reasonLabel = "New Lecture · ${rec.recordedYear ?: 2024}",
+          matchedTopicIds = rec.topics,
+          userWatchedSecondsOnTopic = 0
+        )
+      }
+
+    val topTopicId = watchTopicMap.maxByOrNull { it.value }?.key
+      ?: visible.firstOrNull { it.youtubeId in bookmarkedIds }?.topics?.firstOrNull()
+      ?: "tafseer_quran"
+    val topTopicLabel = topicNames[topTopicId] ?: "Quran & Sunnah"
+
+    val relatedTopics = visible
+      .filter { topTopicId in it.topics }
+      .take(12)
+      .map { rec ->
+        RecommendedLectureItem(
+          lecture = rec,
+          score = 100.0,
+          reasonLabel = "Related Topic · $topTopicLabel",
+          matchedTopicIds = listOf(topTopicId),
+          userWatchedSecondsOnTopic = watchTopicMap[topTopicId] ?: 0
+        )
+      }
+
+    val anchorLecture = visible.firstOrNull { (watchVideoMap[it.youtubeId] ?: 0) > 0 }
+      ?: visible.firstOrNull { it.youtubeId in bookmarkedIds }
+      ?: visible.firstOrNull()
+
+    val similarLectures = if (anchorLecture != null) {
+      visible
+        .filter { cand ->
+          cand.youtubeId != anchorLecture.youtubeId &&
+            (cand.seriesName != null && cand.seriesName == anchorLecture.seriesName ||
+              cand.topics.any { it in anchorLecture.topics })
+        }
+        .take(12)
+        .map { rec ->
+          RecommendedLectureItem(
+            lecture = rec,
+            score = 90.0,
+            reasonLabel = "Similar to ${anchorLecture.seriesName ?: anchorLecture.displayTitle.take(24)}",
+            matchedTopicIds = rec.topics,
+            userWatchedSecondsOnTopic = 0
+          )
+        }
+    } else {
+      emptyList()
+    }
+
+    val unwatched = visible
+      .filter { (watchVideoMap[it.youtubeId] ?: 0) == 0 }
+      .take(12)
+      .map { rec ->
+        RecommendedLectureItem(
+          lecture = rec,
+          score = 50.0,
+          reasonLabel = "Unwatched · ${rec.recordFormat.label}",
+          matchedTopicIds = rec.topics,
+          userWatchedSecondsOnTopic = 0
+        )
+      }
+
+    return ShelfBundle(
+      continueWatching = continueWatching,
+      recentlyAdded = recentlyAdded,
+      newLectures = newLectures,
+      relatedTopics = relatedTopics,
+      similarLectures = similarLectures,
+      unwatched = unwatched
+    )
+  }
+
   private fun buildChannelFilterList(lectures: List<LectureRecord>): List<ChannelFilterItem> {
     return lectures
       .groupBy { it.channelHandle ?: "@RAAH-e-HIDAYAT-EMAM" }
@@ -305,19 +858,51 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
   private fun applyFilters(
     lectures: List<LectureRecord>,
     topicId: String?,
+    category: IslamicVideoCategory,
+    dateFilter: LectureDateFilter,
+    durationFilter: LectureDurationFilter,
+    sortOption: LectureSortOption,
     format: LectureFormat?,
     onlyConfirmed: Boolean,
     onlyFan: Boolean,
     channelHandle: String?
   ): List<LectureRecord> {
-    return lectures
-      .filter { record ->
-        (topicId == null || topicId in record.topics) &&
-          (format == null || record.recordFormat == format) &&
-          (!onlyConfirmed || record.verificationState.name == "CONFIRMED_LIVE") &&
-          (!onlyFan || record.sourceTier == SourceTier.FAN_CHANNEL) &&
-          (channelHandle == null || record.channelHandle.equals(channelHandle, ignoreCase = true))
+    val filtered = lectures.filter { record ->
+      (topicId == null || topicId in record.topics) &&
+        category.matchesLecture(record) &&
+        dateFilter.matchesYear(record.recordedYear) &&
+        durationFilter.matchesDuration(record.durationSec) &&
+        (format == null || record.recordFormat == format) &&
+        (!onlyConfirmed || record.verificationState.name == "CONFIRMED_LIVE") &&
+        (!onlyFan || record.sourceTier == SourceTier.FAN_CHANNEL) &&
+        (channelHandle == null || record.channelHandle.equals(channelHandle, ignoreCase = true))
+    }
+
+    return when (sortOption) {
+      LectureSortOption.RELEVANCE -> {
+        filtered.sortedWith(
+          compareByDescending<LectureRecord> {
+            LectureRepository.computeEmamRelevanceScore(
+              title = it.displayTitle,
+              descriptionSnippet = it.summary ?: "",
+              channelName = it.channelDisplayName,
+              channelHandle = it.channelHandle ?: "",
+              tags = it.topics
+            )
+          }
+            .thenBy { if (it.sourceTier == SourceTier.FAN_CHANNEL) 0 else 1 }
+            .thenBy { if (it.recordFormat == LectureFormat.FULL_LECTURE) 0 else 1 }
+        )
       }
-      .sortedBy { if (it.sourceTier == SourceTier.FAN_CHANNEL) 0 else 1 }
+      LectureSortOption.NEWEST_FIRST -> {
+        filtered.sortedWith(
+          compareByDescending<LectureRecord> { it.recordedYear ?: 2013 }
+            .thenByDescending { it.lectureNumber ?: 0 }
+        )
+      }
+      LectureSortOption.LONGEST_FIRST -> {
+        filtered.sortedByDescending { it.durationSec ?: 0 }
+      }
+    }
   }
 }

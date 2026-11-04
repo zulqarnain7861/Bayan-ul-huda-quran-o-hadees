@@ -1,0 +1,158 @@
+================================================================================
+GOOGLE PLAY DATA SAFETY REPORT — BAYAN AL-HUDA (بَيَانُ الهُدَى)
+================================================================================
+Application Name: Bayan al-Huda
+Package ID: com.bayanulhuda.com
+Target SDK: 35
+
+Use this exact report to complete the "Data safety" questionnaire in
+Google Play Console -> Policy and programs -> App content -> Data safety.
+
+================================================================================
+PART 1 — HIGH-LEVEL DATA SAFETY QUESTIONS (PLAY CONSOLE STEP 1)
+================================================================================
+
+1. "Does your app collect or share any of the required user data types?"
+   -> Answer: YES
+   (Reason: When a user chooses to sign in with Google, the app collects their
+   Name, Email address, User ID, and cloud-synced Quran/Hadith bookmarks & study
+   notes in Firebase Auth / Cloud Firestore. When a user requests GPS prayer times,
+   approximate/precise location coordinates are sent over HTTPS to the AlAdhan API
+   to compute local prayer schedules.)
+
+2. "Is all of the user data collected by your app encrypted in transit?"
+   -> Answer: YES
+   (Reason: All Firebase Auth, Cloud Firestore, AlAdhan, Quran/Hadith API, and
+   YouTube connections use HTTPS/TLS encryption.)
+
+3. "Do you provide a way for users to request that their data is deleted?"
+   -> Answer: YES
+   - In-app deletion pathway: Info/About screen -> "Delete Account & Cloud Data"
+     button (deletes Firebase Auth user record + `/users/{uid}/bookmarks` +
+     `/users/{uid}/notes` + local bookmarks/notes).
+   - Web deletion URL: Paste your published Google Sites "Account Deletion Policy"
+     webpage URL into the Play Console field.
+
+================================================================================
+PART 2 — EXACT DATA TYPES TO SELECT IN PLAY CONSOLE (STEP 2 & STEP 3)
+================================================================================
+
+--------------------------------------------------------------------------------
+CATEGORY A: PERSONAL INFO
+--------------------------------------------------------------------------------
+1. Name (Google Account Display Name)
+   - Collected: YES
+   - Shared with third parties: NO
+   - Processed ephemerally: NO (stored in Firebase Authentication while account exists)
+   - Required or Optional: OPTIONAL (Users can use 7-Day Renewable Guest Mode without signing in)
+   - Purpose(s) to select:
+     [x] App functionality
+     [x] Account management
+
+2. Email address (Google Account Email)
+   - Collected: YES
+   - Shared with third parties: NO
+   - Processed ephemerally: NO (stored in Firebase Authentication while account exists)
+   - Required or Optional: OPTIONAL (Only collected if the user chooses Google Sign-In)
+   - Purpose(s) to select:
+     [x] App functionality
+     [x] Account management
+
+3. User IDs (Firebase Authentication UID)
+   - Collected: YES
+   - Shared with third parties: NO
+   - Processed ephemerally: NO
+   - Required or Optional: OPTIONAL (Only generated when user signs in with Google)
+   - Purpose(s) to select:
+     [x] App functionality
+     [x] Account management
+
+--------------------------------------------------------------------------------
+CATEGORY B: LOCATION
+--------------------------------------------------------------------------------
+4. Approximate location (`ACCESS_COARSE_LOCATION`) & Precise location (`ACCESS_FINE_LOCATION`)
+   - Collected: NO (Coordinates are saved locally in on-device SharedPreferences and
+     transmitted ephemerally over HTTPS to `api.aladhan.com` solely to return
+     astronomical prayer times for that coordinate; they are not stored with any
+     user identifier on a developer server.)
+   - Shared: NO (Or if you prefer conservative disclosure because coordinates are
+     sent to the public AlAdhan Prayer Times API to fetch prayer timetables, you may
+     mark: Collected = Yes, Processed Ephemerally = Yes, Optional = Yes, Purpose = App functionality.)
+   - Recommended Play Console Selection (Safest / Most Transparent):
+     * Select "Approximate location" and "Precise location"
+     * Collected: YES
+     * Shared: NO
+     * Is this data processed ephemerally?: YES (used only in real time to compute prayer times and Qibla bearing; not stored on remote servers)
+     * Is this data required for your app, or can users choose whether it's collected?: Users can choose whether it's collected (OPTIONAL — manual city selection works without GPS permission)
+     * Purpose: [x] App functionality
+
+--------------------------------------------------------------------------------
+CATEGORY C: APP ACTIVITY / OTHER USER-GENERATED CONTENT
+--------------------------------------------------------------------------------
+5. Other user-generated content (Cloud-Synced Bookmarks & Study Notes)
+   - Data Type in Play Console: "App activity -> Other user-generated content" (or "Other actions")
+   - What it represents in Bayan al-Huda:
+     Quran/Hadith bookmarks (`/users/{uid}/bookmarks`) and personal study notes
+     (`/users/{uid}/notes`) synced to Cloud Firestore when signed in with Google.
+   - Collected: YES
+   - Shared with third parties: NO
+   - Processed ephemerally: NO (Stored in Firestore until deleted by the user)
+   - Required or Optional: OPTIONAL (Only synced when signed in; users can delete individual notes/bookmarks or delete their entire account at any time)
+   - Purpose(s) to select:
+     [x] App functionality
+
+--------------------------------------------------------------------------------
+CATEGORY D: AUDIO / MICROPHONE (`RECORD_AUDIO`) — DO NOT MARK AS COLLECTED
+--------------------------------------------------------------------------------
+6. Voice or sound recordings
+   - Collected: NO
+   - Shared: NO
+   - Explanation (Verified from source code):
+     Although `android.permission.RECORD_AUDIO` is declared in `AndroidManifest.xml`
+     for on-device Voice Search (`SpeechRecognizer`), the app NEVER records, stores,
+     or transmits audio files off the device to any developer backend. Under Google
+     Play Data Safety rules, data processed strictly on-device or sent only via
+     system speech-to-text into a local search bar without off-device audio storage
+     does not need to be declared as collected audio recordings.
+
+--------------------------------------------------------------------------------
+CATEGORY E: DATA TYPES NOT COLLECTED (LEAVE UNCHECKED IN PLAY CONSOLE)
+--------------------------------------------------------------------------------
+Verify that the following remain UNCHECKED in your Data Safety form:
+- [ ] Financial info (No in-app purchases, credit cards, or billing SDKs)
+- [ ] Health and fitness
+- [ ] Messages (Emails/WhatsApp intents open the user's external email/WhatsApp app; the app does not collect in-app messages)
+- [ ] Photos and videos (Zero access to user gallery/media)
+- [ ] Files and docs (Zero access to external storage)
+- [ ] Calendar
+- [ ] Contacts
+- [ ] Web browsing history
+- [ ] Device or other IDs for advertising (No AdMob / Advertising ID used)
+
+================================================================================
+PART 3 — PERMISSIONS & DECLARATIONS IN PLAY CONSOLE "APP CONTENT"
+================================================================================
+When submitting the APK/AAB in Play Console, be prepared for these standard
+manifest permission prompts:
+
+1. `USE_EXACT_ALARM` / `SCHEDULE_EXACT_ALARM`:
+   - Justification if prompted: "Bayan al-Huda is an Islamic worship, prayer-time
+     (Azan), and Fajr wake-up alarm application. Exact alarms are a core user-facing
+     feature required to sound the 5 Daily Salah Azan notifications and pre-Fajr
+     wake-up alarm at the exact astronomical prayer times."
+
+2. `FOREGROUND_SERVICE_MEDIA_PLAYBACK`:
+   - Justification in Play Console Foreground Service declaration:
+     - Category: MediaPlayback
+     - Description: "Used by AzanForegroundService and Quran Audio Player to play
+       scheduled Azan recitations, Fajr wake-up alarm audio, and continuous Quran
+       Surah tilawat audio while the user has locked the screen or switched apps."
+   - Note: Play Console requires a short screen-recording video URL demonstrating
+     the foreground media playback notification in action (e.g., playing Quran audio
+     or testing an Azan alarm and showing the media notification in the Android
+     notification shade).
+
+3. `USE_FULL_SCREEN_INTENT`:
+   - Justification: "Used for the scheduled Fajr wake-up alarm and Salah Azan alarm
+     so the user can dismiss or snooze the alarm when the device screen is locked."
+================================================================================

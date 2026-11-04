@@ -317,6 +317,14 @@ fun SalahAndFajrAlarmCard(
                 modifier = Modifier.fillMaxWidth()
               )
             }
+            Text(
+              text = "📖 Authentic Fajr Azan Reference: Sunan Abi Dawud: Hadith 500, 501 (Sahih) • Sunan an-Nasa'i: Hadith 647 (Sahih) • Jami' at-Tirmidhi: Hadith 198 • Sunan Ibn Majah: Hadith 706, 708",
+              style = MaterialTheme.typography.labelSmall.copy(
+                color = GoldPrimary,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 10.sp
+              )
+            )
           }
 
           Spacer(modifier = Modifier.height(14.dp))
@@ -715,7 +723,7 @@ fun SalahAndFajrAlarmCard(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            // Authentic Fajr Phrase (الصَّلَاةُ خَيْرٌ مِنَ النَّوْمِ)
+            // Authentic Fajr Phrase (الصَّلَاةُ خَيْرٌ مِنَ النَّوْمِ) with Exact Hadith References
             Text(
               text = PrayerTimeCalculator.FAJR_TATHWIB_ARABIC,
               style = MaterialTheme.typography.titleLarge.copy(
@@ -741,6 +749,33 @@ fun SalahAndFajrAlarmCard(
               ),
               modifier = Modifier.fillMaxWidth()
             )
+            Spacer(modifier = Modifier.height(4.dp))
+            Surface(
+              shape = RoundedCornerShape(8.dp),
+              color = EmeraldPrimary.copy(alpha = 0.1f),
+              modifier = Modifier
+                .fillMaxWidth()
+                .testTag("fajr_tathwib_hadith_reference_badge")
+            ) {
+              Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                Text(
+                  text = "📖 Authentic Fajr Azan Additional Words Reference (Tathwib after Hayya 'alal-Falah):",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = EmeraldPrimary,
+                    fontSize = 10.sp
+                  )
+                )
+                Text(
+                  text = "Sunan Abi Dawud — Hadith 500, 501 (Sahih) • Sunan an-Nasa'i — Hadith 647 (Sahih) • Jami' at-Tirmidhi — Hadith 198 • Sunan Ibn Majah — Hadith 706, 708 • Musnad Ahmad — Hadith 16477 (Narrated by Abu Mahdhurah & Bilal رضي الله عنهما)",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 10.sp,
+                    lineHeight = 14.sp
+                  )
+                )
+              }
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 

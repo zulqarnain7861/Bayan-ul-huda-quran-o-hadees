@@ -258,3 +258,122 @@ data class RecommendedLectureItem(
   val matchedTopicIds: List<String>,
   val userWatchedSecondsOnTopic: Int
 )
+
+enum class IslamicVideoCategory(
+  val displayLabel: String,
+  val mappedTopicIds: Set<String>,
+  val titleKeywords: List<String>
+) {
+  ALL("All Categories", emptySet(), emptyList()),
+  QURAN_TAFSIR(
+    "Quran / Tafsir",
+    setOf("tafseer_quran"),
+    listOf("tafseer", "tafsir", "quran", "surah", "surat", "ayah", "ayat")
+  ),
+  HADITH(
+    "Hadith",
+    setOf("hadith_sciences"),
+    listOf("hadith", "hadees", "bukhari", "muslim", "tirmidhi", "mishkat", "sunan", "isnad", "sahih")
+  ),
+  AQEEDAH(
+    "Aqeedah",
+    setOf("aqeedah_tawheed"),
+    listOf("aqeedah", "tawheed", "tauheed", "shirk", "biddah", "bidat", "qabar", "barzakh", "iman", "imaan", "taqleed", "firqa")
+  ),
+  FIQH(
+    "Fiqh",
+    setOf("salah_azan", "tahara_wudu"),
+    listOf("fiqh", "namaz", "salah", "salat", "azan", "wudu", "wuzu", "ghusl", "tayammum", "roza", "zakat", "hajj", "talaq", "nikah", "raf-ul-yadain", "rafa", "witr")
+  ),
+  SEERAH(
+    "Seerah",
+    setOf("seerah_prophets", "sahaba_unity"),
+    listOf("seerah", "seerat", "prophet", "muhammad", "nabi", "rasool", "miraj", "meraj", "hijrat", "badar", "uhud", "ibrahim", "musa", "isa")
+  ),
+  ISLAMIC_HISTORY(
+    "Islamic History",
+    setOf("islamic_history", "karbala_hussain", "reality_of_yazeed", "ahl_al_bayt"),
+    listOf("history", "karbala", "hussain", "husain", "yazeed", "yazid", "khilafat", "sahaba", "usman", "uthman", "umar", "abu bakr", "ali", "muawiya", "siffin", "jamal", "ahl al-bayt", "ahle bait")
+  ),
+  COMPARATIVE_RELIGION(
+    "Comparative Religion",
+    setOf("comparative_religion"),
+    listOf("comparative", "christian", "jew", "bible", "torah", "hindu", "atheist", "science", "evolution", "non-muslim", "interfaith", "zakir")
+  ),
+  QA(
+    "Q&A",
+    setOf("qa_sessions"),
+    listOf("q&a", "question", "sawal", "jawab", "session", "ilmi", "mulaqat", "interview", "podcast", "discussion")
+  ),
+  CONTEMPORARY_ISSUES(
+    "Contemporary Issues",
+    setOf("contemporary_issues", "ethical_reform"),
+    listOf("contemporary", "modern", "bank", "interest", "riba", "crypto", "forex", "job", "politics", "rights", "women", "ethics", "akhlaq", "parents", "halal", "haram")
+  ),
+  SPECIAL_LECTURES(
+    "Special Lectures",
+    setOf("special_lectures", "dua_adhkar"),
+    listOf("special", "mas'alah", "masalah", "dua", "adhkar", "azkar", "dajjal", "qayamat", "ramadan", "ashura", "eid", "khutbah")
+  );
+
+  val label: String
+    get() = displayLabel
+
+  fun matchesLecture(lecture: LectureRecord): Boolean {
+    if (this == ALL) return true
+    if (lecture.topics.any { it in mappedTopicIds }) return true
+    val combined = "${lecture.displayTitle} ${lecture.summary.orEmpty()} ${lecture.seriesName.orEmpty()}".lowercase()
+    return titleKeywords.any { kw -> combined.contains(kw) }
+  }
+}
+
+enum class LectureDateFilter(val label: String) {
+  ALL("All Dates"),
+  NEWEST_2023_2026("2023–2026"),
+  RECENT_2019_2022("2019–2022"),
+  ARCHIVE_2010_2018("2010–2018");
+
+  fun matchesYear(year: Int?): Boolean {
+    val y = year ?: 2018
+    return when (this) {
+      ALL -> true
+      NEWEST_2023_2026 -> y >= 2023
+      RECENT_2019_2022 -> y in 2019..2022
+      ARCHIVE_2010_2018 -> y <= 2018
+    }
+  }
+}
+
+enum class LectureDurationFilter(val label: String) {
+  ALL("All Durations"),
+  SHORT_UNDER_15M("< 15m"),
+  MEDIUM_15_TO_60M("15–60m"),
+  LONG_OVER_60M("> 60m");
+
+  fun matchesDuration(durationSec: Int?): Boolean {
+    val sec = durationSec ?: 900
+    return when (this) {
+      ALL -> true
+      SHORT_UNDER_15M -> sec < 900
+      MEDIUM_15_TO_60M -> sec in 900..3600
+      LONG_OVER_60M -> sec > 3600
+    }
+  }
+}
+
+enum class LectureSortOption(val label: String) {
+  RELEVANCE("Relevance"),
+  NEWEST_FIRST("Newest First"),
+  LONGEST_FIRST("Longest First")
+}
+
+enum class RecommendationShelfTab(val label: String) {
+  RECOMMENDED("Recommended"),
+  CONTINUE_WATCHING("Continue Watching"),
+  RECENTLY_ADDED("Recently Added"),
+  NEW_LECTURES("New Lectures"),
+  RELATED_TOPICS("Related Topics"),
+  SIMILAR_LECTURES("Similar Lectures"),
+  UNWATCHED("Unwatched")
+}
+

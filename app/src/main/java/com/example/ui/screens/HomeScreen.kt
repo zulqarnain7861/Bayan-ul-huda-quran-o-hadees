@@ -250,8 +250,13 @@ fun HomeScreen(
           prayerConfig.iftarAdjustmentMinutes
         )
       }
+      val presentDateDuas = DailyDuasDataProvider.getPresentDateShowcaseDuas(
+        hijriMonthIndex = sunnahRemindersState.calculatedDayStatus.hijriInfo.monthIndex,
+        isFridayOrThursdayAfterMaghrib = sunnahRemindersState.calculatedDayStatus.isFridayToday ||
+          sunnahRemindersState.calculatedDayStatus.isThursdayAfterMaghribJumuahActive
+      )
       SpecialRamadanDuasShowcaseCard(
-        duas = DailyDuasDataProvider.ramadanSpecialDuas,
+        duas = presentDateDuas,
         onOpenSehriIftarTimetable = onNavigateToSehriIftar,
         todaySehriEnds = adjustedSehri,
         todayIftarTime = adjustedIftar,
@@ -1290,13 +1295,13 @@ fun CalculatedFridayAndDailySunnahHomeCard(
           ) {
             Surface(
               shape = RoundedCornerShape(8.dp),
-              color = if (calcStatus.isFridayToday) GoldPrimary else Color.White.copy(alpha = 0.16f)
+              color = if (calcStatus.isFridayToday || calcStatus.isThursdayAfterMaghribJumuahActive) GoldPrimary else Color.White.copy(alpha = 0.16f)
             ) {
               Text(
                 text = calcStatus.nextFridayDateReadable,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                 style = MaterialTheme.typography.labelSmall.copy(
-                  color = if (calcStatus.isFridayToday) Color(0xFF102018) else Color.White,
+                  color = if (calcStatus.isFridayToday || calcStatus.isThursdayAfterMaghribJumuahActive) Color(0xFF102018) else Color.White,
                   fontWeight = FontWeight.Bold
                 )
               )
@@ -1365,7 +1370,7 @@ fun CalculatedFridayAndDailySunnahHomeCard(
 
       Spacer(modifier = Modifier.height(12.dp))
 
-      // 2. Special Friday (Yawm al-Jumu'ah) Highlight Box on Home Screen
+      // 2. Special Friday (Yawm al-Jumu'ah & Thursday After Maghrib Laylat al-Jumu'ah) Highlight Box on Home Screen
       Surface(
         modifier = Modifier
           .fillMaxWidth()
@@ -1392,10 +1397,10 @@ fun CalculatedFridayAndDailySunnahHomeCard(
               Spacer(modifier = Modifier.width(6.dp))
               Column {
                 Text(
-                  text = if (calcStatus.isFridayToday) {
-                    "Blessed Friday (Jumu'ah) Special Reminder — TODAY"
-                  } else {
-                    "Special Friday (Jumu'ah) Bath & Sunnah Preparation"
+                  text = when {
+                    calcStatus.isFridayToday -> "Blessed Friday (Jumu'ah) Special Reminder — TODAY"
+                    calcStatus.isThursdayAfterMaghribJumuahActive -> "🌙 Laylatul Jumu'ah Active (After Thursday Maghrib) — Friday Sunnahs"
+                    else -> "Special Friday (Jumu'ah) Bath & Sunnah Preparation (Starts Thu Maghrib)"
                   },
                   style = MaterialTheme.typography.titleSmall.copy(
                     fontWeight = FontWeight.Bold,

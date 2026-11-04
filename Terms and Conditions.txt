@@ -1,0 +1,78 @@
+================================================================================
+TERMS AND CONDITIONS OF USE — BAYAN AL-HUDA (بَيَانُ الهُدَى)
+================================================================================
+Application Name: Bayan al-Huda
+Android Package ID: com.bayanulhuda.com
+Developer / Publisher: Zulqarnain Ahmad Sheikh
+Contact Email: sheikhzulqar@gmail.com
+Effective Date: November 1, 2026
+
+[CONFIRMATION REQUIRED FROM DEVELOPER BEFORE PUBLISHING:
+- Review Section 9 (Governing Law & Jurisdiction) and insert your preferred country/state jurisdiction if desired.]
+
+--------------------------------------------------------------------------------
+1. ACCEPTANCE OF TERMS
+--------------------------------------------------------------------------------
+By downloading, installing, accessing, or using the Bayan al-Huda mobile application ("the App"), you agree to be bound by these Terms and Conditions ("Terms"). If you do not agree to these Terms, please discontinue use of the App and uninstall it from your device.
+
+--------------------------------------------------------------------------------
+2. PURPOSE & FREE, AD-FREE SERVICE
+--------------------------------------------------------------------------------
+Bayan al-Huda is provided free of charge and without commercial advertisements as an educational, scriptural reference, and daily worship utility for Muslims and students of Islamic studies worldwide.
+
+--------------------------------------------------------------------------------
+3. SCRIPTURAL, SCHOLARLY & MULTI-TRADITION CONTENT DISCLAIMER
+--------------------------------------------------------------------------------
+A. Primary Scriptural Sources:
+   - Quranic Arabic text (Uthmani script), translations, Tafsirs, and Hadith collections (including Sunni collections such as Sahih al-Bukhari, Sahih Muslim, Sunan Abu Dawud, Jami` at-Tirmidhi, Sunan an-Nasa'i, Sunan Ibn Majah, Muwatta Malik, Musnad Ahmad, Riyad as-Salihin, Mishkat al-Masabih, Al-Adab Al-Mufrad, Bulugh al-Maram, and Shia collections such as Al-Kafi, Man La Yahduruhu al-Faqih, Tahdhib al-Ahkam, Al-Istibsar, and Nahj al-Balaghah) are compiled from established scholarly digital repositories (including Tanzil/QuranEnc, QUL, Al-Quran Cloud, and fawazahmed0 Hadith editions).
+B. Scholarly Lectures & Treatises:
+   - The App includes educational access to "Understand Islam" video lectures by Engineer Muhammad Ali Mirza and classical Islamic literature under "Fikr-e-Maududi" (Sayyid Abul Ala Maududi) for comparative study, research, and reflection.
+C. Non-Fatwa Notice:
+   - Content, translations, tafsir commentary, and scholarly lectures presented in the App are provided for educational and religious study purposes only and do not constitute personalized legal or juristic rulings (fatwas).
+D. Error Reporting:
+   - Sacred texts require the highest care. If you notice any typographical, translation, grading, or citation discrepancy, please report it immediately using the in-app "Report Content Error" dialog or by emailing `sheikhzulqar@gmail.com`.
+
+--------------------------------------------------------------------------------
+4. PRAYER TIMES, SEHRI/IFTAR TIMETABLES, ALARMS & QIBLA COMPASS
+--------------------------------------------------------------------------------
+- Astronomical Calculations: Prayer times and Sehri/Iftar schedules are calculated using mathematical astronomical formulas and the AlAdhan API based on your selected GPS coordinates or city, juristic school (Shafi'i/Maliki/Hanbali or Hanafi Asr shadow factor), and calculation authority (e.g., University of Islamic Sciences Karachi, ISNA, Muslim World League, Umm al-Qura Makkah, Egyptian General Authority, Shia Ithna-Ashari / Leva Institute Qum).
+- Compass Sensor Accuracy: Qibla direction angles rely on your device's internal magnetometer/accelerometer sensors or GPS coordinates. Metallic objects, magnetic cases, or uncalibrated device sensors can affect compass readings.
+- User Responsibility: Always allow a prudent precautionary margin for fasting (Sehri/Iftar) and prayer times, and cross-check with your local mosque timetable where appropriate. Device battery savers or Do Not Disturb settings may affect alarm delivery unless exact alarm and notification permissions are enabled.
+
+--------------------------------------------------------------------------------
+5. USER ACCOUNTS, CLOUD SYNC & ACCEPTABLE USE
+--------------------------------------------------------------------------------
+- Optional Google Sign-In: You may sign in with your Google Account to synchronize bookmarks and personal study notes via Firebase Cloud Firestore, or use the App in Offline Guest Mode.
+- Acceptable Use: You agree not to misuse the App, attempt unauthorized access to Firebase databases, interfere with network services, or store unlawful or abusive content in cloud-synced notes.
+- Account Termination & Deletion: You may sign out or permanently delete your account and cloud data at any time inside the App (Info/About -> Delete Account & Cloud Data) or by emailing `sheikhzulqar@gmail.com`.
+
+--------------------------------------------------------------------------------
+6. YOUTUBE VIDEO STREAMING & INTELLECTUAL PROPERTY
+--------------------------------------------------------------------------------
+- Video lectures stream directly from official YouTube channels and embeds in compliance with YouTube Terms of Service.
+- In accordance with YouTube and Google Play policies, the App does NOT provide unauthorized downloading of YouTube video streams to your device gallery.
+- All trademarks, recitations, translations, and scholarly works remain the property of their respective authors, reciters, channels, and open-access repositories as documented in the in-app "API Sources & Licences" registry.
+
+--------------------------------------------------------------------------------
+7. OPTIONAL COMMUNITY SUPPORT DISCLOSURE
+--------------------------------------------------------------------------------
+- The App is 100% free and all features are unlocked without payment or subscription.
+- Any voluntary community communication via WhatsApp or email to support the developer's one-time Google Play Console registration or project maintenance is strictly optional and does not unlock paid digital goods inside the App.
+
+--------------------------------------------------------------------------------
+8. DISCLAIMER OF WARRANTIES & LIMITATION OF LIABILITY
+--------------------------------------------------------------------------------
+Bayan al-Huda is provided on an "AS IS" and "AS AVAILABLE" basis without warranties of any kind, whether express or implied. To the fullest extent permitted by applicable law, the developer (`Zulqarnain Ahmad Sheikh`) shall not be liable for any indirect, incidental, or consequential damages arising from the use or inability to use the App, including missed alarms, network interruptions, or third-party API downtime.
+
+--------------------------------------------------------------------------------
+9. GOVERNING LAW
+--------------------------------------------------------------------------------
+These Terms shall be governed by and construed in accordance with the applicable laws of the developer's jurisdiction [PLACEHOLDER FOR DEVELOPER CONFIRMATION: e.g., India / Jammu & Kashmir, or your local jurisdiction], without regard to conflict of law principles.
+
+--------------------------------------------------------------------------------
+10. CONTACT INFORMATION
+--------------------------------------------------------------------------------
+Developer: Zulqarnain Ahmad Sheikh
+Email: sheikhzulqar@gmail.com
+Instagram: https://www.instagram.com/zulqarnainah/
+================================================================================

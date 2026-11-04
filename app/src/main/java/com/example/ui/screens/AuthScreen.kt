@@ -312,8 +312,7 @@ fun AuthScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Secondary: Guest Mode button (always accessible so user is never locked out)
-        val effectiveDays = remainingGuestDays.coerceAtLeast(7)
+        // Secondary: Guest Mode button (unlimited offline access, never expires)
         OutlinedButton(
           onClick = {
             AuthManager.resetOrRenewGuestSession(context)
@@ -338,11 +337,62 @@ fun AuthScreen(
           )
           Spacer(modifier = Modifier.width(8.dp))
           Text(
-            text = "Continue as Guest ($effectiveDays Days Offline Access)",
+            text = "Continue as Guest (Unlimited Offline Access)",
             style = MaterialTheme.typography.titleSmall.copy(
               fontWeight = FontWeight.SemiBold,
               color = GoldLight
             )
+          )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        var showAuthPrivacyDialog by remember { mutableStateOf(false) }
+        var showAuthTermsDialog by remember { mutableStateOf(false) }
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          TextButton(
+            onClick = { showAuthPrivacyDialog = true },
+            modifier = Modifier.testTag("auth_privacy_policy_button")
+          ) {
+            Text(
+              text = "Privacy Policy",
+              color = GoldLight,
+              fontSize = 12.sp,
+              fontWeight = FontWeight.SemiBold
+            )
+          }
+          Text(
+            text = "•",
+            color = CreamBackground.copy(alpha = 0.6f),
+            fontSize = 12.sp
+          )
+          TextButton(
+            onClick = { showAuthTermsDialog = true },
+            modifier = Modifier.testTag("auth_terms_button")
+          ) {
+            Text(
+              text = "Terms & Conditions",
+              color = GoldLight,
+              fontSize = 12.sp,
+              fontWeight = FontWeight.SemiBold
+            )
+          }
+        }
+
+        if (showAuthPrivacyDialog) {
+          PrivacyPolicyDialog(
+            context = context,
+            onDismiss = { showAuthPrivacyDialog = false }
+          )
+        }
+        if (showAuthTermsDialog) {
+          TermsAndConditionsDialog(
+            context = context,
+            onDismiss = { showAuthTermsDialog = false }
           )
         }
       }

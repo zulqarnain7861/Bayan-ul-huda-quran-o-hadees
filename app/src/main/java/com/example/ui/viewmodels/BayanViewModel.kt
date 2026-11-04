@@ -97,7 +97,11 @@ data class BayanUiState(
   // Search state
   val searchQuery: String = "",
   val searchCategory: SearchCategory = SearchCategory.ALL,
+  val searchTraditionScope: String = "BOTH",
   val isSearchingRemote: Boolean = false,
+  // Navigation shortcut targets
+  val initialLibraryTab: Int = 0,
+  val initialLearnIslamTab: com.example.ui.screens.LearnIslamTab = com.example.ui.screens.LearnIslamTab.NOORANI_QAIDA,
   // Daily insights
   val dailyAyah: AyahEntity? = null,
   val dailyHadith: HadithEntity? = null,
@@ -610,6 +614,52 @@ class BayanViewModel(application: Application) : AndroidViewModel(application) {
     }
   }
 
+  /**
+   * Permanently deletes the signed-in Firebase account, all cloud-synced Firestore bookmarks & notes
+   * (`/users/{uid}/bookmarks` and `/users/{uid}/notes`), and (when [deleteLocalBookmarksAndNotes] is true)
+   * all local user-authored bookmarks and study notes stored on the device.
+   */
+  fun deleteAccountAndData(
+    activityContext: android.content.Context,
+    deleteLocalBookmarksAndNotes: Boolean = true,
+    onResult: (Boolean, String) -> Unit
+  ) {
+    viewModelScope.launch {
+      val app = getApplication<Application>()
+      if (deleteLocalBookmarksAndNotes) {
+        runCatching {
+          val currentBookmarks = bookmarks.value.toList()
+          for (bm in currentBookmarks) {
+            repository.removeBookmark(bm.itemKey)
+          }
+          val currentNotes = notes.value.toList()
+          for (note in currentNotes) {
+            repository.deleteNote(note.id)
+          }
+        }
+      }
+
+      val result = AuthManager.deleteCurrentAccount(
+        activityContext = activityContext,
+        onDeleteCloudData = { uid ->
+          cloudRepository?.deleteAllUserData(uid) ?: 0
+        }
+      )
+
+      result.onSuccess { msg ->
+        _uiState.value = _uiState.value.copy(
+          isGuestModeActive = false,
+          remainingGuestDays = AuthManager.getRemainingGuestDays(app)
+        )
+        onResult(true, msg)
+      }.onFailure { err ->
+        val friendly = err.localizedMessage
+          ?: "Could not complete automatic account deletion. Please try signing in again or use the email deletion request option."
+        onResult(false, friendly)
+      }
+    }
+  }
+
   private suspend fun loadDailyContent() {
     val ayah = repository.getRandomAyah()
     val hadith = repository.getRandomHadith()
@@ -993,7 +1043,9 @@ class BayanViewModel(application: Application) : AndroidViewModel(application) {
     _uiState.value = _uiState.value.copy(selectedHadithDetail = null)
   }
 
-  // Unified Smart Search (Offline 6,236 Quran Verses + Local & Live Sunni/Shia Hadith & Sermon Lookup)
+  // Two-Stage Global Hybrid Search Engine:
+  // Stage 1: Instant Offline Search (All 6,236 Quran verses, all 36 bundled Hadith collections, local Tafsir & translations)
+  // Stage 2: Online Global Search (AlQuran Cloud, Quran.com v4, FawazAhmed0 Sunni API, Thaqalayn v2 Shia API, QuranEnc Tafsir)
   fun onSearchQueryChanged(query: String) {
     _uiState.value = _uiState.value.copy(searchQuery = query)
     searchJob?.cancel()
@@ -1006,13 +1058,14 @@ class BayanViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     searchJob = viewModelScope.launch(Dispatchers.IO) {
-      kotlinx.coroutines.delay(120)
+      kotlinx.coroutines.delay(90)
+      val traditionScope = _uiState.value.searchTraditionScope
       _uiState.value = _uiState.value.copy(isSearchingRemote = true)
 
+      // STAGE 1: Instant Offline Search — display local results immediately while online search continues
       val ayahs = repository.searchAyahsSmart(query)
       val translationMatches = repository.searchTranslationsSmart(query)
 
-      // If translations matched but not ayahs, fetch the corresponding ayahs
       val extraAyahs = mutableListOf<AyahEntity>()
       translationMatches.filter { it.sourceType == "QURAN" }.take(30).forEach { trans ->
         val parts = trans.referenceKey.split(":")
@@ -1022,15 +1075,15 @@ class BayanViewModel(application: Application) : AndroidViewModel(application) {
           repository.getAyah(sNum, vNum)?.let { extraAyahs.add(it) }
         }
       }
-
-      _searchAyahResults.value = (ayahs + extraAyahs).distinctBy { "${it.surahNumber}:${it.verseNumber}" }
+      val localAyahs = (ayahs + extraAyahs).distinctBy { "${it.surahNumber}:${it.verseNumber}" }
+      _searchAyahResults.value = localAyahs
 
       val hadiths = repository.searchHadithsSmart(
         rawQuery = query,
-        activeCollectionKey = _uiState.value.selectedCollectionKey
+        activeCollectionKey = _uiState.value.selectedCollectionKey,
+        traditionScope = traditionScope
       )
 
-      // Add Hadiths matched by translations
       val extraHadiths = mutableListOf<HadithEntity>()
       translationMatches.filter { it.sourceType == "HADITH" }.take(30).forEach { trans ->
         val parts = trans.referenceKey.split(":")
@@ -1040,12 +1093,44 @@ class BayanViewModel(application: Application) : AndroidViewModel(application) {
           repository.getHadith(colKey, hNum)?.let { extraHadiths.add(it) }
         }
       }
+      val localHadiths = (hadiths + extraHadiths).distinctBy { "${it.collectionKey}:${it.hadithNumber}" }
+      _searchHadithResults.value = localHadiths
 
-      _searchHadithResults.value = (hadiths + extraHadiths).distinctBy { "${it.collectionKey}:${it.hadithNumber}" }
+      val localTafsirs = repository.searchTafsirSmart(
+        query = query,
+        traditionScope = traditionScope,
+        preMatchedAyahs = localAyahs
+      )
+      _searchTafsirResults.value = localTafsirs
 
-      // Real full-text search across Tafsir commentaries (Classical & Contemporary Sunni & Shia)
-      val tafsirMatches = repository.searchTafsirSmart(query, traditionScope = "BOTH")
-      _searchTafsirResults.value = tafsirMatches
+      // STAGE 2: Online Global Search — progressively fetch from online APIs & remote databases
+      val mergedAyahs = runCatching {
+        repository.searchAyahsOnlineStage2(
+          rawQuery = query,
+          traditionScope = traditionScope,
+          localResults = localAyahs
+        )
+      }.getOrDefault(localAyahs)
+      _searchAyahResults.value = mergedAyahs
+
+      val mergedHadiths = runCatching {
+        repository.searchHadithsOnlineStage2(
+          rawQuery = query,
+          traditionScope = traditionScope,
+          localResults = localHadiths
+        )
+      }.getOrDefault(localHadiths)
+      _searchHadithResults.value = mergedHadiths
+
+      val mergedTafsirs = runCatching {
+        repository.searchTafsirOnlineStage2(
+          rawQuery = query,
+          traditionScope = traditionScope,
+          matchedAyahs = mergedAyahs,
+          localTafsirs = localTafsirs
+        )
+      }.getOrDefault(localTafsirs)
+      _searchTafsirResults.value = mergedTafsirs
 
       _uiState.value = _uiState.value.copy(isSearchingRemote = false)
     }
@@ -1053,6 +1138,28 @@ class BayanViewModel(application: Application) : AndroidViewModel(application) {
 
   fun setSearchCategory(category: SearchCategory) {
     _uiState.value = _uiState.value.copy(searchCategory = category)
+  }
+
+  fun setSearchTraditionScope(scope: String) {
+    val validScope = when (scope.uppercase()) {
+      "SUNNI" -> "SUNNI"
+      "SHIA" -> "SHIA"
+      else -> "BOTH"
+    }
+    if (_uiState.value.searchTraditionScope == validScope) return
+    _uiState.value = _uiState.value.copy(searchTraditionScope = validScope)
+    val currentQuery = _uiState.value.searchQuery
+    if (currentQuery.isNotBlank()) {
+      onSearchQueryChanged(currentQuery)
+    }
+  }
+
+  fun setInitialLibraryTab(tabIndex: Int) {
+    _uiState.value = _uiState.value.copy(initialLibraryTab = tabIndex.coerceAtLeast(0))
+  }
+
+  fun setInitialLearnIslamTab(tab: com.example.ui.screens.LearnIslamTab) {
+    _uiState.value = _uiState.value.copy(initialLearnIslamTab = tab)
   }
 
   // Bookmarks (Local + Cloud Firestore Sync)

@@ -862,17 +862,16 @@ fun DailyDuasScreen(
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                      Row(
+                      Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                       ) {
                         Text(
                           text = item.title,
                           style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Bold
                           ),
-                          modifier = Modifier.weight(1f)
+                          modifier = Modifier.fillMaxWidth()
                         )
                         Text(
                           text = item.arabicTitle,
@@ -880,7 +879,9 @@ fun DailyDuasScreen(
                             fontFamily = ScheherazadeFontFamily,
                             color = GoldPrimary,
                             fontWeight = FontWeight.Bold
-                          )
+                          ),
+                          textAlign = TextAlign.End,
+                          modifier = Modifier.fillMaxWidth()
                         )
                       }
                       Spacer(modifier = Modifier.height(2.dp))

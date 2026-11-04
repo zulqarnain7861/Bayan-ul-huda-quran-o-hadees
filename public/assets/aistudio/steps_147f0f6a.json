@@ -1,0 +1,279 @@
+{
+  "meta": {
+    "title": "Namaz-e-Muhammadi (step by step)",
+    "languages": ["arabic", "urdu", "english"],
+    "note": "Urdu and English wording written fresh for the app. References follow the numbering cited in the source PDF; verify each against your original before release."
+  },
+  "steps": [
+    {
+      "step_no": 1,
+      "section": "Qiyam",
+      "title": "Takbeer-e-Tahreema",
+      "arabic": "اللَّهُ أَكْبَرُ",
+      "urdu": "نماز کا آغاز «اللہ اکبر» کہہ کر کریں اور دونوں ہاتھ کندھوں کے برابر اٹھائیں۔",
+      "english": "Begin the prayer by saying \"Allahu Akbar\" and raise both hands level with the shoulders.",
+      "reference": "Sahih Bukhari 735; Sahih Muslim 861"
+    },
+    {
+      "step_no": 2,
+      "section": "Qiyam",
+      "title": "Hand placement",
+      "arabic": "",
+      "urdu": "دایاں ہاتھ بائیں ہتھیلی، کلائی اور بازو پر رکھ کر سینے پر باندھیں۔",
+      "english": "Place the right hand over the left palm, wrist and forearm, and rest them on the chest.",
+      "reference": "Sahih Bukhari 740; Muwatta Malik 377; Sahih Muslim 896; Sunan Nasai 890; Musnad Ahmad 22017"
+    },
+    {
+      "step_no": 3,
+      "section": "Qiyam",
+      "title": "Opening supplication (Thana)",
+      "arabic": "سُبْحَانَكَ اللَّهُمَّ وَبِحَمْدِكَ وَتَبَارَكَ اسْمُكَ وَتَعَالَى جَدُّكَ وَلَا إِلَهَ غَيْرُكَ",
+      "urdu": "اے اللہ! تو پاک ہے اور تعریف تیری ہی ہے، تیرا نام بابرکت اور تیری شان بلند ہے، تیرے سوا کوئی معبود نہیں۔",
+      "english": "O Allah, glory and praise are Yours; blessed is Your name, exalted is Your majesty, and there is no god but You.",
+      "reference": "Sahih Muslim 892; Jami Tirmidhi 242; Sunan Nasai 1137"
+    },
+    {
+      "step_no": 4,
+      "section": "Qiyam",
+      "title": "Alternative opening supplication",
+      "arabic": "اللَّهُمَّ بَاعِدْ بَيْنِي وَبَيْنَ خَطَايَايَ كَمَا بَاعَدْتَ بَيْنَ الْمَشْرِقِ وَالْمَغْرِبِ",
+      "urdu": "اے اللہ! میرے اور میرے گناہوں کے درمیان اتنی دوری کر دے جتنی مشرق اور مغرب کے درمیان ہے۔",
+      "english": "O Allah, put distance between me and my sins as You put distance between east and west.",
+      "reference": "Sahih Bukhari 744; Sahih Muslim 1354"
+    },
+    {
+      "step_no": 5,
+      "section": "Qiyam",
+      "title": "Seeking refuge (Ta'awwudh)",
+      "arabic": "أَعُوذُ بِاللَّهِ مِنَ الشَّيْطَانِ الرَّجِيمِ",
+      "urdu": "میں مردود شیطان سے اللہ کی پناہ چاہتا ہوں۔",
+      "english": "I seek refuge in Allah from the accursed Satan.",
+      "reference": "Sahih Bukhari 6115; Sahih Muslim 6646; Sunan Abi Dawud 775"
+    },
+    {
+      "step_no": 6,
+      "section": "Qiyam",
+      "title": "Bismillah",
+      "arabic": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+      "urdu": "اللہ کے نام سے جو نہایت مہربان اور بے حد رحم کرنے والا ہے۔",
+      "english": "In the name of Allah, the Most Gracious, the Most Merciful.",
+      "reference": "Sunan Nasai 906; Sahih Muslim 894"
+    },
+    {
+      "step_no": 7,
+      "section": "Qiyam",
+      "title": "Surah Al-Fatiha",
+      "arabic": "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ ۝ الرَّحْمَٰنِ الرَّحِيمِ ۝ مَالِكِ يَوْمِ الدِّينِ ۝ إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ ۝ اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ ۝ صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ وَلَا الضَّالِّينَ",
+      "urdu": "سورۃ الفاتحہ ہر رکعت میں پڑھیں، ہر آیت پر ٹھہرتے ہوئے۔",
+      "english": "Recite Surah Al-Fatiha in every rakat, pausing at the end of each verse.",
+      "reference": "Sahih Bukhari 743, 756; Sahih Muslim 874; Jami Tirmidhi 311; Musnad Ahmad 26513"
+    },
+    {
+      "step_no": 8,
+      "section": "Qiyam",
+      "title": "Ameen",
+      "arabic": "آمِينَ",
+      "urdu": "فاتحہ کے بعد «آمین» کہیں؛ جہری نماز میں بلند آواز سے اور سری نماز میں آہستہ۔",
+      "english": "Say \"Ameen\" after Fatiha, aloud in loud prayers and quietly in silent ones.",
+      "reference": "Sunan Abi Dawud 932, 933; Sunan Nasai 880; Jami Tirmidhi 248; Sahih Muslim 878"
+    },
+    {
+      "step_no": 9,
+      "section": "Qiyam",
+      "title": "Another surah (rakats 1 and 2 only)",
+      "arabic": "",
+      "urdu": "پہلی دو رکعتوں میں فاتحہ کے بعد قرآن کی کوئی سورت یا اس کا کچھ حصہ پڑھیں۔ تیسری اور چوتھی رکعت میں صرف فاتحہ۔",
+      "english": "In the first two rakats, recite a surah or part of the Quran after Fatiha. In the third and fourth rakats, recite Fatiha only.",
+      "reference": "Sahih Bukhari 762, 776; Sahih Muslim 1013; Sunan Abi Dawud 859, 1014"
+    },
+    {
+      "step_no": 10,
+      "section": "Ruku",
+      "title": "Going into ruku",
+      "arabic": "اللَّهُ أَكْبَرُ",
+      "urdu": "«اللہ اکبر» کہتے ہوئے ہاتھ کندھوں تک اٹھائیں، گھٹنے مضبوطی سے پکڑیں، پیٹھ سیدھی اور سر پیٹھ کے برابر رکھیں، بازو پہلوؤں سے الگ رہیں۔",
+      "english": "Say \"Allahu Akbar\" and raise the hands to the shoulders. Grip the knees, keep the back flat with the head level, and hold the arms away from the sides.",
+      "reference": "Sahih Bukhari 735, 828; Sahih Muslim 865; Sunan Abi Dawud 734"
+    },
+    {
+      "step_no": 11,
+      "section": "Ruku",
+      "title": "Ruku tasbeeh (3 times)",
+      "arabic": "سُبْحَانَ رَبِّيَ الْعَظِيمِ",
+      "urdu": "پاک ہے میرا عظمت والا رب۔ کم از کم تین بار پڑھیں۔",
+      "english": "Glory be to my Lord, the Most Great. Say it at least three times.",
+      "reference": "Sahih Muslim 1814; Sunan Abi Dawud 869; Sunan Ibn Majah 887; Al-Musannaf Ibn Abi Shaybah 2571"
+    },
+    {
+      "step_no": 12,
+      "section": "Ruku",
+      "title": "Additional ruku supplications",
+      "arabic": "سُبْحَانَكَ اللَّهُمَّ رَبَّنَا وَبِحَمْدِكَ اللَّهُمَّ اغْفِرْ لِي",
+      "urdu": "اے اللہ! اے ہمارے رب! تو پاک ہے اور تعریف تیری ہے، مجھے بخش دے۔",
+      "english": "O Allah, our Lord, glory and praise are Yours; forgive me.",
+      "reference": "Sahih Bukhari 794; Sahih Muslim 1085"
+    },
+    {
+      "step_no": 13,
+      "section": "Ruku",
+      "title": "Another ruku praise",
+      "arabic": "سُبُّوحٌ قُدُّوسٌ رَبُّ الْمَلَائِكَةِ وَالرُّوحِ",
+      "urdu": "نہایت پاک اور مقدس، فرشتوں اور جبریل کا رب۔",
+      "english": "Perfect and holy, Lord of the angels and the Spirit.",
+      "reference": "Sahih Muslim 1091"
+    },
+    {
+      "step_no": 14,
+      "section": "Qauma",
+      "title": "Rising from ruku",
+      "arabic": "سَمِعَ اللَّهُ لِمَنْ حَمِدَهُ ، رَبَّنَا وَلَكَ الْحَمْدُ",
+      "urdu": "رکوع سے اٹھتے ہوئے ہاتھ کندھوں تک اٹھائیں اور «سمع اللہ لمن حمدہ» کہیں، پھر سیدھے کھڑے ہو کر «ربنا ولک الحمد» پڑھیں۔",
+      "english": "Rise from ruku raising the hands, say \"Sami Allahu liman hamidah\", then standing straight say \"Rabbana wa lakal hamd\".",
+      "reference": "Sahih Bukhari 735; Sahih Muslim 861, 865"
+    },
+    {
+      "step_no": 15,
+      "section": "Qauma",
+      "title": "Longer praise in qauma",
+      "arabic": "رَبَّنَا وَلَكَ الْحَمْدُ حَمْدًا كَثِيرًا طَيِّبًا مُبَارَكًا فِيهِ",
+      "urdu": "اے ہمارے رب! تیرے لیے بہت زیادہ، پاکیزہ اور بابرکت تعریف ہے۔",
+      "english": "Our Lord, to You belongs abundant, pure and blessed praise.",
+      "reference": "Sahih Bukhari 799; Al-Musannaf Ibn Abi Shaybah 2600"
+    },
+    {
+      "step_no": 16,
+      "section": "Qauma",
+      "title": "Hands after qauma",
+      "arabic": "",
+      "urdu": "قومہ میں ہاتھ چھوڑنے یا باندھنے کے بارے میں اس بات کا خیال رکھیں کہ رکن کی اصل حالت اطمینان اور سیدھا کھڑا ہونا ہے۔",
+      "english": "In qauma, stand upright with calm; the posture of the hands follows the evidence cited in the source.",
+      "reference": "Sahih Bukhari 890; Sunan Nasai 890"
+    },
+    {
+      "step_no": 17,
+      "section": "Sajdah",
+      "title": "Going into sajdah",
+      "arabic": "اللَّهُ أَكْبَرُ",
+      "urdu": "«اللہ اکبر» کہہ کر سجدے میں جائیں، سات اعضا زمین پر لگیں: پیشانی مع ناک، دونوں ہتھیلیاں، دونوں گھٹنے اور دونوں پاؤں۔",
+      "english": "Say \"Allahu Akbar\" and go down so that seven parts touch the ground: forehead with nose, both palms, both knees and both feet.",
+      "reference": "Sahih Bukhari 803, 812; Sunan Abi Dawud 840"
+    },
+    {
+      "step_no": 18,
+      "section": "Sajdah",
+      "title": "Posture in sajdah",
+      "arabic": "",
+      "urdu": "ناک اور پیشانی زمین پر جمائیں، بازو پہلوؤں سے الگ اور زمین سے اوپر رکھیں، ہتھیلیاں کندھوں یا کانوں کے برابر، پاؤں کی انگلیاں قبلہ رخ۔",
+      "english": "Press the nose and forehead down, keep the arms away from the sides and off the ground, place the palms level with the shoulders or ears, and point the toes toward the Qibla.",
+      "reference": "Sahih Bukhari 828; Sahih Muslim 1105; Sunan Abi Dawud 734, 730; Sunan Nasai 890; Sahih Ibn Khuzaimah 654"
+    },
+    {
+      "step_no": 19,
+      "section": "Sajdah",
+      "title": "Moderation in sajdah",
+      "arabic": "",
+      "urdu": "سجدے میں اعتدال رکھیں؛ کتے کی طرح بازو زمین پر نہ بچھائیں۔",
+      "english": "Be moderate in sajdah and do not stretch the forearms flat on the ground like a dog.",
+      "reference": "Sahih Bukhari 822; Sahih Muslim 1104"
+    },
+    {
+      "step_no": 20,
+      "section": "Sajdah",
+      "title": "Sajdah tasbeeh (3 times)",
+      "arabic": "سُبْحَانَ رَبِّيَ الْأَعْلَى",
+      "urdu": "پاک ہے میرا سب سے بلند رب۔ کم از کم تین بار پڑھیں۔",
+      "english": "Glory be to my Lord, the Most High. Say it at least three times.",
+      "reference": "Sahih Muslim 1814; Sunan Abi Dawud 869; Sunan Ibn Majah 887"
+    },
+    {
+      "step_no": 21,
+      "section": "Jalsa",
+      "title": "Sitting between the two sajdahs",
+      "arabic": "اللَّهُ أَكْبَرُ",
+      "urdu": "«اللہ اکبر» کہہ کر اٹھیں، بایاں پاؤں بچھا کر اس پر بیٹھیں اور دایاں پاؤں کھڑا رکھیں۔",
+      "english": "Say \"Allahu Akbar\", sit up on the spread left foot and keep the right foot upright.",
+      "reference": "Sahih Bukhari 827; Sunan Abi Dawud 730"
+    },
+    {
+      "step_no": 22,
+      "section": "Jalsa",
+      "title": "Supplication in jalsa",
+      "arabic": "رَبِّ اغْفِرْ لِي رَبِّ اغْفِرْ لِي",
+      "urdu": "اے میرے رب! مجھے بخش دے، اے میرے رب! مجھے بخش دے۔",
+      "english": "My Lord, forgive me. My Lord, forgive me.",
+      "reference": "Sunan Abi Dawud 874; Sunan Nasai 1146; Sunan Ibn Majah 897"
+    },
+    {
+      "step_no": 23,
+      "section": "Sajdah",
+      "title": "Second sajdah",
+      "arabic": "اللَّهُ أَكْبَرُ",
+      "urdu": "«اللہ اکبر» کہہ کر دوسرا سجدہ پہلے کی طرح کریں۔",
+      "english": "Say \"Allahu Akbar\" and perform the second sajdah exactly like the first.",
+      "reference": "Sahih Bukhari 803, 812"
+    },
+    {
+      "step_no": 24,
+      "section": "Jalsa",
+      "title": "Brief rest before standing (optional)",
+      "arabic": "",
+      "urdu": "طاق رکعت کے بعد اگلی رکعت کے لیے کھڑے ہونے سے پہلے مختصر بیٹھنا ثابت ہے، پھر زمین پر ہاتھ ٹیک کر اٹھیں۔",
+      "english": "Before standing for the next rakat, a brief sit is reported; then rise using the hands for support.",
+      "reference": "Sahih Bukhari 823, 824, 6251"
+    },
+    {
+      "step_no": 25,
+      "section": "Tashahhud",
+      "title": "Tashahhud posture",
+      "arabic": "",
+      "urdu": "دونوں ہاتھ رانوں پر رکھیں، شہادت کی انگلی سے اشارہ کریں اور نظر اسی پر رکھیں۔",
+      "english": "Rest both hands on the thighs, point with the index finger and keep the gaze on it.",
+      "reference": "Sahih Muslim 1308, 1310; Sunan Nasai 1161, 1162, 1269; Sunan Abi Dawud 991; Sunan Ibn Majah 912"
+    },
+    {
+      "step_no": 26,
+      "section": "Tashahhud",
+      "title": "Tashahhud text",
+      "arabic": "التَّحِيَّاتُ لِلَّهِ وَالصَّلَوَاتُ وَالطَّيِّبَاتُ، السَّلَامُ عَلَيْكَ أَيُّهَا النَّبِيُّ وَرَحْمَةُ اللَّهِ وَبَرَكَاتُهُ، السَّلَامُ عَلَيْنَا وَعَلَى عِبَادِ اللَّهِ الصَّالِحِينَ، أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللَّهُ وَأَشْهَدُ أَنَّ مُحَمَّدًا عَبْدُهُ وَرَسُولُهُ",
+      "urdu": "تمام زبانی، بدنی اور مالی عبادتیں اللہ کے لیے ہیں۔ اے نبی ﷺ! آپ پر سلام اور اللہ کی رحمت و برکت ہو۔ ہم پر اور اللہ کے نیک بندوں پر سلام ہو۔ میں گواہی دیتا ہوں کہ اللہ کے سوا کوئی معبود نہیں اور محمد ﷺ اس کے بندے اور رسول ہیں۔",
+      "english": "All greetings, prayers and good deeds are for Allah. Peace be upon you, O Prophet, and Allah's mercy and blessings. Peace be upon us and the righteous servants of Allah. I bear witness that there is no god but Allah, and that Muhammad is His servant and Messenger.",
+      "reference": "Sahih Bukhari 1202; Sahih Muslim 897"
+    },
+    {
+      "step_no": 27,
+      "section": "Tashahhud",
+      "title": "Final sitting (tawarruk)",
+      "arabic": "",
+      "urdu": "آخری قعدے میں بایاں پاؤں دائیں پنڈلی کے نیچے سے نکال کر بائیں کولہے پر بیٹھیں۔",
+      "english": "In the final sitting, bring the left foot out under the right shin and sit on the left hip.",
+      "reference": "Sahih Bukhari 828"
+    },
+    {
+      "step_no": 28,
+      "section": "Tashahhud",
+      "title": "Durood Ibrahimi (final sitting)",
+      "arabic": "اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ كَمَا صَلَّيْتَ عَلَى إِبْرَاهِيمَ وَعَلَى آلِ إِبْرَاهِيمَ إِنَّكَ حَمِيدٌ مَجِيدٌ، اللَّهُمَّ بَارِكْ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ كَمَا بَارَكْتَ عَلَى إِبْرَاهِيمَ وَعَلَى آلِ إِبْرَاهِيمَ إِنَّكَ حَمِيدٌ مَجِيدٌ",
+      "urdu": "اے اللہ! محمد ﷺ اور آل محمد پر رحمت نازل فرما جیسے تو نے ابراہیم علیہ السلام اور ان کی آل پر نازل کی؛ بے شک تو تعریف والا، بزرگی والا ہے۔ اے اللہ! محمد ﷺ اور آل محمد پر برکت نازل فرما جیسے تو نے ابراہیم علیہ السلام اور ان کی آل پر برکت نازل کی۔",
+      "english": "O Allah, send blessings upon Muhammad and his family as You sent blessings upon Ibrahim and his family; You are Praiseworthy and Glorious. O Allah, bless Muhammad and his family as You blessed Ibrahim and his family.",
+      "reference": "Sahih Bukhari 3370; Sahih Muslim 908"
+    },
+    {
+      "step_no": 29,
+      "section": "Tashahhud",
+      "title": "Seeking refuge, then personal duas",
+      "arabic": "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنْ عَذَابِ جَهَنَّمَ، وَمِنْ عَذَابِ الْقَبْرِ، وَمِنْ فِتْنَةِ الْمَحْيَا وَالْمَمَاتِ، وَمِنْ شَرِّ فِتْنَةِ الْمَسِيحِ الدَّجَّالِ",
+      "urdu": "اے اللہ! میں جہنم کے عذاب، قبر کے عذاب، زندگی و موت کے فتنے اور مسیح دجال کے شر سے تیری پناہ چاہتا ہوں۔ اس کے بعد کوئی بھی مسنون دعا مانگ سکتے ہیں، مثلاً «ربنا آتنا فی الدنیا حسنۃ» (بخاری 6389، مسلم 6840)۔",
+      "english": "O Allah, I seek refuge in You from the punishment of Hell, the punishment of the grave, the trials of life and death, and the evil of the False Messiah. Then any authentic dua may be made, for example \"Rabbana atina fid-dunya hasanah\" (Bukhari 6389, Muslim 6840).",
+      "reference": "Sahih Muslim 1324; Sahih Bukhari 6389; Sahih Muslim 6840; Sunan Abi Dawud 897"
+    },
+    {
+      "step_no": 30,
+      "section": "Salam",
+      "title": "Concluding the prayer",
+      "arabic": "السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ",
+      "urdu": "پہلے دائیں اور پھر بائیں طرف منہ پھیر کر سلام کہیں: «تم پر سلامتی اور اللہ کی رحمت ہو»۔",
+      "english": "Turn the face to the right, then to the left, saying: \"Peace and Allah's mercy be upon you.\"",
+      "reference": "Sahih Bukhari 838; Sunan Abi Dawud 996; Jami Tirmidhi 295; Sunan Ibn Majah 914"
+    }
+  ]
+}

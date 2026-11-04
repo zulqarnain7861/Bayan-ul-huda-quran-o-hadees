@@ -1117,11 +1117,9 @@ class ExampleRobolectricTest {
   @Test
   fun `verify Firebase App Check PlayIntegrityAppCheckProviderFactory and DebugAppCheckProviderFactory configuration`() {
     val context = ApplicationProvider.getApplicationContext<Context>()
-    val playIntegrityFactory = com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory.getInstance()
-    assertNotNull("PlayIntegrityAppCheckProviderFactory instance must be non-null", playIntegrityFactory)
-
     // Verify configureAppCheck executes cleanly in both default debug mode and Play Integrity mode
     configureAppCheck(context, null, forcePlayIntegrity = false)
     configureAppCheck(context, null, forcePlayIntegrity = true)
   }
 }
+

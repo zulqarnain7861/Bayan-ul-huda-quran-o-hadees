@@ -50,6 +50,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
             android:label="@string/app_name"

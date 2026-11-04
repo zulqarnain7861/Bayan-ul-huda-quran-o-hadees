@@ -757,8 +757,8 @@ fun HadithScreen(
     LazyColumn(
       state = listState,
       modifier = Modifier.fillMaxSize(),
-      contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-      verticalArrangement = Arrangement.spacedBy(1.dp)
+      contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+      verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
       // Compact Header Item inside LazyColumn so Hadith cards have full screen space
       item(key = "hadith_compact_header_controls") {
@@ -1911,7 +1911,10 @@ fun HadithScreen(
               fontWeight = FontWeight.Bold,
               color = GoldPrimary,
               textAlign = TextAlign.Right
-            )
+            ),
+            modifier = Modifier
+              .weight(1f)
+              .padding(start = 8.dp)
           )
         }
         Text(

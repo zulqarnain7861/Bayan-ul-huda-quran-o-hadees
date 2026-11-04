@@ -310,6 +310,34 @@ class IslamicRepository(
       for (a in daoMatches) {
         results["${a.surahNumber}:${a.verseNumber}"] = a
       }
+      val transMatches = runCatching { translationDao.searchTranslations(ftsQuery).first() }.getOrDefault(emptyList())
+      for (tm in transMatches.take(40)) {
+        if (tm.sourceType == "QURAN" && !results.containsKey(tm.referenceKey)) {
+          val sNum = tm.surahOrBookNumber
+          val vNum = tm.verseOrHadithNumber
+          ayahDao.getAyah(sNum, vNum)?.let { results[tm.referenceKey] = it }
+        }
+      }
+    }
+
+    // 4. Comprehensive offline scan across all 6,236 verses in OfflineQuranAssetLoader
+    // supporting exact phrase, individual words, partial terms, and Arabic diacritic normalization
+    if (results.size < 60) {
+      val allOfflineAyahs = OfflineQuranAssetLoader.getAllOfflineAyahs(appContext)
+      val normQuery = ExtendedHadithDataProvider.normalizeArabicForSearch(q)
+      val tokens = normQuery.split(" ").filter { it.length >= 2 }
+      for (a in allOfflineAyahs) {
+        val key = "${a.surahNumber}:${a.verseNumber}"
+        if (results.containsKey(key)) continue
+        val combinedRaw = "${a.textArabic} ${a.translationEnglish} ${a.translationUrdu} ${a.transliteration}"
+        val combinedNorm = ExtendedHadithDataProvider.normalizeArabicForSearch(combinedRaw)
+        val exactMatch = combinedNorm.contains(normQuery) || combinedRaw.contains(q, ignoreCase = true)
+        val tokenMatch = tokens.isNotEmpty() && tokens.all { tok -> combinedNorm.contains(tok) }
+        if (exactMatch || tokenMatch) {
+          results[key] = a
+          if (results.size >= 80) break
+        }
+      }
     }
 
     results.values.toList()
@@ -334,29 +362,43 @@ class IslamicRepository(
    */
   suspend fun searchHadithsSmart(
     rawQuery: String,
-    activeCollectionKey: String = "bukhari"
+    activeCollectionKey: String = "bukhari",
+    traditionScope: String = "BOTH"
   ): List<HadithEntity> = withContext(Dispatchers.IO) {
     val q = com.example.data.remote.SecurityIntegrityGuard.sanitizeSearchQuery(rawQuery)
     if (q.isEmpty()) return@withContext emptyList()
 
     val results = LinkedHashMap<String, HadithEntity>()
 
+    fun matchesTraditionScope(h: HadithEntity): Boolean {
+      val isShia = ExtendedHadithDataProvider.isShiaCollection(h.collectionKey)
+      return when (traditionScope.uppercase()) {
+        "SUNNI" -> !isShia
+        "SHIA" -> isShia
+        else -> true
+      }
+    }
+
     // 1. Parse explicit collection + Hadith/Sermon/Letter/Saying number e.g. "bukhari 5027", "Sermon 193", "Letter 53", "alkafi 1"
     val parsedRef = parseCollectionAndHadithNumber(q)
     if (parsedRef != null) {
       val (colKey, hNum) = parsedRef
       findOrFetchHadithByNumber(colKey, hNum)?.let { h ->
-        results["${h.collectionKey}_${h.hadithNumber}"] = h
+        if (matchesTraditionScope(h)) {
+          results["${h.collectionKey}_${h.hadithNumber}"] = h
+        }
       }
       val colMatches = ExtendedHadithDataProvider.searchHadithsSmartOffline(
         localCollectionHadiths = hadithDao.getHadithsByCollection(colKey).first(),
         rawQuery = q,
         activeCollectionKey = colKey,
-        traditionFilter = "BOTH",
+        traditionFilter = traditionScope,
         includeCrossCollectionMatches = false
       )
       for (h in colMatches) {
-        results["${h.collectionKey}_${h.hadithNumber}"] = h
+        if (matchesTraditionScope(h)) {
+          results["${h.collectionKey}_${h.hadithNumber}"] = h
+        }
       }
       if (results.isNotEmpty()) {
         return@withContext results.values.toList()
@@ -375,8 +417,8 @@ class IslamicRepository(
         }
         val refreshedBook = hadithDao.getHadithsByBook(activeCollectionKey, bookNum).first()
         for (h in refreshedBook) {
-          if (inBookNum == null || ExtendedHadithDataProvider.matchesExactHadithNumber(h, inBookNum) ||
-            Regex("""(?:hadith|sermon|letter|saying|supplication)\s*0*${inBookNum}(?!\d)""", RegexOption.IGNORE_CASE).containsMatchIn(h.inBookReference)
+          if (matchesTraditionScope(h) && (inBookNum == null || ExtendedHadithDataProvider.matchesExactHadithNumber(h, inBookNum) ||
+            Regex("""(?:hadith|sermon|letter|saying|supplication)\s*0*${inBookNum}(?!\d)""", RegexOption.IGNORE_CASE).containsMatchIn(h.inBookReference))
           ) {
             results["${h.collectionKey}_${h.hadithNumber}"] = h
           }
@@ -391,7 +433,9 @@ class IslamicRepository(
     ExtendedHadithDataProvider.parseHadithNumberQuery(q)?.let { num ->
       if (num > 0) {
         findOrFetchHadithByNumber(activeCollectionKey, num)?.let { h ->
-          results["${h.collectionKey}_${h.hadithNumber}"] = h
+          if (matchesTraditionScope(h)) {
+            results["${h.collectionKey}_${h.hadithNumber}"] = h
+          }
         }
         return@withContext results.values.toList()
       }
@@ -402,11 +446,13 @@ class IslamicRepository(
     if (ftsQuery.isNotBlank()) {
       val daoMatches = runCatching { hadithDao.searchHadiths(ftsQuery).first() }.getOrDefault(emptyList())
       for (h in daoMatches) {
-        results["${h.collectionKey}_${h.hadithNumber}"] = h
+        if (matchesTraditionScope(h)) {
+          results["${h.collectionKey}_${h.hadithNumber}"] = h
+        }
       }
     }
 
-    // 5. Diacritic-insensitive & multi-word search across active collection (including bundled offline asset) & tradition collections
+    // 5. Diacritic-insensitive & multi-word search across active collection AND all bundled Sunni & Shia collections
     val activeLocal = if (OfflineHadithAssetLoader.hasBundledAsset(activeCollectionKey)) {
       OfflineHadithAssetLoader.loadCollection(appContext, activeCollectionKey)
     } else {
@@ -416,11 +462,36 @@ class IslamicRepository(
       localCollectionHadiths = activeLocal,
       rawQuery = q,
       activeCollectionKey = activeCollectionKey,
-      traditionFilter = "BOTH",
+      traditionFilter = traditionScope,
       includeCrossCollectionMatches = true
     )
     for (h in smartOfflineMatches) {
-      results["${h.collectionKey}_${h.hadithNumber}"] = h
+      if (matchesTraditionScope(h)) {
+        results["${h.collectionKey}_${h.hadithNumber}"] = h
+      }
+    }
+
+    // 6. Search across ALL bundled Sunni & Shia Hadith collections in OfflineHadithAssetLoader
+    val normQuery = ExtendedHadithDataProvider.normalizeArabicForSearch(q)
+    val tokens = normQuery.split(" ").filter { it.length >= 2 }
+    val bundledKeys = OfflineHadithAssetLoader.getAllBundledCollectionKeys(traditionScope)
+    for (colKey in bundledKeys) {
+      if (results.size >= 80) break
+      val collectionItems = OfflineHadithAssetLoader.loadCollection(appContext, colKey)
+      for (h in collectionItems) {
+        val uniqKey = "${h.collectionKey}_${h.hadithNumber}"
+        if (results.containsKey(uniqKey) || !matchesTraditionScope(h)) continue
+        val rawCombined = "${h.arabicText} ${h.englishText} ${h.urduText} ${h.chapterName} ${h.bookName} ${h.reference}"
+        val exactRawMatch = rawCombined.contains(q, ignoreCase = true)
+        val normMatch = if (!exactRawMatch && normQuery.length >= 2) {
+          val normTarget = ExtendedHadithDataProvider.normalizeArabicForSearch(rawCombined)
+          normTarget.contains(normQuery) || (tokens.isNotEmpty() && tokens.all { normTarget.contains(it) })
+        } else false
+        if (exactRawMatch || normMatch) {
+          results[uniqKey] = h
+          if (results.size >= 80) break
+        }
+      }
     }
 
     results.values.toList()
@@ -923,19 +994,163 @@ class IslamicRepository(
     )
   }
 
-  suspend fun searchTafsirSmart(query: String, traditionScope: String = "BOTH"): List<AyahTafsirResult> = withContext(Dispatchers.IO) {
+  suspend fun searchTafsirSmart(
+    query: String,
+    traditionScope: String = "BOTH",
+    preMatchedAyahs: List<AyahEntity> = emptyList()
+  ): List<AyahTafsirResult> = withContext(Dispatchers.IO) {
     val q = query.trim()
     if (q.isEmpty()) return@withContext emptyList()
-    val matchedAyahs = searchAyahsSmart(q).take(15)
+    val matchedAyahs = if (preMatchedAyahs.isNotEmpty()) {
+      preMatchedAyahs.take(15)
+    } else {
+      searchAyahsSmart(q).take(15)
+    }
+    val allOffline = OfflineQuranAssetLoader.getAllOfflineAyahs(appContext)
     val foundationalAyahs = listOfNotNull(
-      ayahDao.getAyah(1, 1),
-      ayahDao.getAyah(2, 255),
-      ayahDao.getAyah(36, 1),
-      ayahDao.getAyah(112, 1)
+      ayahDao.getAyah(1, 1) ?: allOffline.find { it.surahNumber == 1 && it.verseNumber == 1 },
+      ayahDao.getAyah(2, 255) ?: allOffline.find { it.surahNumber == 2 && it.verseNumber == 255 },
+      ayahDao.getAyah(18, 10) ?: allOffline.find { it.surahNumber == 18 && it.verseNumber == 10 },
+      ayahDao.getAyah(36, 1) ?: allOffline.find { it.surahNumber == 36 && it.verseNumber == 1 },
+      ayahDao.getAyah(67, 1) ?: allOffline.find { it.surahNumber == 67 && it.verseNumber == 1 },
+      ayahDao.getAyah(112, 1) ?: allOffline.find { it.surahNumber == 112 && it.verseNumber == 1 }
     )
     val combinedAyahs = (matchedAyahs + foundationalAyahs).distinctBy { "${it.surahNumber}:${it.verseNumber}" }
     val hadiths = ExtendedHadithDataProvider.getExtendedHadiths()
     TafsirRepository.searchTafsirCommentary(q, traditionScope, combinedAyahs, hadiths)
+  }
+
+  /**
+   * Stage 2 Online Global Search — Quran & Translations:
+   * Searches online APIs (AlQuran Cloud + Quran.com v4) and merges newly discovered verses
+   * with full canonical text into `localResults`.
+   */
+  suspend fun searchAyahsOnlineStage2(
+    rawQuery: String,
+    traditionScope: String = "BOTH",
+    localResults: List<AyahEntity> = emptyList()
+  ): List<AyahEntity> = withContext(Dispatchers.IO) {
+    val q = com.example.data.remote.SecurityIntegrityGuard.sanitizeSearchQuery(rawQuery)
+    if (q.length < 2) return@withContext localResults
+
+    val merged = LinkedHashMap<String, AyahEntity>()
+    for (a in localResults) {
+      merged["${a.surahNumber}:${a.verseNumber}"] = a
+    }
+
+    val onlineMatches = IslamicRemoteService.searchQuranOnlineGlobal(q, traditionScope)
+    val offlineAll = OfflineQuranAssetLoader.getAllOfflineAyahs(appContext)
+    val offlineMap = offlineAll.associateBy { "${it.surahNumber}:${it.verseNumber}" }
+
+    for (remoteAyah in onlineMatches) {
+      val key = "${remoteAyah.surahNumber}:${remoteAyah.verseNumber}"
+      if (!merged.containsKey(key)) {
+        val canonicalLocal = offlineMap[key] ?: ayahDao.getAyah(remoteAyah.surahNumber, remoteAyah.verseNumber)
+        val enriched = if (canonicalLocal != null) {
+          canonicalLocal.copy(
+            translationEnglish = if (remoteAyah.translationEnglish.isNotBlank() && !canonicalLocal.translationEnglish.contains(q, ignoreCase = true)) {
+              "${canonicalLocal.translationEnglish}\n[Online Translation Match]: ${remoteAyah.translationEnglish}"
+            } else canonicalLocal.translationEnglish,
+            translationUrdu = if (remoteAyah.translationUrdu.isNotBlank() && !canonicalLocal.translationUrdu.contains(q, ignoreCase = true)) {
+              "${canonicalLocal.translationUrdu}\n[آن لائن ترجمہ]: ${remoteAyah.translationUrdu}"
+            } else canonicalLocal.translationUrdu
+          )
+        } else {
+          remoteAyah
+        }
+        merged[key] = enriched
+      }
+    }
+
+    merged.values.toList()
+  }
+
+  /**
+   * Stage 2 Online Global Search — Sunni & Shia Hadiths:
+   * Queries online Hadith APIs (FawazAhmed0 / AhmedBaset / UmmahAPI for Sunni, Thaqalayn v2 for Shia),
+   * caches discovered Hadiths in Room, and merges them progressively with `localResults`.
+   */
+  suspend fun searchHadithsOnlineStage2(
+    rawQuery: String,
+    traditionScope: String = "BOTH",
+    localResults: List<HadithEntity> = emptyList()
+  ): List<HadithEntity> = withContext(Dispatchers.IO) {
+    val q = com.example.data.remote.SecurityIntegrityGuard.sanitizeSearchQuery(rawQuery)
+    if (q.length < 2) return@withContext localResults
+
+    val merged = LinkedHashMap<String, HadithEntity>()
+    for (h in localResults) {
+      merged["${h.collectionKey}_${h.hadithNumber}"] = h
+    }
+
+    val remoteHadiths = IslamicRemoteService.searchHadithsOnlineGlobal(q, traditionScope)
+    if (remoteHadiths.isNotEmpty()) {
+      runCatching { hadithDao.insertHadiths(remoteHadiths) }
+      for (h in remoteHadiths) {
+        val key = "${h.collectionKey}_${h.hadithNumber}"
+        if (!merged.containsKey(key)) {
+          merged[key] = h
+        }
+      }
+    }
+
+    merged.values.toList()
+  }
+
+  /**
+   * Stage 2 Online Global Search — Sunni & Shia Tafsir:
+   * Enriches Tafsir results with live online Tafsir excerpts from Quran.com v4 & QuranEnc
+   * across all Sunni (8+ collections) and Shia (8 collections) Tafsir editions.
+   */
+  suspend fun searchTafsirOnlineStage2(
+    rawQuery: String,
+    traditionScope: String = "BOTH",
+    matchedAyahs: List<AyahEntity> = emptyList(),
+    localTafsirs: List<AyahTafsirResult> = emptyList()
+  ): List<AyahTafsirResult> = withContext(Dispatchers.IO) {
+    val q = rawQuery.trim()
+    if (q.length < 2) return@withContext localTafsirs
+
+    val merged = LinkedHashMap<String, AyahTafsirResult>()
+    for (t in localTafsirs) {
+      merged["${t.edition.key}_${t.verseRef}"] = t
+    }
+
+    // Re-run TafsirRepository across any newly discovered online Ayahs
+    val hadiths = ExtendedHadithDataProvider.getExtendedHadiths()
+    val expandedTafsirs = TafsirRepository.searchTafsirCommentary(q, traditionScope, matchedAyahs.take(15), hadiths)
+    for (t in expandedTafsirs) {
+      val key = "${t.edition.key}_${t.verseRef}"
+      if (!merged.containsKey(key)) {
+        merged[key] = t
+      }
+    }
+
+    // Fetch live remote Tafsir commentary for the top 3 matched Ayahs
+    for (ayah in matchedAyahs.take(3)) {
+      val remoteExcerpt = IslamicRemoteService.fetchRemoteTafsirExcerpt(
+        surahNumber = ayah.surahNumber,
+        verseNumber = ayah.verseNumber,
+        traditionScope = traditionScope
+      ) ?: continue
+
+      val (enLive, urLive) = remoteExcerpt
+      val targetEditions = when (traditionScope.uppercase()) {
+        "SUNNI" -> TafsirRepository.getEditionsForTradition("SUNNI")
+        "SHIA" -> TafsirRepository.getEditionsForTradition("SHIA")
+        else -> TafsirRepository.editions
+      }
+      for (ed in targetEditions.take(4)) {
+        val base = TafsirRepository.getTafsirForAyah(ayah, surahDao.getSurahByNumber(ayah.surahNumber), ed.key, hadiths)
+        val enriched = base.copy(
+          commentaryEnglish = if (enLive.isNotBlank()) "${base.commentaryEnglish}\n\n[Online Tafsir API Excerpt]: $enLive" else base.commentaryEnglish,
+          commentaryUrdu = if (urLive.isNotBlank()) "${base.commentaryUrdu}\n\n[آن لائن تفسیر مآخذ]: $urLive" else base.commentaryUrdu
+        )
+        merged["${ed.key}_${base.verseRef}"] = enriched
+      }
+    }
+
+    merged.values.toList()
   }
 
   // Bookmarks

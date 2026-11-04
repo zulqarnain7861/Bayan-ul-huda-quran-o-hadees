@@ -52,6 +52,12 @@ interface LectureDao {
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun upsertLectures(lectures: List<LectureEntity>)
 
+  @Query("DELETE FROM lectures")
+  suspend fun deleteAllLectures()
+
+  @Query("DELETE FROM source_links WHERE ownerType = 'LECTURE'")
+  suspend fun deleteAllLectureSourceLinks()
+
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun upsertTopics(topics: List<TopicEntity>)
 

@@ -65,6 +65,7 @@ data class CalculatedDayAndWeekStatus(
   val hijriInfo: CalculatedHijriDateInfo,
   val isFridayToday: Boolean,
   val isThursdayJumuahEve: Boolean,
+  val isThursdayAfterMaghribJumuahActive: Boolean = false,
   val isSunnahFastingDayToday: Boolean,
   val isAyyamAlBeedToday: Boolean,
   val daysUntilNextFriday: Int,
@@ -88,7 +89,11 @@ data class SunnahRemindersUiState(
   val duaTasbihCounts: Map<String, Int> = emptyMap(),
   val reminderStates: Map<String, ReminderItemState> = emptyMap(),
   val calculatedDayStatus: CalculatedDayAndWeekStatus = SunnahReminderManager.calculateDayAndWeekStatus(),
-  val selectedPreviewDayOfWeek: Int = calculatedDayStatus.todayDayOfWeek,
+  val selectedPreviewDayOfWeek: Int = if (calculatedDayStatus.isThursdayAfterMaghribJumuahActive) {
+    Calendar.FRIDAY
+  } else {
+    calculatedDayStatus.todayDayOfWeek
+  },
   val lastNotificationBannerMessage: String = ""
 )
 
@@ -217,13 +222,14 @@ object SunnahReminderManager {
   }
 
   /**
-   * Dynamically calculates Today's weekday, Friday status, countdown to next Friday, next Sunnah fasting day,
-   * Hijri Ayyam al-Beed status, and the 7-day rolling schedule for the Home Screen and Notification engine.
+   * Dynamically calculates Today's weekday, Friday status, Thursday-after-Maghrib (Laylat al-Jumu'ah) status,
+   * countdown to next Friday, next Sunnah fasting day, Hijri Ayyam al-Beed status, and the 7-day rolling schedule.
    */
   fun calculateDayAndWeekStatus(
     nowMillis: Long = System.currentTimeMillis(),
     timeZone: TimeZone = TimeZone.getDefault(),
-    fridayBathTime24h: String = "09:30"
+    fridayBathTime24h: String = "09:30",
+    maghribTime24h: String = "17:45"
   ): CalculatedDayAndWeekStatus {
     val cal = Calendar.getInstance(timeZone).apply { timeInMillis = nowMillis }
     val todayDow = cal.get(Calendar.DAY_OF_WEEK)
@@ -239,6 +245,9 @@ object SunnahReminderManager {
 
     val isFridayToday = todayDow == Calendar.FRIDAY
     val isThursdayJumuahEve = todayDow == Calendar.THURSDAY
+    val currentMinutesOfDay = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
+    val maghribMinutesOfDay = PrayerTimeCalculator.hhMmToMinutes(maghribTime24h)
+    val isThursdayAfterMaghribJumuahActive = isThursdayJumuahEve && currentMinutesOfDay >= maghribMinutesOfDay
     val isSunnahFastToday = todaySpec.isSunnahFastingDay || hijriInfo.isAyyamAlBeed
 
     val daysUntilFriday = if (isFridayToday) {
@@ -253,16 +262,17 @@ object SunnahReminderManager {
     val nextFridayDateStr = shortFmt.format(nextFridayCal.time)
     val formattedBathTime = PrayerTimeCalculator.format24hTo12h(fridayBathTime24h)
 
-    val nextFridayDateReadable = when (daysUntilFriday) {
-      0 -> "Today is Blessed Friday (Yawm al-Jumu'ah)!"
-      1 -> "Tomorrow is Blessed Friday ($nextFridayDateStr)"
+    val nextFridayDateReadable = when {
+      isFridayToday -> "Today is Blessed Friday (Yawm al-Jumu'ah)!"
+      isThursdayAfterMaghribJumuahActive -> "Tonight is Laylatul Jumu'ah (After Maghrib) — Blessed Friday Has Begun!"
+      daysUntilFriday == 1 -> "Tomorrow is Blessed Friday ($nextFridayDateStr)"
       else -> "Next Friday (Jumu'ah): $nextFridayDateStr (in $daysUntilFriday days)"
     }
 
-    val nextFridayBathAlertSummary = if (isFridayToday) {
-      "Today (Jumu'ah) • Friday Bath (Ghusl) Alert at $formattedBathTime"
-    } else {
-      "Next Friday Ghusl Alert: $nextFridayDateStr at $formattedBathTime"
+    val nextFridayBathAlertSummary = when {
+      isFridayToday -> "Today (Jumu'ah) • Friday Bath (Ghusl) Alert at $formattedBathTime"
+      isThursdayAfterMaghribJumuahActive -> "Laylatul Jumu'ah Active Now • Tomorrow's Friday Ghusl Alert at $formattedBathTime"
+      else -> "Next Friday Ghusl Alert: $nextFridayDateStr at $formattedBathTime"
     }
 
     // Calculate next Monday / Thursday / Ayyam al-Beed Sunnah Fast
@@ -305,9 +315,11 @@ object SunnahReminderManager {
 
       val badge = when {
         offset == 0 && isFri -> "TODAY • BLESSED JUMU'AH"
+        offset == 0 && isThursdayAfterMaghribJumuahActive -> "TONIGHT • LAYLATUL JUMU'AH"
         offset == 0 && dayHijri.isAyyamAlBeed -> "TODAY • AYYAM AL-BEED"
         offset == 0 && isFast -> "TODAY • SUNNAH FAST"
         offset == 0 -> "TODAY (${spec.dayNameEnglish.uppercase(Locale.ENGLISH)})"
+        offset == 1 && isFri && isThursdayAfterMaghribJumuahActive -> "JUMU'AH ACTIVE NOW (AFTER MAGHRIB)"
         isFri -> "JUMU'AH (IN ${offset}D)"
         dayHijri.isAyyamAlBeed -> "AYYAM AL-BEED (${dayHijri.dayOfMonth} ${dayHijri.monthNameEnglish})"
         isFast -> "SUNNAH FAST"
@@ -331,12 +343,11 @@ object SunnahReminderManager {
 
     // Build tailored Notification Title & Body for the calculated day
     val hijriSuffix = hijriInfo.specialOccasionBadge?.let { " • $it" } ?: " • ${hijriInfo.formattedReadable}"
-    val notifTitle = if (isFridayToday) {
-      "Jumu'ah Mubarak! Friday Bath (Ghusl), Surah Al-Kahf & Salawat Reminder"
-    } else if (hijriInfo.isAyyamAlBeed) {
-      "${todaySpec.dayNameEnglish} & Ayyam al-Beed (${hijriInfo.dayOfMonth} ${hijriInfo.monthNameEnglish}) Reminder"
-    } else {
-      "${todaySpec.dayNameEnglish} (${todaySpec.arabicDayName}) — ${todaySpec.islamicDayTitle}"
+    val notifTitle = when {
+      isFridayToday -> "Jumu'ah Mubarak! Friday Bath (Ghusl), Surah Al-Kahf & Salawat Reminder"
+      isThursdayAfterMaghribJumuahActive -> "Laylatul Jumu'ah Mubarak (After Maghrib)! Recite Surah Al-Kahf & Abundant Salawat"
+      hijriInfo.isAyyamAlBeed -> "${todaySpec.dayNameEnglish} & Ayyam al-Beed (${hijriInfo.dayOfMonth} ${hijriInfo.monthNameEnglish}) Reminder"
+      else -> "${todaySpec.dayNameEnglish} (${todaySpec.arabicDayName}) — ${todaySpec.islamicDayTitle}"
     }
 
     val notifBody = "${todaySpec.primaryReminderTitle}$hijriSuffix. ${todaySpec.englishGuidance}"
@@ -349,6 +360,7 @@ object SunnahReminderManager {
       hijriInfo = hijriInfo,
       isFridayToday = isFridayToday,
       isThursdayJumuahEve = isThursdayJumuahEve,
+      isThursdayAfterMaghribJumuahActive = isThursdayAfterMaghribJumuahActive,
       isSunnahFastingDayToday = isSunnahFastToday,
       isAyyamAlBeedToday = hijriInfo.isAyyamAlBeed,
       daysUntilNextFriday = daysUntilFriday,
@@ -401,12 +413,38 @@ object SunnahReminderManager {
 
     val prayerConfig = PrayerPreferencesManager.loadConfig(context)
     val tz = TimeZone.getTimeZone(prayerConfig.timeZoneId)
+    val todayCal = Calendar.getInstance(tz).apply { timeInMillis = nowMillis }
+    val todaySchedule = runCatching {
+      PrayerTimeCalculator.calculateOfflineSchedule(
+        calendar = todayCal,
+        locationName = prayerConfig.city,
+        districtOrRegion = prayerConfig.districtOrRegion,
+        country = prayerConfig.country,
+        latitude = prayerConfig.latitude,
+        longitude = prayerConfig.longitude,
+        timeZoneId = prayerConfig.timeZoneId,
+        methodId = prayerConfig.calculationMethodId,
+        asrMadhhab = prayerConfig.asrMadhhab,
+        highLatitudeRule = prayerConfig.highLatitudeRule
+      )
+    }.getOrNull()
+    val maghribTime24h = todaySchedule?.maghribTime ?: "17:45"
     val calcStatus = calculateDayAndWeekStatus(
       nowMillis = nowMillis,
       timeZone = tz,
-      fridayBathTime24h = fridayBathTime
+      fridayBathTime24h = fridayBathTime,
+      maghribTime24h = maghribTime24h
     )
-    val savedPreviewDow = prefs.getInt("selected_preview_dow", calcStatus.todayDayOfWeek)
+    val defaultPreviewDow = if (calcStatus.isThursdayAfterMaghribJumuahActive) {
+      Calendar.FRIDAY
+    } else {
+      calcStatus.todayDayOfWeek
+    }
+    val savedPreviewDow = if (calcStatus.isThursdayAfterMaghribJumuahActive && !prefs.contains("selected_preview_dow")) {
+      Calendar.FRIDAY
+    } else {
+      prefs.getInt("selected_preview_dow", defaultPreviewDow)
+    }
 
     return SunnahRemindersUiState(
       fridayBathReminderEnabled = fridayBathEnabled,

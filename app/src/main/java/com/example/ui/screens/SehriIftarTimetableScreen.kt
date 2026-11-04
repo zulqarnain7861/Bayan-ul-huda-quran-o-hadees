@@ -1577,7 +1577,9 @@ fun TrueLocationInteractiveMapCard(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SpecialRamadanDuasShowcaseCard(
-  duas: List<DailyDuaItem> = DailyDuasDataProvider.ramadanSpecialDuas,
+  duas: List<DailyDuaItem> = DailyDuasDataProvider.getPresentDateShowcaseDuas(
+    com.example.data.prayer.SunnahReminderManager.calculateHijriDateInfo().monthIndex
+  ),
   onOpenSehriIftarTimetable: (() -> Unit)? = null,
   todaySehriEnds: String? = null,
   todayIftarTime: String? = null,
@@ -1587,6 +1589,8 @@ fun SpecialRamadanDuasShowcaseCard(
   modifier: Modifier = Modifier
 ) {
   val context = LocalContext.current
+  val hijriInfo = remember { com.example.data.prayer.SunnahReminderManager.calculateHijriDateInfo() }
+  val isRamadanMonth = hijriInfo.monthIndex == 8
   val duaAudioController = remember(context) { com.example.ui.audio.DuaAudioController.getInstance(context) }
   val playbackState by duaAudioController.playbackState.collectAsState()
   var selectedDuaIndex by remember { mutableIntStateOf(0) }
@@ -1614,7 +1618,11 @@ fun SpecialRamadanDuasShowcaseCard(
       ) {
         Column(modifier = Modifier.weight(1f)) {
           Text(
-            text = "🌙 Sehri & Iftari Timings • Fasting Duas",
+            text = if (isRamadanMonth) {
+              "🌙 Ramadan Mubarak (${hijriInfo.formattedReadable}) • Sehri & Iftari"
+            } else {
+              "🤲 Today's Prophetic Duas (${hijriInfo.formattedReadable}) • Sehri & Iftari"
+            },
             style = MaterialTheme.typography.titleMedium.copy(
               fontWeight = FontWeight.Bold,
               color = MaterialTheme.colorScheme.primary
@@ -1622,7 +1630,11 @@ fun SpecialRamadanDuasShowcaseCard(
           )
           Spacer(modifier = Modifier.height(2.dp))
           Text(
-            text = "Prophetic Sunnah Duas & Verified Astronomical Timetable",
+            text = if (isRamadanMonth) {
+              "Prophetic Ramadan Duas & Verified Astronomical Timetable"
+            } else {
+              "Present-Date Masnoon Duas & Voluntary Sunnah Fasting Timetable (Sehri & Iftari Kept Active)"
+            },
             style = MaterialTheme.typography.labelSmall.copy(
               color = GoldPrimary,
               fontWeight = FontWeight.SemiBold

@@ -1648,4 +1648,45 @@ object DailyDuasDataProvider {
         if (hasAudio) 0 else 1
       }
   }
+
+  /**
+   * Returns context-aware Present-Date Duas for the Home Screen Showcase Card:
+   * - In Ramadan (hijriMonthIndex == 8): returns Ramadan Special Duas.
+   * - Outside Ramadan on Thursday after Maghrib (Laylat al-Jumu'ah) or Friday (Yawm al-Jumu'ah):
+   *   prioritizes Jumu'ah Salawat, Daily Morning/Evening Prophetic Duas, Ayat al-Kursi, and Sunnah Iftar Dua.
+   * - Outside Ramadan on other days: returns Present-Date Daily Prophetic Duas & Voluntary Fasting Duas.
+   */
+  fun getPresentDateShowcaseDuas(
+    hijriMonthIndex: Int,
+    isFridayOrThursdayAfterMaghrib: Boolean = false
+  ): List<DailyDuaItem> {
+    if (hijriMonthIndex == 8) {
+      return ramadanSpecialDuas
+    }
+    val targetIds = if (isFridayOrThursdayAfterMaghrib) {
+      listOf(
+        "dua_jumuah_salawat_ibrahimiyyah",
+        "dua_sayyidul_istighfar",
+        "dua_ayat_al_kursi",
+        "dua_morning_remembrance",
+        "dua_evening_remembrance",
+        "dua_ramadan_iftar",
+        "dua_rabbana_fid_dunya",
+        "dua_protection_harm"
+      )
+    } else {
+      listOf(
+        "dua_sayyidul_istighfar",
+        "dua_ayat_al_kursi",
+        "dua_morning_remembrance",
+        "dua_evening_remembrance",
+        "dua_protection_harm",
+        "dua_ramadan_iftar",
+        "dua_rabbana_fid_dunya",
+        "dua_hasbiyallah"
+      )
+    }
+    return targetIds.mapNotNull { id -> allDuas.find { it.id == id } }
+  }
 }
+

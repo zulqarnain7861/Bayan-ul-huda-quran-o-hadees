@@ -71,6 +71,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -96,6 +97,7 @@ import com.example.data.local.entities.BookmarkEntity
 import com.example.data.local.entities.NoteEntity
 import com.example.data.model.IslamicBooksCatalog
 import com.example.data.model.IslamicClassicalBook
+import com.example.ui.components.IslamicResearchHubView
 import com.example.ui.theme.AmiriFontFamily
 import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.GoldPrimary
@@ -151,6 +153,7 @@ fun LibraryScreen(
   currentThemeMode: com.example.data.prayer.AppThemeMode = com.example.data.prayer.AppThemeMode.LIGHT,
   onSelectThemeMode: (com.example.data.prayer.AppThemeMode) -> Unit = {},
   onPlayDownloadedAudio: (Int, Int, String) -> Unit = { _, _, _ -> },
+  initialSelectedTab: Int = 0,
   modifier: Modifier = Modifier
 ) {
   val context = LocalContext.current
@@ -164,7 +167,11 @@ fun LibraryScreen(
   // 2 = Bookmarks
   // 3 = Notes
   // 4 = Offline Library
-  var selectedTab by remember { mutableIntStateOf(0) }
+  // 5 = Video Lectures (EMAM)
+  var selectedTab by remember(initialSelectedTab) { mutableIntStateOf(initialSelectedTab) }
+  LaunchedEffect(initialSelectedTab) {
+    selectedTab = initialSelectedTab
+  }
   var showAddNoteDialog by remember { mutableStateOf(false) }
   var initialNoteReference by remember { mutableStateOf("") }
 
@@ -500,6 +507,87 @@ fun LibraryScreen(
             )
           }
         )
+        Tab(
+          selected = selectedTab == 7,
+          onClick = { selectedTab = 7 },
+          modifier = Modifier.testTag("library_tab_islamic_research"),
+          text = {
+            Text(
+              text = "Islamic Research (2)",
+              fontWeight = FontWeight.Bold,
+              fontSize = 12.sp,
+              maxLines = 1
+            )
+          }
+        )
+      }
+
+      // Always-visible quick access bar so Islamic Research, Video Lectures & Fikr-e-Maududi are immediately accessible
+      // without needing to horizontally scroll the ScrollableTabRow on compact phone screens
+      FlowRow(
+        modifier = Modifier
+          .fillMaxWidth()
+          .background(MaterialTheme.colorScheme.surface)
+          .padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+      ) {
+        FilterChip(
+          selected = selectedTab == 7,
+          onClick = { selectedTab = 7 },
+          label = {
+            Text(
+              text = "Islamic Research • تحقیقی مقالات (4)",
+              fontWeight = FontWeight.Bold,
+              fontSize = 11.sp
+            )
+          },
+          colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = EmeraldPrimary.copy(alpha = 0.18f),
+            selectedLabelColor = EmeraldPrimary
+          ),
+          modifier = Modifier.testTag("library_quick_pill_islamic_research")
+        )
+        FilterChip(
+          selected = selectedTab == 5,
+          onClick = { selectedTab = 5 },
+          label = {
+            Text(
+              text = "▶ Video Lectures (EMAM)",
+              fontWeight = FontWeight.Bold,
+              fontSize = 11.sp
+            )
+          },
+          colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = EmeraldPrimary.copy(alpha = 0.18f),
+            selectedLabelColor = EmeraldPrimary
+          ),
+          modifier = Modifier.testTag("library_quick_pill_video_lectures")
+        )
+        FilterChip(
+          selected = selectedTab == 6,
+          onClick = { selectedTab = 6 },
+          label = {
+            Text(
+              text = "Fikr-e-Maududi",
+              fontWeight = FontWeight.SemiBold,
+              fontSize = 11.sp
+            )
+          },
+          modifier = Modifier.testTag("library_quick_pill_maududi")
+        )
+        FilterChip(
+          selected = selectedTab == 0,
+          onClick = { selectedTab = 0 },
+          label = {
+            Text(
+              text = "History (${IslamicBooksCatalog.historyBooks.size})",
+              fontWeight = FontWeight.SemiBold,
+              fontSize = 11.sp
+            )
+          },
+          modifier = Modifier.testTag("library_quick_pill_history")
+        )
       }
 
       when (selectedTab) {
@@ -605,6 +693,54 @@ fun LibraryScreen(
                       }
                     }
                   }
+                }
+              }
+            }
+
+            // Islamic Research Quick Card inside History of Islam Tab
+            item {
+              Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = GoldPrimary.copy(alpha = 0.14f),
+                border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.50f)),
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .clickable { selectedTab = 7 }
+                  .testTag("library_history_open_islamic_research_card")
+              ) {
+                Row(
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                  Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                      text = "Islamic Research • تحقیقی مقالات و مسنون اذکار (4)",
+                      style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = EmeraldPrimary
+                      )
+                    )
+                    Text(
+                      text = "❶ رسول اللہ ﷺ کی آخری وصیّتیں (Paper #1) • ❷ قرآن کے 10 احکام و اولیاء کی 12 صفات (Paper #7) • ❸ رافضیت و ناصبیت (Paper #5a) • ❹ فرض نماز کے بعد سُنّت اَذکار (19 Azkar)",
+                      style = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = UrduNastaliqFontFamily,
+                        fontSize = 13.sp,
+                        lineHeight = 22.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                      )
+                    )
+                  }
+                  Spacer(modifier = Modifier.width(8.dp))
+                  Text(
+                    text = "Open →",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                      fontWeight = FontWeight.Bold,
+                      color = EmeraldPrimary
+                    )
+                  )
                 }
               }
             }
@@ -1055,6 +1191,51 @@ fun LibraryScreen(
                 }
                 Text(
                   text = "Watch →",
+                  style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = EmeraldPrimary
+                  )
+                )
+              }
+            }
+
+            // Islamic Research Quick Card inside All Books Tab
+            Surface(
+              shape = RoundedCornerShape(10.dp),
+              color = EmeraldPrimary.copy(alpha = 0.10f),
+              border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.35f)),
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 2.dp)
+                .clickable { selectedTab = 7 }
+                .testTag("library_books_open_islamic_research_card")
+            ) {
+              Row(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+              ) {
+                Column(modifier = Modifier.weight(1f)) {
+                  Text(
+                    text = "Islamic Research • رافضیت ، ناصبیت اور یزیدیت کا تحقیقی جائزہ (5a) + فرض نماز کے بعد سُنّت اَذکار",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                      fontFamily = UrduNastaliqFontFamily,
+                      fontWeight = FontWeight.Bold,
+                      color = EmeraldPrimary
+                    )
+                  )
+                  Text(
+                    text = "Research Paper 5a (12 Sections) & 19 Sahih Post-Prayer Adhkar with International Hadith #",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      fontSize = 10.sp,
+                      color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                  )
+                }
+                Text(
+                  text = "Read →",
                   style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = FontWeight.Bold,
                     color = EmeraldPrimary
@@ -1598,6 +1779,15 @@ fun LibraryScreen(
 
         6 -> {
           com.example.ui.discover.MaududiLibraryScreen()
+        }
+
+        7 -> {
+          IslamicResearchHubView(
+            onAddStudyNote = { ref ->
+              initialNoteReference = ref
+              showAddNoteDialog = true
+            }
+          )
         }
       }
     }

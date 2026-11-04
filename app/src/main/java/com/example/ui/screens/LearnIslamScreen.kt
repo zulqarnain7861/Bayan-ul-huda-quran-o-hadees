@@ -32,7 +32,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.*
+import com.example.player.YtEmbedHost
 import com.example.ui.audio.DuaAudioController
+import com.example.ui.components.*
 import com.example.ui.theme.AmiriFontFamily
 import com.example.ui.theme.CompactLineHeightStyle
 import com.example.ui.theme.CompactPlatformTextStyle
@@ -52,7 +54,8 @@ enum class LearnIslamTab(
 ) {
     NOORANI_QAIDA("qaida", "Noorani Qaida", "نورانی قاعدہ"),
     IMAN_AND_KALIMAS("iman", "Iman & 6 Kalimas", "ایمان اور ۶ کلمے"),
-    NAMAZ_AND_WUDU("namaz", "Namaz & Wudu", "وضو اور نمازِ مترجم"),
+    NAMAZ_AND_WUDU("namaz", "Namaz & Wudu", "وضو اور مکمل نماز"),
+    NIMAZ_JANAZA("nimaz_janaza", "Nimaz Janaza", "نمازِ جنازہ"),
     DAILY_DUAS_SEQ("duas_seq", "Daily Duas", "مسنون دعائیں (ترتیب وار)"),
     SEHRI_NIYAT_SOURCES("sehri_niyat", "Sehri Niyat & Fiqh", "سحری کی نیت اور فقہی رہنمائی")
 }
@@ -70,7 +73,10 @@ fun LearnIslamScreen(
         context.getSharedPreferences("bayan_learn_islam_prefs", Context.MODE_PRIVATE)
     }
 
-    var selectedTab by remember { mutableStateOf(initialTab) }
+    var selectedTab by remember(initialTab) { mutableStateOf(initialTab) }
+    LaunchedEffect(initialTab) {
+        selectedTab = initialTab
+    }
     var selectedLessonIndex by remember {
         mutableIntStateOf(prefs.getInt("last_qaida_lesson_index", 0).coerceIn(0, LearnIslamCurriculumData.nooraniQaidaLessons.lastIndex))
     }
@@ -115,7 +121,7 @@ fun LearnIslamScreen(
                             color = Color.White
                         )
                         Text(
-                            text = "Noorani Qaida • 6 Kalimas & Iman • Wudu & Namaz • Daily Duas",
+                            text = "Noorani Qaida • 6 Kalimas & Iman • Wudu & Complete Salah • Nimaz Janaza • Daily Duas",
                             style = MaterialTheme.typography.labelSmall,
                             color = Color(0xFFD8F3DC)
                         )
@@ -277,6 +283,10 @@ fun LearnIslamScreen(
                         },
                         onOpenQuranSurah = onOpenQuranSurah
                     )
+                }
+
+                LearnIslamTab.NIMAZ_JANAZA -> {
+                    NimazJanazaSectionContent()
                 }
 
                 LearnIslamTab.DAILY_DUAS_SEQ -> {
@@ -570,30 +580,30 @@ private fun NooraniQaidaSectionContent(
                         color = Color(0xFFD8F3DC)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Text(
-                            text = currentLesson.titleUrdu,
-                            style = CompactArabicUrduTextStyle,
-                            fontFamily = NotoNastaliqUrduFont,
-                            fontSize = 14.sp,
-                            lineHeight = 22.sp,
-                            color = Color.White,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = currentLesson.titleArabic,
                             style = CompactArabicUrduTextStyle,
                             fontFamily = AmiriQuranFont,
                             fontSize = 20.sp,
-                            lineHeight = 28.sp,
+                            lineHeight = 32.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFD4AF37),
-                            textAlign = TextAlign.End
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            text = currentLesson.titleUrdu,
+                            style = CompactArabicUrduTextStyle,
+                            fontFamily = NotoNastaliqUrduFont,
+                            fontSize = 14.sp,
+                            lineHeight = 23.sp,
+                            color = Color.White,
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
 
@@ -1338,14 +1348,77 @@ private fun NamazAndWuduSectionContent(
     onPlayStep: (WuduAndSalahStepItem) -> Unit,
     onOpenQuranSurah: (Int, Int) -> Unit
 ) {
-    var selectedSectionFilter by remember { mutableStateOf("ALL") }
+    // Default to "NAMAZ_MUTARJAM" ("Complete Salah") so the pure non-sectarian Prophetic Salah is shown cleanly first,
+    // while Sectarian / Madhhab Namaz differences are strictly separated into their own "SECTARIAN_NAMAZ" tab.
+    var selectedSectionFilter by remember { mutableStateOf("NAMAZ_MUTARJAM") }
     val filteredSteps = remember(steps, selectedSectionFilter) {
-        val base = if (selectedSectionFilter == "ALL") steps else steps.filter { it.section == selectedSectionFilter }
+        val base = when (selectedSectionFilter) {
+            "NAMAZ_MUTARJAM" -> emptyList() // Pure non-sectarian Prophetic Salah only (from namaz_muhammadi.json)
+            "SECTARIAN_NAMAZ" -> steps.filter { it.section == "NAMAZ_MUTARJAM" }
+            "ALL" -> steps.filter { it.section != "NAMAZ_MUTARJAM" } // Keep sectarian/madhhab Namaz separate
+            else -> steps.filter { it.section == selectedSectionFilter }
+        }
         base.sortedBy { step ->
             val hasAudio = step.quranSurahNumber != null ||
                 !step.humanAudioUrl.isNullOrBlank() ||
                 DuaAudioController.hasOfflineQaidaAudioAsset(null, step.id)
             if (hasAudio) 0 else 1
+        }
+    }
+
+    val context = LocalContext.current
+    val namazPrefs = remember {
+        context.getSharedPreferences("bayan_namaz_muhammadi_prefs", Context.MODE_PRIVATE)
+    }
+    var selectedDisplayMode by remember { mutableStateOf(NamazDisplayMode.FULL_LIST) }
+    var currentStepIndex by remember { mutableIntStateOf(0) }
+    var arabicFontSizeSp by remember { mutableFloatStateOf(22f) }
+    var showUrdu by remember { mutableStateOf(true) }
+    var showEnglish by remember { mutableStateOf(true) }
+    var showRomanUrdu by remember { mutableStateOf(true) }
+    var completedStepIds by remember {
+        mutableStateOf(
+            namazPrefs.getStringSet("completed_namaz_steps", emptySet())
+                ?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet()
+        )
+    }
+    var bookmarkedStepIds by remember {
+        mutableStateOf(
+            namazPrefs.getStringSet("bookmarked_namaz_steps", emptySet())
+                ?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet()
+        )
+    }
+
+    fun toggleStepCompleted(stepId: Int) {
+        val next = if (completedStepIds.contains(stepId)) completedStepIds - stepId else completedStepIds + stepId
+        completedStepIds = next
+        namazPrefs.edit().putStringSet("completed_namaz_steps", next.map { it.toString() }.toSet()).apply()
+    }
+
+    fun toggleStepBookmarked(stepId: Int) {
+        val next = if (bookmarkedStepIds.contains(stepId)) bookmarkedStepIds - stepId else bookmarkedStepIds + stepId
+        bookmarkedStepIds = next
+        namazPrefs.edit().putStringSet("bookmarked_namaz_steps", next.map { it.toString() }.toSet()).apply()
+    }
+
+    var selectedRakatFlowKey by remember { mutableStateOf("ALL_30") }
+    var selectedRakatNumberKey by remember { mutableStateOf("rakat_1") }
+    val sourceMetadata = remember { LearnIslamCurriculumData.namazMuhammadiSourceMetadata }
+    val foundationalSteps = remember { LearnIslamCurriculumData.namazMuhammadiFoundationalSteps }
+    val closingAdvice = remember { LearnIslamCurriculumData.namazMuhammadiClosingAdvice }
+    val auditedSalahSteps = remember(context) { NamazMuhammadiModuleData.getAllAuditedSteps(context) }
+    val rakatFlows = remember { LearnIslamCurriculumData.rakatFlows }
+    val activeRakatFlow = remember(selectedRakatFlowKey, rakatFlows) {
+        rakatFlows.find { it.prayerKey == selectedRakatFlowKey }
+    }
+    val displayedAuditedSalahSteps = remember(selectedRakatFlowKey, selectedRakatNumberKey, auditedSalahSteps, activeRakatFlow) {
+        if (activeRakatFlow == null) {
+            auditedSalahSteps
+        } else {
+            val stepNumbers = activeRakatFlow.rakats[selectedRakatNumberKey]
+                ?: activeRakatFlow.rakats.values.firstOrNull().orEmpty()
+            val withPrerequisite = if (selectedRakatNumberKey == "rakat_1") listOf(0) + stepNumbers else stepNumbers
+            withPrerequisite.mapNotNull { num -> auditedSalahSteps.find { it.id == num } }
         }
     }
 
@@ -1359,11 +1432,12 @@ private fun NamazAndWuduSectionContent(
         item {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 val filters = listOf(
-                    "ALL" to "All Steps (${steps.size})",
+                    "NAMAZ_MUTARJAM" to "Complete Salah (واحد سنتِ طریقہ)",
                     "WUDU" to "Wudu (Ablution)",
                     "SALAH_PREREQUISITES" to "Prerequisites & Rak'at",
-                    "NAMAZ_MUTARJAM" to "Complete Salah & Janaza",
-                    "SHORT_SURAHS" to "Short Surahs"
+                    "SHORT_SURAHS" to "Short Surahs",
+                    "SECTARIAN_NAMAZ" to "Sectarian / Madhhab Namaz (فقہی مسالک)",
+                    "ALL" to "All Sunnah & Wudu"
                 )
                 items(filters) { (key, label) ->
                     FilterChip(
@@ -1376,12 +1450,547 @@ private fun NamazAndWuduSectionContent(
             }
         }
 
+        if (selectedSectionFilter == "SECTARIAN_NAMAZ") {
+            item(key = "sectarian_namaz_separation_banner") {
+                Card(
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)),
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFD4AF37)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("sectarian_namaz_banner_card")
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "Sectarian / Madhhab Namaz Comparison (فقہی مسالک کی نماز — الگ ٹیب)",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF5D4037)
+                        )
+                        Text(
+                            text = "یہ سیکشن فقہی مسالک (حنفی، شافعی، مالکی، حنبلی، جعفری) کے فروعی اختلافات کو نبی کریم ﷺ کے خالص «واحد سنتِ طریقہ (Complete Salah)» سے مکمل طور پر الگ رکھتا ہے تاکہ سنتِ نبوی ﷺ اور فقہی مسالک میں خلط ملط نہ ہو۔",
+                            style = CompactArabicUrduTextStyle,
+                            fontFamily = NotoNastaliqUrduFont,
+                            fontSize = 13.sp,
+                            lineHeight = 21.sp,
+                            color = Color(0xFF4E342E),
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            text = "Separated from 'Complete Salah (واحد سنتِ طریقہ)': This tab isolates school-specific fiqh positions (Hanafi, Shafi'i, Maliki, Hanbali, Ja'fari) so the non-sectarian Prophetic Salah remains pure and unmixed.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF3E2723)
+                        )
+                    }
+                }
+            }
+        }
+
+        if (selectedSectionFilter == "NAMAZ_MUTARJAM" || selectedSectionFilter == "ALL") {
+            item(key = "namaz_top_practical_video_card") {
+                var topVideoProfile by remember { mutableStateOf(PlaybackDataProfile.BALANCED) }
+                var topVideoWifiOnly by remember { mutableStateOf(false) }
+                val topPracticalNamazLecture = remember {
+                    LectureRecord(
+                        youtubeId = "Cou1OW7jxx4",
+                        title = "Practical Tareqa of Nimaz — Namaz-e-Muhammadi ﷺ",
+                        verifiedTitle = "Practical Tareqa of Nimaz (عملی طریقۂ نمازِ محمدی ﷺ) — Engineer Muhammad Ali Mirza",
+                        speaker = "Engineer Muhammad Ali Mirza",
+                        channelHandle = "@NOOR-e-HIDAYAT-EMAM",
+                        channelUrl = "https://www.youtube.com/@NOOR-e-HIDAYAT-EMAM",
+                        sourceTier = SourceTier.FAN_CHANNEL,
+                        countryStatus = CountryStatus.PLAYABLE_GLOBAL,
+                        verificationState = RecordVerificationState.CONFIRMED_LIVE,
+                        recordFormat = LectureFormat.CLIP,
+                        lectureNumber = 70,
+                        seriesName = "Practical Salah & Sunnah Series",
+                        recordedYear = 2023,
+                        durationSec = 580,
+                        topics = listOf("salah_azan", "hadith_sciences"),
+                        relatedYoutubeIds = listOf("rsb3X6A8q_o", "dCMRGuPvUlE"),
+                        summary = "Practical step-by-step 9m 40s demonstration of Namaz-e-Muhammadi ﷺ (https://youtu.be/Cou1OW7jxx4?si=5qn4EXXiQlwSHbXS) — available through Vine / yMusic SDK & offline.",
+                        transcriptStatus = TranscriptStatus.NONE,
+                        referenceStatus = ReferenceStatus.VERIFIED,
+                        references = listOf(
+                            "Sahih al-Bukhari: 631, 735, 828",
+                            "Sahih Muslim: 390, 865",
+                            "Sunan Abi Dawud: 730, 734"
+                        ),
+                        alternateYoutubeIds = listOf("rsb3X6A8q_o", "dCMRGuPvUlE")
+                    )
+                }
+
+                Card(
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFD4AF37)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("namaz_top_practical_video_card")
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = "Practical Tareqa of Nimaz Video",
+                                    tint = Color(0xFF0A4D3C),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Practical Tareqa of Nimaz (9m 40s · Nimaz ka tareqa)",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color(0xFF0A4D3C),
+                                        modifier = Modifier.testTag("namaz_top_practical_video_title")
+                                    )
+                                    Text(
+                                        text = "https://youtu.be/Cou1OW7jxx4?si=5qn4EXXiQlwSHbXS",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "عملی طریقۂ نمازِ محمدی ﷺ",
+                                style = CompactArabicUrduTextStyle,
+                                fontFamily = NotoNastaliqUrduFont,
+                                fontSize = 14.sp,
+                                lineHeight = 23.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF073B2E),
+                                textAlign = TextAlign.End,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        YtEmbedHost(
+                            lecture = topPracticalNamazLecture,
+                            allIndexedLectures = listOf(topPracticalNamazLecture),
+                            selectedProfile = topVideoProfile,
+                            wifiOnlyEnabled = topVideoWifiOnly,
+                            onSelectProfile = { topVideoProfile = it },
+                            onToggleWifiOnly = { topVideoWifiOnly = it },
+                            onWatchSecondsRecorded = { _, _, _ -> },
+                            onSelectAlternateLecture = {},
+                            onReportBroken = {}
+                        )
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFE8F5E9),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1B7A58)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("namaz_top_video_references_box")
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Text(
+                                    text = "Practical Tareqa of Nimaz — Authentic Hadith References (International Numbering):",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF0A4D3C)
+                                )
+                                Text(
+                                    text = "Sahih al-Bukhari: 631, 735, 736, 740, 756, 780, 789, 799, 809, 822, 823, 828, 831, 6008; Sahih Muslim: 390, 391, 394, 401, 402, 579, 580, 582, 674, 772, 865; Sunan Abi Dawud: 730, 734, 759, 775, 869, 874, 996; Jami at-Tirmidhi: 243, 304",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF073B2E)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            item(key = "complete_salah_header_card") {
+                Card(
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0A4D3C)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("complete_salah_heading_card")
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = "Complete Salah — Namaz-e-Muhammadi ﷺ (واحد سنتِ طریقہ)",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "مکمل نمازِ محمدی ﷺ — واحد سنتِ طریقہ (نیت، بنیادی احادیث ۰.۱ تا ۰.۴، ۳۰ مراحلِ نماز اور بعد از سلام مسنون اذکار)",
+                            style = CompactArabicUrduTextStyle,
+                            fontFamily = NotoNastaliqUrduFont,
+                            fontSize = 13.sp,
+                            lineHeight = 22.sp,
+                            color = Color(0xFFD4AF37),
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.End
+                        )
+
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color.White.copy(alpha = 0.12f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("namaz_muhammadi_key_hadith_box")
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = sourceMetadata.keyHadithArabic,
+                                    style = CompactArabicUrduTextStyle,
+                                    fontFamily = AmiriQuranFont,
+                                    fontSize = 20.sp,
+                                    lineHeight = 32.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFD4AF37),
+                                    textAlign = TextAlign.End,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Text(
+                                    text = "\"${sourceMetadata.keyHadithEnglish}\" — ${sourceMetadata.keyHadithReferences.joinToString("; ") { it.formatted() }}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = "Document Date: ${sourceMetadata.documentDate} • ${sourceMetadata.referenceStyle}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFFD8F3DC)
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = "Select Rakat Flow or view all steps in order (Niyyat, Foundational Narrations, Qiyam, Ruku, Qawmah, Sujood, Jalsah, Tashahhud, Salam & Post-Prayer Adhkar):",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFFD8F3DC)
+                        )
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            val flowOptions = listOf("ALL_30" to "All Steps (0–32) + Section 0") +
+                                rakatFlows.map { it.prayerKey to it.labelEnglish }
+                            items(flowOptions) { (fKey, fLabel) ->
+                                val selected = selectedRakatFlowKey == fKey
+                                Surface(
+                                    onClick = {
+                                        selectedRakatFlowKey = fKey
+                                        selectedRakatNumberKey = "rakat_1"
+                                        currentStepIndex = 0
+                                    },
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = if (selected) Color(0xFFD4AF37) else Color.White.copy(alpha = 0.14f),
+                                    modifier = Modifier.testTag("rakat_flow_chip_$fKey")
+                                ) {
+                                    Text(
+                                        text = fLabel,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (selected) Color(0xFF073B2E) else Color.White,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                    )
+                                }
+                            }
+                        }
+                        if (activeRakatFlow != null) {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                items(activeRakatFlow.rakats.keys.toList()) { rKey ->
+                                    val rSelected = selectedRakatNumberKey == rKey
+                                    val displayLabel = rKey.replace("_", " ").replaceFirstChar { it.uppercase() }
+                                    Surface(
+                                        onClick = {
+                                            selectedRakatNumberKey = rKey
+                                            currentStepIndex = 0
+                                        },
+                                        shape = RoundedCornerShape(14.dp),
+                                        color = if (rSelected) Color.White else Color.White.copy(alpha = 0.12f),
+                                        modifier = Modifier.testTag("rakat_sub_chip_$rKey")
+                                    ) {
+                                        Text(
+                                            text = "$displayLabel (${activeRakatFlow.rakats[rKey]?.size ?: 0} steps)",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (rSelected) Color(0xFF0A4D3C) else Color(0xFFD8F3DC),
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Interactive Mode Selector, Font Size Controls & Language Toggles
+            item(key = "namaz_interactive_mode_controls") {
+                NamazMuhammadiInteractiveHeaderAndModeBar(
+                    selectedMode = selectedDisplayMode,
+                    onSelectMode = { selectedDisplayMode = it },
+                    arabicFontSizeSp = arabicFontSizeSp,
+                    onChangeArabicFontSize = { arabicFontSizeSp = it },
+                    showUrdu = showUrdu,
+                    onToggleUrdu = { showUrdu = !showUrdu },
+                    showEnglish = showEnglish,
+                    onToggleEnglish = { showEnglish = !showEnglish },
+                    showRomanUrdu = showRomanUrdu,
+                    onToggleRomanUrdu = { showRomanUrdu = !showRomanUrdu },
+                    completedStepIds = completedStepIds,
+                    totalStepsCount = auditedSalahSteps.size
+                )
+            }
+
+            if (selectedDisplayMode == NamazDisplayMode.STEP_BY_STEP) {
+                item(key = "namaz_step_by_step_guided_container") {
+                    NamazSequentialStepByStepView(
+                        steps = displayedAuditedSalahSteps,
+                        currentStepIndex = currentStepIndex,
+                        onSelectStepIndex = { currentStepIndex = it },
+                        arabicFontSizeSp = arabicFontSizeSp,
+                        showUrdu = showUrdu,
+                        showEnglish = showEnglish,
+                        showRomanUrdu = showRomanUrdu,
+                        completedStepIds = completedStepIds,
+                        bookmarkedStepIds = bookmarkedStepIds,
+                        onToggleStepCompleted = ::toggleStepCompleted,
+                        onToggleStepBookmarked = ::toggleStepBookmarked
+                    )
+                }
+            } else if (selectedDisplayMode == NamazDisplayMode.PRAYER_STRUCTURES) {
+                item(key = "namaz_prayer_structures_container") {
+                    NamazDailyPrayerStructuresSection()
+                }
+            } else if (selectedDisplayMode == NamazDisplayMode.AUDIT_REPORT) {
+                item(key = "namaz_audit_report_container") {
+                    NamazReferenceAuditReportSection()
+                }
+            } else {
+                // Section 0: Foundational narrations on the manner of prayer (0.1 to 0.4)
+                if (selectedRakatFlowKey == "ALL_30") {
+                    item(key = "section_0_foundational_header") {
+                        Card(
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1B7A58)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("section_0_foundational_card")
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "Section 0: ${LearnIslamCurriculumData.namazMuhammadiFoundationalSectionTitleEn}",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color(0xFF0A4D3C),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Text(
+                                        text = LearnIslamCurriculumData.namazMuhammadiFoundationalSectionTitleUr,
+                                        style = CompactArabicUrduTextStyle,
+                                        fontFamily = NotoNastaliqUrduFont,
+                                        fontSize = 13.sp,
+                                        lineHeight = 22.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF073B2E),
+                                        textAlign = TextAlign.End,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+
+                                foundationalSteps.forEach { fStep ->
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = Color.White,
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0A4D3C).copy(alpha = 0.2f)),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("foundational_step_${fStep.stepLabel}")
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(10.dp),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    color = Color(0xFF0A4D3C)
+                                                ) {
+                                                    Text(
+                                                        text = "Step ${fStep.stepLabel}",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        fontWeight = FontWeight.ExtraBold,
+                                                        color = Color.White,
+                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                                    )
+                                                }
+                                                Text(
+                                                    text = fStep.titleEn,
+                                                    style = MaterialTheme.typography.titleSmall,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = Color(0xFF0A4D3C)
+                                                )
+                                            }
+                                            Text(
+                                                text = fStep.descriptionEn,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            if (fStep.additionalReferences.isNotEmpty()) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    color = Color(0xFFFFF8E1),
+                                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD4AF37).copy(alpha = 0.6f)),
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Column(
+                                                        modifier = Modifier.padding(8.dp),
+                                                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "References (International Numbering):",
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            fontWeight = FontWeight.ExtraBold,
+                                                            color = Color(0xFF5D4037)
+                                                        )
+                                                        fStep.additionalReferences.forEach { addRef ->
+                                                            Text(
+                                                                text = "• ${addRef.context} — ${addRef.references.joinToString("; ") { it.formatted() }}",
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                fontWeight = FontWeight.SemiBold,
+                                                                color = Color(0xFF3E2723)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            } else {
+                                                Text(
+                                                    text = "References (International Numbering): ${fStep.references.joinToString("; ") { it.formatted() }}",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF0A4D3C)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                itemsIndexed(
+                    items = displayedAuditedSalahSteps,
+                    key = { idx, item -> "complete_salah_audited_${selectedRakatFlowKey}_${selectedRakatNumberKey}_${idx}_${item.id}" }
+                ) { _, auditedStep ->
+                    AuditedNamazStepCard(
+                        step = auditedStep,
+                        arabicFontSizeSp = arabicFontSizeSp,
+                        showUrdu = showUrdu,
+                        showEnglish = showEnglish,
+                        showRomanUrdu = showRomanUrdu,
+                        isCompleted = completedStepIds.contains(auditedStep.id),
+                        isBookmarked = bookmarkedStepIds.contains(auditedStep.id),
+                        onToggleCompleted = { toggleStepCompleted(auditedStep.id) },
+                        onToggleBookmarked = { toggleStepBookmarked(auditedStep.id) },
+                        testTagPrefix = "complete_salah_step"
+                    )
+                }
+
+                // Daily 5 Prayers Structure Summary Card
+                item(key = "complete_salah_daily_structures_card") {
+                    NamazDailyPrayerStructuresSection()
+                }
+            }
+
+            // Closing Advice Card (Sahih al-Bukhari 791)
+            item(key = "complete_salah_closing_advice_card") {
+                Card(
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF073B2E)),
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFD4AF37)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("complete_salah_closing_advice")
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "Closing Advice (Prophetic Warning on Completing Ruku & Sujood)",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFFD4AF37),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Text(
+                                text = closingAdvice.titleUr,
+                                style = CompactArabicUrduTextStyle,
+                                fontFamily = NotoNastaliqUrduFont,
+                                fontSize = 14.sp,
+                                lineHeight = 23.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                textAlign = TextAlign.End,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        Text(
+                            text = closingAdvice.english,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Reference: ${closingAdvice.references.joinToString("; ") { it.formatted() }}",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFFD4AF37)
+                        )
+                    }
+                }
+            }
+        }
+
         items(filteredSteps, key = { it.id }) { step ->
             val isStepPlaying = isPlaying && activePlayingId == step.id
             val isStepComingSoon = isComingSoonNotice && activePlayingId == step.id
             val hasExactQuranAudio = step.quranSurahNumber != null
             val hasVerifiedHumanAudio = (!step.humanAudioUrl.isNullOrBlank() || DuaAudioController.hasOfflineQaidaAudioAsset(null, step.id)) && !isStepComingSoon
-            var showScholarlyDiff by remember { mutableStateOf(false) }
+            var showScholarlyDiff by remember { mutableStateOf(selectedSectionFilter == "SECTARIAN_NAMAZ") }
 
             Card(
                 shape = RoundedCornerShape(14.dp),
@@ -1627,6 +2236,648 @@ private fun NamazAndWuduSectionContent(
                     }
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun NamazJsonStepCard(
+    step: NamazStepJsonEntry,
+    testTagPrefix: String = "namaz_json_step"
+) {
+    var selectedProfile by remember { mutableStateOf(PlaybackDataProfile.BALANCED) }
+    var wifiOnly by remember { mutableStateOf(false) }
+
+    val embeddedLectureRecord = remember(step.videoYoutubeId, step.videoTitle) {
+        val ytId = step.videoYoutubeId
+        if (!ytId.isNullOrBlank()) {
+            LectureRecord(
+                youtubeId = ytId,
+                title = step.videoTitle ?: "Nimaz ka tareqa",
+                verifiedTitle = "${step.videoTitle ?: "Nimaz ka tareqa"} — Practical Demonstration (Engineer Muhammad Ali Mirza)",
+                speaker = "Engineer Muhammad Ali Mirza",
+                channelHandle = "@NOOR-e-HIDAYAT-EMAM",
+                channelUrl = "https://www.youtube.com/@NOOR-e-HIDAYAT-EMAM",
+                sourceTier = SourceTier.FAN_CHANNEL,
+                countryStatus = CountryStatus.PLAYABLE_GLOBAL,
+                verificationState = RecordVerificationState.CONFIRMED_LIVE,
+                recordFormat = LectureFormat.CLIP,
+                lectureNumber = 70,
+                seriesName = "Practical Salah & Sunnah Series",
+                recordedYear = 2023,
+                durationSec = 580,
+                topics = listOf("salah_azan", "hadith_sciences"),
+                relatedYoutubeIds = emptyList(),
+                summary = "Practical step-by-step demonstration of Namaz-e-Muhammadi (${step.videoLink.orEmpty()}).",
+                transcriptStatus = TranscriptStatus.NONE,
+                referenceStatus = ReferenceStatus.VERIFIED,
+                references = step.reference.split(";").map { it.trim() }.filter { it.isNotEmpty() },
+                alternateYoutubeIds = emptyList()
+            )
+        } else {
+            null
+        }
+    }
+
+    Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(
+            width = if (embeddedLectureRecord != null) 1.5.dp else 1.dp,
+            color = if (embeddedLectureRecord != null) Color(0xFFD4AF37) else MaterialTheme.colorScheme.outlineVariant
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("${testTagPrefix}_${step.step_no}")
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            // Embedded video in Ruku ("Nimaz ka tareqa") at the very top with its Hadith references directly below it
+            if (embeddedLectureRecord != null) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF073B2E).copy(alpha = 0.06f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0A4D3C).copy(alpha = 0.3f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("step_10_embedded_video_container")
+                ) {
+                    Column(
+                        modifier = Modifier.padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = "Embedded Video",
+                                    tint = Color(0xFF0A4D3C),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = step.videoTitle ?: "Nimaz ka tareqa",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF0A4D3C),
+                                    modifier = Modifier.testTag("step_10_video_title")
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = Color(0xFFD4AF37).copy(alpha = 0.25f)
+                            ) {
+                                Text(
+                                    text = "Video Library • ${embeddedLectureRecord.youtubeId}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF073B2E),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+
+                        YtEmbedHost(
+                            lecture = embeddedLectureRecord,
+                            allIndexedLectures = listOf(embeddedLectureRecord),
+                            selectedProfile = selectedProfile,
+                            wifiOnlyEnabled = wifiOnly,
+                            onSelectProfile = { selectedProfile = it },
+                            onToggleWifiOnly = { wifiOnly = it },
+                            onWatchSecondsRecorded = { _, _, _ -> },
+                            onSelectAlternateLecture = {},
+                            onReportBroken = {}
+                        )
+
+                        // Directly below the video, show the references for the step
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFE8F5E9),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1B7A58)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("step_10_below_video_references")
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                                Text(
+                                    text = "Step ${step.step_no} Hadith References (International Numbering):",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF0A4D3C)
+                                )
+                                Text(
+                                    text = if (step.primaryReferences.isNotEmpty()) {
+                                        step.primaryReferences.joinToString("; ") { it.formatted() }
+                                    } else {
+                                        step.reference
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF073B2E)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Step number, section badge (English + Urdu), and title (English + Urdu)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFF0A4D3C)
+                    ) {
+                        Text(
+                            text = "Step ${step.step_no}",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFFD4AF37).copy(alpha = 0.22f)
+                    ) {
+                        Text(
+                            text = if (step.sectionUrdu.isNotBlank()) "${step.section} • ${step.sectionUrdu}" else step.section,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF073B2E),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = step.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF0A4D3C),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (step.titleUrdu.isNotBlank()) {
+                        Text(
+                            text = step.titleUrdu,
+                            style = CompactArabicUrduTextStyle,
+                            fontFamily = NotoNastaliqUrduFont,
+                            fontSize = 14.sp,
+                            lineHeight = 23.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF073B2E),
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+
+            // (1) Arabic
+            if (step.arabic.isNotBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0xFF0A4D3C).copy(alpha = 0.06f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                        Text(
+                            text = "1. Arabic (عربي)",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1B7A58)
+                        )
+                        Text(
+                            text = step.arabic,
+                            style = CompactArabicUrduTextStyle,
+                            fontFamily = AmiriQuranFont,
+                            fontSize = 22.sp,
+                            lineHeight = 35.sp,
+                            letterSpacing = 0.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF073B2E),
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+
+            // (2) Urdu (Right-to-Left)
+            if (step.urdu.isNotBlank()) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "2. Urdu (اردو)",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1B7A58)
+                    )
+                    Text(
+                        text = step.urdu,
+                        style = CompactArabicUrduTextStyle,
+                        fontFamily = NotoNastaliqUrduFont,
+                        fontSize = 15.sp,
+                        lineHeight = 24.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
+            // (3) English
+            if (step.english.isNotBlank()) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "3. English",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1B7A58)
+                    )
+                    Text(
+                        text = step.english,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+
+            // Multiple Masnoon Options (e.g., Step 12 Ruku Tasbeehat & Step 19 Sujood Tasbeehat)
+            if (step.options.isNotEmpty()) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0xFFE8F5E9).copy(alpha = 0.7f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1B7A58).copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("step_${step.step_no}_options_box")
+                ) {
+                    Column(
+                        modifier = Modifier.padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Authentic Masnoon Options (${step.options.size} Choices — Recite Any, At Least 3 Times):",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF0A4D3C)
+                        )
+                        if (step.generalReferences.isNotEmpty()) {
+                            Text(
+                                text = "General Reference: ${step.generalReferences.joinToString("; ") { it.formatted() }}",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF073B2E)
+                            )
+                        }
+                        step.options.forEachIndexed { idx, opt ->
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color.White,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0A4D3C).copy(alpha = 0.15f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
+                                    Text(
+                                        text = "Option ${idx + 1}:",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color(0xFF0A4D3C)
+                                    )
+                                    Text(
+                                        text = opt.arabic,
+                                        style = CompactArabicUrduTextStyle,
+                                        fontFamily = AmiriQuranFont,
+                                        fontSize = 20.sp,
+                                        lineHeight = 32.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF073B2E),
+                                        textAlign = TextAlign.End,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    if (opt.urdu.isNotBlank()) {
+                                        Text(
+                                            text = opt.urdu,
+                                            style = CompactArabicUrduTextStyle,
+                                            fontFamily = NotoNastaliqUrduFont,
+                                            fontSize = 14.sp,
+                                            lineHeight = 22.sp,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            textAlign = TextAlign.End,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                    if (opt.english.isNotBlank()) {
+                                        Text(
+                                            text = opt.english,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                    Text(
+                                        text = "References: ${opt.references.joinToString("; ") { it.formatted() }}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF0A4D3C)
+                                    )
+                                    if (!opt.note.isNullOrBlank()) {
+                                        Text(
+                                            text = "Note: ${opt.note}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Color(0xFF5D4037)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Alternative Masnoon Supplication (e.g., Step 3 Thana, Step 4 Ta'awwudh, Step 21 Jalsah)
+            step.alternative?.let { alt ->
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0xFF0A4D3C).copy(alpha = 0.05f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD4AF37).copy(alpha = 0.7f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("step_${step.step_no}_alternative_box")
+                ) {
+                    Column(
+                        modifier = Modifier.padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "Alternative Authentic Supplication (متبادل مسنون دعا):",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF0A4D3C)
+                        )
+                        Text(
+                            text = alt.arabic,
+                            style = CompactArabicUrduTextStyle,
+                            fontFamily = AmiriQuranFont,
+                            fontSize = 20.sp,
+                            lineHeight = 32.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF073B2E),
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        if (alt.urdu.isNotBlank()) {
+                            Text(
+                                text = alt.urdu,
+                                style = CompactArabicUrduTextStyle,
+                                fontFamily = NotoNastaliqUrduFont,
+                                fontSize = 14.sp,
+                                lineHeight = 22.sp,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.End,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        if (alt.english.isNotBlank()) {
+                            Text(
+                                text = alt.english,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Text(
+                            text = "Alternative References: ${alt.references.joinToString("; ") { it.formatted() }}",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0A4D3C)
+                        )
+                    }
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
+
+            // Hadith References: When additionalReferences are present, they replace the green reference line above
+            if (step.additionalReferences.isNotEmpty()) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFFFF8E1),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD4AF37).copy(alpha = 0.6f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("step_${step.step_no}_additional_refs")
+                ) {
+                    Column(
+                        modifier = Modifier.padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Text(
+                            text = "References (International Numbering):",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF5D4037)
+                        )
+                        step.additionalReferences.forEach { addRef ->
+                            Text(
+                                text = "• ${addRef.context} — ${addRef.references.joinToString("; ") { it.formatted() }}",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF3E2723)
+                            )
+                        }
+                    }
+                }
+            } else {
+                Text(
+                    text = if (step.primaryReferences.isNotEmpty()) {
+                        "References (International Numbering): ${step.primaryReferences.joinToString("; ") { it.formatted() }}"
+                    } else {
+                        "Reference: ${step.reference}"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF0A4D3C)
+                )
+            }
+
+            // Step-specific Notes (e.g., Step 18 men & women pray the same way per Bukhari 631; Step 24 finger pointing)
+            if (step.notes.isNotEmpty()) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFE8F5E9),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1B7A58).copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("step_${step.step_no}_notes")
+                ) {
+                    Column(
+                        modifier = Modifier.padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Text(
+                            text = "Important Prophetic Sunnah Note:",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF0A4D3C)
+                        )
+                        step.notes.forEach { noteText ->
+                            Text(
+                                text = "• $noteText",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF073B2E)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NimazJanazaSectionContent() {
+    var selectedSubSection by remember { mutableStateOf(NimazJanazaSubSection.ADULT) }
+    val janazaSteps = remember(selectedSubSection) {
+        LearnIslamCurriculumData.getNimazJanazaSteps(selectedSubSection)
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag("nimaz_janaza_lazy_column"),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Prominent standing-only rule & heading card
+        item(key = "nimaz_janaza_standing_rule_banner") {
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0A4D3C)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("nimaz_janaza_standing_rule_card")
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Nimaz Janaza (Funeral Prayer)",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "نمازِ جنازہ",
+                            style = CompactArabicUrduTextStyle,
+                            fontFamily = NotoNastaliqUrduFont,
+                            fontSize = 16.sp,
+                            lineHeight = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFD4AF37)
+                        )
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFFFFF8E1),
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFD4AF37)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("nimaz_janaza_no_ruku_no_sajdah_banner")
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "IMPORTANT RULE: Janaza prayer is offered standing only. There is NO ruku and NO sajdah.",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF073B2E)
+                            )
+                            Text(
+                                text = "اہم شرعی اصول: نمازِ جنازہ صرف کھڑے ہو کر پڑھی جاتی ہے، اس میں رکوع اور سجدہ نہیں ہے۔",
+                                style = CompactArabicUrduTextStyle,
+                                fontFamily = NotoNastaliqUrduFont,
+                                fontSize = 14.sp,
+                                lineHeight = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF073B2E),
+                                textAlign = TextAlign.End,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+
+                    // Three Sub-sections: 1. Adult (بالغ), 2. Baby Boy (بچہ), 3. Baby Girl (بچی)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        NimazJanazaSubSection.entries.forEach { sub ->
+                            val isSelected = selectedSubSection == sub
+                            Surface(
+                                onClick = { selectedSubSection = sub },
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSelected) Color(0xFFD4AF37) else Color.White.copy(alpha = 0.14f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("nimaz_janaza_sub_${sub.key}")
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = sub.displayTitle,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = if (isSelected) Color(0xFF073B2E) else Color.White,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        itemsIndexed(
+            items = janazaSteps,
+            key = { _, step -> "janaza_${selectedSubSection.key}_step_${step.step_no}" }
+        ) { _, step ->
+            NamazJsonStepCard(
+                step = step,
+                testTagPrefix = "nimaz_janaza_${selectedSubSection.key}_step"
+            )
         }
     }
 }

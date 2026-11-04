@@ -883,9 +883,9 @@ class SourceRegistryRepository(
             "2) Home screen daily supplications & Ramadan Sehri/Iftari showcase. " +
             "3) Noorani Qaida (17 lessons, 149 items, 149 bundled offline human MP3s). " +
             "4) Iman & 6 Kalimas (9 items in LearnIslamScreen Tab 2). " +
-            "5) Namaz, Wudu & Salat al-Janaza (14 steps in LearnIslamScreen Tab 3). " +
-            "6) Janaza & Funeral / Grave supplications (SpecialOccasionType.JANAZA_FUNERAL + Salat al-Janaza step). " +
-            "7) Sehri & Iftari Duas + Scholarly Niyyah guidance (LearnIslamScreen Tab 5 & SehriIftarTimetableScreen). " +
+            "5) Namaz & Wudu (Complete Salah steps in LearnIslamScreen Tab 3) + Nimaz Janaza (Adult, Baby Boy, Baby Girl in LearnIslamScreen Tab 4). " +
+            "6) Janaza & Funeral / Grave supplications (SpecialOccasionType.JANAZA_FUNERAL + Nimaz Janaza tab). " +
+            "7) Sehri & Iftari Duas + Scholarly Niyyah guidance (LearnIslamScreen & SehriIftarTimetableScreen). " +
             "8) Morning & Evening Adhkar (DuaCategory.MORNING_EVENING — 12 Duas). " +
             "9) Duas after Namaz & Adhan (DuaCategory.AFTER_SALAH — 6 Duas)."
         ),
@@ -896,7 +896,7 @@ class SourceRegistryRepository(
             "• Morning & Evening Adhkar (+4): Hasbiyallahu La Ilaha Illa Huwa (7x), Bismillahilladhi La Yadurru (3x), SubhanAllahi wa Bihamdihi (100x), A'udhu Bi-Kalimatillahi at-Tammati (3x). " +
             "• Duas After Salah & Adhan (+6): Astaghfirullah (3x) & Allahumma Antas-Salam (Muslim 591), La Ilaha Illallahu Wahdahu after Salah (Bukhari 844), Allahumma A'inni 'Ala Dhikrika (Abu Dawud 1522), Tasbih-e-Fatimi 33/33/34 (Muslim 597), Rabbi Qini 'Adhabaka (Muslim 709), and Dua after Adhan (Bukhari 614). " +
             "• Home & Daily Etiquette (+1): Sneezing & Response (Alhamdulillah / YarhamukAllah / Yahdikumullah — Bukhari 6224). " +
-            "• Janaza, Funeral & Grave Duas (+5 in SpecialOccasionType.JANAZA_FUNERAL + Step 14 in Namaz & Wudu): Salat al-Janaza for Adult (Muslim 963), Minor Boy & Minor Girl with both masculine & feminine Arabic pronouns, Burial (Tirmidhi 1046), Visiting Graves (Muslim 975), and Condolence / Ta'ziyah (Bukhari 1284)."
+            "• Janaza, Funeral & Grave Duas (+5 in SpecialOccasionType.JANAZA_FUNERAL + Nimaz Janaza tab): Salat al-Janaza for Adult (Muslim 963), Minor Boy & Minor Girl with both masculine & feminine Arabic pronouns, Burial (Tirmidhi 1046), Visiting Graves (Muslim 975), and Condolence / Ta'ziyah (Bukhari 1284)."
         ),
         DuaAuditReportSection(
           sectionNumber = 3,

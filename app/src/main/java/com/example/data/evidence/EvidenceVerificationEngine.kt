@@ -336,10 +336,32 @@ class EvidenceVerificationEngine(
       return@withContext curated
     }
 
-    // 2. Search verified local Room DB (Ayahs + Hadiths) and ExtendedHadithDataProvider
+    // 2. Two-Stage Hybrid Evidence Search:
+    // Stage 1: Search verified local Room DB (Ayahs + Hadiths) and ExtendedHadithDataProvider
+    // Stage 2: Simultaneously query Global Online Quran & Hadith APIs (IslamicRemoteService) when online
     val normalizedArabicQuery = normalizeArabicForMatch(query)
-    val localAyahMatches = searchLocalQuranVerses(query, normalizedArabicQuery)
-    val localHadithMatches = searchLocalHadiths(query, normalizedArabicQuery)
+    val offlineAyahs = searchLocalQuranVerses(query, normalizedArabicQuery)
+    val offlineHadiths = searchLocalHadiths(query, normalizedArabicQuery)
+
+    val onlineAyahs = if (!isOffline) {
+      runCatching {
+        com.example.data.remote.IslamicRemoteService.searchQuranOnlineGlobal(query, "BOTH")
+      }.getOrDefault(emptyList())
+    } else {
+      emptyList()
+    }
+    val onlineHadiths = if (!isOffline) {
+      runCatching {
+        com.example.data.remote.IslamicRemoteService.searchHadithsOnlineGlobal(query, "BOTH")
+      }.getOrDefault(emptyList())
+    } else {
+      emptyList()
+    }
+
+    val localAyahMatches = (offlineAyahs + onlineAyahs)
+      .distinctBy { "${it.surahNumber}:${it.verseNumber}" }
+    val localHadithMatches = (offlineHadiths + onlineHadiths)
+      .distinctBy { "${it.collectionKey}:${it.hadithNumber}" }
 
     if (localAyahMatches.isNotEmpty() || localHadithMatches.isNotEmpty()) {
       val directCitations = mutableListOf<PrimarySourceCitation>()

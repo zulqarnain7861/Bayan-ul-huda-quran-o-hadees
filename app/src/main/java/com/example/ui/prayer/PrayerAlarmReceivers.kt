@@ -21,6 +21,7 @@ import com.example.data.prayer.PrayerTimeCalculator
 class PrayerAlarmReceiver : BroadcastReceiver() {
 
   override fun onReceive(context: Context, intent: Intent?) {
+    if (!com.example.security.PathTraversalAndIntentGuard.sanitizeIncomingIntent(intent)) return
     val action = intent?.action ?: return
     val appCtx = context.applicationContext
 
@@ -127,6 +128,7 @@ class PrayerAlarmReceiver : BroadcastReceiver() {
  */
 class BootAndTimeChangeReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent?) {
+    if (!com.example.security.PathTraversalAndIntentGuard.sanitizeIncomingIntent(intent)) return
     val action = intent?.action ?: return
     if (action == Intent.ACTION_BOOT_COMPLETED ||
       action == Intent.ACTION_TIME_CHANGED ||

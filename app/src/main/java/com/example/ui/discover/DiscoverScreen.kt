@@ -18,15 +18,21 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,8 +46,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.data.model.IslamicVideoCategory
+import com.example.data.model.LectureDateFilter
+import com.example.data.model.LectureDurationFilter
 import com.example.data.model.LectureFormat
 import com.example.data.model.LectureRecord
+import com.example.data.model.LectureSortOption
+import com.example.data.model.RecommendationShelfTab
 import com.example.data.model.RecommendedLectureItem
 import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.GoldPrimary
@@ -84,7 +95,7 @@ fun DiscoverScreen(
       .testTag("discover_video_lectures_screen"),
     verticalArrangement = Arrangement.spacedBy(12.dp)
   ) {
-    // Header Banner
+    // Header Banner + Auto Library Sync & History Controls
     item {
       Card(
         modifier = Modifier.fillMaxWidth(),
@@ -110,9 +121,55 @@ fun DiscoverScreen(
           }
           Spacer(modifier = Modifier.height(4.dp))
           Text(
-            text = "Engineer Muhammad Ali Mirza · Quran Tafseer, Seerah, Ahl al-Bayt & Authentic Sunnah Lectures",
+            text = "Engineer Muhammad Ali Mirza · Quran Tafseer, Hadith, Aqeedah, Fiqh, Seerah & Authentic Sunnah Lectures",
             style = MaterialTheme.typography.bodySmall
           )
+          Spacer(modifier = Modifier.height(8.dp))
+          FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+          ) {
+            OutlinedButton(
+              onClick = { searchViewModel.triggerManualLibrarySync() },
+              enabled = !state.isSyncingOnline,
+              modifier = Modifier.testTag("discover_manual_sync_button")
+            ) {
+              Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = "Sync New and Missed Lectures"
+              )
+              Text(
+                text = if (state.isSyncingOnline) "  Syncing…" else "  Sync New & Missed",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold
+              )
+            }
+            OutlinedButton(
+              onClick = { searchViewModel.clearHistoryAndResetRecommendations() },
+              modifier = Modifier.testTag("discover_clear_history_button")
+            ) {
+              Icon(
+                imageVector = Icons.Default.Clear,
+                contentDescription = "Clear Watch History and Reset Recommendations"
+              )
+              Text(
+                text = "  Clear History & Reset Recs",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold
+              )
+            }
+          }
+          state.syncStatusMessage?.let { status ->
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+              text = status,
+              style = MaterialTheme.typography.labelSmall.copy(
+                color = EmeraldPrimary,
+                fontWeight = FontWeight.SemiBold
+              ),
+              modifier = Modifier.testTag("discover_sync_status_label")
+            )
+          }
         }
       }
     }
@@ -126,7 +183,7 @@ fun DiscoverScreen(
           .fillMaxWidth()
           .testTag("discover_fts_search_field"),
         placeholder = {
-          Text("Search lectures, topics, or Quran & Hadith references…")
+          Text("Search Engineer Muhammad Ali Mirza (EMAM) lectures, topics, or Hadith…")
         },
         leadingIcon = {
           Icon(imageVector = Icons.Default.Search, contentDescription = "Search lectures")
@@ -149,23 +206,52 @@ fun DiscoverScreen(
     val activeSearch = state.searchResults
     if (activeSearch != null) {
       item {
-        Text(
-          text = "Search Results (${activeSearch.lectures.size} Lectures)",
-          style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-          modifier = Modifier.testTag("discover_fts_results_header")
-        )
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Text(
+            text = "Search Results (${activeSearch.lectures.size} Lectures)",
+            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+            modifier = Modifier.testTag("discover_fts_results_header")
+          )
+          if (state.isSearchingYouTube) {
+            Text(
+              text = "Scanning EMAM YouTube channels…",
+              style = MaterialTheme.typography.labelSmall.copy(
+                color = EmeraldPrimary,
+                fontWeight = FontWeight.SemiBold
+              )
+            )
+          }
+        }
       }
       items(activeSearch.lectures, key = { "search_${it.youtubeId}" }) { lecture ->
         LectureListItemCard(
           lecture = lecture,
           watchedSeconds = state.watchTimeByVideo[lecture.youtubeId] ?: 0,
+          isBookmarked = lecture.youtubeId in state.bookmarkedYoutubeIds,
           recommendationReason = null,
+          onToggleBookmark = { searchViewModel.toggleBookmarkLecture(lecture) },
           onClick = { searchViewModel.openLectureDetail(lecture) }
         )
       }
     } else {
-      // Recommended for You Carousel
-      if (state.recommendedByWatchTime.isNotEmpty()) {
+      // Multi-Shelf Intelligent Recommendations Card
+      val activeShelfItems = when (state.selectedShelfTab) {
+        RecommendationShelfTab.RECOMMENDED -> state.recommendedByWatchTime
+        RecommendationShelfTab.CONTINUE_WATCHING ->
+          state.continueWatchingLectures.ifEmpty { state.recommendedByWatchTime }
+        RecommendationShelfTab.RECENTLY_ADDED -> state.recentlyAddedLectures
+        RecommendationShelfTab.NEW_LECTURES -> state.newLectures
+        RecommendationShelfTab.RELATED_TOPICS -> state.relatedTopicsLectures
+        RecommendationShelfTab.SIMILAR_LECTURES ->
+          state.similarLectures.ifEmpty { state.recommendedByWatchTime }
+        RecommendationShelfTab.UNWATCHED -> state.unwatchedLectures
+      }
+
+      if (activeShelfItems.isNotEmpty() || state.recommendedByWatchTime.isNotEmpty()) {
         item {
           Card(
             modifier = Modifier
@@ -184,9 +270,23 @@ fun DiscoverScreen(
                   tint = EmeraldPrimary
                 )
                 Text(
-                  text = "  Recommended for You",
+                  text = "  ${state.selectedShelfTab.label}",
                   style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                 )
+              }
+              Spacer(modifier = Modifier.height(6.dp))
+              LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.testTag("discover_recommendation_shelf_tabs")
+              ) {
+                items(RecommendationShelfTab.entries, key = { "shelf_${it.name}" }) { tab ->
+                  FilterChip(
+                    selected = state.selectedShelfTab == tab,
+                    onClick = { searchViewModel.selectShelfTab(tab) },
+                    label = { Text(tab.label, fontSize = 11.sp) },
+                    modifier = Modifier.testTag("shelf_tab_${tab.name}")
+                  )
+                }
               }
               Spacer(modifier = Modifier.height(8.dp))
               LazyRow(
@@ -194,8 +294,8 @@ fun DiscoverScreen(
                 modifier = Modifier.testTag("watch_time_top_carousel")
               ) {
                 items(
-                  items = state.recommendedByWatchTime.take(8),
-                  key = { "rec_${it.lecture.youtubeId}" }
+                  items = activeShelfItems.ifEmpty { state.recommendedByWatchTime }.take(10),
+                  key = { "rec_${state.selectedShelfTab.name}_${it.lecture.youtubeId}" }
                 ) { recItem ->
                   WatchTimeTopCard(
                     item = recItem,
@@ -203,6 +303,30 @@ fun DiscoverScreen(
                   )
                 }
               }
+            }
+          }
+        }
+      }
+
+      // Islamic Video Categories Filter Row
+      item {
+        Column {
+          Text(
+            text = "Browse by Islamic Category (Authentic Quran & Sahih Hadith)",
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+          )
+          Spacer(modifier = Modifier.height(6.dp))
+          LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.testTag("discover_category_chips_row")
+          ) {
+            items(IslamicVideoCategory.entries, key = { "cat_${it.name}" }) { category ->
+              FilterChip(
+                selected = state.selectedCategory == category,
+                onClick = { searchViewModel.selectCategory(category) },
+                label = { Text(category.label, fontSize = 11.sp) },
+                modifier = Modifier.testTag("category_chip_${category.name}")
+              )
             }
           }
         }
@@ -326,54 +450,107 @@ fun DiscoverScreen(
         }
       }
 
-      // Format Filters
+      // Date, Duration, Format & Sort Filters
       item {
-        FlowRow(
-          horizontalArrangement = Arrangement.spacedBy(8.dp),
-          verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-          FilterChip(
-            selected = state.onlyConfirmedLive,
-            onClick = { searchViewModel.toggleOnlyConfirmedLive() },
-            label = { Text("Featured (${state.seedCounts.confirmedLive})", fontSize = 11.sp) },
-            modifier = Modifier.testTag("filter_chip_confirmed_live")
-          )
-          FilterChip(
-            selected = state.selectedFormatFilter == LectureFormat.FULL_LECTURE,
-            onClick = {
-              val next = if (state.selectedFormatFilter == LectureFormat.FULL_LECTURE) null else LectureFormat.FULL_LECTURE
-              searchViewModel.selectFormatFilter(next)
-            },
-            label = { Text("Full Lectures (${state.seedCounts.fullLectures})", fontSize = 11.sp) },
-            modifier = Modifier.testTag("filter_chip_full_lectures")
-          )
-          FilterChip(
-            selected = state.selectedFormatFilter == LectureFormat.CLIP,
-            onClick = {
-              val next = if (state.selectedFormatFilter == LectureFormat.CLIP) null else LectureFormat.CLIP
-              searchViewModel.selectFormatFilter(next)
-            },
-            label = { Text("Short Clips (${state.seedCounts.clips})", fontSize = 11.sp) },
-            modifier = Modifier.testTag("filter_chip_short_clips")
-          )
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+          LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.testTag("discover_date_duration_filters_row")
+          ) {
+            items(LectureDateFilter.entries, key = { "date_${it.name}" }) { dateFilter ->
+              FilterChip(
+                selected = state.selectedDateFilter == dateFilter,
+                onClick = { searchViewModel.selectDateFilter(dateFilter) },
+                label = { Text(dateFilter.label, fontSize = 11.sp) },
+                modifier = Modifier.testTag("date_filter_${dateFilter.name}")
+              )
+            }
+            items(LectureDurationFilter.entries, key = { "dur_${it.name}" }) { durFilter ->
+              FilterChip(
+                selected = state.selectedDurationFilter == durFilter,
+                onClick = { searchViewModel.selectDurationFilter(durFilter) },
+                label = { Text(durFilter.label, fontSize = 11.sp) },
+                modifier = Modifier.testTag("duration_filter_${durFilter.name}")
+              )
+            }
+          }
+
+          FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+          ) {
+            LectureSortOption.entries.forEach { sortOpt ->
+              FilterChip(
+                selected = state.selectedSortOption == sortOpt,
+                onClick = { searchViewModel.selectSortOption(sortOpt) },
+                label = { Text("Sort: ${sortOpt.label}", fontSize = 11.sp) },
+                modifier = Modifier.testTag("sort_chip_${sortOpt.name}")
+              )
+            }
+            FilterChip(
+              selected = state.onlyConfirmedLive,
+              onClick = { searchViewModel.toggleOnlyConfirmedLive() },
+              label = { Text("Featured (${state.seedCounts.confirmedLive})", fontSize = 11.sp) },
+              modifier = Modifier.testTag("filter_chip_confirmed_live")
+            )
+            FilterChip(
+              selected = state.selectedFormatFilter == LectureFormat.FULL_LECTURE,
+              onClick = {
+                val next = if (state.selectedFormatFilter == LectureFormat.FULL_LECTURE) null else LectureFormat.FULL_LECTURE
+                searchViewModel.selectFormatFilter(next)
+              },
+              label = { Text("Full Lectures (${state.seedCounts.fullLectures})", fontSize = 11.sp) },
+              modifier = Modifier.testTag("filter_chip_full_lectures")
+            )
+            FilterChip(
+              selected = state.selectedFormatFilter == LectureFormat.CLIP,
+              onClick = {
+                val next = if (state.selectedFormatFilter == LectureFormat.CLIP) null else LectureFormat.CLIP
+                searchViewModel.selectFormatFilter(next)
+              },
+              label = { Text("Short Clips (${state.seedCounts.clips})", fontSize = 11.sp) },
+              modifier = Modifier.testTag("filter_chip_short_clips")
+            )
+          }
         }
       }
 
-      // Lecture List
+      // Paginated Lecture List Header
+      val pagedLectures = state.visibleLectures.take(state.currentPageLimit)
       item {
         Text(
-          text = "All Lectures (${state.visibleLectures.size})",
+          text = "All Lectures (Showing ${pagedLectures.size} of ${state.visibleLectures.size})",
           style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
         )
       }
 
-      items(state.visibleLectures, key = { it.youtubeId }) { lecture ->
+      items(pagedLectures, key = { it.youtubeId }) { lecture ->
         LectureListItemCard(
           lecture = lecture,
           watchedSeconds = state.watchTimeByVideo[lecture.youtubeId] ?: 0,
+          isBookmarked = lecture.youtubeId in state.bookmarkedYoutubeIds,
           recommendationReason = null,
+          onToggleBookmark = { searchViewModel.toggleBookmarkLecture(lecture) },
           onClick = { searchViewModel.openLectureDetail(lecture) }
         )
+      }
+
+      if (state.visibleLectures.size > state.currentPageLimit) {
+        val remaining = state.visibleLectures.size - state.currentPageLimit
+        item {
+          Button(
+            onClick = { searchViewModel.loadMoreLectures() },
+            colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("discover_load_more_lectures_button")
+          ) {
+            Text(
+              text = "Load More Lectures ($remaining remaining)",
+              fontWeight = FontWeight.Bold
+            )
+          }
+        }
       }
     }
   }
@@ -393,7 +570,14 @@ private fun WatchTimeTopCard(
     shape = RoundedCornerShape(12.dp),
     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
   ) {
-    Column(modifier = Modifier.padding(12.dp)) {
+    Column(modifier = Modifier.padding(10.dp)) {
+      LectureThumbnailBox(
+        lecture = lecture,
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(132.dp)
+      )
+      Spacer(modifier = Modifier.height(8.dp))
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -413,7 +597,7 @@ private fun WatchTimeTopCard(
         )
         SourceTierBadge(tier = lecture.sourceTier)
       }
-      Spacer(modifier = Modifier.height(6.dp))
+      Spacer(modifier = Modifier.height(4.dp))
       Text(
         text = lecture.displayTitle,
         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
@@ -437,7 +621,9 @@ private fun WatchTimeTopCard(
 fun LectureListItemCard(
   lecture: LectureRecord,
   watchedSeconds: Int,
+  isBookmarked: Boolean = false,
   recommendationReason: String?,
+  onToggleBookmark: (() -> Unit)? = null,
   onClick: () -> Unit
 ) {
   Card(
@@ -464,24 +650,42 @@ fun LectureListItemCard(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
       ) {
-        Icon(
-          imageVector = Icons.Default.PlayArrow,
-          contentDescription = "Play ${lecture.displayTitle}",
-          tint = EmeraldPrimary,
-          modifier = Modifier.padding(end = 10.dp)
+        LectureThumbnailBox(
+          lecture = lecture,
+          compact = true,
+          modifier = Modifier
+            .width(120.dp)
+            .height(72.dp)
         )
+        Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
           Text(
             text = lecture.displayTitle,
-            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis
           )
-          Spacer(modifier = Modifier.height(2.dp))
+          Spacer(modifier = Modifier.height(3.dp))
           Text(
             text = "${lecture.channelDisplayName} · ${lecture.seriesName ?: "Understand Islam"} · ${lecture.recordedYear ?: 2013}",
             style = MaterialTheme.typography.labelSmall.copy(
               color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            ),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
           )
+        }
+        if (onToggleBookmark != null) {
+          IconButton(
+            onClick = onToggleBookmark,
+            modifier = Modifier.testTag("bookmark_lecture_button_${lecture.youtubeId}")
+          ) {
+            Icon(
+              imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+              contentDescription = if (isBookmarked) "Remove Saved Lecture" else "Save Lecture",
+              tint = if (isBookmarked) GoldPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+          }
         }
       }
 

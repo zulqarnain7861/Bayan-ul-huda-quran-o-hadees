@@ -74,8 +74,8 @@ object OfflineHadithAssetLoader {
     "zaydi_ismaili"
   )
 
-  // Keep up to 8 collections decoded in memory at any time for fast collection switching
-  private val collectionCache = LruCache<String, List<HadithEntity>>(8)
+  // Keep up to 40 collections decoded in memory at any time for fast collection switching and global search
+  private val collectionCache = LruCache<String, List<HadithEntity>>(40)
 
   // Lazy lookup map from ExtendedHadithDataProvider ("collectionKey:hadithNumber" -> HadithEntity)
   // so bundled .dat collections automatically inherit verified Urdu translations, transliterations, and Quran links
@@ -98,6 +98,14 @@ object OfflineHadithAssetLoader {
 
   fun hasBundledAsset(collectionKey: String): Boolean {
     return collectionKey.lowercase() in BUNDLED_COLLECTION_KEYS
+  }
+
+  fun getAllBundledCollectionKeys(traditionScope: String = "BOTH"): List<String> {
+    return when (traditionScope.uppercase()) {
+      "SUNNI" -> BUNDLED_COLLECTION_KEYS.filter { !ExtendedHadithDataProvider.isShiaCollection(it) }
+      "SHIA" -> BUNDLED_COLLECTION_KEYS.filter { ExtendedHadithDataProvider.isShiaCollection(it) }
+      else -> BUNDLED_COLLECTION_KEYS.toList()
+    }
   }
 
   fun getSahihMuslimMissingUrduNumbers(context: Context): Set<Int> {

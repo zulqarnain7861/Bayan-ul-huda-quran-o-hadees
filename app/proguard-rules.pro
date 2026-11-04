@@ -21,6 +21,9 @@
 
 -keep class com.example.** { *; }
 -keep class androidx.room.** { *; }
-
-
-
+-keep class androidx.media3.** { *; }
+-keep class okhttp3.** { *; }
+-keep class okio.** { *; }
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-dontwarn androidx.media3.**

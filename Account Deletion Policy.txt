@@ -1,0 +1,79 @@
+================================================================================
+ACCOUNT & DATA DELETION POLICY — BAYAN AL-HUDA (بَيَانُ الهُدَى)
+================================================================================
+Application Name: Bayan al-Huda
+Android Package ID: com.bayanulhuda.com
+Developer: Zulqarnain Ahmad Sheikh
+Support Email for Deletion Requests: sheikhzulqar@gmail.com
+Effective Date: November 1, 2026
+
+[INSTRUCTIONS FOR GOOGLE SITES PUBLICATION:
+Copy the entire contents of this file into a dedicated page on your Google Site (for example, titled "Account Deletion — Bayan al-Huda"), publish it publicly, and paste that page's public URL into:
+Google Play Console -> App Content -> Data Safety / Account Deletion -> "Delete account URL".]
+
+--------------------------------------------------------------------------------
+1. OVERVIEW OF USER ACCOUNTS IN BAYAN AL-HUDA
+--------------------------------------------------------------------------------
+Bayan al-Huda supports optional Google Sign-In (powered by Android Credential Manager and Google Firebase Authentication) so users can back up and synchronize their Quran/Hadith bookmarks and personal study notes across devices. Users may also use the app in a 7-Day Renewable Offline Guest Mode without creating an account.
+
+You have the right to permanently delete your Bayan al-Huda account and all associated cloud and local personal data at any time.
+
+--------------------------------------------------------------------------------
+2. METHOD 1 — INSTANT IN-APP ACCOUNT & DATA DELETION (RECOMMENDED)
+--------------------------------------------------------------------------------
+You can immediately and permanently delete your account and all synced cloud data directly inside the Bayan al-Huda Android app:
+
+Step-by-Step Instructions:
+1. Open the Bayan al-Huda app on your Android device.
+2. Tap the Info ("i") button in the top-right navigation bar to open the Info / About & Settings screen.
+3. Locate either:
+   - The "Cloud Sync Account (Firebase)" card and tap "Delete Account", OR
+   - The "Privacy, Terms, Permissions & Account Control" card and tap "Delete Account & Cloud Data".
+4. In the confirmation dialog:
+   - Keep "Also delete local bookmarks and study notes stored on this device" checked if you want local SQLite bookmarks and notes erased as well.
+   - Tap "Permanently Delete Account".
+5. If Firebase requires a fresh sign-in verification for security, a Google Sign-In prompt will appear automatically to confirm your identity, and your account and cloud data will be deleted immediately.
+
+--------------------------------------------------------------------------------
+3. METHOD 2 — EXTERNAL / WEB / EMAIL ACCOUNT DELETION REQUEST
+--------------------------------------------------------------------------------
+If you have already uninstalled the Bayan al-Huda app or cannot access the app on your device, you can request full account and cloud data deletion without reinstalling the app:
+
+How to Request Deletion via Email:
+1. Send an email to: sheikhzulqar@gmail.com
+2. Subject Line: Account & Data Deletion Request — Bayan al-Huda
+3. In the body of the email, include the Google Account email address you used to sign in to Bayan al-Huda.
+4. For your security, please send the email directly from the Google Account email address associated with your Bayan al-Huda account (so we can verify account ownership).
+5. Processing Time: All verified email deletion requests are completed within 7 business days, and a confirmation email will be sent to you once your Firebase Authentication record and Firestore documents have been permanently erased.
+
+--------------------------------------------------------------------------------
+4. WHAT DATA IS PERMANENTLY DELETED
+--------------------------------------------------------------------------------
+When your account is deleted (either instantly in-app or via an email request), the following data is permanently and irreversibly deleted:
+
+1. Firebase Authentication Account Record:
+   - Your Firebase User ID (`uid`)
+   - Your linked Google Account email address, display name, and profile photo reference stored in Firebase Authentication
+
+2. Cloud Firestore User Data:
+   - All synced bookmarks stored under `/users/{uid}/bookmarks/*` (`CloudBookmark` documents containing ayah/hadith reference keys, titles, snippets, and timestamps)
+   - All synced personal study notes stored under `/users/{uid}/notes/*` (`CloudNote` documents containing note titles, contents, reference keys, and timestamps)
+
+3. On-Device Local Data (When Deleted In-App):
+   - Local bookmarks and study notes stored in the on-device SQLite Room database (`bayan_ul_huda_v8.db`)
+   - Active authentication session and Google Credential Manager state (`clearCredentialState`)
+
+--------------------------------------------------------------------------------
+5. DATA RETENTION EXCEPTIONS
+--------------------------------------------------------------------------------
+- Zero Personal Data Retained After Deletion: Bayan al-Huda does not retain any copy of your bookmarks, study notes, or Firebase Authentication profile after account deletion is completed.
+- Standard Google Cloud / Firebase Infrastructure Logs: Standard, anonymized security or diagnostic logs maintained automatically by Google Firebase infrastructure are governed by Google Cloud's standard retention lifecycle and are not accessible as personal user profiles.
+- Email Deletion Correspondence: If you request account deletion by emailing `sheikhzulqar@gmail.com`, the deletion request email itself may be retained in our support inbox solely as audit proof that your deletion request was fulfilled.
+
+--------------------------------------------------------------------------------
+6. CONTACT FOR QUESTIONS
+--------------------------------------------------------------------------------
+Developer: Zulqarnain Ahmad Sheikh
+Support Email: sheikhzulqar@gmail.com
+Application Package: com.bayanulhuda.com
+================================================================================

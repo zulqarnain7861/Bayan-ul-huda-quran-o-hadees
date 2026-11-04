@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,6 +42,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.DiscoveryTopicDefinition
@@ -107,9 +109,9 @@ fun LectureDetailScreen(
   LazyColumn(
     modifier = modifier
       .fillMaxSize()
-      .padding(horizontal = 14.dp, vertical = 8.dp)
+      .padding(horizontal = 12.dp, vertical = 4.dp)
       .testTag("lecture_detail_screen"),
-    verticalArrangement = Arrangement.spacedBy(12.dp)
+    verticalArrangement = Arrangement.spacedBy(8.dp)
   ) {
     item {
       Row(
@@ -131,11 +133,15 @@ fun LectureDetailScreen(
             style = MaterialTheme.typography.labelMedium.copy(
               color = EmeraldPrimary,
               fontWeight = FontWeight.Bold
-            )
+            ),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
           )
           Text(
             text = lecture.speaker,
-            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
           )
         }
         SourceTierBadge(tier = lecture.sourceTier)

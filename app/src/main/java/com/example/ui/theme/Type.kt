@@ -17,8 +17,8 @@ import com.example.R
 val CompactPlatformTextStyle = PlatformTextStyle(includeFontPadding = false)
 
 val CompactLineHeightStyle = LineHeightStyle(
-  alignment = LineHeightStyle.Alignment.Center,
-  trim = LineHeightStyle.Trim.Both
+  alignment = LineHeightStyle.Alignment.Proportional,
+  trim = LineHeightStyle.Trim.None
 )
 
 /**

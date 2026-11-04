@@ -101,6 +101,9 @@ data class BottomNavDestination(
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    com.example.security.TapjackingGuard.enableOverlayProtection(this)
+    com.example.security.PathTraversalAndIntentGuard.sanitizeIncomingIntent(intent)
+    com.example.security.RuntimeIntegrityGuard.performStartupCheck(this)
     // STEP 1: Configure App Check with launch intent before any UI, ViewModels, or Firebase operations
     configureAppCheck(this, intent)
     enableEdgeToEdge()
@@ -294,7 +297,7 @@ fun BayanApp(
         }
       },
       bottomBar = {
-        Column(modifier = Modifier.navigationBarsPadding()) {
+        Column {
           // Global Azan / Fajr Alarm / Continuous Vibration Popup Control when user is on tabs other than Home
           if ((alarmPlaybackState.isActive || alarmPlaybackState.isContinuousVibrationActive) && currentRoute != BayanNavRoutes.HOME) {
             androidx.compose.material3.Surface(
@@ -595,16 +598,34 @@ fun BayanApp(
             tafsirResults = searchTafsirs,
             surahs = surahs,
             isSearchingRemote = uiState.isSearchingRemote,
+            selectedTraditionScope = uiState.searchTraditionScope,
+            onTraditionScopeChanged = { viewModel.setSearchTraditionScope(it) },
             onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
             onSearchCategoryChanged = { viewModel.setSearchCategory(it) },
             onOpenSurah = { surah ->
               viewModel.openSurahReader(surah)
               navigateToTab(BayanNavRoutes.QURAN, MainNavigationTab.QURAN)
             },
+            onOpenSurahWithVerse = { surah, verseNum ->
+              viewModel.openSurahReader(surah, highlightVerse = verseNum)
+              navigateToTab(BayanNavRoutes.QURAN, MainNavigationTab.QURAN)
+            },
             onOpenHadith = { hadith ->
               viewModel.selectHadithCollection(hadith.collectionKey)
               viewModel.showHadithDetail(hadith)
               navigateToTab(BayanNavRoutes.HADITH, MainNavigationTab.HADITH)
+            },
+            onOpenVideoLibrary = {
+              viewModel.setInitialLibraryTab(5)
+              navigateToTab(BayanNavRoutes.LIBRARY, MainNavigationTab.LIBRARY)
+            },
+            onOpenLearnIslam = { tab ->
+              viewModel.setInitialLearnIslamTab(tab)
+              navController.navigate(BayanNavRoutes.LEARN_ISLAM) { launchSingleTop = true }
+            },
+            onOpenLibraryBooks = {
+              viewModel.setInitialLibraryTab(1)
+              navigateToTab(BayanNavRoutes.LIBRARY, MainNavigationTab.LIBRARY)
             }
           )
         }
@@ -621,7 +642,8 @@ fun BayanApp(
             downloadManager = viewModel.downloadManager,
             currentThemeMode = uiState.prayerConfig.themeMode,
             onSelectThemeMode = { viewModel.setThemeMode(it) },
-            onPlayDownloadedAudio = { s, v, name -> viewModel.audioPlayerManager.playAyah(s, v, name) }
+            onPlayDownloadedAudio = { s, v, name -> viewModel.audioPlayerManager.playAyah(s, v, name) },
+            initialSelectedTab = uiState.initialLibraryTab
           )
         }
 
@@ -684,6 +706,7 @@ fun BayanApp(
         composable(BayanNavRoutes.LEARN_ISLAM) {
           LearnIslamScreen(
             duaAudioController = viewModel.duaAudioController,
+            initialTab = uiState.initialLearnIslamTab,
             onBack = { navController.popBackStack() },
             onOpenQuranSurah = { surahNum, verseNum ->
               viewModel.openOrPreviewQuranReference("$surahNum:$verseNum", openFullSurahReader = true)
@@ -693,6 +716,7 @@ fun BayanApp(
         }
 
         composable(BayanNavRoutes.ABOUT) {
+          val activityContext = androidx.compose.ui.platform.LocalContext.current
           val audioState by viewModel.audioState.collectAsStateWithLifecycle()
           val auditReport by viewModel.auditReport.collectAsStateWithLifecycle()
           val sourceRegistryList by viewModel.sourceRegistryList.collectAsStateWithLifecycle()
@@ -714,6 +738,18 @@ fun BayanApp(
               viewModel.signOut()
             },
             onSignInSuccess = { user -> viewModel.onGoogleSignInSuccess(user) },
+            onDeleteAccount = { deleteLocalToo, onResult ->
+              viewModel.deleteAccountAndData(
+                activityContext = activityContext,
+                deleteLocalBookmarksAndNotes = deleteLocalToo,
+                onResult = { success, msg ->
+                  onResult(success, msg)
+                  if (success) {
+                    navController.popBackStack()
+                  }
+                }
+              )
+            },
             onClearAudioCache = { viewModel.clearAudioCache() },
             currentAppLanguageCode = uiState.prayerConfig.appInterfaceLanguageCode,
             onSelectAppLanguage = { langCode, syncContent ->

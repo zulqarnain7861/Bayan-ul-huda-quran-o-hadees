@@ -1,0 +1,1349 @@
+{
+  "source": {
+    "document_date": "12 December 2016 / 12 Rabi al-Awwal 1438 AH",
+    "reference_style": "Hadith numbers follow the 'International Numbering' as stated in the PDF",
+    "key_hadith": {
+      "arabic": "وَصَلُّوا كَمَا رَأَيْتُمُونِي أُصَلِّي",
+      "english": "Pray as you have seen me praying.",
+      "references": [
+        {
+          "book": "Sahih al-Bukhari",
+          "numbers": [
+            "631"
+          ]
+        }
+      ]
+    }
+  },
+  "extraction_notes": [
+    "All hadith references were re-checked against the rendered PDF pages (not the garbled OCR text).",
+    "'references' holds the reference printed with the step itself; 'additional_references' holds those printed in the notes under it.",
+    "Arabic duas are the standard texts; Urdu and English wording is a short summary or translation, not a word-for-word copy of the booklet."
+  ],
+  "sections": [
+    {
+      "id": 0,
+      "title_ur": "واحد سنتِ طریقہ: بنیادی صحیح احادیث",
+      "title_en": "Foundational narrations on the manner of prayer",
+      "steps": [
+        {
+          "step": 0.1,
+          "title_en": "Abu Hurayrah (RA): takbeer at every movement",
+          "description_en": "The Prophet ﷺ said takbeer when standing for prayer, at ruku, when rising from ruku (saying 'Sami' Allahu liman hamidah, Rabbana wa lakal-hamd'), and at each sujood and rising, through the whole prayer, and after the two rakats' tashahhud.",
+          "references": [
+            {
+              "book": "Sahih al-Bukhari",
+              "numbers": [
+                "803"
+              ]
+            },
+            {
+              "book": "Sahih Muslim",
+              "numbers": [
+                "867"
+              ]
+            }
+          ],
+          "additional_references": [
+            {
+              "context": "Narration of the Umayyad governors giving up loud takbeer",
+              "references": [
+                {
+                  "book": "Sahih al-Bukhari",
+                  "numbers": [
+                    "784 to 789"
+                  ]
+                },
+                {
+                  "book": "Sahih Muslim",
+                  "numbers": [
+                    "867 to 873"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "step": 0.2,
+          "title_en": "Ibn Umar (RA): raising the hands (Raf' al-Yadayn)",
+          "description_en": "Raised his hands to shoulder level at the opening takbeer, before ruku, and after rising from ruku; he did not do so in sujood.",
+          "references": [
+            {
+              "book": "Sahih al-Bukhari",
+              "numbers": [
+                "735"
+              ]
+            },
+            {
+              "book": "Sahih Muslim",
+              "numbers": [
+                "861"
+              ]
+            },
+            {
+              "book": "Jami at-Tirmidhi",
+              "numbers": [
+                "255",
+                "256"
+              ]
+            },
+            {
+              "book": "Sunan Abi Dawud",
+              "numbers": [
+                "722"
+              ]
+            },
+            {
+              "book": "Sunan an-Nasa'i",
+              "numbers": [
+                "879"
+              ]
+            },
+            {
+              "book": "Sunan Ibn Majah",
+              "numbers": [
+                "858"
+              ]
+            }
+          ],
+          "additional_references": [
+            {
+              "context": "Tirmidhi's grading of the Ibn Umar hadith as Hasan Sahih; discussion of the Ibn Mas'ud narration (claiming hands were raised only at the start), which the PDF says is not established",
+              "references": [
+                {
+                  "book": "Jami at-Tirmidhi",
+                  "numbers": [
+                    "256",
+                    "257"
+                  ]
+                }
+              ]
+            },
+            {
+              "context": "Abu Dawud's comment on the Ibn Mas'ud narration",
+              "references": [
+                {
+                  "book": "Sunan Abi Dawud",
+                  "numbers": [
+                    "748"
+                  ]
+                }
+              ]
+            },
+            {
+              "context": "Ibn Umar struck with pebbles anyone who did not raise the hands",
+              "references": [
+                {
+                  "book": "Juz Raf' al-Yadayn (Imam Bukhari)",
+                  "numbers": [
+                    "15"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "step": 0.3,
+          "title_en": "Ali al-Murtada (RA): when hands are and are not raised",
+          "description_en": "Raised hands at the start, at ruku, and after ruku; he did not raise them while sitting (jalsa and tashahhud).",
+          "references": [
+            {
+              "book": "Jami at-Tirmidhi",
+              "numbers": [
+                "3423"
+              ]
+            },
+            {
+              "book": "Sunan Ibn Majah",
+              "numbers": [
+                "864"
+              ]
+            }
+          ],
+          "additional_references": [
+            {
+              "context": "Raising the hands in sujood is not established (weak narration of Anas)",
+              "references": [
+                {
+                  "book": "Juz Raf' al-Yadayn (Imam Bukhari)",
+                  "numbers": [
+                    "105"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "step": 0.4,
+          "title_en": "Abu Humayd as-Sa'idi (RA) among ten Companions (incl. Abu Qatada)",
+          "description_en": "He described the Prophet's prayer in full: hands raised to the shoulders; hands gripping the knees in ruku with the back level; standing upright; nose and forehead on the ground in sujood with the hands in line with the shoulders and fingers toward qibla; sitting on the left foot between sujoods; tawarruk in the final sitting, with the index finger pointing. The Companions affirmed he had spoken truly.",
+          "references": [
+            {
+              "book": "Jami at-Tirmidhi",
+              "numbers": [
+                "304"
+              ],
+              "grading": "Hasan Sahih"
+            },
+            {
+              "book": "Sunan Abi Dawud",
+              "numbers": [
+                "730",
+                "734"
+              ]
+            },
+            {
+              "book": "Sunan Ibn Majah",
+              "numbers": [
+                "1061"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "title_ur": "سُنّتِ قیام",
+      "title_en": "Sunnah of Qiyam (Standing)",
+      "steps": [
+        {
+          "step": 1,
+          "title_ur": "تکبیرِ تحریمہ اور رفع الیدین",
+          "title_en": "Opening takbeer with raising the hands",
+          "arabic": "اللّٰهُ أَكْبَرُ",
+          "urdu": "نماز شروع کرتے وقت ہاتھ کندھوں تک اٹھا کر اللہ اکبر کہیں۔",
+          "english": "Say 'Allahu Akbar' while raising the hands to the shoulders.",
+          "references": [
+            {
+              "book": "Sahih al-Bukhari",
+              "numbers": [
+                "735"
+              ]
+            },
+            {
+              "book": "Sahih Muslim",
+              "numbers": [
+                "861"
+              ]
+            }
+          ],
+          "additional_references": [
+            {
+              "context": "Holding the ears at the start is not established; raising the hands level with the ears is",
+              "references": [
+                {
+                  "book": "Sahih Muslim",
+                  "numbers": [
+                    "865"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "step": 2,
+          "title_ur": "دایاں ہاتھ بائیں پر سینے پر رکھنا",
+          "title_en": "Placing the right hand over the left, on the chest",
+          "urdu": "دایاں ہاتھ بائیں ہاتھ کی ہتھیلی، کلائی اور ساعد پر رکھ کر سینے پر باندھیں۔",
+          "english": "Place the right hand over the left palm, wrist and forearm, on the chest.",
+          "references": [
+            {
+              "book": "Sahih al-Bukhari",
+              "numbers": [
+                "740"
+              ]
+            },
+            {
+              "book": "Al-Muwatta (Imam Malik)",
+              "numbers": [
+                "377",
+                "159/1"
+              ]
+            },
+            {
+              "book": "Sahih Muslim",
+              "numbers": [
+                "896"
+              ]
+            },
+            {
+              "book": "Sunan an-Nasa'i",
+              "numbers": [
+                "890"
+              ]
+            }
+          ],
+          "additional_references": [
+            {
+              "context": "Hulb at-Ta'i (RA): the Prophet ﷺ placed his hands on the chest",
+              "references": [
+                {
+                  "book": "Musnad Ahmad",
+                  "numbers": [
+                    "22017",
+                    "226/5"
+                  ]
+                }
+              ]
+            },
+            {
+              "context": "Placing the hands below the navel: the chain is weak",
+              "references": [
+                {
+                  "book": "Sunan Abi Dawud",
+                  "numbers": [
+                    "756"
+                  ]
+                }
+              ]
+            },
+            {
+              "context": "The narration about leaving the hands loose in qiyam has a lying narrator; the act is nevertheless established from Ibn Zubayr (RA), so it is not an innovation",
+              "references": [
+                {
+                  "book": "Al-Musannaf (Ibn Abi Shaybah)",
+                  "numbers": [
+                    "3950"
+                  ]
+                }
+              ]
+            },
+            {
+              "context": "Arabic meaning of dhira' and sa'id (forearm)",
+              "references": [
+                {
+                  "book": "Al-Qamus (Arabic dictionary)",
+                  "numbers": [
+                    "568",
+                    "769"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "step": 3,
+          "title_ur": "ثنا (دعائے استفتاح)",
+          "title_en": "Opening supplication (Thana)",
+          "arabic": "سُبْحَانَكَ اللَّهُمَّ وَبِحَمْدِكَ وَتَبَارَكَ اسْمُكَ وَتَعَالَى جَدُّكَ وَلَا إِلَهَ غَيْرُكَ",
+          "urdu": "اے اللہ! تو پاک ہے، تیری تعریف کے ساتھ، تیرا نام برکت والا ہے، تیری شان بلند ہے اور تیرے سوا کوئی معبود نہیں۔",
+          "english": "Glory be to You, O Allah, and praise; blessed is Your name, exalted is Your majesty, and there is no god but You.",
+          "references": [
+            {
+              "book": "Sahih Muslim",
+              "numbers": [
+                "892"
+              ]
+            },
+            {
+              "book": "Jami at-Tirmidhi",
+              "numbers": [
+                "242"
+              ]
+            },
+            {
+              "book": "Sunan an-Nasa'i",
+              "numbers": [
+                "1137"
+              ]
+            }
+          ],
+          "alternative": {
+            "arabic": "اللَّهُمَّ بَاعِدْ بَيْنِي وَبَيْنَ خَطَايَايَ كَمَا بَاعَدْتَ بَيْنَ الْمَشْرِقِ وَالْمَغْرِبِ",
+            "references": [
+              {
+                "book": "Sahih al-Bukhari",
+                "numbers": [
+                  "744"
+                ]
+              },
+              {
+                "book": "Sahih Muslim",
+                "numbers": [
+                  "1354"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "step": 4,
+          "title_ur": "تعوذ",
+          "title_en": "Seeking refuge (Ta'awwudh)",
+          "arabic": "أَعُوذُ بِاللَّهِ السَّمِيعِ الْعَلِيمِ مِنَ الشَّيْطَانِ الرَّجِيمِ مِنْ هَمْزِهِ وَنَفْخِهِ وَنَفْثِهِ",
+          "urdu": "میں اللہ سمیع و علیم کی پناہ مانگتا ہوں شیطان مردود سے، اس کے وسوسے، تکبر اور پھونکوں سے۔",
+          "english": "I seek refuge in Allah, the All-Hearing, All-Knowing, from the accursed Satan, from his whispering, pride and blowing.",
+          "references": [
+            {
+              "book": "Sunan Abi Dawud",
+              "numbers": [
+                "775"
+              ]
+            }
+          ],
+          "alternative": {
+            "arabic": "أَعُوذُ بِاللَّهِ مِنَ الشَّيْطَانِ الرَّجِيمِ",
+            "references": [
+              {
+                "book": "Sahih al-Bukhari",
+                "numbers": [
+                  "6115"
+                ]
+              },
+              {
+                "book": "Sahih Muslim",
+                "numbers": [
+                  "6646"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "step": 5,
+          "title_ur": "بسم اللہ",
+          "title_en": "Bismillah",
+          "arabic": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+          "urdu": "اللہ کے نام سے جو بہت مہربان نہایت رحم والا ہے۔",
+          "english": "In the name of Allah, the Most Gracious, the Most Merciful.",
+          "references": [
+            {
+              "book": "Sunan an-Nasa'i",
+              "numbers": [
+                "906"
+              ]
+            }
+          ],
+          "additional_references": [
+            {
+              "context": "The stronger view is that the Prophet ﷺ usually recited Bismillah silently",
+              "references": [
+                {
+                  "book": "Sahih Muslim",
+                  "numbers": [
+                    "890"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "step": 6,
+          "title_ur": "سورۃ الفاتحہ (ہر آیت پر وقف کے ساتھ)",
+          "title_en": "Surah al-Fatihah (pausing at each verse)",
+          "arabic": "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ ۝ الرَّحْمَٰنِ الرَّحِيمِ ۝ مَالِكِ يَوْمِ الدِّينِ ۝ إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ ۝ اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ ۝ صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ وَلَا الضَّالِّينَ",
+          "urdu": "تمام تعریف اللہ رب العالمین کے لیے ہے... ہمیں سیدھا راستہ دکھا، ان لوگوں کا جن پر تو نے انعام کیا، نہ کہ ان کا جن پر غضب ہوا اور نہ گمراہوں کا۔",
+          "english": "All praise is for Allah, Lord of the worlds... Guide us to the straight path, the path of those You have blessed, not of those who earned anger nor of those who went astray.",
+          "references": [
+            {
+              "book": "Sahih al-Bukhari",
+              "numbers": [
+                "743"
+              ]
+            },
+            {
+              "book": "Sahih Muslim",
+              "numbers": [
+                "892"
+              ]
+            }
+          ],
+          "additional_references": [
+            {
+              "context": "The Prophet ﷺ paused at the end of each verse",
+              "references": [
+                {
+                  "book": "Musnad Ahmad",
+                  "numbers": [
+                    "26513",
+                    "288/6"
+                  ]
+                }
+              ]
+            },
+            {
+              "context": "There is no prayer without Surah al-Fatihah",
+              "references": [
+                {
+                  "book": "Sahih al-Bukhari",
+                  "numbers": [
+                    "756"
+                  ]
+                },
+                {
+                  "book": "Sahih Muslim",
+                  "numbers": [
+                    "874"
+                  ]
+                },
+                {
+                  "book": "Jami at-Tirmidhi",
+                  "numbers": [
+                    "311"
+                  ]
+                },
+                {
+                  "book": "Sunan Abi Dawud",
+                  "numbers": [
+                    "823",
+                    "824"
+                  ]
+                }
+              ]
+            },
+            {
+              "context": "Abu Hurayrah (RA) told the Companions to recite al-Fatihah quietly behind the imam",
+              "references": [
+                {
+                  "book": "Sahih Muslim",
+                  "numbers": [
+                    "878"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "step": 7,
+          "title_ur": "آمین",
+          "title_en": "Saying 'Ameen'",
+          "arabic": "آمِين",
+          "urdu": "فاتحہ کے بعد جہری نمازوں میں بلند آواز سے آمین کہیں۔",
+          "english": "Say 'Ameen' aloud after al-Fatihah in the loud prayers.",
+          "references": [
+            {
+              "book": "Sunan Abi Dawud",
+              "numbers": [
+                "932",
+                "933"
+              ]
+            },
+            {
+              "book": "Sunan an-Nasa'i",
+              "numbers": [
+                "880"
+              ]
+            }
+          ],
+          "additional_references": [
+            {
+              "context": "Tirmidhi: saying Ameen aloud is the stronger practice",
+              "references": [
+                {
+                  "book": "Jami at-Tirmidhi",
+                  "numbers": [
+                    "248"
+                  ]
+                }
+              ]
+            },
+            {
+              "context": "Consensus of the Muslims on saying Ameen in prayer",
+              "references": [
+                {
+                  "book": "Quran, Surah An-Nisa",
+                  "numbers": [
+                    "115"
+                  ]
+                },
+                {
+                  "book": "Al-Mustadrak (al-Hakim)",
+                  "numbers": [
+                    "399"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "step": 8,
+          "title_ur": "سورت سے پہلے بسم اللہ",
+          "title_en": "Bismillah before the following surah",
+          "arabic": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+          "urdu": "سورت شروع کرنے سے پہلے بسم اللہ پڑھیں۔",
+          "english": "Recite Bismillah before beginning the next surah.",
+          "references": [
+            {
+              "book": "Sahih Muslim",
+              "numbers": [
+                "894"
+              ]
+            }
+          ]
+        },
+        {
+          "step": 9,
+          "title_ur": "پہلی دو رکعتوں میں فاتحہ کے ساتھ سورت؛ آخری دو میں صرف فاتحہ",
+          "title_en": "Fatihah plus a surah in the first two rakats; only Fatihah (sometimes with a surah) in the last two",
+          "references": [
+            {
+              "book": "Sahih al-Bukhari",
+              "numbers": [
+                "762"
+              ]
+            },
+            {
+              "book": "Sahih Muslim",
+              "numbers": [
+                "1013"
+              ]
+            },
+            {
+              "book": "Sunan Abi Dawud",
+              "numbers": [
+                "859"
+              ]
+            }
+          ],
+          "additional_references": [
+            {
+              "context": "In the last two rakats the Prophet ﷺ recited only al-Fatihah, and sometimes added a surah",
+              "references": [
+                {
+                  "book": "Sahih al-Bukhari",
+                  "numbers": [
+                    "776"
+                  ]
+                },
+                {
+                  "book": "Sahih Muslim",
+                  "numbers": [
+                    "1013",
+                    "1014"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "step": 10,
+          "title_ur": "قراءت کے بعد کچھ دیر سکوت",
+          "title_en": "A brief pause after recitation, before ruku",
+          "references": [
+            {
+              "book": "Sunan Abi Dawud",
+              "numbers": [
+                "777",
+                "778"
+              ]
+            },
+            {
+              "book": "Sunan Ibn Majah",
+              "numbers": [
+                "845"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title_ur": "سُنّتِ رکوع",
+      "title_en": "Sunnah of Ruku (Bowing)",
+      "steps": [
+        {
+          "step": 11,
+          "title_ur": "رکوع کی ہیئت",
+          "title_en": "Posture of ruku",
+          "arabic": "اللّٰهُ أَكْبَرُ",
+          "urdu": "تکبیر کہہ کر رفع الیدین کریں، ہاتھوں سے گھٹنوں کو مضبوطی سے پکڑیں، بازو پہلوؤں سے دور رکھیں، پیٹھ بالکل سیدھی رکھیں؛ سر نہ نیچا نہ اونچا۔",
+          "english": "Say takbeer with raising of the hands, grip the knees firmly, keep the arms away from the sides, and keep the back level, the head neither lowered nor raised.",
+          "references": [
+            {
+              "book": "Sahih al-Bukhari",
+              "numbers": [
+                "735",
+                "828"
+              ]
+            },
+            {
+              "book": "Sahih Muslim",
+              "numbers": [
+                "865"
+              ]
+            },
+            {
+              "book": "Sunan Abi Dawud",
+              "numbers": [
+                "734"
+              ]
+            }
+          ]
+        },
+        {
+          "step": 12,
+          "title_ur": "رکوع کی تسبیحات (کم از کم تین مرتبہ)",
+          "title_en": "Glorification in ruku (at least three times; choose any)",
+          "general_references": [
+            {
+              "book": "Al-Musannaf (Ibn Abi Shaybah)",
+              "numbers": [
+                "2571",
+                "225/1"
+              ],
+              "context": "Any of these duas is recited, at least three times"
+            }
+          ],
+          "options": [
+            {
+              "arabic": "سُبْحَانَ رَبِّيَ الْعَظِيمِ",
+              "urdu": "پاک ہے میرا رب عظمت والا۔",
+              "english": "Glory be to my Lord, the Magnificent.",
+              "references": [
+                {
+                  "book": "Sahih Muslim",
+                  "numbers": [
+                    "1814"
+                  ]
+                },
+                {
+                  "book": "Sunan Abi Dawud",
+                  "numbers": [
+                    "869"
+                  ]
+                },
+                {
+                  "book": "Sunan Ibn Majah",
+                  "numbers": [
+                    "887"
+                  ]
+                }
+              ]
+            },
+            {
+              "arabic": "سُبْحَانَكَ اللَّهُمَّ رَبَّنَا وَبِحَمْدِكَ اللَّهُمَّ اغْفِرْ لِي",
+              "urdu": "اے اللہ! تو پاک ہے، اے ہمارے رب! تیری تعریف کے ساتھ؛ اے اللہ! مجھے بخش دے۔",
+              "english": "Glory be to You, O Allah our Lord, and praise; O Allah, forgive me.",
+              "references": [
+                {
+                  "book": "Sahih al-Bukhari",
+                  "numbers": [
+                    "794"
+                  ]
+                },
+                {
+                  "book": "Sahih Muslim",
+                  "numbers": [
+                    "1085"
+                  ]
+                }
+              ]
+            },
+            {
+              "arabic": "سُبُّوحٌ قُدُّوسٌ رَبُّ الْمَلَائِكَةِ وَالرُّوحِ",
+              "urdu": "نہایت پاک، نہایت مقدس، فرشتوں اور روح کا رب۔",
+              "english": "Most Glorious, Most Holy, Lord of the angels and the Spirit.",
+              "references": [
+                {
+                  "book": "Sahih Muslim",
+                  "numbers": [
+                    "1091"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title_ur": "سُنّتِ قومہ",
+      "title_en": "Sunnah of Qawmah (Rising from ruku)",
+      "steps": [
+        {
+          "step": 13,
+          "title_ur": "رکوع سے اٹھتے ہوئے",
+          "title_en": "Rising from ruku",
+          "arabic": "سَمِعَ اللَّهُ لِمَنْ حَمِدَهُ، رَبَّنَا وَلَكَ الْحَمْدُ",
+          "urdu": "ہاتھ کندھوں تک اٹھائیں اور کہیں: اللہ نے اس کی سن لی جس نے اس کی حمد کی؛ اے ہمارے رب! تیرے ہی لیے تمام تعریف ہے۔",
+          "english": "Raising the hands: 'Allah hears whoever praises Him; our Lord, to You is all praise.'",
+          "references": [
+            {
+              "book": "Sahih al-Bukhari",
+              "numbers": [
+                "735"
+              ]
+            },
+            {
+              "book": "Sahih Muslim",
+              "numbers": [
+                "861",
+                "865"
+              ]
+            }
+          ],
+          "additional_references": [
+            {
+              "context": "The follower behind the imam should also recite the full 'Sami' Allahu liman hamidah, Rabbana wa lakal-hamd'",
+              "references": [
+                {
+                  "book": "Al-Musannaf (Ibn Abi Shaybah)",
+                  "numbers": [
+                    "2600",
+                    "227/1"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "step": 14,
+          "title_ur": "قومہ کی اضافی دعا",
+          "title_en": "Extended supplication in qawmah",
+          "arabic": "رَبَّنَا وَلَكَ الْحَمْدُ حَمْدًا كَثِيرًا طَيِّبًا مُبَارَكًا فِيهِ",
+          "urdu": "اے ہمارے رب! تیرے لیے بہت زیادہ، پاکیزہ اور برکت والی حمد ہے۔",
+          "english": "Our Lord, to You is much good and blessed praise.",
+          "references": [
+            {
+              "book": "Sahih al-Bukhari",
+              "numbers": [
+                "799"
+              ]
+            }
+          ]
+        },
+        {
+          "step": 15,
+          "title_ur": "قومہ میں ہاتھ",
+          "title_en": "Hands in qawmah",
+          "urdu": "قومہ میں ہاتھ سیدھے چھوڑنے پر امت کا عملی تواتر اور اجماع ہے، اور ارکانِ نماز میں ہاتھوں کی حالت بتانے والی حدیث میں بھی اس کا اشارہ ملتا ہے۔",
+          "english": "Per the PDF, leaving the hands straight at the sides in qawmah is the continuous practice and consensus of the Ummah, and the hadith describing the hand positions in the pillars of prayer also hints at it.",
+          "references": [
+            {
+              "book": "Sunan an-Nasa'i",
+              "numbers": [
+                "890"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title_ur": "سُنّتِ سجدہ",
+      "title_en": "Sunnah of Sujood (Prostration)",
+      "steps": [
+        {
+          "step": 16,
+          "title_ur": "سجدے میں جانا",
+          "title_en": "Going down to sujood",
+          "arabic": "اللّٰهُ أَكْبَرُ",
+          "urdu": "تکبیر کہتے ہوئے سجدے میں جائیں؛ سات ہڈیوں پر سجدہ: پیشانی (ناک سمیت)، دونوں ہاتھ، دونوں گھٹنے، دونوں پاؤں۔ اونٹ کی طرح نہ بیٹھیں بلکہ پہلے دونوں ہاتھ اور پھر گھٹنے زمین پر رکھیں۔",
+          "english": "Go down saying takbeer; prostrate on seven bones: forehead (with nose), both hands, both knees, both feet. Do not sit down like a camel; the PDF says the hands go down before the knees.",
+          "references": [
+            {
+              "book": "Sahih al-Bukhari",
+              "numbers": [
+                "803",
+                "812"
+              ]
+            },
+            {
+              "book": "Sahih Muslim",
+              "numbers": [
+                "868"
+              ]
+            },
+            {
+              "book": "Sunan Abi Dawud",
+              "numbers": [
+                "840"
+              ]
+            }
+          ],
+          "additional_references": [
+            {
+              "context": "The narration about placing the knees before the hands has a weak chain (Sharik ibn Abdullah al-Qadi, a mudallis), and all its supporting reports are weak too",
+              "references": [
+                {
+                  "book": "Sunan Abi Dawud",
+                  "numbers": [
+                    "838"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "step": 17,
+          "title_ur": "سجدے کی ہیئت",
+          "title_en": "Posture in sujood",
+          "urdu": "ناک اور پیشانی زمین پر جمائیں، بازو پہلوؤں سے دور، ہتھیلیاں کندھوں یا کانوں کے برابر، انگلیاں قبلہ رخ اور ملی ہوئی، ایڑیاں ملی ہوئی۔",
+          "english": "Press nose and forehead down, keep the arms away from the sides, palms level with the shoulders or ears, fingers together toward qibla, heels touching.",
+          "references": [
+            {
+              "book": "Sahih al-Bukhari",
+              "numbers": [
+                "828"
+              ]
+            },
+            {
+              "book": "Sahih Muslim",
+              "numbers": [
+                "1105"
+              ]
+            },
+            {
+              "book": "Sunan Abi Dawud",
+              "numbers": [
+                "730",
+                "734"
+              ]
+            },
+            {
+              "book": "Sunan an-Nasa'i",
+              "numbers": [
+                "890"
+              ]
+            },
+            {
+              "book": "Sahih Ibn Khuzaymah",
+              "numbers": [
+                "654"
+              ]
+            }
+          ]
+        },
+        {
+          "step": 18,
+          "title_ur": "بازو زمین پر نہ بچھانا",
+          "title_en": "Do not spread the forearms on the ground",
+          "urdu": "سجدے میں اعتدال کریں، کتے کی طرح بازو نہ بچھائیں؛ ہتھیلیاں زمین پر رکھیں اور کہنیاں اٹھا کر رکھیں۔",
+          "english": "Be moderate in sujood and do not lay the forearms flat like a dog; place the palms on the ground and keep the elbows raised.",
+          "references": [
+            {
+              "book": "Sahih al-Bukhari",
+              "numbers": [
+                "822"
+              ]
+            },
+            {
+              "book": "Sahih Muslim",
+              "numbers": [
+                "1104"
+              ]
+            }
+          ],
+          "notes": [
+            "The PDF says all narrations offered to show a different way of praying for women are weak, while the sound hadith commands 'pray as you see me pray' (Sahih al-Bukhari 631); so men and women pray the same way."
+          ]
+        },
+        {
+          "step": 19,
+          "title_ur": "سجدے کی تسبیحات (کم از کم تین مرتبہ)",
+          "title_en": "Glorification in sujood (at least three times; choose any)",
+          "general_references": [
+            {
+              "book": "Al-Musannaf (Ibn Abi Shaybah)",
+              "numbers": [
+                "2571",
+                "225/1"
+              ],
+              "context": "Any of these duas is recited, at least three times"
+            }
+          ],
+          "options": [
+            {
+              "arabic": "سُبْحَانَ رَبِّيَ الْأَعْلَى",
+              "urdu": "پاک ہے میرا رب سب سے بلند۔",
+              "english": "Glory be to my Lord, the Most High.",
+              "references": [
+                {
+                  "book": "Sahih Muslim",
+                  "numbers": [
+                    "1814"
+                  ]
+                },
+                {
+                  "book": "Sunan Abi Dawud",
+                  "numbers": [
+                    "869"
+                  ]
+                },
+                {
+                  "book": "Sunan Ibn Majah",
+                  "numbers": [
+                    "887"
+                  ]
+                }
+              ]
+            },
+            {
+              "arabic": "سُبْحَانَكَ اللَّهُمَّ رَبَّنَا وَبِحَمْدِكَ اللَّهُمَّ اغْفِرْ لِي",
+              "english": "Glory be to You, O Allah our Lord, and praise; O Allah, forgive me.",
+              "references": [
+                {
+                  "book": "Sahih al-Bukhari",
+                  "numbers": [
+                    "794"
+                  ]
+                },
+                {
+                  "book": "Sahih Muslim",
+                  "numbers": [
+                    "1085"
+                  ]
+                }
+              ],
+              "note": "Reference and translation are given under ruku (step 12)."
+            },
+            {
+              "arabic": "سُبُّوحٌ قُدُّوسٌ رَبُّ الْمَلَائِكَةِ وَالرُّوحِ",
+              "english": "Most Glorious, Most Holy, Lord of the angels and the Spirit.",
+              "references": [
+                {
+                  "book": "Sahih Muslim",
+                  "numbers": [
+                    "1091"
+                  ]
+                }
+              ],
+              "note": "Reference and translation are given under ruku (step 12)."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title_ur": "سُنّتِ جلسہ",
+      "title_en": "Sunnah of Jalsah (Sitting between the sujoods)",
+      "steps": [
+        {
+          "step": 20,
+          "title_ur": "جلسہ میں بیٹھنا",
+          "title_en": "Sitting between the two sujoods",
+          "urdu": "تکبیر کہہ کر سر اٹھائیں، بایاں پاؤں بچھا کر اس پر بیٹھیں اور دایاں کھڑا رکھیں۔",
+          "english": "Say takbeer, raise the head, sit on the spread left foot with the right foot upright.",
+          "references": [
+            {
+              "book": "Sahih al-Bukhari",
+              "numbers": [
+                "827"
+              ]
+            },
+            {
+              "book": "Sunan Abi Dawud",
+              "numbers": [
+                "730"
+              ]
+            }
+          ]
+        },
+        {
+          "step": 21,
+          "title_ur": "جلسہ کی دعا",
+          "title_en": "Supplication in jalsah",
+          "arabic": "رَبِّ اغْفِرْ لِي رَبِّ اغْفِرْ لِي",
+          "urdu": "اے میرے رب! مجھے بخش دے۔",
+          "english": "My Lord, forgive me; my Lord, forgive me.",
+          "references": [
+            {
+              "book": "Sunan Abi Dawud",
+              "numbers": [
+                "874"
+              ]
+            },
+            {
+              "book": "Sunan an-Nasa'i",
+              "numbers": [
+                "1146"
+              ]
+            },
+            {
+              "book": "Sunan Ibn Majah",
+              "numbers": [
+                "897"
+              ]
+            }
+          ],
+          "alternative": {
+            "arabic": "اللَّهُمَّ اغْفِرْ لِي وَارْحَمْنِي وَاجْبُرْنِي وَاهْدِنِي وَعَافِنِي وَارْزُقْنِي",
+            "urdu": "اے اللہ! مجھے بخش دے، رحم فرما، میری کمی پوری کر، ہدایت دے، عافیت دے اور رزق عطا فرما۔",
+            "references": [
+              {
+                "book": "Sahih Muslim",
+                "numbers": [
+                  "6850"
+                ]
+              },
+              {
+                "book": "Al-Musannaf (Ibn Abi Shaybah)",
+                "numbers": [
+                  "8838",
+                  "266/2"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "step": 22,
+          "title_ur": "دوسرے سجدے کے بعد جلسۂ استراحت",
+          "title_en": "Rest-sitting after the second sujood",
+          "urdu": "دوسرے سجدے کے بعد بھی بیٹھیں (جلسۂ استراحت)؛ رسول اللہ ﷺ اسے نماز کے سکون کا حصہ قرار دیتے اور اس کا حکم بھی فرماتے تھے۔",
+          "english": "Sit again after the second sujood (jalsat al-istirahah); the Prophet ﷺ treated it as part of the calm of prayer and also commanded it.",
+          "references": [
+            {
+              "book": "Sahih al-Bukhari",
+              "numbers": [
+                "6251"
+              ]
+            }
+          ]
+        },
+        {
+          "step": 23,
+          "title_ur": "اگلی رکعت کے لیے اٹھنا",
+          "title_en": "Rising for the next rakat after the rest-sitting",
+          "urdu": "طاق رکعتوں (پہلی اور تیسری) میں جلسۂ استراحت کے بعد زمین پر دونوں ہاتھوں کا سہارا لے کر اگلی رکعت کے لیے اٹھیں۔",
+          "english": "In the odd rakats (first and third), after the rest-sitting, rise for the next rakat leaning on both hands on the ground.",
+          "references": [
+            {
+              "book": "Sahih al-Bukhari",
+              "numbers": [
+                "823",
+                "824"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title_ur": "سُنّتِ تشہد",
+      "title_en": "Sunnah of Tashahhud",
+      "steps": [
+        {
+          "step": 24,
+          "title_ur": "تشہد میں بیٹھنا اور انگلی سے اشارہ",
+          "title_en": "Sitting for tashahhud and pointing the finger",
+          "urdu": "دونوں ہاتھ رانوں پر رکھیں، شہادت کی انگلی سے اشارہ کرتے ہوئے دعا کریں اور نگاہ اسی پر رکھیں؛ انگلی کو آہستہ آہستہ حرکت دیں۔",
+          "english": "Rest both hands on the thighs, point with the index finger while making dua, keep the gaze on it, and move it gently.",
+          "references": [
+            {
+              "book": "Sahih Muslim",
+              "numbers": [
+                "1308",
+                "1310"
+              ]
+            },
+            {
+              "book": "Sunan Abi Dawud",
+              "numbers": [
+                "991"
+              ]
+            },
+            {
+              "book": "Sunan an-Nasa'i",
+              "numbers": [
+                "1161",
+                "1162",
+                "1269"
+              ]
+            },
+            {
+              "book": "Sunan Ibn Majah",
+              "numbers": [
+                "912"
+              ]
+            }
+          ],
+          "notes": [
+            "Raising the finger only at 'La ilaha' and putting it down at 'illallah' is not established from any hadith; the finger keeps pointing through the whole tashahhud, as in the narration above."
+          ]
+        },
+        {
+          "step": 25,
+          "title_ur": "التحیات",
+          "title_en": "At-Tahiyyat",
+          "arabic": "التَّحِيَّاتُ لِلَّهِ وَالصَّلَوَاتُ وَالطَّيِّبَاتُ، السَّلَامُ عَلَيْكَ أَيُّهَا النَّبِيُّ وَرَحْمَةُ اللَّهِ وَبَرَكَاتُهُ، السَّلَامُ عَلَيْنَا وَعَلَىٰ عِبَادِ اللَّهِ الصَّالِحِينَ، أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللَّهُ وَأَشْهَدُ أَنَّ مُحَمَّدًا عَبْدُهُ وَرَسُولُهُ",
+          "urdu": "تمام قولی، بدنی اور مالی عبادات اللہ کے لیے ہیں۔ اے نبی! آپ پر سلام اور اللہ کی رحمت و برکتیں ہوں۔ ہم پر اور اللہ کے نیک بندوں پر سلام ہو۔ میں گواہی دیتا ہوں کہ اللہ کے سوا کوئی معبود نہیں اور محمد ﷺ اس کے بندے اور رسول ہیں۔",
+          "english": "All greetings, prayers and good things are for Allah. Peace be upon you, O Prophet, and Allah's mercy and blessings. Peace be upon us and upon the righteous servants of Allah. I bear witness that there is no god but Allah, and that Muhammad is His servant and Messenger.",
+          "references": [
+            {
+              "book": "Sahih al-Bukhari",
+              "numbers": [
+                "1202"
+              ]
+            },
+            {
+              "book": "Sahih Muslim",
+              "numbers": [
+                "897"
+              ]
+            }
+          ]
+        },
+        {
+          "step": 26,
+          "title_ur": "آخری تشہد میں تورک",
+          "title_en": "Tawarruk in the final tashahhud",
+          "urdu": "آخری تشہد میں بایاں پاؤں دائیں پنڈلی کے نیچے سے نکال کر کولہے زمین پر رکھیں اور دایاں پاؤں قبلہ رخ کھڑا رکھیں۔",
+          "english": "In the final tashahhud, bring the left foot out beneath the right shin, sit on the left hip, and keep the right foot upright toward qibla.",
+          "references": [
+            {
+              "book": "Sahih al-Bukhari",
+              "numbers": [
+                "828"
+              ]
+            }
+          ]
+        },
+        {
+          "step": 27,
+          "title_ur": "درودِ ابراہیمی",
+          "title_en": "Salawat upon the Prophet (Durood Ibrahimi)",
+          "arabic": "اللَّهُمَّ صَلِّ عَلَىٰ مُحَمَّدٍ وَعَلَىٰ آلِ مُحَمَّدٍ كَمَا صَلَّيْتَ عَلَىٰ إِبْرَاهِيمَ وَعَلَىٰ آلِ إِبْرَاهِيمَ إِنَّكَ حَمِيدٌ مَجِيدٌ، اللَّهُمَّ بَارِكْ عَلَىٰ مُحَمَّدٍ وَعَلَىٰ آلِ مُحَمَّدٍ كَمَا بَارَكْتَ عَلَىٰ إِبْرَاهِيمَ وَعَلَىٰ آلِ إِبْرَاهِيمَ إِنَّكَ حَمِيدٌ مَجِيدٌ",
+          "urdu": "اے اللہ! محمد ﷺ اور آلِ محمد پر رحمت نازل فرما جیسا کہ تو نے ابراہیم اور آلِ ابراہیم پر نازل فرمائی، بے شک تو تعریف والا بزرگی والا ہے۔ اے اللہ! محمد اور آلِ محمد پر برکت نازل فرما جیسا کہ تو نے ابراہیم اور آلِ ابراہیم پر برکت نازل فرمائی۔",
+          "english": "O Allah, send prayers upon Muhammad and the family of Muhammad as You sent prayers upon Ibrahim and the family of Ibrahim; You are Praiseworthy, Glorious. O Allah, bless Muhammad and the family of Muhammad as You blessed Ibrahim and the family of Ibrahim; You are Praiseworthy, Glorious.",
+          "references": [
+            {
+              "book": "Sahih al-Bukhari",
+              "numbers": [
+                "3370"
+              ]
+            },
+            {
+              "book": "Sahih Muslim",
+              "numbers": [
+                "908"
+              ]
+            }
+          ]
+        },
+        {
+          "step": 28,
+          "title_ur": "سلام سے پہلے پناہ کی دعا",
+          "title_en": "Seeking refuge before the salam",
+          "arabic": "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنْ عَذَابِ جَهَنَّمَ وَمِنْ عَذَابِ الْقَبْرِ وَمِنْ فِتْنَةِ الْمَحْيَا وَالْمَمَاتِ وَمِنْ شَرِّ فِتْنَةِ الْمَسِيحِ الدَّجَّالِ",
+          "urdu": "اے اللہ! میں تیری پناہ مانگتا ہوں جہنم کے عذاب سے، قبر کے عذاب سے، زندگی و موت کے فتنے سے اور مسیح دجال کے فتنے کے شر سے۔",
+          "english": "O Allah, I seek refuge in You from the punishment of Hell, the punishment of the grave, the trials of life and death, and the evil of the trial of the False Messiah.",
+          "references": [
+            {
+              "book": "Sahih Muslim",
+              "numbers": [
+                "1324"
+              ]
+            }
+          ]
+        },
+        {
+          "step": 29,
+          "title_ur": "مزید مسنون دعا",
+          "title_en": "Further masnoon supplication",
+          "arabic": "رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ",
+          "urdu": "اے ہمارے رب! ہمیں دنیا میں بھلائی دے اور آخرت میں بھی بھلائی، اور ہمیں آگ کے عذاب سے بچا۔",
+          "english": "Our Lord, give us good in this world and good in the Hereafter, and protect us from the punishment of the Fire.",
+          "references": [
+            {
+              "book": "Sahih al-Bukhari",
+              "numbers": [
+                "6389"
+              ]
+            },
+            {
+              "book": "Sahih Muslim",
+              "numbers": [
+                "6840"
+              ]
+            }
+          ],
+          "additional_references": [
+            {
+              "context": "Any other good dua established from the Quran and Sunnah may also be made after the tashahhud",
+              "references": [
+                {
+                  "book": "Sahih al-Bukhari",
+                  "numbers": [
+                    "835"
+                  ]
+                },
+                {
+                  "book": "Sahih Muslim",
+                  "numbers": [
+                    "897"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "step": 30,
+          "title_ur": "سلام",
+          "title_en": "Concluding salam",
+          "arabic": "السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ",
+          "urdu": "دائیں اور بائیں سلام پھیریں: تم پر سلامتی اور اللہ کی رحمت ہو۔",
+          "english": "Turn the face right then left: 'Peace be upon you and the mercy of Allah.'",
+          "references": [
+            {
+              "book": "Sahih al-Bukhari",
+              "numbers": [
+                "838"
+              ]
+            },
+            {
+              "book": "Sahih Muslim",
+              "numbers": [
+                "1315"
+              ]
+            },
+            {
+              "book": "Jami at-Tirmidhi",
+              "numbers": [
+                "295"
+              ]
+            },
+            {
+              "book": "Sunan Abi Dawud",
+              "numbers": [
+                "996"
+              ]
+            },
+            {
+              "book": "Sunan an-Nasa'i",
+              "numbers": [
+                "1320"
+              ]
+            },
+            {
+              "book": "Sunan Ibn Majah",
+              "numbers": [
+                "914"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "closing_advice": {
+    "title_ur": "آخری نصیحت",
+    "english": "Hudhayfah (RA) saw a man not completing his ruku and sujood and said: 'You have not prayed; if you die like this you die not upon the way of Muhammad ﷺ.'",
+    "references": [
+      {
+        "book": "Sahih al-Bukhari",
+        "numbers": [
+          "791"
+        ]
+      }
+    ]
+  }
+}

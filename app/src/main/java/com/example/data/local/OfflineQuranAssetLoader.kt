@@ -178,4 +178,51 @@ object OfflineQuranAssetLoader {
       emptyList()
     }
   }
+
+  @Volatile
+  private var cachedAllAyahs: List<AyahEntity>? = null
+
+  fun getAllOfflineAyahs(context: Context): List<AyahEntity> {
+    cachedAllAyahs?.let { if (it.isNotEmpty()) return it }
+    synchronized(this) {
+      cachedAllAyahs?.let { if (it.isNotEmpty()) return it }
+      return try {
+        val rawBytes = context.assets.open(ASSET_FILE_NAME).use { it.readBytes() }
+        val jsonText = if (rawBytes.size >= 2 &&
+          rawBytes[0] == 0x1f.toByte() &&
+          rawBytes[1] == 0x8b.toByte()
+        ) {
+          GZIPInputStream(BufferedInputStream(rawBytes.inputStream())).bufferedReader(Charsets.UTF_8).use {
+            it.readText()
+          }
+        } else {
+          String(rawBytes, Charsets.UTF_8)
+        }
+        val jsonArray = JSONArray(jsonText)
+        val allList = ArrayList<AyahEntity>(jsonArray.length())
+        for (i in 0 until jsonArray.length()) {
+          val obj = jsonArray.getJSONObject(i)
+          val sNum = obj.getInt("s")
+          val vNum = obj.getInt("v")
+          allList.add(
+            AyahEntity(
+              surahNumber = sNum,
+              verseNumber = vNum,
+              juzNumber = obj.optInt("j", 1),
+              pageNumber = obj.optInt("p", 1),
+              textArabic = stripDuplicateBismillahPrefix(sNum, vNum, obj.getString("ar")),
+              translationEnglish = obj.getString("en"),
+              translationUrdu = obj.getString("ur"),
+              transliteration = obj.optString("tr", "")
+            )
+          )
+        }
+        cachedAllAyahs = allList
+        allList
+      } catch (e: Exception) {
+        emptyList()
+      }
+    }
+  }
 }
+

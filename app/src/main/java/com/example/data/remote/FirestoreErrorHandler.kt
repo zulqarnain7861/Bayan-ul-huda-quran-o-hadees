@@ -57,6 +57,8 @@ fun handleFirestoreError(
     put("authInfo", authInfo)
   }
 
-  Log.e("FirestoreError", errInfo.toString())
+  if (com.example.BuildConfig.DEBUG) {
+    Log.e("FirestoreError", errInfo.toString())
+  }
   throw error
 }

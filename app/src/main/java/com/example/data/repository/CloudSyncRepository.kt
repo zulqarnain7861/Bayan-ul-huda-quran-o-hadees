@@ -150,6 +150,40 @@ class CloudSyncRepository(
     }
   }
 
+  /**
+   * Permanently deletes all cloud-synced bookmarks and study notes for the authenticated user
+   * under `/users/{userId}/bookmarks` and `/users/{userId}/notes`.
+   * Required for Google Play User Data & Account Deletion policy compliance.
+   */
+  suspend fun deleteAllUserData(userId: String): Int {
+    if (userId.isBlank()) return 0
+    var deletedCount = 0
+    val bookmarksPath = "users/$userId/bookmarks"
+    val notesPath = "users/$userId/notes"
+
+    runCatching {
+      val bookmarkSnap = db.collection(bookmarksPath).get().await()
+      for (doc in bookmarkSnap.documents) {
+        runCatching {
+          doc.reference.delete().await()
+          deletedCount++
+        }
+      }
+    }
+
+    runCatching {
+      val notesSnap = db.collection(notesPath).get().await()
+      for (doc in notesSnap.documents) {
+        runCatching {
+          doc.reference.delete().await()
+          deletedCount++
+        }
+      }
+    }
+
+    return deletedCount
+  }
+
   companion object {
     @Volatile
     private var INSTANCE: CloudSyncRepository? = null

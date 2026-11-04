@@ -75,12 +75,14 @@ class DiscoverRepository(
   }
 
   /**
-   * Executes safe FTS4 search across both `lecture_index` and `commentary_index` (Test T5, T6).
+   * Executes safe FTS4 search + phonetic/transliteration smart search + optional live YouTube
+   * EMAM search across both `lecture_index`, extended EMAM catalog, and `commentary_index` (Test T5, T6).
    * Never throws on hostile inputs; returns empty results when sanitizer strips all tokens.
    */
   suspend fun searchAll(
     rawQuery: String,
-    isDebugBuild: Boolean
+    isDebugBuild: Boolean,
+    includeLiveYouTube: Boolean = false
   ): UnifiedSearchResults = withContext(Dispatchers.IO) {
     lectureRepository.ensureDatabaseSeeded()
     maududiRepository.ensureDatabaseSeeded()
@@ -96,6 +98,10 @@ class DiscoverRepository(
       )
     }
 
+    if (rawQuery.trim().length >= 3) {
+      lectureRepository.recordSearchQuery(rawQuery)
+    }
+
     val includePending = if (isDebugBuild) 1 else 0
     val ftsLectures = try {
       database.searchDao()
@@ -104,6 +110,22 @@ class DiscoverRepository(
     } catch (_: Exception) {
       emptyList()
     }
+
+    val dataset = lectureRepository.loadSeedDataset()
+    val smartMatches = LectureRepository.smartSearchLectures(
+      rawQuery = rawQuery,
+      allLectures = dataset.records,
+      isDebugBuild = isDebugBuild
+    )
+
+    val liveYouTubeMatches = if (includeLiveYouTube) {
+      lectureRepository.searchYouTubeLiveForEmam(rawQuery)
+    } else {
+      emptyList()
+    }
+
+    val combinedLectures = (smartMatches + ftsLectures + liveYouTubeMatches)
+      .distinctBy { it.youtubeId }
 
     val ftsCommentary = try {
       database.searchDao().searchCommentaryFts(sanitized, limit = 30)
@@ -121,14 +143,15 @@ class DiscoverRepository(
     UnifiedSearchResults(
       rawQuery = rawQuery,
       sanitizedFtsQuery = sanitized,
-      lectures = ftsLectures,
+      lectures = combinedLectures,
       commentaryEntries = ftsCommentary,
       maududiWorks = matchingWorks
     )
   }
 
   /**
-   * Computes watch-time-ranked recommendations across all visible lectures.
+   * Computes watch-time-ranked recommendations across all visible lectures in `mirza_lectures_v3.json`
+   * (plus any online-discovered lectures persisted in `LectureRepository`).
    */
   suspend fun getWatchTimeRecommendations(
     isDebugBuild: Boolean,
@@ -137,12 +160,16 @@ class DiscoverRepository(
     val dataset = lectureRepository.loadSeedDataset()
     val config = lectureRepository.loadDiscoveryConfig()
     val watchMap = lectureRepository.getWatchTimeMap()
+    val recentSearches = lectureRepository.getRecentSearchQueries()
+    val bookmarkedIds = lectureRepository.getBookmarkedYoutubeIds()
     LectureRepository.computeWatchTimeRecommendations(
       allLectures = dataset.records,
       watchTimeByYoutubeId = watchMap,
       topicDefinitions = config.topics,
       isDebugBuild = isDebugBuild,
-      limit = limit
+      limit = limit,
+      recentSearchQueries = recentSearches,
+      bookmarkedYoutubeIds = bookmarkedIds
     )
   }
 }

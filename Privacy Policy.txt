@@ -1,0 +1,143 @@
+================================================================================
+PRIVACY POLICY — BAYAN AL-HUDA (بَيَانُ الهُدَى)
+================================================================================
+Application Name: Bayan al-Huda
+Android Package ID: com.bayanulhuda.com
+Developer / Publisher: Zulqarnain Ahmad Sheikh
+Support & Privacy Contact Email: sheikhzulqar@gmail.com
+Effective Date: November 1, 2026
+Last Updated: November 1, 2026
+
+[CONFIRMATION REQUIRED BEFORE PUBLISHING TO GOOGLE SITES:
+- Verify whether you wish to list a physical business/mailing address or phone number in Section 11 below.
+- Once published on Google Sites, paste the public URL of this page into Play Console -> App Content -> Privacy Policy.]
+
+--------------------------------------------------------------------------------
+1. OVERVIEW & ZERO-ADVERTISING COMMITMENT
+--------------------------------------------------------------------------------
+Bayan al-Huda ("the App") is a 100% free, ad-free Islamic educational and worship companion application providing the Holy Quran (Arabic script, translations, Tafsirs, and audio recitations), Sunni and Shia Hadith collections, 5 Daily Salah Prayer Times, Sehri/Iftar Timetables, Azan and Fajr Alarms, Qibla Compass, Masnoon Duas, and Islamic scholarly lectures.
+
+We respect your privacy:
+- The App contains NO third-party advertising SDKs.
+- We do NOT sell, rent, trade, or monetize any user data.
+- You can use the App in a 7-Day Renewable Offline Guest Mode without creating or signing into an account.
+
+--------------------------------------------------------------------------------
+2. INFORMATION WE COLLECT AND PROCESS
+--------------------------------------------------------------------------------
+Depending on which features you choose to use, the App processes the following categories of information:
+
+A. Account & Authentication Data (Optional — Only When You Sign In with Google)
+- Service Used: Google Sign-In via Android Jetpack Credential Manager (`androidx.credentials`) and Google Firebase Authentication (`com.google.firebase:firebase-auth`).
+- Data Processed:
+  1. Email address associated with your Google Account
+  2. Display name associated with your Google Account
+  3. Profile photo URL (if provided by Google)
+  4. Firebase Authentication User ID (`uid`)
+- Purpose: To authenticate your identity and allow you to synchronize your personal Quran/Hadith bookmarks and study notes across devices.
+- Guest Mode Alternative: If you select "Continue as Guest", no Google account data is collected or transmitted to Firebase Authentication.
+
+B. User-Generated Study Data (Cloud Sync via Firebase Firestore)
+- Service Used: Google Cloud Firestore (`com.google.firebase:firebase-firestore`).
+- Firestore Database Collections:
+  1. `/users/{userId}/bookmarks/{bookmarkId}` — Stores bookmark type (`AYAH` or `HADITH`), scripture reference key, title, Arabic snippet, translation snippet, and creation timestamp.
+  2. `/users/{userId}/notes/{noteId}` — Stores personal study note title, text content, scripture reference key, item type, and creation/update timestamps.
+- Purpose: Cloud backup and multi-device synchronization of your personal bookmarks and study notes when signed in with Google.
+- Local-Only Mode: In Guest Mode, bookmarks and study notes are stored exclusively on your device inside the local SQLite Room database (`bayan_ul_huda_v8.db`).
+
+C. Location Data (Approximate & Precise Location)
+- Android Permissions: `android.permission.ACCESS_COARSE_LOCATION` and `android.permission.ACCESS_FINE_LOCATION`.
+- How Location Is Used:
+  1. Calculating accurate local 5 Daily Salah Prayer Times and Ramadan Sehri/Iftar Timetables.
+  2. Calculating the Qibla direction angle and distance from your current coordinates to the Holy Kaaba in Makkah (21.4225° N, 39.8262° E).
+  3. Querying prayer timetable coordinates from the public AlAdhan Prayer Times API (`https://api.aladhan.com/v1/`).
+- Foreground & On-Demand Only: Location is accessed only when you actively use location detection in the Prayer Times, Sehri/Iftar Timetable, or Qibla Compass screens. The App does NOT request `ACCESS_BACKGROUND_LOCATION` and does NOT track your movement in the background.
+- Manual City Fallback: Granting location permission is optional. You can select your city or coordinates manually without granting GPS access.
+
+D. Microphone & Voice Search Input (`RECORD_AUDIO`)
+- Android Permission: `android.permission.RECORD_AUDIO`.
+- How Audio Input Is Used:
+  - Accessed ONLY when you explicitly tap the microphone icon in the Search screen to dictate a search query using Android's system SpeechRecognizer service.
+- No Recording Storage or Upload:
+  - Bayan al-Huda does NOT record, save, archive, or upload any voice or microphone audio files to any developer server or cloud database.
+
+--------------------------------------------------------------------------------
+3. OFFLINE DOWNLOADS & DEVICE STORAGE (NO EXTERNAL STORAGE PERMISSIONS)
+--------------------------------------------------------------------------------
+- Zero Broad Storage Permissions: Bayan al-Huda does NOT request `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`, `READ_MEDIA_IMAGES`, `READ_MEDIA_AUDIO`, `READ_MEDIA_VIDEO`, or `MANAGE_EXTERNAL_STORAGE`.
+- Sandboxed Internal Storage: All downloaded Quran translations, Hadith collections, SQLite databases (`bayan_ul_huda_v8.db` and `bayan_knowledge_v1.db`), and cached MP3 Quran recitations are stored strictly inside Android's private application-specific directories (`context.filesDir` and `context.cacheDir`).
+- User Control: You can clear cached Quran audio at any time via Info/About -> Storage Cleaner ("Clear Cached Quran Audio") or remove offline packages in the Offline Library screen.
+
+--------------------------------------------------------------------------------
+4. DEVICE PERMISSIONS SUMMARY
+--------------------------------------------------------------------------------
+The App declares the following permissions in `AndroidManifest.xml` solely for core functionality:
+1. `INTERNET` & `ACCESS_NETWORK_STATE`: Fetching Quran translations/tafsirs, Hadith collections, AlAdhan prayer schedules, Quran audio recitations, YouTube lecture streams, and Firebase cloud sync.
+2. `ACCESS_COARSE_LOCATION` & `ACCESS_FINE_LOCATION`: On-demand GPS coordinate lookup for local Prayer Times, Sehri/Iftar timetables, and Qibla Compass direction.
+3. `RECORD_AUDIO`: On-demand voice-to-text search input when tapping the microphone icon.
+4. `POST_NOTIFICATIONS`: Displaying 5 Daily Salah Azan notifications, pre-Fajr wake-up alarm notifications, and daily Sunnah/Dua reminders.
+5. `SCHEDULE_EXACT_ALARM`, `USE_EXACT_ALARM`, & `USE_FULL_SCREEN_INTENT`: Ensuring Salah Azan alerts and the Fajr wake-up alarm trigger at the exact astronomical prayer time.
+6. `RECEIVE_BOOT_COMPLETED`: Rescheduling active Salah Azan and Fajr alarms after your device restarts.
+7. `FOREGROUND_SERVICE` & `FOREGROUND_SERVICE_MEDIA_PLAYBACK`: Playing Quran audio recitations and full Azan audio reliably while the screen is off or when switching apps (`AzanForegroundService`).
+8. `VIBRATE` & `WAKE_LOCK`: Waking the device and vibrating during scheduled Fajr and Salah alarms.
+
+--------------------------------------------------------------------------------
+5. THIRD-PARTY SERVICES & CONTENT APIS
+--------------------------------------------------------------------------------
+To deliver verified Islamic texts, audio recitations, prayer times, and lectures, the App communicates over encrypted HTTPS connections with:
+- Google Firebase Authentication & Cloud Firestore (Authentication & optional bookmark/note cloud sync)
+- Al-Quran Cloud API (`api.alquran.cloud`), Quran.com API (`api.quran.com`), QuranEnc API (`quranenc.com`), and QUL (`qul.tarteel.ai`) (Quran Arabic text, translations, Tafsirs, and recitations)
+- EveryAyah & Islamic Network Audio CDN (`everyayah.com`, `cdn.islamic.network`) (Streamed/cached MP3 Quran recitations)
+- Hadith API (`cdn.jsdelivr.net/gh/fawazahmed0/hadith-api`) (Sunni & Shia Hadith editions)
+- AlAdhan API (`api.aladhan.com`) (Astronomical prayer times & Hijri calendar calculation based on coordinates/city)
+- YouTube (`youtube.com`, `youtube-nocookie.com`, `i.ytimg.com`) (Streaming Islamic video lectures by Engineer Muhammad Ali Mirza and displaying video thumbnails)
+
+--------------------------------------------------------------------------------
+6. DATA SHARING & DISCLOSURE
+--------------------------------------------------------------------------------
+- We do NOT share your personal data with third-party advertisers, data brokers, or marketing companies.
+- Personal data is processed only by Google Firebase (Authentication and Cloud Firestore) as a service provider acting on your behalf when you choose to sign in with Google.
+
+--------------------------------------------------------------------------------
+7. DATA SECURITY
+--------------------------------------------------------------------------------
+- Encryption in Transit: All network requests use HTTPS/TLS encryption.
+- Access Control: Cloud Firestore security rules (`firestore.rules`) enforce strict zero-trust ownership (`request.auth != null && request.auth.uid == userId`), ensuring that no other user can read, modify, or delete your synced bookmarks or study notes.
+- Input Sanitization: User-submitted bookmarks and study notes are validated and length-bounded before storage.
+
+--------------------------------------------------------------------------------
+8. DATA RETENTION & ACCOUNT DELETION
+--------------------------------------------------------------------------------
+- Retention: Your Firebase Authentication account and Cloud Firestore bookmarks/notes are retained only for as long as you maintain your account in the App. Local data remains on your device until you clear it or uninstall the App.
+- How to Delete Your Account and Data Inside the App:
+  1. Open Bayan al-Huda and tap the Info ("i") icon in the top bar to open the Info / About screen.
+  2. In the "Cloud Sync Account (Firebase)" card or the "Privacy, Terms, Permissions & Account Control" section, tap "Delete Account" / "Delete Account & Cloud Data".
+  3. Confirm deletion in the dialog. This immediately and permanently deletes:
+     - All Cloud Firestore bookmarks (`/users/{uid}/bookmarks`)
+     - All Cloud Firestore study notes (`/users/{uid}/notes`)
+     - Your Firebase Authentication user account (`FirebaseAuth.getInstance().currentUser.delete()`)
+     - Your local bookmarks and study notes on the device (when the checkbox is selected).
+- How to Request Account Deletion Without Opening the App:
+  - Send an email to `sheikhzulqar@gmail.com` with the subject "Account & Data Deletion Request — Bayan al-Huda" from or referencing the Google email address used to sign in, or visit our published Account Deletion page:
+    [PLACEHOLDER: INSERT PUBLIC GOOGLE SITES ACCOUNT DELETION URL HERE BEFORE PLAY CONSOLE SUBMISSION]
+  - External email deletion requests are processed within 7 business days.
+
+--------------------------------------------------------------------------------
+9. CHILDREN'S PRIVACY
+--------------------------------------------------------------------------------
+Bayan al-Huda provides general religious and educational content suitable for all ages. We do not knowingly collect personal information from children under 13 without parental consent. Children and families may use the App in Offline Guest Mode without providing any personal information or Google account credentials.
+
+--------------------------------------------------------------------------------
+10. CHANGES TO THIS PRIVACY POLICY
+--------------------------------------------------------------------------------
+We may update this Privacy Policy from time to time to reflect app updates or legal requirements. Any updated policy will be included in the App and published on our public Privacy Policy webpage with a revised "Last Updated" date.
+
+--------------------------------------------------------------------------------
+11. CONTACT US
+--------------------------------------------------------------------------------
+If you have any questions, concerns, or requests regarding this Privacy Policy or your data, please contact:
+Developer: Zulqarnain Ahmad Sheikh
+Email: sheikhzulqar@gmail.com
+Instagram: https://www.instagram.com/zulqarnainah/ (@zulqarnainah)
+[OPTIONAL PLACEHOLDER — Mailing Address / Phone Number if required by your Play Console account type: ________________________________________]
+================================================================================

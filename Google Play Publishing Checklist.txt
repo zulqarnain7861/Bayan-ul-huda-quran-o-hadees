@@ -1,0 +1,150 @@
+================================================================================
+GOOGLE PLAY PUBLISHING CHECKLIST — BAYAN AL-HUDA (بَيَانُ الهُدَى)
+================================================================================
+Application Name: Bayan al-Huda
+Package ID: com.bayanulhuda.com
+Current Version: 1.1.0 (versionCode = 2)
+Target SDK: 35 (Android 15) | Min SDK: 26 (Android 8.0)
+
+Use this step-by-step checklist to complete your Google Play Store submission
+outside the app.
+
+--------------------------------------------------------------------------------
+STEP 1 — PUBLISH YOUR PUBLIC PAGES ON GOOGLE SITES (FREE)
+--------------------------------------------------------------------------------
+1. Go to https://sites.google.com and create a new public Google Site named
+   "Bayan al-Huda".
+2. Create Page 1: "Privacy Policy"
+   - Copy and paste the full text from `/Privacy Policy.txt`.
+   - Complete the optional address/phone confirmation if needed, and remove the
+     top bracketed instruction note.
+3. Create Page 2: "Account Deletion"
+   - Copy and paste the full text from `/Account Deletion Policy.txt`.
+   - Remove the top bracketed instruction note.
+4. Create Page 3: "Terms and Conditions"
+   - Copy and paste the full text from `/Terms and Conditions.txt`.
+   - Confirm your jurisdiction in Section 9 and remove the bracketed note.
+5. Click "Publish" in Google Sites and make sure the site visibility is set to
+   "Public" (anyone on the web can view without signing in).
+6. Copy the public URLs for:
+   - Privacy Policy page
+   - Account Deletion page
+   - Terms & Conditions page
+
+--------------------------------------------------------------------------------
+STEP 2 — GOOGLE PLAY CONSOLE ACCOUNT & APP CREATION
+--------------------------------------------------------------------------------
+1. Register your Google Play Console Developer Account ($25 one-time fee) at
+   https://play.google.com/console and complete identity verification.
+2. Click "Create app":
+   - App name: Bayan al-Huda
+   - Default language: English (United States) — `en-US`
+   - App or game: App
+   - Free or paid: Free
+   - Declarations: Check Developer Program Policies and US export laws.
+
+--------------------------------------------------------------------------------
+STEP 3 — COMPLETE "APP CONTENT" DECLARATIONS IN PLAY CONSOLE
+--------------------------------------------------------------------------------
+Navigate to Policy and programs -> App content and complete every section:
+
+[ ] 1. Privacy Policy:
+    - Paste your published Google Sites Privacy Policy URL.
+[ ] 2. App Access (Login Credentials for Google Play Reviewers):
+    - Select: "All or some functionality in my app is restricted" (or provide
+      instructions explaining both options):
+      * Option A: "Reviewers can tap 'Continue as Guest (7 Days Offline Access)'
+        on the welcome screen to access all Quran, Hadith, Prayer Times, Qibla,
+        Duas, Search, and Video Lecture features immediately without any login."
+      * Option B: "Reviewers can also tap 'Sign in with Google' using any Google
+        account to test Firebase Cloud Sync and Account Deletion (Info 'i' button
+        -> Delete Account & Cloud Data)."
+[ ] 3. Ads:
+    - Select: "No, my app does not contain ads."
+[ ] 4. Content Rating (IARC Questionnaire):
+    - Category: Reference, News, or Educational
+    - Violence / Sexuality / Profanity / Controlled Substances: None
+    - User Interaction / Sharing: Users can sync personal private bookmarks/notes to
+      their own account (not public social posting).
+[ ] 5. Target Audience and Content:
+    - Select target age groups: 13–15, 16–17, 18 and over (Recommended so you do
+      not trigger Google Play Families Policy restrictions unless you specifically
+      intend to join the Designed for Families program).
+    - Appeal to children: "No" (general audience religious reference app).
+[ ] 6. Data Safety:
+    - Follow `/Google Play Data Safety Report.txt` line by line.
+    - Paste your published Google Sites Account Deletion URL in the Account
+      Deletion URL field.
+[ ] 7. Government Apps:
+    - Select: "No, this is not a government app."
+[ ] 8. Financial Features:
+    - Select: "My app doesn't provide any financial features."
+[ ] 9. Health Apps:
+    - Select: "My app does not provide any health features."
+[ ] 10. Foreground Service Permission (`FOREGROUND_SERVICE_MEDIA_PLAYBACK`):
+    - Select "Media playback" (Quran Audio Recitation & Azan Alarm playback).
+    - Record a short 15–30 second screen recording on your phone showing Quran
+      audio or Azan playing with the persistent notification visible, upload it
+      as an unlisted YouTube video or Google Drive public link, and paste the
+      link in the Foreground Service declaration form.
+[ ] 11. Exact Alarm & Full-Screen Intent Permissions (`USE_EXACT_ALARM`, `USE_FULL_SCREEN_INTENT`):
+    - Declare "Alarm / Timer / Religious Prayer Time Reminder (Salah Azan & Fajr
+      Wake-up Alarm)" as the core functionality requiring exact time triggers.
+
+--------------------------------------------------------------------------------
+STEP 4 — CONFIGURE GOOGLE SIGN-IN SHA-1 / SHA-256 IN FIREBASE FOR PLAY APP SIGNING
+--------------------------------------------------------------------------------
+IMPORTANT FOR GOOGLE SIGN-IN ON PLAY STORE:
+When you upload an Android App Bundle (`.aab`) or APK to Google Play Console,
+Google Play App Signing uses a Google-managed production signing key.
+1. In Google Play Console, go to:
+   Test and release -> Setup -> App signing.
+2. Copy both the **SHA-1** and **SHA-256** certificate fingerprints under
+   "App signing key certificate".
+3. Open Firebase Console (https://console.firebase.google.com) -> Project
+   `gen-lang-client-0124169087` -> Project Settings -> Your Apps (`com.bayanulhuda.com`)
+   -> Add fingerprint -> Paste the Play Console SHA-1 and SHA-256 fingerprints.
+   (Without this step, Google Sign-In works on debug/local APKs but would fail on
+   Play Store downloads.)
+
+--------------------------------------------------------------------------------
+STEP 5 — PREPARE STORE LISTING GRAPHICS & ASSETS
+--------------------------------------------------------------------------------
+In Grow users -> Store presence -> Main store listing, prepare and upload:
+
+[ ] 1. App Name: Bayan al-Huda (Max 30 chars)
+[ ] 2. Short Description (Max 80 chars):
+    "Verified Quran, Sunni & Shia Hadith, Tafsir, Salah Azan Alarms, Qibla & Duas."
+[ ] 3. Full Description (Max 4000 chars):
+    Highlight:
+    - Complete Uthmani Quran with multi-language translations, 8 Tafsirs & MP3 Tilawat
+    - 34 Sunni & Shia Hadith Books with grading & cross-references
+    - 5 Daily Salah Prayer Times, Ramadan Sehri/Iftar Timetables, Azan & Fajr Alarms
+    - Qibla Compass & Daily Masnoon Duas with Tasbih counter
+    - Scholarly Video Lectures (Understand Islam) & Fikr-e-Maududi library
+    - 100% Free & Ad-Free with offline downloads and optional Google Cloud Sync
+[ ] 4. App Icon:
+    - 512 x 512 px, 32-bit PNG (up to 1 MB)
+[ ] 5. Feature Graphic:
+    - 1024 x 500 px PNG or JPEG (no alpha transparency)
+[ ] 6. Phone Screenshots (2 to 8 screenshots required):
+    - 16:9 or 9:16 aspect ratio, between 320px and 3840px per side (e.g., 1080x1920):
+      1. Home Screen & 5 Daily Prayer Times / Azan Dashboard
+      2. Quran Reader with Arabic, Translations & Tafsir
+      3. Sunni & Shia Hadith Library & Grading Verification
+      4. Daily Masnoon Duas & Sunnah Reminders
+      5. Understand Islam Video Lectures & Fikr-e-Maududi Library
+      6. Qibla Compass & Sehri/Iftar Timetable
+[ ] 7. 7-inch & 10-inch Tablet Screenshots (Recommended):
+    - At least 1–4 screenshots showing the layout on a tablet/wide screen.
+
+--------------------------------------------------------------------------------
+STEP 6 — TESTING REQUIREMENTS (PERSONAL vs ORGANIZATION ACCOUNTS)
+--------------------------------------------------------------------------------
+- If your Play Console account is a newly created **Personal Account** (created
+  after Nov 13, 2023):
+  * Google Play requires running a **Closed Test with at least 12 testers** opted-in
+    continuously for **14 days** before unlocking "Apply for Production" access.
+- Upload your signed release AAB/APK to **Internal Testing** or **Closed Testing**
+  first, verify all flows on a real device, and then promote to **Production**.
+================================================================================

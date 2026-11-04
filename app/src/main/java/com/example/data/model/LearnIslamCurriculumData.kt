@@ -96,6 +96,103 @@ data class WuduAndSalahStepItem(
     val humanAudioUrl: String? = null
 )
 
+data class NamazBookReference(
+    val book: String,
+    val numbers: List<String>,
+    val grading: String? = null,
+    val context: String? = null
+) {
+    fun formatted(): String {
+        val nums = numbers.joinToString(", ")
+        val grad = if (!grading.isNullOrBlank()) " [$grading]" else ""
+        val ctx = if (!context.isNullOrBlank()) " ($context)" else ""
+        return "$book: $nums$grad$ctx"
+    }
+}
+
+data class NamazAdditionalReference(
+    val context: String,
+    val references: List<NamazBookReference>
+)
+
+data class NamazAlternativeDua(
+    val arabic: String,
+    val urdu: String = "",
+    val english: String = "",
+    val references: List<NamazBookReference>
+)
+
+data class NamazTasbeehOption(
+    val arabic: String,
+    val urdu: String = "",
+    val english: String = "",
+    val references: List<NamazBookReference>,
+    val note: String? = null
+)
+
+data class NamazFoundationalStep(
+    val stepLabel: String,
+    val titleEn: String,
+    val descriptionEn: String,
+    val references: List<NamazBookReference>,
+    val additionalReferences: List<NamazAdditionalReference> = emptyList()
+)
+
+data class NamazClosingAdvice(
+    val titleUr: String,
+    val english: String,
+    val references: List<NamazBookReference>
+)
+
+data class NamazSourceMetadata(
+    val documentDate: String,
+    val referenceStyle: String,
+    val keyHadithArabic: String,
+    val keyHadithEnglish: String,
+    val keyHadithReferences: List<NamazBookReference>,
+    val extractionNotes: List<String>
+)
+
+data class NamazStepJsonEntry(
+    val step_no: Int,
+    val section: String,
+    val title: String,
+    val arabic: String,
+    val urdu: String,
+    val english: String,
+    val reference: String,
+    val sectionId: Int = 1,
+    val sectionUrdu: String = "",
+    val titleUrdu: String = "",
+    val primaryReferences: List<NamazBookReference> = emptyList(),
+    val additionalReferences: List<NamazAdditionalReference> = emptyList(),
+    val alternative: NamazAlternativeDua? = null,
+    val generalReferences: List<NamazBookReference> = emptyList(),
+    val options: List<NamazTasbeehOption> = emptyList(),
+    val notes: List<String> = emptyList(),
+    val videoTitle: String? = null,
+    val videoLink: String? = null,
+    val videoYoutubeId: String? = null
+)
+
+data class RakatFlowJsonEntry(
+    val prayerKey: String, // "2_rakat", "3_rakat", "4_rakat"
+    val labelEnglish: String,
+    val labelUrdu: String,
+    val rakats: Map<String, List<Int>>
+)
+
+enum class NimazJanazaSubSection(
+    val key: String,
+    val labelEnglish: String,
+    val labelUrdu: String,
+    val displayTitle: String
+) {
+    ADULT("adult", "Adult", "بالغ", "1. Adult (بالغ)"),
+    BABY_BOY("baby_boy", "Baby Boy", "بچہ", "2. Baby Boy (بچہ)"),
+    BABY_GIRL("baby_girl", "Baby Girl", "بچی", "3. Baby Girl (بچی)")
+}
+
 data class SehriNiyatGuidanceData(
     val titleEnglish: String,
     val titleUrdu: String,
@@ -1041,7 +1138,7 @@ object LearnIslamCurriculumData {
             englishMeaning = "Allah is the Greatest. Glory be to You, O Allah, and praise be to You; blessed is Your Name, exalted is Your Majesty, and there is no deity other than You.",
             methodExplanationEnglish = "Stand facing the Qiblah with intention in the heart, raise both hands and say 'Allahu Akbar' (Takbeer-e-Tahreema), place the right hand over the left, and silently recite Sana.",
             methodExplanationUrdu = "قبلہ رخ کھڑے ہو کر دل میں نماز کی نیت کریں، دونوں ہاتھ اٹھا کر 'اللہ اکبر' کہیں، ہاتھ باندھ لیں اور آہستہ آواز سے ثناء پڑھیں۔",
-            hadithOrFiqhReference = "Sunan Abi Dawud 775, Jami' at-Tirmidhi 243, Sunan an-Nasa'i 899; Sahih Muslim 399.",
+            hadithOrFiqhReference = "Sahih al-Bukhari: 735; Sahih Muslim: 861, 865 (Takbeer & Raf' al-Yadayn); Musnad Ahmad: 22017, 226/5 (Hands on chest); Sahih Muslim: 892, Jami at-Tirmidhi: 242, Sunan an-Nasa'i: 1137 (Thana).",
             scholarlyDifferences = listOf(
                 ScholarlyDifferenceEntry("Hanafi & Hanbali", "Place the right hand over the left hand below the navel (Hanafi) or below/on the chest, and recite 'Subhanaka Allahumma wa bihamdika...'.", "حنفی اور حنبلی فقہ میں تکبیرِ تحریمہ کے بعد دائیں ہاتھ کو بائیں پر رکھ کر 'سبحانک اللھم وبحمدک...' پڑھنا مسنون ہے۔", "Sunan Abi Dawud 756, 775"),
                 ScholarlyDifferenceEntry("Shafi'i", "Place hands above the navel / below the chest and recite 'Wajjahtu wajhiya lilladhi fataras-samawati wal-ard...' (Sahih Muslim 771) or 'Subhanaka Allahumma...'.", "شافعی فقہ میں سینے کے نیچے ہاتھ باندھے جاتے ہیں اور دعائے استفتاح 'وجھت وجھی...' یا 'سبحانک اللھم' پڑھی جاتی ہے۔", "Sahih Muslim 771"),
@@ -1061,14 +1158,14 @@ object LearnIslamCurriculumData {
             transliteration = "A'oodhu billaahi minash-shaytaanir-rajeem. Bismillaahir-Rahmaanir-Raheem. Al-hamdu lillaahi Rabbil-'aalameen. Ar-Rahmaanir-Raheem. Maaliki yawmid-deen. Iyyaaka na'budu wa iyyaaka nasta'een. Ihdinas-siraatal-mustaqeem. Siraatalladheena an'amta 'alayhim ghayril-maghdoobi 'alayhim walad-daalleen. (Aameen)",
             urduMeaning = "میں اللہ کی پناہ مانگتا ہوں شیطان مردود سے۔ اللہ کے نام سے شروع جو نہایت مہربان، بڑا رحم والا ہے۔ سب تعریف اللہ ہی کے لیے ہے جو تمام جہانوں کا پالنے والا ہے۔ بڑا مہربان، نہایت رحم والا۔ روزِ جزا کا مالک۔ (اے اللہ!) ہم تیری ہی عبادت کرتے ہیں اور تجھ ہی سے مدد مانگتے ہیں۔ ہمیں سیدھا راستہ دکھا۔ ان لوگوں کا راستہ جن پر تو نے انعام فرمایا، نہ کہ ان کا جن پر غضب کیا گیا اور نہ گمراہوں کا۔ (الٰہی قبول فرما)",
             englishMeaning = "I seek refuge in Allah from the accursed Satan. In the name of Allah, the Most Gracious, the Most Merciful. All praise is due to Allah, Lord of the worlds. The Most Gracious, the Most Merciful. Master of the Day of Judgment. You alone we worship, and You alone we ask for help. Guide us to the Straight Path—the path of those upon whom You have bestowed favor, not of those who have evoked anger, nor of those who are astray. (Aameen)",
-            methodExplanationEnglish = "Recite Ta'awwudh and Tasmiyah silently in the first Rak'ah, then recite Surah Al-Fatiha with full Tajweed and say 'Aameen' at its conclusion.",
-            methodExplanationUrdu = "پہلی رکعت میں ثناء کے بعد آہستہ آواز سے اعوذ باللہ اور بسم اللہ پڑھیں، پھر سورۃ الفاتحہ تجوید کے ساتھ پڑھیں اور آخر میں آمین کہیں۔",
-            hadithOrFiqhReference = "Quran 1:1–7; Sahih al-Bukhari 756 ('There is no prayer for one who does not recite the Opening of the Book').",
+            methodExplanationEnglish = "Recite Ta'awwudh and Tasmiyah silently in the first Rak'ah, then recite Surah Al-Fatiha pausing at each verse and say 'Aameen' at its conclusion.",
+            methodExplanationUrdu = "پہلی رکعت میں ثناء کے بعد آہستہ آواز سے اعوذ باللہ اور بسم اللہ پڑھیں، پھر سورۃ الفاتحہ ہر آیت پر وقف کے ساتھ پڑھیں اور آخر میں آمین کہیں۔",
+            hadithOrFiqhReference = "Musnad Ahmad: 26513, 288/6 (Pausing at each verse); Sahih al-Bukhari: 756, Sahih Muslim: 874, 878, Jami at-Tirmidhi: 311, Sunan Abi Dawud: 823, 824 (No prayer without Al-Fatihah); Sahih Muslim: 890 (Silent Bismillah); Jami at-Tirmidhi: 248 (Ameen).",
             quranSurahNumber = 1,
             quranAyahRange = 1..7,
             scholarlyDifferences = listOf(
-                ScholarlyDifferenceEntry("Hanafi & Maliki", "'Bismillah' is recited silently before Al-Fatiha, and 'Aameen' is said silently.", "حنفی اور مالکی فقہ میں بسم اللہ اور آمین آہستہ آواز (سراً) سے پڑھی جاتی ہیں۔", "Sunan at-Tirmidhi 248"),
-                ScholarlyDifferenceEntry("Shafi'i & Hanbali", "'Aameen' is said aloud in audible prayers; Shafi'i school counts 'Bismillah' as the first verse recited aloud in audible prayers.", "شافعی اور حنبلی فقہ میں جہری نمازوں میں آمین بلند آواز سے کہی جاتی ہے، اور شافعیہ کے نزدیک بسم اللہ بھی بلند آواز سے پڑھی جاتی ہے۔", "Sahih al-Bukhari 780; Sahih Muslim 400"),
+                ScholarlyDifferenceEntry("Hanafi & Maliki", "'Bismillah' is recited silently before Al-Fatiha, and 'Aameen' is said silently.", "حنفی اور مالکی فقہ میں بسم اللہ اور آمین آہستہ آواز (سراً) سے پڑھی جاتی ہیں۔", "Jami at-Tirmidhi 248; Sahih Muslim 890"),
+                ScholarlyDifferenceEntry("Shafi'i & Hanbali", "'Aameen' is said aloud in audible prayers; Shafi'i school counts 'Bismillah' as the first verse recited aloud in audible prayers.", "شافعی اور حنبلی فقہ میں جہری نمازوں میں آمین بلند آواز سے کہی جاتی ہے، اور شافعیہ کے نزدیک بسم اللہ بھی بلند آواز سے پڑھی جاتی ہے۔", "Sahih al-Bukhari 780; Sunan Abi Dawud 932, 933; Jami at-Tirmidhi 248"),
                 ScholarlyDifferenceEntry("Ja'fari (Twelver Shia)", "'Bismillah' is an obligatory part of every Surah and is recited aloud; after Al-Fatiha, 'Al-hamdu lillahi Rabbil-'alameen' is said instead of 'Aameen'.", "فقہ جعفریہ میں بسم اللہ ہر سورت کا جزو ہے اور سورۃ الفاتحہ کے بعد 'الحمد للہ رب العالمین' کہا جاتا ہے۔", "Al-Kafi")
             ),
             humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/193hm.mp3|https://everyayah.com/data/Alafasy_128kbps/001001.mp3|https://everyayah.com/data/Alafasy_128kbps/001002.mp3|https://everyayah.com/data/Alafasy_128kbps/001003.mp3|https://everyayah.com/data/Alafasy_128kbps/001004.mp3|https://everyayah.com/data/Alafasy_128kbps/001005.mp3|https://everyayah.com/data/Alafasy_128kbps/001006.mp3|https://everyayah.com/data/Alafasy_128kbps/001007.mp3"
@@ -1085,9 +1182,9 @@ object LearnIslamCurriculumData {
             transliteration = "Surah Al-Ikhlas (112): Qul Huwallaahu Ahad. Allaahus-Samad. Lam yalid wa lam yoolad. Wa lam yakul-lahoo kufuwan ahad.\nSurah Al-Kawthar (108): Innaa a'taynaakal-Kawthar. Fasalli li-Rabbika wanhar. Inna shaani'aka huwal-abtar.\nSurah Al-'Asr (103): Wal-'Asr. Innal-insaana lafee khusr. Illalladheena aamanoo wa 'amilus-saalihaati wa tawaasaw bil-haqqi wa tawaasaw bis-sabr.",
             urduMeaning = "سورۃ الاخلاص: کہہ دیجیے وہ اللہ ایک ہے۔ اللہ بے نیاز ہے۔ نہ اس کی کوئی اولاد ہے اور نہ وہ کسی سے پیدا ہوا۔ اور کوئی اس کا ہمسر نہیں۔\nسورۃ الکوثر: بے شک ہم نے آپ کو کوثر عطا فرمایا۔ پس اپنے رب کے لیے نماز پڑھیے اور قربانی کیجیے۔ بے شک آپ کا دشمن ہی بے نام و نشان ہے۔\nسورۃ العصر: زمانے کی قسم! بے شک انسان خسارے میں ہے، سوائے ان لوگوں کے جو ایمان لائے اور نیک اعمال کیے اور ایک دوسرے کو حق کی نصیحت کی اور صبر کی تلقین کی۔",
             englishMeaning = "Surah Al-Ikhlas (112): Say, 'He is Allah, the One. Allah, the Eternal Refuge. He neither begets nor is born, nor is there to Him any equivalent.'\nSurah Al-Kawthar (108): Indeed, We have granted you Al-Kawthar. So pray to your Lord and sacrifice. Indeed, your enemy is the one cut off.\nSurah Al-'Asr (103): By time! Indeed, mankind is in loss, except those who believe and do righteous deeds and advise each other to truth and advise each other to patience.",
-            methodExplanationEnglish = "After Surah Al-Fatiha in the first two Rak'ahs, recite at least 3 short verses or 1 complete short Surah (such as Al-Kawthar, Al-Ikhlas, Al-'Asr, Al-Falaq, or An-Nas).",
-            methodExplanationUrdu = "فرض نماز کی پہلی دو رکعتوں میں اور سنت، نفل اور وتر کی ہر رکعت میں سورۃ الفاتحہ کے بعد کم از کم تین چھوٹی آیات یا ایک چھوٹی سورت ملائیں۔",
-            hadithOrFiqhReference = "Quran 73:20 (فَاقْرَءُوا مَا تَيَسَّرَ مِنَ الْقُرْآنِ); Sahih al-Bukhari 757; Sahih Muslim 451.",
+            methodExplanationEnglish = "After Surah Al-Fatiha in the first two Rak'ahs, recite at least 3 short verses or 1 complete short Surah (such as Al-Kawthar, Al-Ikhlas, Al-'Asr, Al-Falaq, or An-Nas); in the last two Rak'ahs recite Al-Fatiha (and sometimes a Surah).",
+            methodExplanationUrdu = "فرض نماز کی پہلی دو رکعتوں میں سورۃ الفاتحہ کے بعد کوئی سورت ملائیں؛ آخری دو رکعتوں میں رسول اللہ ﷺ عموماً صرف سورۃ الفاتحہ پڑھتے اور کبھی سورت بھی ملا لیتے تھے۔",
+            hadithOrFiqhReference = "Sahih al-Bukhari: 776; Sahih Muslim: 1013, 1014 (Fatihah + Surah in first two rakats; Fatihah and sometimes a Surah in last two); Sahih Muslim: 894 (Bismillah before Surah).",
             quranSurahNumber = 112,
             quranAyahRange = 1..4,
             humanAudioUrl = "https://everyayah.com/data/Alafasy_128kbps/112001.mp3|https://everyayah.com/data/Alafasy_128kbps/112002.mp3|https://everyayah.com/data/Alafasy_128kbps/112003.mp3|https://everyayah.com/data/Alafasy_128kbps/112004.mp3|https://everyayah.com/data/Alafasy_128kbps/108001.mp3|https://everyayah.com/data/Alafasy_128kbps/108002.mp3|https://everyayah.com/data/Alafasy_128kbps/108003.mp3|https://everyayah.com/data/Alafasy_128kbps/103001.mp3|https://everyayah.com/data/Alafasy_128kbps/103002.mp3|https://everyayah.com/data/Alafasy_128kbps/103003.mp3"
@@ -1100,13 +1197,13 @@ object LearnIslamCurriculumData {
             titleUrdu = "۴۔ رکوع اور قومہ (رکوع سے کھڑے ہونا)",
             titleEnglish = "Step 4: Ruku (Bowing) & Qaumah (Standing Upright After Ruku)",
             rulingCategory = "Ruku: Fard • Tasbeeh & Qaumah: Wajib / Sunnah",
-            arabicRecitation = "﴿فِي الرُّكُوعِ﴾ سُبْحَانَ رَبِّيَ الْعَظِيمِ (٣ مَرَّاتٍ)\n﴿فِي الْقَوْمَةِ﴾ سَمِعَ اللّٰهُ لِمَنْ حَمِدَهُ ۝ رَبَّنَا لَكَ الْحَمْدُ (حَمْدًا كَثِيرًا طَيِّبًا مُبَارَكًا فِيهِ)",
-            transliteration = "In Ruku: Subhaana Rabbiyal-'Azeem (3 times).\nRising to Qaumah: Sami'allaahu liman hamidah. Rabbanaa lakal-hamd (hamdan katheeran tayyiban mubaarakan feeh).",
+            arabicRecitation = "﴿فِي الرُّكُوعِ﴾ سُبْحَانَ رَبِّيَ الْعَظِيمِ (٣ مَرَّاتٍ)\n﴿فِي الْقَوْمَةِ﴾ سَمِعَ اللّٰهُ لِمَنْ حَمِدَهُ ۝ رَبَّنَا وَلَكَ الْحَمْدُ (حَمْدًا كَثِيرًا طَيِّبًا مُبَارَكًا فِيهِ)",
+            transliteration = "In Ruku: Subhaana Rabbiyal-'Azeem (3 times).\nRising to Qaumah: Sami'allaahu liman hamidah. Rabbanaa wa lakal-hamd (hamdan katheeran tayyiban mubaarakan feeh).",
             urduMeaning = "رکوع کی تسبیح: پاک ہے میرا رب بڑی عظمت والا (کم از کم ۳ بار)۔\nقومہ (کھڑے ہوتے وقت): اللہ نے اس کی سن لی جس نے اس کی تعریف کی۔ اے ہمارے رب! تیرے ہی لیے تمام تعریف ہے (بہت زیادہ، پاکیزہ اور بابرکت تعریف)۔",
             englishMeaning = "In Ruku: Glory be to my Lord, the Almighty (at least 3 times).\nRising to Qaumah: Allah hears the one who praises Him. Our Lord, to You belongs all praise (abundant, pure, and blessed praise).",
-            methodExplanationEnglish = "Say 'Allahu Akbar' and bow into Ruku, grasping the knees with fingers spread and keeping the back level. Recite 'Subhana Rabbiyal-'Azim' 3, 5, or 7 times. Then rise upright saying 'Sami'Allahu liman hamidah' and while standing calm in Qaumah say 'Rabbana lakal-hamd'.",
-            methodExplanationUrdu = "'اللہ اکبر' کہتے ہوئے رکوع میں جائیں، ہاتھوں سے گھٹنوں کو پکڑیں اور کمر سیدھی رکھیں۔ کم از کم تین بار 'سُبْحَانَ رَبِّيَ الْعَظِيمِ' پڑھیں۔ پھر 'سَمِعَ اللّٰهُ لِمَنْ حَمِدَهُ' کہتے ہوئے سیدھے کھڑے ہو جائیں اور قومہ میں 'رَبَّنَا لَكَ الْحَمْدُ' کہیں۔",
-            hadithOrFiqhReference = "Sahih Muslim 772; Sunan Abi Dawud 869; Sahih al-Bukhari 799.",
+            methodExplanationEnglish = "Say 'Allahu Akbar' with raising the hands and bow into Ruku, grasping the knees firmly with fingers spread and keeping the back level. Recite 'Subhana Rabbiyal-'Azim' (at least 3 times). Then rise upright with raising the hands saying 'Sami'Allahu liman hamidah, Rabbana wa lakal-hamd'.",
+            methodExplanationUrdu = "'اللہ اکبر' کہتے ہوئے رفع الیدین کر کے رکوع میں جائیں، ہاتھوں سے گھٹنوں کو مضبوطی سے پکڑیں اور کمر سیدھی رکھیں۔ کم از کم تین بار 'سُبْحَانَ رَبِّيَ الْعَظِيمِ' پڑھیں۔ پھر رفع الیدین کرتے ہوئے 'سَمِعَ اللّٰهُ لِمَنْ حَمِدَهُ، رَبَّنَا وَلَكَ الْحَمْدُ' کہیں۔",
+            hadithOrFiqhReference = "Sahih al-Bukhari: 735, 828, 794, 799; Sahih Muslim: 865, 1814, 1085, 1091; Sunan Abi Dawud: 734, 869; Sunan Ibn Majah: 887; Al-Musannaf (Ibn Abi Shaybah): 2571, 225/1 & 2600, 227/1.",
             humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/33hm.mp3|https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/38hm.mp3|https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/39hm.mp3"
         ),
         WuduAndSalahStepItem(
@@ -1117,13 +1214,13 @@ object LearnIslamCurriculumData {
             titleUrdu = "۵۔ دونوں سجدے اور جلسہ (دو سجدوں کے درمیان بیٹھنا)",
             titleEnglish = "Step 5: Two Prostrations (Sajdah) & Sitting Between Prostrations (Jalsah)",
             rulingCategory = "Two Sajdahs: Fard • Jalsah: Wajib / Fard",
-            arabicRecitation = "﴿فِي السُّجُودِ﴾ سُبْحَانَ رَبِّيَ الْأَعْلَىٰ (٣ مَرَّاتٍ)\n﴿فِي الْجَلْسَةِ﴾ اَللّٰهُمَّ اغْفِرْ لِي وَارْحَمْنِي وَعَافِنِي وَاهْدِنِي وَارْزُقْنِي",
-            transliteration = "In Sajdah: Subhaana Rabbiyal-A'laa (3 times).\nIn Jalsah: Allaahummaghfir lee warhamnee wa 'aafinee wahdinee warzuqnee",
-            urduMeaning = "سجدے کی تسبیح: پاک ہے میرا رب جو سب سے بلند ہے (کم از کم ۳ بار)۔\nجلسہ (دو سجدوں کے درمیان کی دعا): اے اللہ! مجھے بخش دے، مجھ پر رحم فرما، مجھے عافیت دے، مجھے ہدایت دے اور مجھے رزق عطا فرما۔",
-            englishMeaning = "In Sajdah: Glory be to my Lord, the Most High (at least 3 times).\nIn Jalsah: O Allah, forgive me, have mercy on me, grant me well-being, guide me, and provide for me.",
+            arabicRecitation = "﴿فِي السُّجُودِ﴾ سُبْحَانَ رَبِّيَ الْأَعْلَىٰ (٣ مَرَّاتٍ)\n﴿فِي الْجَلْسَةِ﴾ رَبِّ اغْفِرْ لِي رَبِّ اغْفِرْ لِي ۝ اَللّٰهُمَّ اغْفِرْ لِي وَارْحَمْنِي وَاجْبُرْنِي وَاهْدِنِي وَعَافِنِي وَارْزُقْنِي",
+            transliteration = "In Sajdah: Subhaana Rabbiyal-A'laa (3 times).\nIn Jalsah: Rabbighfir lee, Rabbighfir lee / Allaahummaghfir lee warhamnee wajburnee wahdinee wa 'aafinee warzuqnee",
+            urduMeaning = "سجدے کی تسبیح: پاک ہے میرا رب جو سب سے بلند ہے (کم از کم ۳ بار)۔\nجلسہ (دو سجدوں کے درمیان کی دعا): اے میرے رب! مجھے بخش دے۔ / اے اللہ! مجھے بخش دے، مجھ پر رحم فرما، میری کمی پوری کر، مجھے ہدایت دے، عافیت دے اور رزق عطا فرما۔",
+            englishMeaning = "In Sajdah: Glory be to my Lord, the Most High (at least 3 times).\nIn Jalsah: My Lord, forgive me / O Allah, forgive me, have mercy on me, mend my affairs, guide me, grant me well-being, and provide for me.",
             methodExplanationEnglish = "Say 'Allahu Akbar' and prostrate on 7 bones: the forehead with the nose, both palms, both knees, and the toes of both feet facing the Qiblah. Recite 'Subhana Rabbiyal-A'la' 3 times. Rise to sit calmly in Jalsah and say 'Rabbighfir li / Allahummaghfir li...', then perform the second Sajdah.",
             methodExplanationUrdu = "'اللہ اکبر' کہتے ہوئے سات اعضاء (پیشانی مع ناک، دونوں ہتھیلیوں، دونوں گھٹنوں اور دونوں پاؤں کی انگلیوں) پر سجدہ کریں اور تین بار 'سُبْحَانَ رَبِّيَ الْأَعْلَىٰ' پڑھیں۔ پھر 'اللہ اکبر' کہہ کر اطمینان سے بیٹھیں (جلسہ) اور مغفرت کی دعا پڑھیں، پھر دوسرا سجدہ کریں۔",
-            hadithOrFiqhReference = "Sahih al-Bukhari 812 (Prostration on 7 bones); Sahih Muslim 772; Sunan Abi Dawud 850; Sunan Ibn Majah 898.",
+            hadithOrFiqhReference = "Sahih al-Bukhari: 803, 812, 822, 827, 828; Sahih Muslim: 868, 1104, 1105, 1814, 6850; Sunan Abi Dawud: 730, 838, 840, 869, 874; Sunan an-Nasa'i: 1146; Sunan Ibn Majah: 887, 897.",
             humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/41hm.mp3|https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/48hm.mp3"
         ),
         WuduAndSalahStepItem(
@@ -1138,12 +1235,12 @@ object LearnIslamCurriculumData {
             transliteration = "At-tahiyyaatu lillaahi was-salawaatu wat-tayyibaatu, as-salaamu 'alayka ayyuhan-Nabiyyu wa rahmatullaahi wa barakaatuh, as-salaamu 'alaynaa wa 'alaa 'ibaadillaahis-saaliheen, ash-hadu al-laa ilaaha illallaahu wa ash-hadu anna Muhammadan 'abduhoo wa rasooluh",
             urduMeaning = "تمام قولی، بدنی اور مالی عبادتیں اللہ ہی کے لیے ہیں۔ اے نبی ﷺ! آپ پر سلام ہو اور اللہ کی رحمت اور اس کی برکتیں ہوں۔ سلام ہو ہم پر اور اللہ کے نیک بندوں پر۔ میں گواہی دیتا ہوں کہ اللہ کے سوا کوئی معبود نہیں اور میں گواہی دیتا ہوں کہ حضرت محمد ﷺ اس کے بندے اور رسول ہیں۔",
             englishMeaning = "All greetings, prayers, and pure words/deeds belong to Allah. Peace be upon you, O Prophet ﷺ, and the mercy of Allah and His blessings. Peace be upon us and upon the righteous servants of Allah. I bear witness that there is no deity except Allah, and I bear witness that Muhammad ﷺ is His servant and Messenger.",
-            methodExplanationEnglish = "Sit after the second Rak'ah (and in the final Rak'ah) with hands on the thighs and recite Tashahhud, raising the right index finger at the testimony of Tawheed ('Ash-hadu al-laa ilaaha illallah').",
-            methodExplanationUrdu = "دوسری رکعت کے دونوں سجدوں کے بعد اور آخری رکعت میں قعدہ میں بیٹھ کر التحیات پڑھیں، اور 'أَشْهَدُ أَنْ لَا إِلٰهَ إِلَّا اللّٰهُ' پر دائیں ہاتھ کی شہادت کی انگلی سے اشارہ کریں۔",
-            hadithOrFiqhReference = "Sahih al-Bukhari 831 & Sahih Muslim 402 (Tashahhud of Abdullah ibn Mas'ud رضي الله عنه).",
+            methodExplanationEnglish = "Sit after the second Rak'ah (and in Tawarruk in the final Rak'ah) with hands on the thighs, pointing with the index finger throughout Tashahhud while making dua and keeping the gaze on it.",
+            methodExplanationUrdu = "دوسری رکعت کے دونوں سجدوں کے بعد اور آخری رکعت میں قعدہ میں بیٹھ کر التحیات پڑھیں، اور شہادت کی انگلی سے اشارہ کرتے ہوئے دعا کریں اور نگاہ اسی پر رکھیں۔",
+            hadithOrFiqhReference = "Sahih al-Bukhari: 1202, 828; Sahih Muslim: 897, 1308, 1310; Sunan Abi Dawud: 991; Sunan an-Nasa'i: 1161, 1162, 1269; Sunan Ibn Majah: 912.",
             scholarlyDifferences = listOf(
-                ScholarlyDifferenceEntry("Hanafi & Hanbali", "Prefer the Tashahhud narrated by Abdullah ibn Mas'ud رضي الله عنه (Sahih al-Bukhari 831).", "حنفی اور حنبلی فقہ میں حضرت عبداللہ بن مسعود رضی اللہ عنہ سے مروی تشہد مختار ہے۔", "Sahih al-Bukhari 831"),
-                ScholarlyDifferenceEntry("Shafi'i", "Prefer the Tashahhud narrated by Abdullah ibn 'Abbas رضي الله عنهما ('At-tahiyyatul-mubarakatas-salawatut-tayyibatu lillah...' — Sahih Muslim 403).", "شافعی فقہ میں حضرت عبداللہ بن عباس رضی اللہ عنہما سے مروی تشہد مختار ہے؛ دونوں ہی صحیح احادیث سے ثابت ہیں۔", "Sahih Muslim 403"),
+                ScholarlyDifferenceEntry("Hanafi & Hanbali", "Prefer the Tashahhud narrated by Abdullah ibn Mas'ud رضي الله عنه (Sahih al-Bukhari 1202; Sahih Muslim 897).", "حنفی اور حنبلی فقہ میں حضرت عبداللہ بن مسعود رضی اللہ عنہ سے مروی تشہد مختار ہے۔", "Sahih al-Bukhari 1202; Sahih Muslim 897"),
+                ScholarlyDifferenceEntry("Shafi'i", "Prefer the Tashahhud narrated by Abdullah ibn 'Abbas رضي الله عنهما ('At-tahiyyatul-mubarakatas-salawatut-tayyibatu lillah...' — Sahih Muslim 900).", "شافعی فقہ میں حضرت عبداللہ بن عباس رضی اللہ عنہما سے مروی تشہد مختار ہے؛ دونوں ہی صحیح احادیث سے ثابت ہیں۔", "Sahih Muslim 900"),
                 ScholarlyDifferenceEntry("Maliki", "Prefer the Tashahhud of 'Umar ibn al-Khattab رضي الله عنه recorded in Muwatta Imam Malik.", "مالکی فقہ میں موطا امام مالک میں مروی حضرت عمر رضی اللہ عنہ کا تشہد مختار ہے۔", "Muwatta Malik")
             ),
             humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/52hm.mp3"
@@ -1162,7 +1259,7 @@ object LearnIslamCurriculumData {
             englishMeaning = "O Allah, send grace and honor upon Muhammad and upon the family of Muhammad, just as You sent grace and honor upon Ibrahim and upon the family of Ibrahim; indeed, You are Praiseworthy, Glorious. O Allah, send blessings upon Muhammad and upon the family of Muhammad, just as You sent blessings upon Ibrahim and upon the family of Ibrahim; indeed, You are Praiseworthy, Glorious.",
             methodExplanationEnglish = "In the final sitting (Qa'dah Akhirah), immediately after Tashahhud, recite Durood-e-Ibrahimi.",
             methodExplanationUrdu = "آخری قعدہ میں تشہد (التحیات) کے فوراً بعد درودِ ابراہیمی پڑھیں۔",
-            hadithOrFiqhReference = "Sahih al-Bukhari 3370; Sahih Muslim 406 (Narrated by Ka'b ibn 'Ujrah رضي الله عنه).",
+            hadithOrFiqhReference = "Sahih al-Bukhari: 3370; Sahih Muslim: 908 (Narrated by Ka'b ibn 'Ujrah رضي الله عنه).",
             humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/53hm.mp3"
         ),
         WuduAndSalahStepItem(
@@ -1173,13 +1270,13 @@ object LearnIslamCurriculumData {
             titleUrdu = "۸۔ دعائے ماثورہ (درود کے بعد کی دعائیں) اور سلام",
             titleEnglish = "Step 8: Duas After Durood (Dua-e-Masoorah) & Concluding Salam",
             rulingCategory = "Dua: Sunnah • Salam: Wajib / Fard",
-            arabicRecitation = "﴿دُعَاءُ الصِّدِّيقِ﴾ اَللّٰهُمَّ إِنِّي ظَلَمْتُ نَفْسِي ظُلْمًا كَثِيرًا وَلَا يَغْفِرُ الذُّنُوبَ إِلَّا أَنْتَ فَاغْفِرْ لِي مَغْفِرَةً مِنْ عِنْدِكَ وَارْحَمْنِي إِنَّكَ أَنْتَ الْغَفُورُ الرَّحِيمُ\n﴿دُعَاءٌ قُرْآنِيٌّ﴾ رَبِّ اجْعَلْنِي مُقِيمَ الصَّلَاةِ وَمِنْ ذُرِّيَّتِي رَبَّنَا وَتَقَبَّلْ دُعَاءِ ۝ رَبَّنَا اغْفِرْ لِي وَلِوَالِدَيَّ وَلِلْمُؤْمِنِينَ يَوْمَ يَقُومُ الْحِسَابُ\n﴿السَّلَامُ﴾ السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللّٰهِ",
-            transliteration = "1. Allaahumma innee zalamtu nafsee zulman katheeran wa laa yaghfirudh-dhunooba illaa Anta faghfir lee maghfiratam-min 'indika warhamnee innaka Antal-Ghafoorur-Raheem.\n2. Rabbij-'alnee muqeemas-Salaati wa min dhurriyyatee Rabbanaa wa taqabbal du'aa. Rabbanaghfir lee wa li-waalidayya wa lil-mu'mineena yawma yaqoomul-hisaab.\nSalam: As-salaamu 'alaykum wa rahmatullaah (turning right, then left).",
-            urduMeaning = "۱۔ (حضرت ابوبکر صدیقؓ کی دعا): اے اللہ! بے شک میں نے اپنی جان پر بہت زیادہ ظلم کیا اور تیرے سوا کوئی گناہوں کو نہیں بخش سکتا، پس تو اپنی خاص بخشش سے مجھے بخش دے اور مجھ پر رحم فرما، بے شک تو ہی بخشنے والا، نہایت مہربان ہے۔\n۲۔ (قرآنی دعا): اے میرے رب! مجھے اور میری اولاد کو نماز قائم کرنے والا بنا، اے ہمارے رب! اور میری دعا قبول فرما۔ اے ہمارے رب! مجھے، میرے والدین کو اور تمام مومنوں کو اس دن بخش دے جس دن حساب قائم ہوگا۔\nسلام: تم پر سلامتی ہو اور اللہ کی رحمت (پہلے دائیں طرف اور پھر بائیں طرف چہرہ پھیر کر)۔",
-            englishMeaning = "1. O Allah, I have wronged myself greatly, and none forgives sins except You; so grant me forgiveness from Yourself and have mercy on me. Truly You are the Forgiving, the Merciful.\n2. My Lord, make me an establisher of prayer, and from my descendants. Our Lord, and accept my supplication. Our Lord, forgive me and my parents and the believers the Day the account is established.\nSalam: Peace and mercy of Allah be upon you (turning head to the right, then to the left).",
-            methodExplanationEnglish = "After Durood-e-Ibrahimi, recite an authentic Quranic or Prophetic Dua, then conclude the prayer by turning the head to the right saying 'As-salamu 'alaykum wa rahmatullah' and to the left saying 'As-salamu 'alaykum wa rahmatullah'.",
-            methodExplanationUrdu = "درود شریف کے بعد دعائے ماثورہ پڑھیں، پھر پہلے دائیں کندھے کی طرف اور پھر بائیں کندھے کی طرف رخ کر کے 'السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللّٰهِ' کہہ کر نماز مکمل کریں۔",
-            hadithOrFiqhReference = "Sahih al-Bukhari 834 & Sahih Muslim 2705 (Dua taught to Abu Bakr as-Siddiq رضي الله عنه); Quran 14:40–41; Sahih Muslim 582 (Salam).",
+            arabicRecitation = "﴿دُعَاءُ الِاسْتِعَاذَةِ﴾ اَللّٰهُمَّ إِنِّي أَعُوذُ بِكَ مِنْ عَذَابِ جَهَنَّمَ وَمِنْ عَذَابِ الْقَبْرِ وَمِنْ فِتْنَةِ الْمَحْيَا وَالْمَمَاتِ وَمِنْ شَرِّ فِتْنَةِ الْمَسِيحِ الدَّجَّالِ\n﴿دُعَاءٌ قُرْآنِيٌّ﴾ رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ\n﴿السَّلَامُ﴾ السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللّٰهِ",
+            transliteration = "1. Allaahumma innee a'oodhu bika min 'adhaabi Jahannama wa min 'adhaabil-qabri wa min fitnatil-mahyaa wal-mamaati wa min sharri fitnatil-Maseehid-Dajjaal.\n2. Rabbanaa aatinaa fid-dunyaa hasanatan wa fil-aakhirati hasanatan wa qinaa 'adhaaban-naar.\nSalam: As-salaamu 'alaykum wa rahmatullaah (turning right, then left).",
+            urduMeaning = "۱۔ اے اللہ! میں تیری پناہ مانگتا ہوں جہنم کے عذاب سے، قبر کے عذاب سے، زندگی و موت کے فتنے سے اور مسیح دجال کے فتنے کے شر سے۔\n۲۔ اے ہمارے رب! ہمیں دنیا میں بھلائی دے اور آخرت میں بھی بھلائی، اور ہمیں آگ کے عذاب سے بچا۔\nسلام: تم پر سلامتی ہو اور اللہ کی رحمت (پہلے دائیں طرف اور پھر بائیں طرف چہرہ پھیر کر)۔",
+            englishMeaning = "1. O Allah, I seek refuge in You from the punishment of Hell, the punishment of the grave, the trials of life and death, and the evil of the trial of the False Messiah.\n2. Our Lord, give us good in this world and good in the Hereafter, and protect us from the punishment of the Fire.\nSalam: Peace and mercy of Allah be upon you (turning head to the right, then to the left).",
+            methodExplanationEnglish = "After Durood-e-Ibrahimi, seek refuge from the four trials and recite any good dua from the Quran and Sunnah, then conclude the prayer by turning the head to the right and to the left saying 'As-salamu 'alaykum wa rahmatullah'.",
+            methodExplanationUrdu = "درود شریف کے بعد چہار فتن سے پناہ کی دعا اور مسنون دعا پڑھیں، پھر دائیں اور بائیں طرف 'السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللّٰهِ' کہہ کر نماز مکمل کریں۔",
+            hadithOrFiqhReference = "Sahih Muslim: 1324; Sahih al-Bukhari: 835, 6389 & Sahih Muslim: 897, 6840 (Dua after Tashahhud); Sahih al-Bukhari: 838, Sahih Muslim: 1315, Jami at-Tirmidhi: 295, Sunan Abi Dawud: 996, Sunan an-Nasa'i: 1320, Sunan Ibn Majah: 914 (Salam).",
             quranSurahNumber = 14,
             quranAyahRange = 40..41,
             humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/57hm.mp3|https://everyayah.com/data/Alafasy_128kbps/014040.mp3|https://everyayah.com/data/Alafasy_128kbps/014041.mp3"
@@ -1204,29 +1301,968 @@ object LearnIslamCurriculumData {
                 ScholarlyDifferenceEntry("Shafi'i & Hanbali", "Qunoot is recited AFTER rising from Ruku in the final Rak'ah of Witr (and in Fajr prayer according to the Shafi'i school).", "شافعی اور حنبلی فقہ میں وتر کی آخری رکعت میں رکوع سے اٹھنے کے بعد قنوت پڑھی جاتی ہے (اور شافعیہ کے نزدیک فجر میں بھی)۔", "Sunan Abi Dawud 1425; Al-Majmu'")
             ),
             humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/118hm.mp3|https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/116hm.mp3"
-        ),
-        WuduAndSalahStepItem(
-            id = "namaz_step_10_salatul_janaza",
-            stepOrder = 14,
-            section = "NAMAZ_MUTARJAM",
-            titleArabic = "١٠. صَلَاةُ الْجَنَازَةِ وَأَدْعِيَتُهَا (لِلْبَالِغِ وَالصَّبِيِّ وَالصَّبِيَّةِ)",
-            titleUrdu = "۱۰۔ نمازِ جنازہ کا طریقہ اور مسنون دعائیں (بالغ مرد و عورت، نابالغ لڑکے اور لڑکی کی دعا)",
-            titleEnglish = "Step 10: Salat al-Janaza (Funeral Prayer Method & Duas for Adult, Boy & Girl)",
-            rulingCategory = "Fard Kifayah (4 Takbeers Standing — No Ruku or Sajdah)",
-            arabicRecitation = "﴿دُعَاءُ الْبَالِغِ وَالْبَالِغَةِ﴾ اَللّٰهُمَّ اغْفِرْ لِحَيِّنَا وَمَيِّتِنَا وَشَاهِدِنَا وَغَائِبِنَا وَصَغِيرِنَا وَكَبِيرِنَا وَذَكَرِنَا وَأُنْثَانَا، اَللّٰهُمَّ مَنْ أَحْيَيْتَهُ مِنَّا فَأَحْيِهِ عَلَى الْإِسْلَامِ وَمَنْ تَوَفَّيْتَهُ مِنَّا فَتَوَفَّهُ عَلَى الْإِيمَانِ\n﴿لِلصَّبِيِّ / نابالغ لڑکے کے لیے﴾ اَللّٰهُمَّ اجْعَلْهُ لَنَا فَرَطًا وَسَلَفًا وَأَجْرًا (وَذُخْرًا وَشَافِعًا مُشَفَّعًا)\n﴿لِلصَّبِيَّةِ / نابالغ لڑکی کے لیے﴾ اَللّٰهُمَّ اجْعَلْهَا لَنَا فَرَطًا وَسَلَفًا وَأَجْرًا (وَذُخْرًا وَشَافِعَةً مُشَفَّعَةً)",
-            transliteration = "Adult: Allaahummaghfir li-hayyinaa wa mayyitinaa wa shaahidinaa wa ghaa'ibinaa wa sagheerinaa wa kabeerinaa wa dhakarinaa wa unthaanaa. Allaahumma man ahyaytahoo minnaa fa-ahyihi 'alal-Islaam, wa man tawaffaytahoo minnaa fatawaffahoo 'alal-eemaan.\nMinor Boy: Allaahummaj-'alhu lanaa faratan wa salafan wa ajran (wa dhukhran wa shaafi'an mushaffa'an).\nMinor Girl: Allaahummaj-'alhaa lanaa faratan wa salafan wa ajran (wa dhukhran wa shaafi'atan mushaffa'atan).",
-            urduMeaning = "(بالغ مرد و عورت کے لیے): اے اللہ! ہمارے زندوں اور ہمارے مردوں کو بخش دے، ہمارے حاضر اور غائب کو، ہمارے چھوٹوں اور بڑوں کو، اور ہمارے مردوں اور عورتوں کو بخش دے۔ اے اللہ! ہم میں سے جسے تو زندہ رکھے اسے اسلام پر زندہ رکھ اور جسے وفات دے اسے ایمان پر وفات دے۔\n(نابالغ لڑکے کے لیے): اے اللہ! اس بچے کو ہمارے لیے پیش رو، سامانِ آخرت اور اجر و مقبول شفاعت کرنے والا بنا۔\n(نابالغ لڑکی کے لیے): اے اللہ! اس بچی کو ہمارے لیے پیش رو، سامانِ آخرت اور اجر و مقبول شفاعت کرنے والی بنا۔",
-            englishMeaning = "Adult: O Allah, forgive our living and our deceased, our present and our absent, our young and our old, our males and our females. O Allah, whomever among us You keep alive, keep him alive upon Islam, and whomever among us You cause to die, cause him to die upon Faith.\nMinor Boy: O Allah, make him for us a forerunner, a precursor, and a treasure and accepted intercessor.\nMinor Girl: O Allah, make her for us a forerunner, a precursor, and a treasure and accepted intercessor.",
-            methodExplanationEnglish = "Salat al-Janaza has 4 Takbeers performed standing without Ruku or Sajdah:\n• 1st Takbeer: Raise hands, say Allahu Akbar, fold hands, and recite Sana (or Surah Al-Fatiha in Shafi'i/Hanbali fiqh).\n• 2nd Takbeer: Say Allahu Akbar and recite Durood-e-Ibrahimi.\n• 3rd Takbeer: Say Allahu Akbar and recite the Janaza Dua for the deceased (adult, boy, or girl).\n• 4th Takbeer: Say Allahu Akbar and conclude with Salam.",
-            methodExplanationUrdu = "نمازِ جنازہ فرضِ کفایہ ہے اور اس میں چار تکبیریں کھڑے ہو کر کہی جاتی ہیں (رکوع اور سجدہ نہیں ہوتا):\n• پہلی تکبیر: ہاتھ اٹھا کر اللہ اکبر کہیں، ہاتھ باندھ کر ثناء (یا شافعی/حنبلی مسلک میں سورۃ الفاتحہ) پڑھیں۔\n• دوسری تکبیر: اللہ اکبر کہہ کر درودِ ابراہیمی پڑھیں۔\n• تیسری تکبیر: اللہ اکبر کہہ کر میت کے لیے مسنون دعا (بالغ یا نابالغ لڑکے/لڑکی کی دعا) پڑھیں۔\n• چوتھی تکبیر: اللہ اکبر کہہ کر سلام پھیر دیں۔",
-            hadithOrFiqhReference = "Sunan Abi Dawud 3201; Jami' at-Tirmidhi 1024; Sahih Muslim 963; Sahih al-Bukhari 1335 (Hisn al-Muslim #156–161).",
-            scholarlyDifferences = listOf(
-                ScholarlyDifferenceEntry("Hanafi & Maliki", "After the 1st Takbeer, Sana ('Subhanaka Allahumma wa bihamdika...') is recited without Surah Al-Fatiha (Maliki goes straight to Dua after Takbeers).", "حنفی فقہ میں پہلی تکبیر کے بعد ثناء پڑھی جاتی ہے۔", "Al-Hidayah; Radd al-Muhtar"),
-                ScholarlyDifferenceEntry("Shafi'i & Hanbali", "After the 1st Takbeer, reciting Surah Al-Fatiha is a pillar (Rukn) of Salat al-Janaza.", "شافعی اور حنبلی فقہ میں پہلی تکبیر کے بعد سورۃ الفاتحہ پڑھنا فرض ہے۔", "Sahih al-Bukhari 1335")
-            ),
-            humanAudioUrl = "https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/157hm.mp3|https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/160hm.mp3|https://raw.githubusercontent.com/sheikhhanif/Hisnul_Muslim_Database/master/audio/161hm.mp3"
         )
     )
+
+    val namazMuhammadiSourceMetadata = NamazSourceMetadata(
+        documentDate = "12 December 2016 / 12 Rabi al-Awwal 1438 AH",
+        referenceStyle = "Hadith numbers follow the 'International Numbering' as stated in the PDF",
+        keyHadithArabic = "وَصَلُّوا كَمَا رَأَيْتُمُونِي أُصَلِّي",
+        keyHadithEnglish = "Pray as you have seen me praying.",
+        keyHadithReferences = listOf(
+            NamazBookReference(book = "Sahih al-Bukhari", numbers = listOf("631"))
+        ),
+        extractionNotes = listOf(
+            "All hadith references were re-checked against the rendered PDF pages (not the garbled OCR text).",
+            "Verified references with full context from additional_references replace any shifted/incomplete top-line references.",
+            "Arabic duas are the standard texts; Urdu and English wording is a short summary or translation, not a word-for-word copy of the booklet."
+        )
+    )
+
+    val namazMuhammadiFoundationalSectionTitleUr = "واحد سنتِ طریقہ: بنیادی صحیح احادیث"
+    val namazMuhammadiFoundationalSectionTitleEn = "Foundational narrations on the manner of prayer"
+
+    val namazMuhammadiFoundationalSteps: List<NamazFoundationalStep> = listOf(
+        NamazFoundationalStep(
+            stepLabel = "0.1",
+            titleEn = "Abu Hurayrah (RA): takbeer at every movement",
+            descriptionEn = "The Prophet ﷺ said takbeer when standing for prayer, at ruku, when rising from ruku (saying 'Sami' Allahu liman hamidah, Rabbana wa lakal-hamd'), and at each sujood and rising, through the whole prayer, and after the two rakats' tashahhud.",
+            references = listOf(
+                NamazBookReference("Sahih al-Bukhari", listOf("784 to 789", "803")),
+                NamazBookReference("Sahih Muslim", listOf("867 to 873"))
+            ),
+            additionalReferences = listOf(
+                NamazAdditionalReference(
+                    context = "Narration of the Umayyad governors giving up loud takbeer",
+                    references = listOf(
+                        NamazBookReference("Sahih al-Bukhari", listOf("784 to 789", "803")),
+                        NamazBookReference("Sahih Muslim", listOf("867 to 873"))
+                    )
+                )
+            )
+        ),
+        NamazFoundationalStep(
+            stepLabel = "0.2",
+            titleEn = "Ibn Umar (RA): raising the hands (Raf' al-Yadayn)",
+            descriptionEn = "Raised his hands to shoulder level at the opening takbeer, before ruku, and after rising from ruku; he did not do so in sujood.",
+            references = listOf(
+                NamazBookReference("Jami at-Tirmidhi", listOf("256", "257")),
+                NamazBookReference("Sunan Abi Dawud", listOf("748")),
+                NamazBookReference("Juz Raf' al-Yadayn (Imam Bukhari)", listOf("15"))
+            ),
+            additionalReferences = listOf(
+                NamazAdditionalReference(
+                    context = "Tirmidhi's grading of the Ibn Umar hadith as Hasan Sahih; discussion of the Ibn Mas'ud narration (claiming hands were raised only at the start), which the PDF says is not established",
+                    references = listOf(
+                        NamazBookReference("Jami at-Tirmidhi", listOf("256", "257"))
+                    )
+                ),
+                NamazAdditionalReference(
+                    context = "Abu Dawud's comment on the Ibn Mas'ud narration",
+                    references = listOf(
+                        NamazBookReference("Sunan Abi Dawud", listOf("748"))
+                    )
+                ),
+                NamazAdditionalReference(
+                    context = "Ibn Umar struck with pebbles anyone who did not raise the hands",
+                    references = listOf(
+                        NamazBookReference("Juz Raf' al-Yadayn (Imam Bukhari)", listOf("15"))
+                    )
+                )
+            )
+        ),
+        NamazFoundationalStep(
+            stepLabel = "0.3",
+            titleEn = "Ali al-Murtada (RA): when hands are and are not raised",
+            descriptionEn = "Raised hands at the start, at ruku, and after ruku; he did not raise them while sitting (jalsa and tashahhud).",
+            references = listOf(
+                NamazBookReference("Juz Raf' al-Yadayn (Imam Bukhari)", listOf("105")),
+                NamazBookReference("Jami at-Tirmidhi", listOf("3423")),
+                NamazBookReference("Sunan Ibn Majah", listOf("864"))
+            ),
+            additionalReferences = listOf(
+                NamazAdditionalReference(
+                    context = "Raising the hands in sujood is not established (weak narration of Anas)",
+                    references = listOf(
+                        NamazBookReference("Juz Raf' al-Yadayn (Imam Bukhari)", listOf("105")),
+                        NamazBookReference("Jami at-Tirmidhi", listOf("3423")),
+                        NamazBookReference("Sunan Ibn Majah", listOf("864"))
+                    )
+                )
+            )
+        ),
+        NamazFoundationalStep(
+            stepLabel = "0.4",
+            titleEn = "Abu Humayd as-Sa'idi (RA) among ten Companions (incl. Abu Qatada)",
+            descriptionEn = "He described the Prophet's prayer in full: hands raised to the shoulders; hands gripping the knees in ruku with the back level; standing upright; nose and forehead on the ground in sujood with the hands in line with the shoulders and fingers toward qibla; sitting on the left foot between sujoods; tawarruk in the final sitting, with the index finger pointing. The Companions affirmed he had spoken truly.",
+            references = listOf(
+                NamazBookReference("Jami at-Tirmidhi", listOf("304"), grading = "Hasan Sahih"),
+                NamazBookReference("Sunan Abi Dawud", listOf("730", "734")),
+                NamazBookReference("Sunan Ibn Majah", listOf("1061"))
+            )
+        )
+    )
+
+    val namazMuhammadiClosingAdvice = NamazClosingAdvice(
+        titleUr = "آخری نصیحت",
+        english = "Hudhayfah (RA) saw a man not completing his ruku and sujood and said: 'You have not prayed; if you die like this you die not upon the way of Muhammad ﷺ.'",
+        references = listOf(
+            NamazBookReference("Sahih al-Bukhari", listOf("791"))
+        )
+    )
+
+    /**
+     * Complete Salah (Namaz-e-Muhammadi ﷺ — واحد سنتِ طریقہ) — 30 canonical steps from namaz_muhammadi_2dfceee0.json.
+     * Where additional_references exist, they replace the incorrect green top-line references as the real verified references.
+     */
+    val completeSalahSteps: List<NamazStepJsonEntry> = listOf(
+        // Section 1: سُنّتِ قیام / Sunnah of Qiyam (Standing)
+        NamazStepJsonEntry(
+            step_no = 1,
+            sectionId = 1,
+            section = "Sunnah of Qiyam (Standing)",
+            sectionUrdu = "سُنّتِ قیام",
+            title = "Opening takbeer with raising the hands",
+            titleUrdu = "تکبیرِ تحریمہ اور رفع الیدین",
+            arabic = "اللّٰهُ أَكْبَرُ",
+            urdu = "نماز شروع کرتے وقت ہاتھ کندھوں/کانوں کے برابر تک اٹھا کر اللہ اکبر کہیں۔",
+            english = "Say 'Allahu Akbar' while raising the hands to the shoulders / level with the ears.",
+            reference = "Sahih Muslim: 865 (Holding the ears at the start is not established; raising the hands level with the ears is)",
+            primaryReferences = listOf(
+                NamazBookReference("Sahih Muslim", listOf("865"), context = "Holding the ears at the start is not established; raising the hands level with the ears is")
+            ),
+            additionalReferences = listOf(
+                NamazAdditionalReference(
+                    context = "Holding the ears at the start is not established; raising the hands level with the ears is",
+                    references = listOf(NamazBookReference("Sahih Muslim", listOf("865")))
+                )
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 2,
+            sectionId = 1,
+            section = "Sunnah of Qiyam (Standing)",
+            sectionUrdu = "سُنّتِ قیام",
+            title = "Placing the right hand over the left, on the chest",
+            titleUrdu = "دایاں ہاتھ بائیں پر سینے پر رکھنا",
+            arabic = "",
+            urdu = "دایاں ہاتھ بائیں ہاتھ کی ہتھیلی، کلائی اور ساعد پر رکھ کر سینے پر باندھیں۔",
+            english = "Place the right hand over the left palm, wrist and forearm, on the chest.",
+            reference = "Musnad Ahmad: 22017, 226/5 (Hulb at-Ta'i RA: the Prophet ﷺ placed his hands on the chest); Sunan Abi Dawud: 756; Al-Musannaf (Ibn Abi Shaybah): 3950; Al-Qamus (Arabic dictionary): 568, 769",
+            primaryReferences = listOf(
+                NamazBookReference("Musnad Ahmad", listOf("22017", "226/5"), context = "Hulb at-Ta'i (RA): the Prophet ﷺ placed his hands on the chest"),
+                NamazBookReference("Sunan Abi Dawud", listOf("756"), context = "Placing the hands below the navel: the chain is weak"),
+                NamazBookReference("Al-Musannaf (Ibn Abi Shaybah)", listOf("3950"), context = "Leaving hands loose in qiyam"),
+                NamazBookReference("Al-Qamus (Arabic dictionary)", listOf("568", "769"), context = "Arabic meaning of dhira' and sa'id (forearm)")
+            ),
+            additionalReferences = listOf(
+                NamazAdditionalReference(
+                    context = "Hulb at-Ta'i (RA): the Prophet ﷺ placed his hands on the chest",
+                    references = listOf(NamazBookReference("Musnad Ahmad", listOf("22017", "226/5")))
+                ),
+                NamazAdditionalReference(
+                    context = "Placing the hands below the navel: the chain is weak",
+                    references = listOf(NamazBookReference("Sunan Abi Dawud", listOf("756")))
+                ),
+                NamazAdditionalReference(
+                    context = "The narration about leaving the hands loose in qiyam has a lying narrator; the act is nevertheless established from Ibn Zubayr (RA), so it is not an innovation",
+                    references = listOf(NamazBookReference("Al-Musannaf (Ibn Abi Shaybah)", listOf("3950")))
+                ),
+                NamazAdditionalReference(
+                    context = "Arabic meaning of dhira' and sa'id (forearm)",
+                    references = listOf(NamazBookReference("Al-Qamus (Arabic dictionary)", listOf("568", "769")))
+                )
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 3,
+            sectionId = 1,
+            section = "Sunnah of Qiyam (Standing)",
+            sectionUrdu = "سُنّتِ قیام",
+            title = "Opening supplication (Thana)",
+            titleUrdu = "ثنا (دعائے استفتاح)",
+            arabic = "سُبْحَانَكَ اللَّهُمَّ وَبِحَمْدِكَ وَتَبَارَكَ اسْمُكَ وَتَعَالَى جَدُّكَ وَلَا إِلَهَ غَيْرُكَ",
+            urdu = "اے اللہ! تو پاک ہے، تیری تعریف کے ساتھ، تیرا نام برکت والا ہے، تیری شان بلند ہے اور تیرے سوا کوئی معبود نہیں۔",
+            english = "Glory be to You, O Allah, and praise; blessed is Your name, exalted is Your majesty, and there is no god but You.",
+            reference = "Sahih Muslim: 892; Jami at-Tirmidhi: 242; Sunan an-Nasa'i: 1137 | Alternative: Sahih al-Bukhari: 744; Sahih Muslim: 1354",
+            primaryReferences = listOf(
+                NamazBookReference("Sahih Muslim", listOf("892")),
+                NamazBookReference("Jami at-Tirmidhi", listOf("242")),
+                NamazBookReference("Sunan an-Nasa'i", listOf("1137"))
+            ),
+            alternative = NamazAlternativeDua(
+                arabic = "اللَّهُمَّ بَاعِدْ بَيْنِي وَبَيْنَ خَطَايَايَ كَمَا بَاعَدْتَ بَيْنَ الْمَشْرِقِ وَالْمَغْرِبِ",
+                urdu = "اے اللہ! میرے اور میرے گناہوں کے درمیان اتنی دوری کر دے جتنی تو نے مشرق اور مغرب کے درمیان کی ہے۔",
+                english = "O Allah, distance me from my sins just as You have distanced the East from the West.",
+                references = listOf(
+                    NamazBookReference("Sahih al-Bukhari", listOf("744")),
+                    NamazBookReference("Sahih Muslim", listOf("1354"))
+                )
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 4,
+            sectionId = 1,
+            section = "Sunnah of Qiyam (Standing)",
+            sectionUrdu = "سُنّتِ قیام",
+            title = "Seeking refuge (Ta'awwudh)",
+            titleUrdu = "تعوذ",
+            arabic = "أَعُوذُ بِاللَّهِ السَّمِيعِ الْعَلِيمِ مِنَ الشَّيْطَانِ الرَّجِيمِ مِنْ هَمْزِهِ وَنَفْخِهِ وَنَفْثِهِ",
+            urdu = "میں اللہ سمیع و علیم کی پناہ مانگتا ہوں شیطان مردود سے، اس کے وسوسے، تکبر اور پھونکوں سے۔",
+            english = "I seek refuge in Allah, the All-Hearing, All-Knowing, from the accursed Satan, from his whispering, pride and blowing.",
+            reference = "Sunan Abi Dawud: 775 | Alternative: Sahih al-Bukhari: 6115; Sahih Muslim: 6646",
+            primaryReferences = listOf(
+                NamazBookReference("Sunan Abi Dawud", listOf("775"))
+            ),
+            alternative = NamazAlternativeDua(
+                arabic = "أَعُوذُ بِاللَّهِ مِنَ الشَّيْطَانِ الرَّجِيمِ",
+                urdu = "میں شیطان مردود سے اللہ کی پناہ مانگتا ہوں۔",
+                english = "I seek refuge in Allah from the accursed Satan.",
+                references = listOf(
+                    NamazBookReference("Sahih al-Bukhari", listOf("6115")),
+                    NamazBookReference("Sahih Muslim", listOf("6646"))
+                )
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 5,
+            sectionId = 1,
+            section = "Sunnah of Qiyam (Standing)",
+            sectionUrdu = "سُنّتِ قیام",
+            title = "Bismillah",
+            titleUrdu = "بسم اللہ",
+            arabic = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+            urdu = "اللہ کے نام سے جو بہت مہربان نہایت رحم والا ہے۔",
+            english = "In the name of Allah, the Most Gracious, the Most Merciful.",
+            reference = "Sahih Muslim: 890 (The stronger view is that the Prophet ﷺ usually recited Bismillah silently)",
+            primaryReferences = listOf(
+                NamazBookReference("Sahih Muslim", listOf("890"), context = "The stronger view is that the Prophet ﷺ usually recited Bismillah silently")
+            ),
+            additionalReferences = listOf(
+                NamazAdditionalReference(
+                    context = "The stronger view is that the Prophet ﷺ usually recited Bismillah silently",
+                    references = listOf(NamazBookReference("Sahih Muslim", listOf("890")))
+                )
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 6,
+            sectionId = 1,
+            section = "Sunnah of Qiyam (Standing)",
+            sectionUrdu = "سُنّتِ قیام",
+            title = "Surah al-Fatihah (pausing at each verse)",
+            titleUrdu = "سورۃ الفاتحہ (ہر آیت پر وقف کے ساتھ)",
+            arabic = "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ ۝ الرَّحْمَٰنِ الرَّحِيمِ ۝ مَالِكِ يَوْمِ الدِّينِ ۝ إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ ۝ اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ ۝ صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ وَلَا الضَّالِّينَ",
+            urdu = "تمام تعریف اللہ رب العالمین کے لیے ہے... ہمیں سیدھا راستہ دکھا، ان لوگوں کا جن پر تو نے انعام کیا، نہ کہ ان کا جن پر غضب ہوا اور نہ گمراہوں کا۔",
+            english = "All praise is for Allah, Lord of the worlds... Guide us to the straight path, the path of those You have blessed, not of those who earned anger nor of those who went astray.",
+            reference = "Musnad Ahmad: 26513, 288/6 (The Prophet ﷺ paused at the end of each verse); Sahih al-Bukhari: 756, Sahih Muslim: 874, Jami at-Tirmidhi: 311, Sunan Abi Dawud: 823, 824 (There is no prayer without Surah al-Fatihah); Sahih Muslim: 878 (Reciting al-Fatihah quietly behind the imam)",
+            primaryReferences = listOf(
+                NamazBookReference("Musnad Ahmad", listOf("26513", "288/6"), context = "The Prophet ﷺ paused at the end of each verse"),
+                NamazBookReference("Sahih al-Bukhari", listOf("756"), context = "There is no prayer without Surah al-Fatihah"),
+                NamazBookReference("Sahih Muslim", listOf("874", "878"), context = "Obligation of al-Fatihah & reciting quietly behind the imam"),
+                NamazBookReference("Jami at-Tirmidhi", listOf("311")),
+                NamazBookReference("Sunan Abi Dawud", listOf("823", "824"))
+            ),
+            additionalReferences = listOf(
+                NamazAdditionalReference(
+                    context = "The Prophet ﷺ paused at the end of each verse",
+                    references = listOf(NamazBookReference("Musnad Ahmad", listOf("26513", "288/6")))
+                ),
+                NamazAdditionalReference(
+                    context = "There is no prayer without Surah al-Fatihah",
+                    references = listOf(
+                        NamazBookReference("Sahih al-Bukhari", listOf("756")),
+                        NamazBookReference("Sahih Muslim", listOf("874")),
+                        NamazBookReference("Jami at-Tirmidhi", listOf("311")),
+                        NamazBookReference("Sunan Abi Dawud", listOf("823", "824"))
+                    )
+                ),
+                NamazAdditionalReference(
+                    context = "Abu Hurayrah (RA) told the Companions to recite al-Fatihah quietly behind the imam",
+                    references = listOf(NamazBookReference("Sahih Muslim", listOf("878")))
+                )
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 7,
+            sectionId = 1,
+            section = "Sunnah of Qiyam (Standing)",
+            sectionUrdu = "سُنّتِ قیام",
+            title = "Saying 'Ameen'",
+            titleUrdu = "آمین",
+            arabic = "آمِين",
+            urdu = "فاتحہ کے بعد جہری نمازوں میں بلند آواز سے آمین کہیں۔",
+            english = "Say 'Ameen' aloud after al-Fatihah in the loud prayers.",
+            reference = "Jami at-Tirmidhi: 248 (Saying Ameen aloud is the stronger practice); Quran, Surah An-Nisa: 115; Al-Mustadrak (al-Hakim): 399 (Consensus of the Muslims on saying Ameen in prayer)",
+            primaryReferences = listOf(
+                NamazBookReference("Jami at-Tirmidhi", listOf("248"), context = "Tirmidhi: saying Ameen aloud is the stronger practice"),
+                NamazBookReference("Quran, Surah An-Nisa", listOf("115"), context = "Consensus of the Muslims on saying Ameen in prayer"),
+                NamazBookReference("Al-Mustadrak (al-Hakim)", listOf("399"))
+            ),
+            additionalReferences = listOf(
+                NamazAdditionalReference(
+                    context = "Tirmidhi: saying Ameen aloud is the stronger practice",
+                    references = listOf(NamazBookReference("Jami at-Tirmidhi", listOf("248")))
+                ),
+                NamazAdditionalReference(
+                    context = "Consensus of the Muslims on saying Ameen in prayer",
+                    references = listOf(
+                        NamazBookReference("Quran, Surah An-Nisa", listOf("115")),
+                        NamazBookReference("Al-Mustadrak (al-Hakim)", listOf("399"))
+                    )
+                )
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 8,
+            sectionId = 1,
+            section = "Sunnah of Qiyam (Standing)",
+            sectionUrdu = "سُنّتِ قیام",
+            title = "Bismillah before the following surah",
+            titleUrdu = "سورت سے پہلے بسم اللہ",
+            arabic = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+            urdu = "سورت شروع کرنے سے پہلے بسم اللہ پڑھیں۔",
+            english = "Recite Bismillah before beginning the next surah.",
+            reference = "Sahih Muslim: 894",
+            primaryReferences = listOf(
+                NamazBookReference("Sahih Muslim", listOf("894"))
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 9,
+            sectionId = 1,
+            section = "Sunnah of Qiyam (Standing)",
+            sectionUrdu = "سُنّتِ قیام",
+            title = "Fatihah plus a surah in the first two rakats; only Fatihah (sometimes with a surah) in the last two",
+            titleUrdu = "پہلی دو رکعتوں میں فاتحہ کے ساتھ سورت؛ آخری دو میں صرف فاتحہ",
+            arabic = "",
+            urdu = "پہلی دو رکعتوں میں سورۃ الفاتحہ کے ساتھ کوئی سورت پڑھیں؛ آخری دو رکعتوں میں رسول اللہ ﷺ عموماً صرف سورۃ الفاتحہ پڑھتے اور کبھی سورت بھی ملا لیتے تھے۔",
+            english = "Recite Surah al-Fatihah plus a surah in the first two rakats; in the last two rakats the Prophet ﷺ recited only al-Fatihah, and sometimes added a surah.",
+            reference = "Sahih al-Bukhari: 776; Sahih Muslim: 1013, 1014 (In the last two rakats the Prophet ﷺ recited only al-Fatihah, and sometimes added a surah)",
+            primaryReferences = listOf(
+                NamazBookReference("Sahih al-Bukhari", listOf("776"), context = "In the last two rakats the Prophet ﷺ recited only al-Fatihah, and sometimes added a surah"),
+                NamazBookReference("Sahih Muslim", listOf("1013", "1014"))
+            ),
+            additionalReferences = listOf(
+                NamazAdditionalReference(
+                    context = "In the last two rakats the Prophet ﷺ recited only al-Fatihah, and sometimes added a surah",
+                    references = listOf(
+                        NamazBookReference("Sahih al-Bukhari", listOf("776")),
+                        NamazBookReference("Sahih Muslim", listOf("1013", "1014"))
+                    )
+                )
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 10,
+            sectionId = 1,
+            section = "Sunnah of Qiyam (Standing)",
+            sectionUrdu = "سُنّتِ قیام",
+            title = "A brief pause after recitation, before ruku",
+            titleUrdu = "قراءت کے بعد کچھ دیر سکوت",
+            arabic = "",
+            urdu = "قراءت مکمل کرنے کے بعد رکوع میں جانے سے پہلے کچھ دیر سکوت (وقفہ) کریں۔",
+            english = "Observe a brief pause (saktah) after completing the recitation, before going into ruku.",
+            reference = "Sunan Abi Dawud: 777, 778; Sunan Ibn Majah: 845",
+            primaryReferences = listOf(
+                NamazBookReference("Sunan Abi Dawud", listOf("777", "778")),
+                NamazBookReference("Sunan Ibn Majah", listOf("845"))
+            )
+        ),
+
+        // Section 2: سُنّتِ رکوع / Sunnah of Ruku (Bowing)
+        NamazStepJsonEntry(
+            step_no = 11,
+            sectionId = 2,
+            section = "Sunnah of Ruku (Bowing)",
+            sectionUrdu = "سُنّتِ رکوع",
+            title = "Posture of ruku",
+            titleUrdu = "رکوع کی ہیئت",
+            arabic = "اللّٰهُ أَكْبَرُ",
+            urdu = "تکبیر کہہ کر رفع الیدین کریں، ہاتھوں سے گھٹنوں کو مضبوطی سے پکڑیں، بازو پہلوؤں سے دور رکھیں، پیٹھ بالکل سیدھی رکھیں؛ سر نہ نیچا نہ اونچا۔",
+            english = "Say takbeer with raising of the hands, grip the knees firmly, keep the arms away from the sides, and keep the back level, the head neither lowered nor raised.",
+            reference = "Sahih al-Bukhari: 735, 828; Sahih Muslim: 865; Sunan Abi Dawud: 734",
+            primaryReferences = listOf(
+                NamazBookReference("Sahih al-Bukhari", listOf("735", "828")),
+                NamazBookReference("Sahih Muslim", listOf("865")),
+                NamazBookReference("Sunan Abi Dawud", listOf("734"))
+            ),
+            videoTitle = "Nimaz ka tareqa (9m 40s Practical Tareqa of Nimaz)",
+            videoLink = "https://youtu.be/Cou1OW7jxx4?si=5qn4EXXiQlwSHbXS",
+            videoYoutubeId = "Cou1OW7jxx4"
+        ),
+        NamazStepJsonEntry(
+            step_no = 12,
+            sectionId = 2,
+            section = "Sunnah of Ruku (Bowing)",
+            sectionUrdu = "سُنّتِ رکوع",
+            title = "Glorification in ruku (at least three times; choose any)",
+            titleUrdu = "رکوع کی تسبیحات (کم از کم تین مرتبہ)",
+            arabic = "سُبْحَانَ رَبِّيَ الْعَظِيمِ",
+            urdu = "پاک ہے میرا رب عظمت والا۔ (کم از کم تین مرتبہ؛ نیچے دی گئی تسبیحات میں سے کوئی بھی پڑھ سکتے ہیں)",
+            english = "Glory be to my Lord, the Magnificent. (Recite any of the authentic glorifications below, at least three times)",
+            reference = "Al-Musannaf (Ibn Abi Shaybah): 2571, 225/1; Sahih Muslim: 1814, 1085, 1091; Sahih al-Bukhari: 794; Sunan Abi Dawud: 869; Sunan Ibn Majah: 887",
+            primaryReferences = listOf(
+                NamazBookReference("Al-Musannaf (Ibn Abi Shaybah)", listOf("2571", "225/1"), context = "Any of these duas is recited, at least three times"),
+                NamazBookReference("Sahih Muslim", listOf("1814", "1085", "1091")),
+                NamazBookReference("Sahih al-Bukhari", listOf("794")),
+                NamazBookReference("Sunan Abi Dawud", listOf("869")),
+                NamazBookReference("Sunan Ibn Majah", listOf("887"))
+            ),
+            generalReferences = listOf(
+                NamazBookReference(
+                    book = "Al-Musannaf (Ibn Abi Shaybah)",
+                    numbers = listOf("2571", "225/1"),
+                    context = "Any of these duas is recited, at least three times"
+                )
+            ),
+            options = listOf(
+                NamazTasbeehOption(
+                    arabic = "سُبْحَانَ رَبِّيَ الْعَظِيمِ",
+                    urdu = "پاک ہے میرا رب عظمت والا۔",
+                    english = "Glory be to my Lord, the Magnificent.",
+                    references = listOf(
+                        NamazBookReference("Sahih Muslim", listOf("1814")),
+                        NamazBookReference("Sunan Abi Dawud", listOf("869")),
+                        NamazBookReference("Sunan Ibn Majah", listOf("887"))
+                    )
+                ),
+                NamazTasbeehOption(
+                    arabic = "سُبْحَانَكَ اللَّهُمَّ رَبَّنَا وَبِحَمْدِكَ اللَّهُمَّ اغْفِرْ لِي",
+                    urdu = "اے اللہ! تو پاک ہے، اے ہمارے رب! تیری تعریف کے ساتھ؛ اے اللہ! مجھے بخش دے۔",
+                    english = "Glory be to You, O Allah our Lord, and praise; O Allah, forgive me.",
+                    references = listOf(
+                        NamazBookReference("Sahih al-Bukhari", listOf("794")),
+                        NamazBookReference("Sahih Muslim", listOf("1085"))
+                    )
+                ),
+                NamazTasbeehOption(
+                    arabic = "سُبُّوحٌ قُدُّوسٌ رَبُّ الْمَلَائِكَةِ وَالرُّوحِ",
+                    urdu = "نہایت پاک، نہایت مقدس، فرشتوں اور روح کا رب۔",
+                    english = "Most Glorious, Most Holy, Lord of the angels and the Spirit.",
+                    references = listOf(
+                        NamazBookReference("Sahih Muslim", listOf("1091"))
+                    )
+                )
+            )
+        ),
+
+        // Section 3: سُنّتِ قومہ / Sunnah of Qawmah (Rising from ruku)
+        NamazStepJsonEntry(
+            step_no = 13,
+            sectionId = 3,
+            section = "Sunnah of Qawmah (Rising from ruku)",
+            sectionUrdu = "سُنّتِ قومہ",
+            title = "Rising from ruku",
+            titleUrdu = "رکوع سے اٹھتے ہوئے",
+            arabic = "سَمِعَ اللَّهُ لِمَنْ حَمِدَهُ، رَبَّنَا وَلَكَ الْحَمْدُ",
+            urdu = "ہاتھ کندھوں تک اٹھائیں اور کہیں: اللہ نے اس کی سن لی جس نے اس کی حمد کی؛ اے ہمارے رب! تیرے ہی لیے تمام تعریف ہے۔",
+            english = "Raising the hands: 'Allah hears whoever praises Him; our Lord, to You is all praise.'",
+            reference = "Al-Musannaf (Ibn Abi Shaybah): 2600, 227/1 (The follower behind the imam should also recite the full 'Sami' Allahu liman hamidah, Rabbana wa lakal-hamd')",
+            primaryReferences = listOf(
+                NamazBookReference("Al-Musannaf (Ibn Abi Shaybah)", listOf("2600", "227/1"), context = "The follower behind the imam should also recite the full 'Sami' Allahu liman hamidah, Rabbana wa lakal-hamd'")
+            ),
+            additionalReferences = listOf(
+                NamazAdditionalReference(
+                    context = "The follower behind the imam should also recite the full 'Sami' Allahu liman hamidah, Rabbana wa lakal-hamd'",
+                    references = listOf(NamazBookReference("Al-Musannaf (Ibn Abi Shaybah)", listOf("2600", "227/1")))
+                )
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 14,
+            sectionId = 3,
+            section = "Sunnah of Qawmah (Rising from ruku)",
+            sectionUrdu = "سُنّتِ قومہ",
+            title = "Extended supplication in qawmah",
+            titleUrdu = "قومہ کی اضافی دعا",
+            arabic = "رَبَّنَا وَلَكَ الْحَمْدُ حَمْدًا كَثِيرًا طَيِّبًا مُبَارَكًا فِيهِ",
+            urdu = "اے ہمارے رب! تیرے لیے بہت زیادہ، پاکیزہ اور برکت والی حمد ہے۔",
+            english = "Our Lord, to You is much good and blessed praise.",
+            reference = "Sahih al-Bukhari: 799",
+            primaryReferences = listOf(
+                NamazBookReference("Sahih al-Bukhari", listOf("799"))
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 15,
+            sectionId = 3,
+            section = "Sunnah of Qawmah (Rising from ruku)",
+            sectionUrdu = "سُنّتِ قومہ",
+            title = "Hands in qawmah",
+            titleUrdu = "قومہ میں ہاتھ",
+            arabic = "",
+            urdu = "قومہ میں ہاتھ سیدھے چھوڑنے پر امت کا عملی تواتر اور اجماع ہے، اور ارکانِ نماز میں ہاتھوں کی حالت بتانے والی حدیث میں بھی اس کا اشارہ ملتا ہے۔",
+            english = "Per the PDF, leaving the hands straight at the sides in qawmah is the continuous practice and consensus of the Ummah, and the hadith describing the hand positions in the pillars of prayer also hints at it.",
+            reference = "Sunan an-Nasa'i: 890",
+            primaryReferences = listOf(
+                NamazBookReference("Sunan an-Nasa'i", listOf("890"))
+            )
+        ),
+
+        // Section 4: سُنّتِ سجدہ / Sunnah of Sujood (Prostration)
+        NamazStepJsonEntry(
+            step_no = 16,
+            sectionId = 4,
+            section = "Sunnah of Sujood (Prostration)",
+            sectionUrdu = "سُنّتِ سجدہ",
+            title = "Going down to sujood",
+            titleUrdu = "سجدے میں جانا",
+            arabic = "اللّٰهُ أَكْبَرُ",
+            urdu = "تکبیر کہتے ہوئے سجدے میں جائیں؛ سات ہڈیوں پر سجدہ: پیشانی (ناک سمیت)، دونوں ہاتھ، دونوں گھٹنے، دونوں پاؤں۔ اونٹ کی طرح نہ بیٹھیں بلکہ پہلے دونوں ہاتھ اور پھر گھٹنے زمین پر رکھیں۔",
+            english = "Go down saying takbeer; prostrate on seven bones: forehead (with nose), both hands, both knees, both feet. Do not sit down like a camel; the PDF says the hands go down before the knees.",
+            reference = "Sunan Abi Dawud: 838 (The narration about placing the knees before the hands has a weak chain [Sharik ibn Abdullah al-Qadi, a mudallis], and all its supporting reports are weak too); Sunan Abi Dawud: 840; Sahih al-Bukhari: 803, 812; Sahih Muslim: 868",
+            primaryReferences = listOf(
+                NamazBookReference("Sunan Abi Dawud", listOf("838"), context = "The narration about placing the knees before the hands has a weak chain (Sharik ibn Abdullah al-Qadi, a mudallis), and all its supporting reports are weak too"),
+                NamazBookReference("Sunan Abi Dawud", listOf("840")),
+                NamazBookReference("Sahih al-Bukhari", listOf("803", "812")),
+                NamazBookReference("Sahih Muslim", listOf("868"))
+            ),
+            additionalReferences = listOf(
+                NamazAdditionalReference(
+                    context = "The narration about placing the knees before the hands has a weak chain (Sharik ibn Abdullah al-Qadi, a mudallis), and all its supporting reports are weak too",
+                    references = listOf(
+                        NamazBookReference("Sunan Abi Dawud", listOf("838", "840")),
+                        NamazBookReference("Sahih al-Bukhari", listOf("803", "812")),
+                        NamazBookReference("Sahih Muslim", listOf("868"))
+                    )
+                )
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 17,
+            sectionId = 4,
+            section = "Sunnah of Sujood (Prostration)",
+            sectionUrdu = "سُنّتِ سجدہ",
+            title = "Posture in sujood",
+            titleUrdu = "سجدے کی ہیئت",
+            arabic = "",
+            urdu = "ناک اور پیشانی زمین پر جمائیں، بازو پہلوؤں سے دور، ہتھیلیاں کندھوں یا کانوں کے برابر، انگلیاں قبلہ رخ اور ملی ہوئی، ایڑیاں ملی ہوئی۔",
+            english = "Press nose and forehead down, keep the arms away from the sides, palms level with the shoulders or ears, fingers together toward qibla, heels touching.",
+            reference = "Sahih al-Bukhari: 828; Sahih Muslim: 1105; Sunan Abi Dawud: 730, 734; Sunan an-Nasa'i: 890; Sahih Ibn Khuzaymah: 654",
+            primaryReferences = listOf(
+                NamazBookReference("Sahih al-Bukhari", listOf("828")),
+                NamazBookReference("Sahih Muslim", listOf("1105")),
+                NamazBookReference("Sunan Abi Dawud", listOf("730", "734")),
+                NamazBookReference("Sunan an-Nasa'i", listOf("890")),
+                NamazBookReference("Sahih Ibn Khuzaymah", listOf("654"))
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 18,
+            sectionId = 4,
+            section = "Sunnah of Sujood (Prostration)",
+            sectionUrdu = "سُنّتِ سجدہ",
+            title = "Do not spread the forearms on the ground",
+            titleUrdu = "بازو زمین پر نہ بچھانا",
+            arabic = "",
+            urdu = "سجدے میں اعتدال کریں، کتے کی طرح بازو نہ بچھائیں؛ ہتھیلیاں زمین پر رکھیں اور کہنیاں اٹھا کر رکھیں۔",
+            english = "Be moderate in sujood and do not lay the forearms flat like a dog; place the palms on the ground and keep the elbows raised.",
+            reference = "Sahih al-Bukhari: 822; Sahih Muslim: 1104",
+            primaryReferences = listOf(
+                NamazBookReference("Sahih al-Bukhari", listOf("822")),
+                NamazBookReference("Sahih Muslim", listOf("1104"))
+            ),
+            notes = listOf(
+                "The PDF says all narrations offered to show a different way of praying for women are weak, while the sound hadith commands 'pray as you see me pray' (Sahih al-Bukhari 631); so men and women pray the same way."
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 19,
+            sectionId = 4,
+            section = "Sunnah of Sujood (Prostration)",
+            sectionUrdu = "سُنّتِ سجدہ",
+            title = "Glorification in sujood (at least three times; choose any)",
+            titleUrdu = "سجدے کی تسبیحات (کم از کم تین مرتبہ)",
+            arabic = "سُبْحَانَ رَبِّيَ الْأَعْلَى",
+            urdu = "پاک ہے میرا رب سب سے بلند۔ (کم از کم تین مرتبہ؛ نیچے دی گئی تسبیحات میں سے کوئی بھی پڑھ سکتے ہیں)",
+            english = "Glory be to my Lord, the Most High. (Recite any of the authentic glorifications below, at least three times)",
+            reference = "Al-Musannaf (Ibn Abi Shaybah): 2571, 225/1; Sahih Muslim: 1814, 1085, 1091; Sahih al-Bukhari: 794; Sunan Abi Dawud: 869; Sunan Ibn Majah: 887",
+            primaryReferences = listOf(
+                NamazBookReference("Al-Musannaf (Ibn Abi Shaybah)", listOf("2571", "225/1"), context = "Any of these duas is recited, at least three times"),
+                NamazBookReference("Sahih Muslim", listOf("1814", "1085", "1091")),
+                NamazBookReference("Sahih al-Bukhari", listOf("794")),
+                NamazBookReference("Sunan Abi Dawud", listOf("869")),
+                NamazBookReference("Sunan Ibn Majah", listOf("887"))
+            ),
+            generalReferences = listOf(
+                NamazBookReference(
+                    book = "Al-Musannaf (Ibn Abi Shaybah)",
+                    numbers = listOf("2571", "225/1"),
+                    context = "Any of these duas is recited, at least three times"
+                )
+            ),
+            options = listOf(
+                NamazTasbeehOption(
+                    arabic = "سُبْحَانَ رَبِّيَ الْأَعْلَى",
+                    urdu = "پاک ہے میرا رب سب سے بلند۔",
+                    english = "Glory be to my Lord, the Most High.",
+                    references = listOf(
+                        NamazBookReference("Sahih Muslim", listOf("1814")),
+                        NamazBookReference("Sunan Abi Dawud", listOf("869")),
+                        NamazBookReference("Sunan Ibn Majah", listOf("887"))
+                    )
+                ),
+                NamazTasbeehOption(
+                    arabic = "سُبْحَانَكَ اللَّهُمَّ رَبَّنَا وَبِحَمْدِكَ اللَّهُمَّ اغْفِرْ لِي",
+                    urdu = "اے اللہ! تو پاک ہے، اے ہمارے رب! تیری تعریف کے ساتھ؛ اے اللہ! مجھے بخش دے۔",
+                    english = "Glory be to You, O Allah our Lord, and praise; O Allah, forgive me.",
+                    references = listOf(
+                        NamazBookReference("Sahih al-Bukhari", listOf("794")),
+                        NamazBookReference("Sahih Muslim", listOf("1085"))
+                    ),
+                    note = "Reference and translation are given under ruku (step 12)."
+                ),
+                NamazTasbeehOption(
+                    arabic = "سُبُّوحٌ قُدُّوسٌ رَبُّ الْمَلَائِكَةِ وَالرُّوحِ",
+                    urdu = "نہایت پاک، نہایت مقدس، فرشتوں اور روح کا رب۔",
+                    english = "Most Glorious, Most Holy, Lord of the angels and the Spirit.",
+                    references = listOf(
+                        NamazBookReference("Sahih Muslim", listOf("1091"))
+                    ),
+                    note = "Reference and translation are given under ruku (step 12)."
+                )
+            )
+        ),
+
+        // Section 5: سُنّتِ جلسہ / Sunnah of Jalsah (Sitting between the sujoods)
+        NamazStepJsonEntry(
+            step_no = 20,
+            sectionId = 5,
+            section = "Sunnah of Jalsah (Sitting between the sujoods)",
+            sectionUrdu = "سُنّتِ جلسہ",
+            title = "Sitting between the two sujoods",
+            titleUrdu = "جلسہ میں بیٹھنا",
+            arabic = "اللّٰهُ أَكْبَرُ",
+            urdu = "تکبیر کہہ کر سر اٹھائیں، بایاں پاؤں بچھا کر اس پر بیٹھیں اور دایاں کھڑا رکھیں۔",
+            english = "Say takbeer, raise the head, sit on the spread left foot with the right foot upright.",
+            reference = "Sahih al-Bukhari: 827; Sunan Abi Dawud: 730",
+            primaryReferences = listOf(
+                NamazBookReference("Sahih al-Bukhari", listOf("827")),
+                NamazBookReference("Sunan Abi Dawud", listOf("730"))
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 21,
+            sectionId = 5,
+            section = "Sunnah of Jalsah (Sitting between the sujoods)",
+            sectionUrdu = "سُنّتِ جلسہ",
+            title = "Supplication in jalsah",
+            titleUrdu = "جلسہ کی دعا",
+            arabic = "رَبِّ اغْفِرْ لِي رَبِّ اغْفِرْ لِي",
+            urdu = "اے میرے رب! مجھے بخش دے۔",
+            english = "My Lord, forgive me; my Lord, forgive me.",
+            reference = "Sunan Abi Dawud: 874; Sunan an-Nasa'i: 1146; Sunan Ibn Majah: 897 | Alternative: Sahih Muslim: 6850; Al-Musannaf (Ibn Abi Shaybah): 8838, 266/2",
+            primaryReferences = listOf(
+                NamazBookReference("Sunan Abi Dawud", listOf("874")),
+                NamazBookReference("Sunan an-Nasa'i", listOf("1146")),
+                NamazBookReference("Sunan Ibn Majah", listOf("897"))
+            ),
+            alternative = NamazAlternativeDua(
+                arabic = "اللَّهُمَّ اغْفِرْ لِي وَارْحَمْنِي وَاجْبُرْنِي وَاهْدِنِي وَعَافِنِي وَارْزُقْنِي",
+                urdu = "اے اللہ! مجھے بخش دے، رحم فرما، میری کمی پوری کر، ہدایت دے، عافیت دے اور رزق عطا فرما۔",
+                english = "O Allah, forgive me, have mercy on me, mend my affairs, guide me, grant me well-being, and provide for me.",
+                references = listOf(
+                    NamazBookReference("Sahih Muslim", listOf("6850")),
+                    NamazBookReference("Al-Musannaf (Ibn Abi Shaybah)", listOf("8838", "266/2"))
+                )
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 22,
+            sectionId = 5,
+            section = "Sunnah of Jalsah (Sitting between the sujoods)",
+            sectionUrdu = "سُنّتِ جلسہ",
+            title = "Rest-sitting after the second sujood",
+            titleUrdu = "دوسرے سجدے کے بعد جلسۂ استراحت",
+            arabic = "",
+            urdu = "دوسرے سجدے کے بعد بھی بیٹھیں (جلسۂ استراحت)؛ رسول اللہ ﷺ اسے نماز کے سکون کا حصہ قرار دیتے اور اس کا حکم بھی فرماتے تھے۔",
+            english = "Sit again after the second sujood (jalsat al-istirahah); the Prophet ﷺ treated it as part of the calm of prayer and also commanded it.",
+            reference = "Sahih al-Bukhari: 6251",
+            primaryReferences = listOf(
+                NamazBookReference("Sahih al-Bukhari", listOf("6251"))
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 23,
+            sectionId = 5,
+            section = "Sunnah of Jalsah (Sitting between the sujoods)",
+            sectionUrdu = "سُنّتِ جلسہ",
+            title = "Rising for the next rakat after the rest-sitting",
+            titleUrdu = "اگلی رکعت کے لیے اٹھنا",
+            arabic = "",
+            urdu = "طاق رکعتوں (پہلی اور تیسری) میں جلسۂ استراحت کے بعد زمین پر دونوں ہاتھوں کا سہارا لے کر اگلی رکعت کے لیے اٹھیں۔",
+            english = "In the odd rakats (first and third), after the rest-sitting, rise for the next rakat leaning on both hands on the ground.",
+            reference = "Sahih al-Bukhari: 823, 824",
+            primaryReferences = listOf(
+                NamazBookReference("Sahih al-Bukhari", listOf("823", "824"))
+            )
+        ),
+
+        // Section 6: سُنّتِ تشہد / Sunnah of Tashahhud
+        NamazStepJsonEntry(
+            step_no = 24,
+            sectionId = 6,
+            section = "Sunnah of Tashahhud",
+            sectionUrdu = "سُنّتِ تشہد",
+            title = "Sitting for tashahhud and pointing the finger",
+            titleUrdu = "تشہد میں بیٹھنا اور انگلی سے اشارہ",
+            arabic = "",
+            urdu = "دونوں ہاتھ رانوں پر رکھیں، شہادت کی انگلی سے اشارہ کرتے ہوئے دعا کریں اور نگاہ اسی پر رکھیں؛ انگلی کو آہستہ آہستہ حرکت دیں۔",
+            english = "Rest both hands on the thighs, point with the index finger while making dua, keep the gaze on it, and move it gently.",
+            reference = "Sahih Muslim: 1308, 1310; Sunan Abi Dawud: 991; Sunan an-Nasa'i: 1161, 1162, 1269; Sunan Ibn Majah: 912",
+            primaryReferences = listOf(
+                NamazBookReference("Sahih Muslim", listOf("1308", "1310")),
+                NamazBookReference("Sunan Abi Dawud", listOf("991")),
+                NamazBookReference("Sunan an-Nasa'i", listOf("1161", "1162", "1269")),
+                NamazBookReference("Sunan Ibn Majah", listOf("912"))
+            ),
+            notes = listOf(
+                "Raising the finger only at 'La ilaha' and putting it down at 'illallah' is not established from any hadith; the finger keeps pointing through the whole tashahhud, as in the narration above."
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 25,
+            sectionId = 6,
+            section = "Sunnah of Tashahhud",
+            sectionUrdu = "سُنّتِ تشہد",
+            title = "At-Tahiyyat",
+            titleUrdu = "التحیات",
+            arabic = "التَّحِيَّاتُ لِلَّهِ وَالصَّلَوَاتُ وَالطَّيِّبَاتُ، السَّلَامُ عَلَيْكَ أَيُّهَا النَّبِيُّ وَرَحْمَةُ اللَّهِ وَبَرَكَاتُهُ، السَّلَامُ عَلَيْنَا وَعَلَىٰ عِبَادِ اللَّهِ الصَّالِحِينَ، أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللَّهُ وَأَشْهَدُ أَنَّ مُحَمَّدًا عَبْدُهُ وَرَسُولُهُ",
+            urdu = "تمام قولی، بدنی اور مالی عبادات اللہ کے لیے ہیں۔ اے نبی! آپ پر سلام اور اللہ کی رحمت و برکتیں ہوں۔ ہم پر اور اللہ کے نیک بندوں پر سلام ہو۔ میں گواہی دیتا ہوں کہ اللہ کے سوا کوئی معبود نہیں اور محمد ﷺ اس کے بندے اور رسول ہیں۔",
+            english = "All greetings, prayers and good things are for Allah. Peace be upon you, O Prophet, and Allah's mercy and blessings. Peace be upon us and upon the righteous servants of Allah. I bear witness that there is no god but Allah, and that Muhammad is His servant and Messenger.",
+            reference = "Sahih al-Bukhari: 1202; Sahih Muslim: 897",
+            primaryReferences = listOf(
+                NamazBookReference("Sahih al-Bukhari", listOf("1202")),
+                NamazBookReference("Sahih Muslim", listOf("897"))
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 26,
+            sectionId = 6,
+            section = "Sunnah of Tashahhud",
+            sectionUrdu = "سُنّتِ تشہد",
+            title = "Tawarruk in the final tashahhud",
+            titleUrdu = "آخری تشہد میں تورک",
+            arabic = "",
+            urdu = "آخری تشہد میں بایاں پاؤں دائیں پنڈلی کے نیچے سے نکال کر کولہے زمین پر رکھیں اور دایاں پاؤں قبلہ رخ کھڑا رکھیں۔",
+            english = "In the final tashahhud, bring the left foot out beneath the right shin, sit on the left hip, and keep the right foot upright toward qibla.",
+            reference = "Sahih al-Bukhari: 828",
+            primaryReferences = listOf(
+                NamazBookReference("Sahih al-Bukhari", listOf("828"))
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 27,
+            sectionId = 6,
+            section = "Sunnah of Tashahhud",
+            sectionUrdu = "سُنّتِ تشہد",
+            title = "Salawat upon the Prophet (Durood Ibrahimi)",
+            titleUrdu = "درودِ ابراہیمی",
+            arabic = "اللَّهُمَّ صَلِّ عَلَىٰ مُحَمَّدٍ وَعَلَىٰ آلِ مُحَمَّدٍ كَمَا صَلَّيْتَ عَلَىٰ إِبْرَاهِيمَ وَعَلَىٰ آلِ إِبْرَاهِيمَ إِنَّكَ حَمِيدٌ مَجِيدٌ، اللَّهُمَّ بَارِكْ عَلَىٰ مُحَمَّدٍ وَعَلَىٰ آلِ مُحَمَّدٍ كَمَا بَارَكْتَ عَلَىٰ إِبْرَاهِيمَ وَعَلَىٰ آلِ إِبْرَاهِيمَ إِنَّكَ حَمِيدٌ مَجِيدٌ",
+            urdu = "اے اللہ! محمد ﷺ اور آلِ محمد پر رحمت نازل فرما جیسا کہ تو نے ابراہیم اور آلِ ابراہیم پر نازل فرمائی، بے شک تو تعریف والا بزرگی والا ہے۔ اے اللہ! محمد اور آلِ محمد پر برکت نازل فرما جیسا کہ تو نے ابراہیم اور آلِ ابراہیم پر برکت نازل فرمائی۔",
+            english = "O Allah, send prayers upon Muhammad and the family of Muhammad as You sent prayers upon Ibrahim and the family of Ibrahim; You are Praiseworthy, Glorious. O Allah, bless Muhammad and the family of Muhammad as You blessed Ibrahim and the family of Ibrahim; You are Praiseworthy, Glorious.",
+            reference = "Sahih al-Bukhari: 3370; Sahih Muslim: 908",
+            primaryReferences = listOf(
+                NamazBookReference("Sahih al-Bukhari", listOf("3370")),
+                NamazBookReference("Sahih Muslim", listOf("908"))
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 28,
+            sectionId = 6,
+            section = "Sunnah of Tashahhud",
+            sectionUrdu = "سُنّتِ تشہد",
+            title = "Seeking refuge before the salam",
+            titleUrdu = "سلام سے پہلے پناہ کی دعا",
+            arabic = "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنْ عَذَابِ جَهَنَّمَ وَمِنْ عَذَابِ الْقَبْرِ وَمِنْ فِتْنَةِ الْمَحْيَا وَالْمَمَاتِ وَمِنْ شَرِّ فِتْنَةِ الْمَسِيحِ الدَّجَّالِ",
+            urdu = "اے اللہ! میں تیری پناہ مانگتا ہوں جہنم کے عذاب سے، قبر کے عذاب سے، زندگی و موت کے فتنے سے اور مسیح دجال کے فتنے کے شر سے۔",
+            english = "O Allah, I seek refuge in You from the punishment of Hell, the punishment of the grave, the trials of life and death, and the evil of the trial of the False Messiah.",
+            reference = "Sahih Muslim: 1324",
+            primaryReferences = listOf(
+                NamazBookReference("Sahih Muslim", listOf("1324"))
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 29,
+            sectionId = 6,
+            section = "Sunnah of Tashahhud",
+            sectionUrdu = "سُنّتِ تشہد",
+            title = "Further masnoon supplication",
+            titleUrdu = "مزید مسنون دعا",
+            arabic = "رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ",
+            urdu = "اے ہمارے رب! ہمیں دنیا میں بھلائی دے اور آخرت میں بھی بھلائی، اور ہمیں آگ کے عذاب سے بچا۔",
+            english = "Our Lord, give us good in this world and good in the Hereafter, and protect us from the punishment of the Fire.",
+            reference = "Sahih al-Bukhari: 835, 6389; Sahih Muslim: 897, 6840 (Any other good dua established from the Quran and Sunnah may also be made after the tashahhud)",
+            primaryReferences = listOf(
+                NamazBookReference("Sahih al-Bukhari", listOf("835", "6389"), context = "Any other good dua established from the Quran and Sunnah may also be made after the tashahhud"),
+                NamazBookReference("Sahih Muslim", listOf("897", "6840"))
+            ),
+            additionalReferences = listOf(
+                NamazAdditionalReference(
+                    context = "Any other good dua established from the Quran and Sunnah may also be made after the tashahhud",
+                    references = listOf(
+                        NamazBookReference("Sahih al-Bukhari", listOf("835", "6389")),
+                        NamazBookReference("Sahih Muslim", listOf("897", "6840"))
+                    )
+                )
+            )
+        ),
+        NamazStepJsonEntry(
+            step_no = 30,
+            sectionId = 6,
+            section = "Sunnah of Tashahhud",
+            sectionUrdu = "سُنّتِ تشہد",
+            title = "Concluding salam",
+            titleUrdu = "سلام",
+            arabic = "السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ",
+            urdu = "دائیں اور بائیں سلام پھیریں: تم پر سلامتی اور اللہ کی رحمت ہو۔",
+            english = "Turn the face right then left: 'Peace be upon you and the mercy of Allah.'",
+            reference = "Sahih al-Bukhari: 838; Sahih Muslim: 1315; Jami at-Tirmidhi: 295; Sunan Abi Dawud: 996; Sunan an-Nasa'i: 1320; Sunan Ibn Majah: 914",
+            primaryReferences = listOf(
+                NamazBookReference("Sahih al-Bukhari", listOf("838")),
+                NamazBookReference("Sahih Muslim", listOf("1315")),
+                NamazBookReference("Jami at-Tirmidhi", listOf("295")),
+                NamazBookReference("Sunan Abi Dawud", listOf("996")),
+                NamazBookReference("Sunan an-Nasa'i", listOf("1320")),
+                NamazBookReference("Sunan Ibn Majah", listOf("914"))
+            )
+        )
+    )
+
+    /**
+     * Rakat Flow mapping aligned with the corrected 30 steps in namaz_muhammadi_2dfceee0.json.
+     */
+    val rakatFlows: List<RakatFlowJsonEntry> = listOf(
+        RakatFlowJsonEntry(
+            prayerKey = "2_rakat",
+            labelEnglish = "2 Rakat (e.g., Fajr / Sunnah / Nafl)",
+            labelUrdu = "۲ رکعت (فجر / سنت / نفل)",
+            rakats = linkedMapOf(
+                "rakat_1" to listOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 16, 17, 18, 19, 22, 23),
+                "rakat_2" to listOf(5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 16, 17, 18, 19, 24, 25, 26, 27, 28, 29, 30)
+            )
+        ),
+        RakatFlowJsonEntry(
+            prayerKey = "3_rakat",
+            labelEnglish = "3 Rakat (e.g., Maghrib)",
+            labelUrdu = "۳ رکعت (مغرب)",
+            rakats = linkedMapOf(
+                "rakat_1" to listOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 16, 17, 18, 19, 22, 23),
+                "rakat_2" to listOf(5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 16, 17, 18, 19, 24, 25),
+                "rakat_3" to listOf(5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 16, 17, 18, 19, 24, 25, 26, 27, 28, 29, 30)
+            )
+        ),
+        RakatFlowJsonEntry(
+            prayerKey = "4_rakat",
+            labelEnglish = "4 Rakat (e.g., Dhuhr / Asr / Isha)",
+            labelUrdu = "۴ رکعت (ظہر / عصر / عشاء)",
+            rakats = linkedMapOf(
+                "rakat_1" to listOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 16, 17, 18, 19, 22, 23),
+                "rakat_2" to listOf(5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 16, 17, 18, 19, 24, 25),
+                "rakat_3" to listOf(5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 16, 17, 18, 19, 22, 23),
+                "rakat_4" to listOf(5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 16, 17, 18, 19, 24, 25, 26, 27, 28, 29, 30)
+            )
+        )
+    )
+
+    /**
+     * PART 2: New tab "Nimaz Janaza" (نمازِ جنازہ) with three sub-sections:
+     * 1. Adult (بالغ)
+     * 2. Baby Boy (بچہ)
+     * 3. Baby Girl (بچی)
+     * Janaza prayer is offered standing only. There is NO ruku and NO sajdah.
+     */
+    fun getNimazJanazaSteps(subSection: NimazJanazaSubSection): List<NamazStepJsonEntry> {
+        val sectionLabel = when (subSection) {
+            NimazJanazaSubSection.ADULT -> "Adult (بالغ)"
+            NimazJanazaSubSection.BABY_BOY -> "Baby Boy (بچہ)"
+            NimazJanazaSubSection.BABY_GIRL -> "Baby Girl (بچی)"
+        }
+        val step1Intention = NamazStepJsonEntry(
+            step_no = 1,
+            section = sectionLabel,
+            title = "Intention in the heart (Niyyah)",
+            arabic = "إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ",
+            urdu = "دل میں نمازِ جنازہ کی نیت کریں کہ میں اللہ کی رضا کے لیے اس میت کی دعائے مغفرت و شفاعت کے لیے چار تکبیروں کے ساتھ نمازِ جنازہ پڑھتا ہوں (نمازِ جنازہ صرف کھڑے ہو کر پڑھی جاتی ہے، اس میں رکوع اور سجدہ نہیں ہے)۔",
+            english = "Form the intention in the heart to offer the funeral prayer (Salat al-Janaza) with four takbeers for the sake of Allah and supplication for the deceased. Janaza prayer is offered standing only; there is NO ruku and NO sajdah.",
+            reference = "Sahih Bukhari 1, 1245; Sahih Muslim 1907"
+        )
+        val step2FirstTakbeerFatiha = NamazStepJsonEntry(
+            step_no = 2,
+            section = sectionLabel,
+            title = "1st Takbeer then Surah Al-Fatiha",
+            arabic = "اللَّهُ أَكْبَرُ ۝ بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ ۝ الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ ۝ الرَّحْمَٰنِ الرَّحِيمِ ۝ مَالِكِ يَوْمِ الدِّينِ ۝ إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ ۝ اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ ۝ صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ وَلَا الضَّالِّينَ",
+            urdu = "پہلی تکبیر «اللہ اکبر» کہہ کر ہاتھ باندھ لیں، تعوذ و بسم اللہ اور سورۃ الفاتحہ (اور ثناء) پڑھیں۔",
+            english = "Say the first \"Allahu Akbar\", fold the hands on the chest, and recite Surah Al-Fatiha (alongside opening praise/Thana).",
+            reference = "Sahih Bukhari 1335; Sunan Nasai 1989; Sunan Ibn Majah 1495"
+        )
+        val step3SecondTakbeerDurood = NamazStepJsonEntry(
+            step_no = 3,
+            section = sectionLabel,
+            title = "2nd Takbeer then Durood Ibrahimi",
+            arabic = "اللَّهُ أَكْبَرُ ۝ اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ كَمَا صَلَّيْتَ عَلَى إِبْرَاهِيمَ وَعَلَى آلِ إِبْرَاهِيمَ إِنَّكَ حَمِيدٌ مَجِيدٌ، اللَّهُمَّ بَارِكْ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ كَمَا بَارَكْتَ عَلَى إِبْرَاهِيمَ وَعَلَى آلِ إِبْرَاهِيمَ إِنَّكَ حَمِيدٌ مَجِيدٌ",
+            urdu = "دوسری تکبیر «اللہ اکبر» کہیں اور نبی اکرم ﷺ پر درودِ ابراہیمی پڑھیں: اے اللہ! محمد ﷺ اور آلِ محمد پر رحمت اور برکت نازل فرما جیسے تو نے ابراہیم علیہ السلام اور ان کی آل پر رحمت اور برکت نازل فرمائی، بے شک تو تعریف والا، بزرگی والا ہے۔",
+            english = "Say the second \"Allahu Akbar\" and recite Durood Ibrahimi: O Allah, send blessings and grace upon Muhammad and upon the family of Muhammad, as You sent blessings and grace upon Ibrahim and upon the family of Ibrahim; indeed, You are Praiseworthy and Glorious.",
+            reference = "Sunan al-Kubra al-Bayhaqi 4/39 (7242); Musannaf Abdur-Razzaq 6428; Sahih Bukhari 3370"
+        )
+        val step4ThirdTakbeerDua = when (subSection) {
+            NimazJanazaSubSection.ADULT -> NamazStepJsonEntry(
+                step_no = 4,
+                section = sectionLabel,
+                title = "3rd Takbeer then Dua for the Deceased (Adult — بالغ)",
+                arabic = "اللَّهُ أَكْبَرُ ۝ اللَّهُمَّ اغْفِرْ لَهُ وَارْحَمْهُ، وَعَافِهِ وَاعْفُ عَنْهُ، وَأَكْرِمْ نُزُلَهُ، وَوَسِّعْ مُدْخَلَهُ، وَاغْسِلْهُ بِالْمَاءِ وَالثَّلْجِ وَالْبَرَدِ، وَنَقِّهِ مِنَ الْخَطَايَا كَمَا نَقَّيْتَ الثَّوْبَ الْأَبْيَضَ مِنَ الدَّنَسِ، وَأَبْدِلْهُ دَارًا خَيْرًا مِنْ دَارِهِ، وَأَهْلًا خَيْرًا مِنْ أَهْلِهِ، وَزَوْجًا خَيْرًا مِنْ زَوْجِهِ، وَأَدْخِلْهُ الْجَنَّةَ، وَأَعِذْهُ مِنْ عَذَابِ الْقَبْرِ وَمِنْ عَذَابِ النَّارِ ۝ اللَّهُمَّ اغْفِرْ لِحَيِّنَا وَمَيِّتِنَا وَشَاهِدِنَا وَغَائِبِنَا وَصَغِيرِنَا وَكَبِيرِنَا وَذَكَرِنَا وَأُنْثَانَا، اللَّهُمَّ مَنْ أَحْيَيْتَهُ مِنَّا فَأَحْيِهِ عَلَى الْإِسْلَامِ، وَمَنْ تَوَفَّيْتَهُ مِنَّا فَتَوَفَّهُ عَلَى الْإِيمَانِ",
+                urdu = "تیسری تکبیر «اللہ اکبر» کہہ کر بالغ میت کی مغفرت اور رحمت کی مسنون دعا پڑھیں: اے اللہ! اس کی مغفرت فرما اور اس پر رحم فرما، اسے عافیت دے اور اسے معاف فرما، اس کی مہمان نوازی عزت کے ساتھ فرما اور اس کی قبر کو کشادہ کر دے، اسے پانی، برف اور اولوں سے دھو دے اور اسے گناہوں سے ایسے پاک کر دے جیسے سفید کپڑا میل کچیل سے صاف کیا جاتا ہے، اسے اس کے گھر سے بہتر گھر، اس کے گھر والوں سے بہتر گھر والے اور اس کے جوڑے سے بہتر جوڑا عطا فرما، اور اسے جنت میں داخل فرما اور عذابِ قبر اور عذابِ دوزخ سے محفوظ رکھ۔ اے اللہ! ہمارے زندوں اور ہمارے مردوں کو، حاضر اور غائب کو، چھوٹوں اور بڑوں کو، مردوں اور عورتوں کو بخش دے۔",
+                english = "Say the third \"Allahu Akbar\" and recite the Prophetic supplication of forgiveness and mercy for the adult deceased: O Allah, forgive him and have mercy on him, grant him ease and pardon him, honor his reception and widen his entry; wash him with water, snow, and hail, and cleanse him of sins as a white garment is cleansed of dirt; grant him a home better than his home, a family better than his family, and a spouse better than his spouse; admit him into Paradise and protect him from the torment of the grave and the torment of the Fire. O Allah, forgive our living and our dead, our present and our absent, our young and our old, our males and our females.",
+                reference = "Sahih Muslim 963; Sunan Abi Dawud 3201; Jami Tirmidhi 1024; Sunan Nasai 1983"
+            )
+            NimazJanazaSubSection.BABY_BOY -> NamazStepJsonEntry(
+                step_no = 4,
+                section = sectionLabel,
+                title = "3rd Takbeer then Dua for the Deceased Child (Baby Boy — بچہ)",
+                arabic = "اللَّهُ أَكْبَرُ ۝ اللَّهُمَّ اجْعَلْهُ لَنَا فَرَطًا وَسَلَفًا وَأَجْرًا ۝ اللَّهُمَّ أَعِذْهُ مِنْ عَذَابِ الْقَبْرِ، اللَّهُمَّ اجْعَلْهُ فَرَطًا وَذُخْرًا لِوَالِدَيْهِ، وَشَفِيعًا مُجَابًا، اللَّهُمَّ ثَقِّلْ بِهِ مَوَازِينَهُمَا، وَأَعْظِمْ بِهِ أُجُورَهُمَا، وَأَلْحِقْهُ بِصَالِحِ الْمُؤْمِنِينَ، وَاجْعَلْهُ فِي كَفَالَةِ إِبْرَاهِيمَ، وَقِهِ بِرَحْمَتِكَ عَذَابَ الْجَحِيمِ",
+                urdu = "تیسری تکبیر «اللہ اکبر» کہہ کر نابالغ لڑکے (بچے) کے لیے مسنون مذکر صیغے والی دعا پڑھیں: اے اللہ! اس (بچے) کو ہمارے لیے پیش خیمہ، آگے جانے والا سامانِ آخرت اور اجر و ثواب بنا دے۔ اے اللہ! اسے عذابِ قبر سے پناہ دے، اور اسے اس کے والدین کے لیے پیش رو، ذخیرۂ آخرت اور مقبول شفاعت کرنے والا (شَفِيعًا مُجَابًا) بنا دے۔ اے اللہ! اس کے ذریعے ان کے اعمال کے ترازو بھاری کر دے، ان کے اجر عظیم فرما، اسے نیک مؤمنین کے ساتھ ملا دے اور حضرت ابراہیم علیہ السلام کی کفالت میں رکھ۔",
+                english = "Say the third \"Allahu Akbar\" and recite the supplication for a deceased baby boy (using masculine pronouns): O Allah, make him for us a forerunner, a preceding reward, and a treasure. O Allah, protect him from the torment of the grave, and make him a forerunner and stored treasure for his parents, and an accepted intercessor (shafi'an mujaban). O Allah, make heavy their scales of good deeds through him, magnify their rewards through him, join him with the righteous believers, place him in the care of Ibrahim (peace be upon him), and shield him by Your mercy from the torment of Hell.",
+                reference = "Sahih Bukhari (Kitab al-Jana'iz, Bab 65); Sunan Abi Dawud 3180; Al-Musannaf Ibn Abi Shaybah 11473; Sunan al-Kubra al-Bayhaqi 4/9"
+            )
+            NimazJanazaSubSection.BABY_GIRL -> NamazStepJsonEntry(
+                step_no = 4,
+                section = sectionLabel,
+                title = "3rd Takbeer then Dua for the Deceased Child (Baby Girl — بچی)",
+                arabic = "اللَّهُ أَكْبَرُ ۝ اللَّهُمَّ اجْعَلْهَا لَنَا فَرَطًا وَسَلَفًا وَأَجْرًا ۝ اللَّهُمَّ أَعِذْهَا مِنْ عَذَابِ الْقَبْرِ، اللَّهُمَّ اجْعَلْهَا فَرَطًا وَذُخْرًا لِوَالِدَيْهَا، وَشَفِيعَةً مُجَابَةً، اللَّهُمَّ ثَقِّلْ بِهَا مَوَازِينَهُمَا، وَأَعْظِمْ بِهَا أُجُورَهُمَا، وَأَلْحِقْهَا بِصَالِحِ الْمُؤْمِنِينَ، وَاجْعَلْهَا فِي كَفَالَةِ إِبْرَاهِيمَ، وَقِهَا بِرَحْمَتِكَ عَذَابَ الْجَحِيمِ",
+                urdu = "تیسری تکبیر «اللہ اکبر» کہہ کر نابالغ لڑکی (بچی) کے لیے مسنون مؤنث صیغے والی دعا پڑھیں: اے اللہ! اس (بچی) کو ہمارے لیے پیش خیمہ، آگے جانے والا سامانِ آخرت اور اجر و ثواب بنا دے۔ اے اللہ! اسے عذابِ قبر سے پناہ دے، اور اسے اس کے والدین کے لیے پیش رو، ذخیرۂ آخرت اور مقبول شفاعت کرنے والی (شَفِيعَةً مُجَابَةً) بنا دے۔ اے اللہ! اس کے ذریعے ان کے اعمال کے ترازو بھاری کر دے، ان کے اجر عظیم فرما، اسے نیک مؤمنین کے ساتھ ملا دے اور حضرت ابراہیم علیہ السلام کی کفالت میں رکھ۔",
+                english = "Say the third \"Allahu Akbar\" and recite the supplication for a deceased baby girl (using feminine pronouns): O Allah, make her for us a forerunner, a preceding reward, and a treasure. O Allah, protect her from the torment of the grave, and make her a forerunner and stored treasure for her parents, and an accepted intercessor (shafi'atan mujabatan). O Allah, make heavy their scales of good deeds through her, magnify their rewards through her, join her with the righteous believers, place her in the care of Ibrahim (peace be upon him), and shield her by Your mercy from the torment of Hell.",
+                reference = "Sahih Bukhari (Kitab al-Jana'iz, Bab 65); Sunan Abi Dawud 3180; Al-Musannaf Ibn Abi Shaybah 11473; Sunan al-Kubra al-Bayhaqi 4/9"
+            )
+        }
+        val step5FourthTakbeerPause = NamazStepJsonEntry(
+            step_no = 5,
+            section = sectionLabel,
+            title = "4th Takbeer then a short pause",
+            arabic = "اللَّهُ أَكْبَرُ ۝ (اللَّهُمَّ لَا تَحْرِمْنَا أَجْرَهُ وَلَا تَفْتِنَّا بَعْدَهُ)",
+            urdu = "چوتھی تکبیر «اللہ اکبر» کہیں اور سلام پھیرنے سے پہلے مختصر وقفہ کریں (یا مختصر دعا کہیں: اے اللہ! ہمیں اس کے اجر سے محروم نہ رکھ اور اس کے بعد ہمیں فتنے میں نہ ڈال)۔",
+            english = "Say the fourth \"Allahu Akbar\" and observe a short pause before concluding with Salam (one may also briefly say: O Allah, do not deprive us of the reward and do not put us to trial after them).",
+            reference = "Sunan Abi Dawud 3201; Sunan al-Kubra al-Bayhaqi 4/43; Muwatta Malik 534"
+        )
+        val step6Salam = NamazStepJsonEntry(
+            step_no = 6,
+            section = sectionLabel,
+            title = "Salam to the right (optionally to the left)",
+            arabic = "السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ",
+            urdu = "دائیں طرف منہ پھیر کر «السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ» کہہ کر نمازِ جنازہ مکمل کریں (اور دوسری طرف بائیں جانب بھی سلام پھیرنے کی اجازت ہے)۔",
+            english = "Conclude the funeral prayer by turning the face to the right and saying \"As-salamu 'alaykum wa rahmatullah\" (and optionally turning to the left for a second Salam).",
+            reference = "Sunan al-Kubra al-Bayhaqi 4/43; Sunan Nasai 1991; Sahih Muslim 963"
+        )
+        return listOf(
+            step1Intention,
+            step2FirstTakbeerFatiha,
+            step3SecondTakbeerDurood,
+            step4ThirdTakbeerDua,
+            step5FourthTakbeerPause,
+            step6Salam
+        )
+    }
+
 
     /**
      * Separate Fasting-Intention (Sehri Niyat) Section (Requirement 3):

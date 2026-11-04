@@ -1,0 +1,68 @@
+================================================================================
+DEVELOPER AND SUPPORT INFORMATION — BAYAN AL-HUDA (بَيَانُ الهُدَى)
+================================================================================
+This document lists the exact developer, application, and support details verified
+from the Bayan al-Huda project source code, along with clearly marked placeholders
+for items you must supply in Google Play Console.
+
+--------------------------------------------------------------------------------
+1. VERIFIED APPLICATION & DEVELOPER IDENTITY (PRESENT IN APP)
+--------------------------------------------------------------------------------
+- App Name (Launcher & Play Store Title): Bayan al-Huda
+  (Note: 13 characters — well within Google Play's 30-character title limit)
+- Arabic Subtitle: بَيَانُ الهُدَى • Quran, Hadith & Salah Library
+- Android Application ID (`applicationId`): com.bayanulhuda.com
+- Version Code (`versionCode`): 2
+- Version Name (`versionName`): 1.1.0
+- Minimum SDK (`minSdk`): 26 (Android 8.0 Oreo)
+- Target SDK (`targetSdk`): 35 (Android 15 — meets Google Play Target API level requirement)
+- Compile SDK (`compileSdk`): 36
+- Lead Developer & Maintainer Name: Zulqarnain Ahmad Sheikh
+- Primary Support & Compliance Email: sheikhzulqar@gmail.com
+- Instagram Profile: https://www.instagram.com/zulqarnainah/ (@zulqarnainah)
+- Facebook Contact Link: https://www.facebook.com/share/1PiLFRT6jv/
+- WhatsApp Support Contact (Configured in App): +91 6006687944
+
+--------------------------------------------------------------------------------
+2. FIREBASE & GOOGLE CLOUD CONFIGURATION (VERIFIED IN PROJECT)
+--------------------------------------------------------------------------------
+- Firebase Project ID: gen-lang-client-0124169087
+- Firebase Project Number: 57183295971
+- Firebase Storage Bucket: gen-lang-client-0124169087.firebasestorage.app
+- Firestore Database ID: ai-studio-b5656b96-dcba-461e-9a4e-6980268a4d55
+- Firebase Authentication Method: Google Sign-In via Android Credential Manager
+- OAuth 2.0 Web Client ID (in `strings.xml` / `google-services.json`):
+  57183295971-90v572f3430e0n2f9468q7b3i2254p7l.apps.googleusercontent.com
+
+--------------------------------------------------------------------------------
+3. REQUIRED PUBLIC URLS (PLACEHOLDERS TO COMPLETE AFTER GOOGLE SITES PUBLISH)
+--------------------------------------------------------------------------------
+Once you publish your Google Sites pages using the generated `.txt` files, record
+your public URLs here and enter them in Google Play Console:
+
+1. Public Privacy Policy URL:
+   [PLACEHOLDER: https://sites.google.com/view/bayan-al-huda/privacy-policy]
+
+2. Public Account & Data Deletion URL:
+   [PLACEHOLDER: https://sites.google.com/view/bayan-al-huda/account-deletion]
+
+3. Public Terms & Conditions URL (Optional but recommended):
+   [PLACEHOLDER: https://sites.google.com/view/bayan-al-huda/terms-and-conditions]
+
+4. Developer Website URL (For Google Play Store Listing):
+   [PLACEHOLDER: https://sites.google.com/view/bayan-al-huda]
+
+--------------------------------------------------------------------------------
+4. PLAY CONSOLE DEVELOPER ACCOUNT DETAILS (REQUIRES YOUR CONFIRMATION)
+--------------------------------------------------------------------------------
+Google Play Console requires developer identity verification. Have the following
+ready when completing your Play Console Developer Profile:
+
+- Legal Name (as on Government ID): Zulqarnain Ahmad Sheikh
+- Developer Account Type: Personal Account (or Organization Account)
+- Public Developer Support Email: sheikhzulqar@gmail.com
+- Contact Phone Number (with country code, verified via SMS/call in Play Console):
+  [PLACEHOLDER: Confirm whether to use +91 6006687944 or another number]
+- Physical Contact Address (Required by Google Play Console for developer verification):
+  [PLACEHOLDER: Enter your full postal address in Google Play Console]
+================================================================================

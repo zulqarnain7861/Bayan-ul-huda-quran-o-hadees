@@ -98,6 +98,7 @@ fun AboutScreen(
   remainingGuestDays: Int = 7,
   onSignOut: () -> Unit = {},
   onSignInSuccess: (com.google.firebase.auth.FirebaseUser) -> Unit = {},
+  onDeleteAccount: (Boolean, (Boolean, String) -> Unit) -> Unit = { _, cb -> cb(false, "Account deletion handler not bound") },
   onClearAudioCache: () -> Unit = {},
   currentAppLanguageCode: String = "en",
   onSelectAppLanguage: (String, Boolean) -> Unit = { _, _ -> },
@@ -429,7 +430,7 @@ fun AboutScreen(
       }
     }
 
-    // Cloud Sync / 7-Day Guest Access Status Card
+    // Cloud Sync / Unlimited Guest Access Status Card
     item {
       val authScope = androidx.compose.runtime.rememberCoroutineScope()
       var isSigningInDirect by remember { mutableStateOf(false) }
@@ -443,7 +444,7 @@ fun AboutScreen(
         Column(modifier = Modifier.padding(16.dp)) {
           Text(
             text = if (isGuestMode && userEmail == null) {
-              "Guest Access ($remainingGuestDays of 7 Days Remaining)"
+              "Guest Access (Unlimited Offline Mode)"
             } else {
               "Cloud Sync Account (Firebase)"
             },
@@ -455,7 +456,7 @@ fun AboutScreen(
           Spacer(modifier = Modifier.height(8.dp))
           Text(
             text = if (isGuestMode && userEmail == null) {
-              "Active 7-Day Guest Session (Offline Local SQLite Storage)"
+              "Active Unlimited Guest Session (Offline Local SQLite Storage)"
             } else if (!userName.isNullOrBlank()) {
               "$userName (${userEmail ?: "Signed in"})"
             } else {
@@ -544,15 +545,54 @@ fun AboutScreen(
               }
             }
           } else {
-            Button(
-              onClick = onSignOut,
-              modifier = Modifier.testTag("sign_out_button")
+            var showInlineDeleteAccountDialog by remember { mutableStateOf(false) }
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-              Text("Sign Out")
+              Button(
+                onClick = onSignOut,
+                modifier = Modifier
+                  .weight(1f)
+                  .testTag("sign_out_button")
+              ) {
+                Text("Sign Out")
+              }
+              OutlinedButton(
+                onClick = { showInlineDeleteAccountDialog = true },
+                colors = ButtonDefaults.outlinedButtonColors(
+                  contentColor = MaterialTheme.colorScheme.error
+                ),
+                modifier = Modifier
+                  .weight(1f)
+                  .testTag("account_card_delete_account_button")
+              ) {
+                Text("Delete Account", fontWeight = FontWeight.Bold)
+              }
+            }
+            if (showInlineDeleteAccountDialog) {
+              DeleteAccountConfirmationDialog(
+                context = context,
+                userEmail = userEmail,
+                userName = userName,
+                isGuestMode = isGuestMode,
+                onDeleteAccount = onDeleteAccount,
+                onDismiss = { showInlineDeleteAccountDialog = false }
+              )
             }
           }
         }
       }
+    }
+
+    // Google Play Compliance: Privacy Policy, Terms & Conditions, Permissions Transparency & Account Deletion
+    item {
+      PlayStoreComplianceCard(
+        userEmail = userEmail,
+        userName = userName,
+        isGuestMode = isGuestMode,
+        onDeleteAccount = onDeleteAccount
+      )
     }
 
     // Contact Us, Social Links & Play Store Publication Support
