@@ -4,50 +4,72 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.google.firebase.FirebaseApp
+import com.google.firebase.appcheck.FirebaseAppCheck
+import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
+import com.google.firebase.appcheck.recaptcha.RecaptchaAppCheckProviderFactory
 
 private const val TAG = "AppCheckInit"
 
+// App Check contract keys defined by the Firebase SDK and runtime harness.
 private const val DEBUG_TOKEN_EXTRA = "FIREBASE_APPCHECK_DEBUG_TOKEN"
 private const val DEBUG_STORE_PREFIX = "com.google.firebase.appcheck.debug.store."
-private const val TOKEN_STORE_PREFIX = "com.google.firebase.appcheck.store."
 private const val DEBUG_SECRET_KEY = "com.google.firebase.appcheck.debug.DEBUG_SECRET"
+private const val RECAPTCHA_SITE_KEY_RES = "recaptcha_site_key"
 
-/**
- * Ensures [FirebaseApp] is initialized before any Firestore or Auth calls and purges any stale
- * unregistered App Check debug tokens from SharedPreferences so that Google Sign-In
- * (`Firebase.auth.signInWithCredential`) never fails with
- * `An internal error has occurred. [ Firebase App Check token is invalid. ]`.
- */
 fun configureAppCheck(
   context: Context,
   intent: Intent?,
   forcePlayIntegrity: Boolean = false
 ) {
   try {
+    // 1. Ensure FirebaseApp is initialized
     if (FirebaseApp.getApps(context).isEmpty()) {
       FirebaseApp.initializeApp(context)
     }
 
-    val persistenceKey = runCatching { FirebaseApp.getInstance().persistenceKey }.getOrNull()
-    if (!persistenceKey.isNullOrEmpty()) {
+    if (BuildConfig.DEBUG && !forcePlayIntegrity) {
+      // 2. Debug: Read debug token from Intent extra
       val debugToken = intent?.getStringExtra(DEBUG_TOKEN_EXTRA)
-      val debugPrefs = context.getSharedPreferences(
-        "$DEBUG_STORE_PREFIX$persistenceKey",
-        Context.MODE_PRIVATE
-      )
-      if (!debugToken.isNullOrEmpty() && !forcePlayIntegrity) {
-        debugPrefs.edit().putString(DEBUG_SECRET_KEY, debugToken).commit()
-      } else {
-        // Clear any unregistered local debug secret and cached invalid App Check tokens
-        debugPrefs.edit().clear().commit()
-        context.getSharedPreferences(
-          "$TOKEN_STORE_PREFIX$persistenceKey",
+
+      if (!debugToken.isNullOrEmpty()) {
+        val persistenceKey = FirebaseApp.getInstance().persistenceKey
+        val prefs = context.getSharedPreferences(
+          "$DEBUG_STORE_PREFIX$persistenceKey",
           Context.MODE_PRIVATE
-        ).edit().clear().commit()
+        )
+        // CRITICAL: MUST use commit() instead of apply() so the secret is written
+        // synchronously before DebugAppCheckProviderFactory reads it.
+        prefs.edit()
+          .putString(DEBUG_SECRET_KEY, debugToken)
+          .commit()
+        Log.d(TAG, "App Check debug secret configured successfully.")
+      } else {
+        Log.w(TAG, "No debug token found in Intent extra.")
+      }
+
+      FirebaseAppCheck.getInstance().installAppCheckProviderFactory(
+        DebugAppCheckProviderFactory.getInstance()
+      )
+      Log.d(TAG, "DebugAppCheckProviderFactory installed.")
+    } else {
+      // 3. Release: Look up recaptcha_site_key safely without throwing Resources.NotFoundException
+      val resId = context.resources.getIdentifier(RECAPTCHA_SITE_KEY_RES, "string", context.packageName)
+      if (resId != 0) {
+        val siteKey = context.getString(resId)
+        if (siteKey.isNotBlank()) {
+          FirebaseAppCheck.getInstance().installAppCheckProviderFactory(
+            RecaptchaAppCheckProviderFactory.getInstance(siteKey)
+          )
+          Log.d(TAG, "RecaptchaAppCheckProviderFactory installed.")
+        } else {
+          Log.e(TAG, "recaptcha_site_key resource string is blank.")
+        }
+      } else {
+        Log.e(TAG, "recaptcha_site_key string resource not found in package.")
       }
     }
   } catch (e: Exception) {
-    Log.e(TAG, "Failed to initialize Firebase runtime configuration.")
+    // Log explicitly to keep App Check attestation failures visible
+    Log.e(TAG, "Failed to initialize Firebase App Check", e)
   }
 }
-

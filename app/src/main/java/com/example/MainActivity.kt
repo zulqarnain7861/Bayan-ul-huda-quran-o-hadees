@@ -101,6 +101,7 @@ data class BottomNavDestination(
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    installGlobalExceptionBoundary()
     com.example.security.TapjackingGuard.enableOverlayProtection(this)
     com.example.security.PathTraversalAndIntentGuard.sanitizeIncomingIntent(intent)
     com.example.security.RuntimeIntegrityGuard.performStartupCheck(this)
@@ -115,6 +116,27 @@ class MainActivity : ComponentActivity() {
       }
     }
   }
+
+  private fun installGlobalExceptionBoundary() {
+    val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
+    Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+      android.util.Log.e(
+        "GlobalErrorBoundary",
+        "Uncaught exception on thread ${thread.name}: ${throwable.message}",
+        throwable
+      )
+      // If a background worker thread throws a non-fatal IO/network/SQLite/JSON exception, absorb it safely
+      val isMainThread = thread == android.os.Looper.getMainLooper()?.thread
+      if (!isMainThread && throwable !is Error) {
+        android.util.Log.w(
+          "GlobalErrorBoundary",
+          "Absorbed non-fatal background thread exception on ${thread.name} to prevent app crash."
+        )
+        return@setDefaultUncaughtExceptionHandler
+      }
+      previousHandler?.uncaughtException(thread, throwable)
+    }
+  }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -127,7 +149,10 @@ fun BayanApp(
   val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
   val alarmPlaybackState by viewModel.alarmPlaybackState.collectAsStateWithLifecycle()
   val syncBadgeState by viewModel.downloadManager.syncBadgeState.collectAsStateWithLifecycle()
-  val surahs by viewModel.allSurahs.collectAsStateWithLifecycle()
+  val dbSurahs by viewModel.allSurahs.collectAsStateWithLifecycle()
+  val surahs = remember(dbSurahs) {
+    dbSurahs.ifEmpty { com.example.data.local.InitialDataLoader.getAll114Surahs() }
+  }
 
   val appLanguageCode = uiState.prayerConfig.appInterfaceLanguageCode
   val appStrings = remember(appLanguageCode) {
@@ -188,12 +213,47 @@ fun BayanApp(
 
   fun navigateToTab(route: String, tab: MainNavigationTab) {
     viewModel.selectTab(tab)
-    navController.navigate(route) {
-      popUpTo(navController.graph.findStartDestination().id) {
-        saveState = true
+    runCatching {
+      val currentRoute = navController.currentBackStackEntry?.destination?.route
+      if (currentRoute == route) return@runCatching
+      val startDestId = runCatching { navController.graph.findStartDestination().id }.getOrNull()
+      navController.navigate(route) {
+        if (startDestId != null) {
+          popUpTo(startDestId) {
+            saveState = true
+          }
+        }
+        launchSingleTop = true
+        restoreState = true
       }
-      launchSingleTop = true
-      restoreState = true
+    }.onFailure { e ->
+      android.util.Log.w("BayanNavigation", "Safe navigation fallback for tab $route", e)
+      runCatching {
+        navController.navigate(route) { launchSingleTop = true }
+      }
+    }
+  }
+
+  fun safeNavigateToRoute(route: String) {
+    runCatching {
+      val currentRoute = navController.currentBackStackEntry?.destination?.route
+      if (currentRoute != route) {
+        navController.navigate(route) {
+          launchSingleTop = true
+        }
+      }
+    }.onFailure { e ->
+      android.util.Log.w("BayanNavigation", "Safe route navigation error for $route", e)
+    }
+  }
+
+  fun safePopBackStack() {
+    runCatching {
+      if (!navController.popBackStack()) {
+        navigateToTab(BayanNavRoutes.HOME, MainNavigationTab.HOME)
+      }
+    }.onFailure { e ->
+      android.util.Log.w("BayanNavigation", "Safe popBackStack fallback to HOME", e)
     }
   }
 
@@ -255,7 +315,7 @@ fun BayanApp(
               )
             },
             navigationIcon = {
-              IconButton(onClick = { navController.popBackStack() }) {
+              IconButton(onClick = { safePopBackStack() }) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
               }
             },
@@ -271,33 +331,64 @@ fun BayanApp(
               viewModel.downloadManager.setOfflineModeEnabled(!syncBadgeState.isOfflineMode)
             },
             onOpenQiblaClick = {
-              navController.navigate(BayanNavRoutes.QIBLA) {
-                launchSingleTop = true
-              }
+              safeNavigateToRoute(BayanNavRoutes.QIBLA)
             },
             onOpenDownloadsClick = {
-              navController.navigate(BayanNavRoutes.DOWNLOADS) {
-                launchSingleTop = true
-              }
+              safeNavigateToRoute(BayanNavRoutes.DOWNLOADS)
             },
             onOpenEvidenceClick = {
-              navController.navigate(BayanNavRoutes.EVIDENCE) {
-                launchSingleTop = true
-              }
+              safeNavigateToRoute(BayanNavRoutes.EVIDENCE)
             },
             onCycleThemeMode = { viewModel.cycleThemeMode() },
             onSearchClick = { navigateToTab(BayanNavRoutes.SEARCH, MainNavigationTab.SEARCH) },
             onAboutClick = {
               viewModel.refreshAuditReport(checkNetworkLive = true)
-              navController.navigate(BayanNavRoutes.ABOUT) {
-                launchSingleTop = true
-              }
+              safeNavigateToRoute(BayanNavRoutes.ABOUT)
             }
           )
         }
       },
       bottomBar = {
         Column {
+          // Global Recoverable Error Boundary Banner (safe state recovery without crashing)
+          uiState.lastRecoverableError?.let { errorMsg ->
+            androidx.compose.material3.Surface(
+              modifier = Modifier
+                .padding(horizontal = 12.dp, vertical = 4.dp)
+                .testTag("global_error_boundary_banner"),
+              shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+              color = androidx.compose.ui.graphics.Color(0xFF3E1F1F),
+              tonalElevation = 4.dp
+            ) {
+              androidx.compose.foundation.layout.Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
+              ) {
+                Text(
+                  text = errorMsg,
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    color = androidx.compose.ui.graphics.Color(0xFFFFD6D6)
+                  ),
+                  modifier = Modifier.weight(1f),
+                  maxLines = 2
+                )
+                androidx.compose.material3.TextButton(
+                  onClick = {
+                    viewModel.recoverSafeNavigationAndContentState()
+                    navigateToTab(BayanNavRoutes.HOME, MainNavigationTab.HOME)
+                  }
+                ) {
+                  Text("Reset View", color = GoldPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+                androidx.compose.material3.TextButton(
+                  onClick = { viewModel.clearRecoverableError() }
+                ) {
+                  Text("Dismiss", color = androidx.compose.ui.graphics.Color.White, fontSize = 11.sp)
+                }
+              }
+            }
+          }
           // Global Azan / Fajr Alarm / Continuous Vibration Popup Control when user is on tabs other than Home
           if ((alarmPlaybackState.isActive || alarmPlaybackState.isContinuousVibrationActive) && currentRoute != BayanNavRoutes.HOME) {
             androidx.compose.material3.Surface(
@@ -354,7 +445,10 @@ fun BayanApp(
           AudioMiniPlayerBar(
             audioState = miniPlayerAudioState,
             onTogglePlayPause = { viewModel.audioPlayerManager.togglePlayPause() },
-            onStop = { viewModel.audioPlayerManager.stop() }
+            onStop = { viewModel.audioPlayerManager.stop() },
+            onSelectReciter = { reciter -> viewModel.setQuranReciter(reciter, reciter.tradition) },
+            onChangePlaybackSpeed = { speed -> viewModel.audioPlayerManager.setPlaybackSpeed(speed) },
+            onToggleAudioRefinement = { enabled -> viewModel.audioPlayerManager.setAudioAssistedRefinement(enabled) }
           )
 
           // Main Bottom Navigation Bar controlled by NavHostController
@@ -436,23 +530,23 @@ fun BayanApp(
             onNavigateToHadith = { navigateToTab(BayanNavRoutes.HADITH, MainNavigationTab.HADITH) },
             onNavigateToLibrary = { navigateToTab(BayanNavRoutes.LIBRARY, MainNavigationTab.LIBRARY) },
             onNavigateToDownloads = {
-              navController.navigate(BayanNavRoutes.DOWNLOADS) { launchSingleTop = true }
+              safeNavigateToRoute(BayanNavRoutes.DOWNLOADS)
             },
             onNavigateToEvidence = {
-              navController.navigate(BayanNavRoutes.EVIDENCE) { launchSingleTop = true }
+              safeNavigateToRoute(BayanNavRoutes.EVIDENCE)
             },
             onNavigateToQibla = {
-              navController.navigate(BayanNavRoutes.QIBLA) { launchSingleTop = true }
+              safeNavigateToRoute(BayanNavRoutes.QIBLA)
             },
             onNavigateToDailyDuas = {
               navigateToTab(BayanNavRoutes.DUAS, MainNavigationTab.DUAS)
             },
             onNavigateToSehriIftar = {
               viewModel.refreshSehriIftarTimetable(forceRemote = false)
-              navController.navigate(BayanNavRoutes.SEHRI_IFTAR) { launchSingleTop = true }
+              safeNavigateToRoute(BayanNavRoutes.SEHRI_IFTAR)
             },
             onNavigateToLearnIslam = {
-              navController.navigate(BayanNavRoutes.LEARN_ISLAM) { launchSingleTop = true }
+              safeNavigateToRoute(BayanNavRoutes.LEARN_ISLAM)
             }
           )
         }
@@ -484,7 +578,7 @@ fun BayanApp(
             onBookmarkAyah = { ayah, sName -> viewModel.toggleBookmarkAyah(ayah, sName) },
             onAddNote = { ref -> pendingNoteRef = ref },
             onOpenOfflineDownloads = {
-              navController.navigate(BayanNavRoutes.DOWNLOADS) { launchSingleTop = true }
+              safeNavigateToRoute(BayanNavRoutes.DOWNLOADS)
             },
             allHadithsForTafsir = viewModel.allHadithsForLinks,
             isReadingMode = uiState.isReadingMode,
@@ -542,10 +636,10 @@ fun BayanApp(
               viewModel.openErrorReportDialog("${hadith.collectionName} #${hadith.hadithNumber} (${hadith.reference})")
             },
             onOpenOfflineDownloads = {
-              navController.navigate(BayanNavRoutes.DOWNLOADS) { launchSingleTop = true }
+              safeNavigateToRoute(BayanNavRoutes.DOWNLOADS)
             },
             onOpenEvidenceVerification = {
-              navController.navigate(BayanNavRoutes.EVIDENCE) { launchSingleTop = true }
+              safeNavigateToRoute(BayanNavRoutes.EVIDENCE)
             }
           )
         }
@@ -581,7 +675,7 @@ fun BayanApp(
               }
             },
             onNavigateToLearnIslam = {
-              navController.navigate(BayanNavRoutes.LEARN_ISLAM) { launchSingleTop = true }
+              safeNavigateToRoute(BayanNavRoutes.LEARN_ISLAM)
             }
           )
         }
@@ -621,7 +715,7 @@ fun BayanApp(
             },
             onOpenLearnIslam = { tab ->
               viewModel.setInitialLearnIslamTab(tab)
-              navController.navigate(BayanNavRoutes.LEARN_ISLAM) { launchSingleTop = true }
+              safeNavigateToRoute(BayanNavRoutes.LEARN_ISLAM)
             },
             onOpenLibraryBooks = {
               viewModel.setInitialLibraryTab(1)
@@ -707,7 +801,7 @@ fun BayanApp(
           LearnIslamScreen(
             duaAudioController = viewModel.duaAudioController,
             initialTab = uiState.initialLearnIslamTab,
-            onBack = { navController.popBackStack() },
+            onBack = { safePopBackStack() },
             onOpenQuranSurah = { surahNum, verseNum ->
               viewModel.openOrPreviewQuranReference("$surahNum:$verseNum", openFullSurahReader = true)
               navigateToTab(BayanNavRoutes.QURAN, MainNavigationTab.QURAN)
@@ -734,7 +828,7 @@ fun BayanApp(
             isGuestMode = uiState.isGuestModeActive,
             remainingGuestDays = uiState.remainingGuestDays,
             onSignOut = {
-              navController.popBackStack()
+              safePopBackStack()
               viewModel.signOut()
             },
             onSignInSuccess = { user -> viewModel.onGoogleSignInSuccess(user) },
@@ -745,7 +839,7 @@ fun BayanApp(
                 onResult = { success, msg ->
                   onResult(success, msg)
                   if (success) {
-                    navController.popBackStack()
+                    safePopBackStack()
                   }
                 }
               )

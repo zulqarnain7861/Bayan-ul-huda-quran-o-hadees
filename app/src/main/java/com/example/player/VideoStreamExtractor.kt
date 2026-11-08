@@ -155,6 +155,7 @@ data class ResolvedStreamTrack(
 
 data class ResolvedVideoStreamBundle(
   val youtubeId: String,
+  val stableVideoId: String = "OFFICIAL:general:$youtubeId",
   val activePipeline: PipelineOption,
   val tracksByQuality: Map<VideoQualityOption, ResolvedStreamTrack>,
   val hlsManifestUrl: String? = null,
@@ -162,6 +163,10 @@ data class ResolvedVideoStreamBundle(
   val hasDirectYoutubeStreams: Boolean = false,
   val extractedDurationSec: Int? = null
 ) {
+  fun getAvailableQualities(): List<VideoQualityOption> {
+    return VideoPlaybackResumeStore.getAvailableQualitiesForBundle(this)
+  }
+
   fun resolveTrackFor(quality: VideoQualityOption): ResolvedStreamTrack {
     tracksByQuality[quality]?.let { return it }
     // Nearest neighbor fallback
@@ -301,14 +306,33 @@ object VideoStreamExtractor {
 
   private val fastClusterClient by lazy {
     SecureNetworkClient.httpClient.newBuilder()
-      .connectTimeout(2500, java.util.concurrent.TimeUnit.MILLISECONDS)
-      .readTimeout(3000, java.util.concurrent.TimeUnit.MILLISECONDS)
-      .callTimeout(3500, java.util.concurrent.TimeUnit.MILLISECONDS)
+      .connectTimeout(1800, java.util.concurrent.TimeUnit.MILLISECONDS)
+      .readTimeout(2200, java.util.concurrent.TimeUnit.MILLISECONDS)
+      .callTimeout(2600, java.util.concurrent.TimeUnit.MILLISECONDS)
       .build()
   }
 
+  /**
+   * Detects whether the host device exposes a physical/DRM GPU render node (true on physical phones,
+   * false on headless/cloud emulators lacking `/dev/dri/renderD128`). Prevents spawning Chromium's
+   * GPU process when no DRM render node exists.
+   */
+  val hasHardwareRenderNode: Boolean by lazy {
+    runCatching {
+      java.io.File("/dev/dri/renderD128").exists() ||
+        java.io.File("/dev/dri/card0").exists() ||
+        java.io.File("/dev/kgsl-3d0").exists() ||
+        java.io.File("/dev/mali0").exists() ||
+        java.io.File("/dev/pvr_sync").exists()
+    }.getOrDefault(false)
+  }
+
+  @Volatile
+  private var webViewCookieSessionActive: Boolean = false
+
   fun seedYoutubeConsentCookies() {
     runCatching {
+      webViewCookieSessionActive = true
       val cm = android.webkit.CookieManager.getInstance()
       cm.setAcceptCookie(true)
       val existing = cm.getCookie("https://www.youtube.com").orEmpty()
@@ -327,6 +351,7 @@ object VideoStreamExtractor {
   }
 
   fun readYoutubeWebViewCookies(): String {
+    if (!webViewCookieSessionActive) return ""
     return runCatching {
       val cm = android.webkit.CookieManager.getInstance()
       val ytCookie = cm.getCookie("https://www.youtube.com").orEmpty()
@@ -336,6 +361,7 @@ object VideoStreamExtractor {
   }
 
   fun hasYoutubeAuthCookie(): Boolean {
+    if (!webViewCookieSessionActive) return false
     val cookies = readYoutubeWebViewCookies()
     return cookies.contains("SAPISID=") ||
       cookies.contains("__Secure-3PAPISID=") ||
@@ -343,6 +369,11 @@ object VideoStreamExtractor {
   }
 
   fun signOutYoutubeWebViewCookies() {
+    if (!webViewCookieSessionActive) {
+      directBundleCache.clear()
+      resetAllProviderCooldowns()
+      return
+    }
     runCatching {
       val cm = android.webkit.CookieManager.getInstance()
       cm.removeAllCookies(null)
@@ -456,10 +487,88 @@ object VideoStreamExtractor {
   private val backgroundPrewarmScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
   private val directBundleCache = java.util.concurrent.ConcurrentHashMap<String, ResolvedVideoStreamBundle>()
   private val inFlightPrewarmIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+  @Volatile
+  private var cachedVisitorData: String? = null
 
   fun getCachedDirectBundle(youtubeId: String): ResolvedVideoStreamBundle? {
     val cached = directBundleCache[youtubeId] ?: return null
     return if (cached.youtubeId == youtubeId && cached.hasDirectYoutubeStreams) cached else null
+  }
+
+  /**
+   * Registers a direct stream URL extracted live by the yMusic WebView JS bridge from
+   * `window.ytInitialPlayerResponse.streamingData` for the exact `youtubeId`.
+   */
+  fun registerWebViewExtractedStream(
+    lecture: LectureRecord,
+    directStreamUrl: String,
+    durationSec: Int?
+  ): ResolvedVideoStreamBundle? {
+    val videoId = lecture.youtubeId
+    if (!LectureRecord.isValidYoutubeId(videoId)) return null
+    if (!SsrfRedirectValidator.validateUrlSafety(directStreamUrl, resolveDns = false)) return null
+    val isHls = directStreamUrl.contains(".m3u8")
+    val baseline = buildInstantBaselineBundle(lecture, PipelineOption.VINE_YMUSIC_SDK)
+    val tracks = if (isHls) {
+      VideoQualityOption.entries.associateWith { qOpt ->
+        ResolvedStreamTrack(
+          quality = qOpt,
+          videoUrl = directStreamUrl,
+          isHls = true,
+          isDirectYoutubeStream = true
+        )
+      }
+    } else {
+      mapOf(
+        VideoQualityOption.Q_360P to ResolvedStreamTrack(
+          quality = VideoQualityOption.Q_360P,
+          videoUrl = directStreamUrl,
+          isHls = false,
+          isDirectYoutubeStream = true
+        ),
+        VideoQualityOption.AUDIO_128K to ResolvedStreamTrack(
+          quality = VideoQualityOption.AUDIO_128K,
+          videoUrl = directStreamUrl,
+          isHls = false,
+          isDirectYoutubeStream = true
+        )
+      )
+    }
+    val resolved = baseline.copy(
+      youtubeId = videoId,
+      stableVideoId = lecture.stableVideoId,
+      activePipeline = PipelineOption.VINE_YMUSIC_SDK,
+      tracksByQuality = tracks,
+      hlsManifestUrl = if (isHls) directStreamUrl else null,
+      hasDirectYoutubeStreams = true,
+      extractedDurationSec = durationSec?.takeIf { it > 0 } ?: baseline.extractedDurationSec
+    )
+    directBundleCache[videoId] = resolved
+    return resolved
+  }
+
+  private fun fetchOrGetVisitorData(videoId: String): String? {
+    cachedVisitorData?.takeIf { it.isNotBlank() }?.let { return it }
+    return runCatching {
+      val url = "https://www.youtube.com/embed/$videoId?hl=en"
+      val reqBuilder = Request.Builder()
+        .url(url)
+        .header(
+          "User-Agent",
+          "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+        )
+      applyYoutubeSessionHeaders(reqBuilder, "https://www.youtube.com")
+      fastClusterClient.newCall(reqBuilder.get().build()).execute().use { resp ->
+        if (!resp.isSuccessful) return@use null
+        val html = SecureNetworkClient.readBoundedUtf8Body(resp)
+        val match = Regex(""""visitorData"\s*:\s*"([^"]+)"""").find(html)
+        val token = match?.groupValues?.getOrNull(1)?.trim()
+        if (!token.isNullOrBlank()) {
+          cachedVisitorData = token
+        }
+        token
+      }
+    }.getOrNull()
   }
 
   /**
@@ -497,32 +606,40 @@ object VideoStreamExtractor {
     "https://archive.org/download/IkhtelafiMasailMP4/Mas%27alah%20070a%20Complete%20NAMAZ-e-MUHAMMADI%20%D8%B5%D9%84%D9%89%20%D8%A7%D9%84%D9%84%D9%87%20%D8%B9%D9%84%D9%8A%D9%87%20%D9%88%D8%A2%D9%84%D9%87%20%D9%88%D8%B3%D9%84%D9%85%20with%20PRACTICAL%20%28%20By%20Engineer%20Muhammad%20Ali%20Mirza%20%29.mp4"
 
   /**
-   * Builds a baseline `ResolvedVideoStreamBundle`. Note: `hasDirectYoutubeStreams` is set to `false`
-   * so `YtEmbedHost` never substitutes an unrelated Archive.org MP4 in place of `lecture.youtubeId`.
+   * Builds a baseline `ResolvedVideoStreamBundle` bound strictly to `lecture.stableVideoId`.
+   * Only attaches an Archive.org direct MP4 when `YtEmbedUrlBuilder.isExactVerifiedArchiveMatch(lecture)`
+   * is `true`; never substitutes an unrelated Archive.org MP4 for a non-matching lecture.
    */
   fun buildInstantBaselineBundle(
     lecture: LectureRecord,
     pipeline: PipelineOption = PipelineOption.AUTO_SMART
   ): ResolvedVideoStreamBundle {
-    val fullLectureMp4 = YtEmbedUrlBuilder.resolveDirectMp4StreamUrl(lecture)
+    val verifiedArchiveMp4 = YtEmbedUrlBuilder.resolveVerifiedArchiveMp4OrNull(lecture).orEmpty()
 
-    val tracks = mapOf(
-      VideoQualityOption.Q_144P to ResolvedStreamTrack(VideoQualityOption.Q_144P, fullLectureMp4, isDirectYoutubeStream = false),
-      VideoQualityOption.Q_240P to ResolvedStreamTrack(VideoQualityOption.Q_240P, fullLectureMp4, isDirectYoutubeStream = false),
-      VideoQualityOption.Q_360P to ResolvedStreamTrack(VideoQualityOption.Q_360P, fullLectureMp4, isDirectYoutubeStream = false),
-      VideoQualityOption.Q_480P to ResolvedStreamTrack(VideoQualityOption.Q_480P, fullLectureMp4, isDirectYoutubeStream = false),
-      VideoQualityOption.Q_720P to ResolvedStreamTrack(VideoQualityOption.Q_720P, fullLectureMp4, isDirectYoutubeStream = false),
-      VideoQualityOption.Q_1080P to ResolvedStreamTrack(VideoQualityOption.Q_1080P, fullLectureMp4, isDirectYoutubeStream = false),
-      VideoQualityOption.AUDIO_64K to ResolvedStreamTrack(VideoQualityOption.AUDIO_64K, fullLectureMp4, isDirectYoutubeStream = false),
-      VideoQualityOption.AUDIO_128K to ResolvedStreamTrack(VideoQualityOption.AUDIO_128K, fullLectureMp4, isDirectYoutubeStream = false)
-    )
+    val tracks = if (verifiedArchiveMp4.isNotBlank()) {
+      mapOf(
+        VideoQualityOption.Q_360P to ResolvedStreamTrack(
+          quality = VideoQualityOption.Q_360P,
+          videoUrl = verifiedArchiveMp4,
+          isDirectYoutubeStream = false
+        ),
+        VideoQualityOption.AUDIO_128K to ResolvedStreamTrack(
+          quality = VideoQualityOption.AUDIO_128K,
+          videoUrl = verifiedArchiveMp4,
+          isDirectYoutubeStream = false
+        )
+      )
+    } else {
+      emptyMap()
+    }
 
     return ResolvedVideoStreamBundle(
       youtubeId = lecture.youtubeId,
+      stableVideoId = lecture.stableVideoId,
       activePipeline = pipeline,
       tracksByQuality = tracks,
       hlsManifestUrl = null,
-      fallbackBackupMp4Url = FALLBACK_FULL_LECTURE_MP4,
+      fallbackBackupMp4Url = verifiedArchiveMp4,
       hasDirectYoutubeStreams = false,
       extractedDurationSec = lecture.durationSec
     )
@@ -531,7 +648,8 @@ object VideoStreamExtractor {
   /**
    * Executes the extraction pipeline on `Dispatchers.IO` for the exact `lecture.youtubeId`.
    * Connects all pipelines simultaneously (`tryVineYMusicSdkFallback`, `tryPipeline1InnerTube`,
-   * `tryPipeline2Piped`, `tryPipeline3Invidious`) and verifies that `resolved.youtubeId == lecture.youtubeId`.
+   * `tryWatchPageEmbeddedPlayerResponse`, `tryPipeline2Piped`, `tryPipeline3Invidious`) and verifies
+   * that `resolved.youtubeId == lecture.youtubeId`.
    */
   suspend fun extractStreamBundle(
     lecture: LectureRecord,
@@ -556,12 +674,14 @@ object VideoStreamExtractor {
       val resolved = coroutineScope {
         val vineDeferred = async { tryVineYMusicSdkFallback(videoId, baseline) }
         val innerTubeDeferred = async { tryPipeline1InnerTube(videoId, baseline) }
+        val watchPageDeferred = async { tryWatchPageEmbeddedPlayerResponse(videoId, baseline) }
         val pipedDeferred = async { tryPipeline2Piped(videoId, baseline) }
         val invidiousDeferred = async { tryPipeline3Invidious(videoId, baseline) }
 
         val orderedResults = when (preferredPipeline) {
           PipelineOption.PIPELINE_1 -> listOf(
             innerTubeDeferred.await(),
+            watchPageDeferred.await(),
             vineDeferred.await(),
             pipedDeferred.await(),
             invidiousDeferred.await()
@@ -570,17 +690,20 @@ object VideoStreamExtractor {
             pipedDeferred.await(),
             vineDeferred.await(),
             innerTubeDeferred.await(),
+            watchPageDeferred.await(),
             invidiousDeferred.await()
           )
           PipelineOption.PIPELINE_3 -> listOf(
             invidiousDeferred.await(),
             vineDeferred.await(),
             innerTubeDeferred.await(),
+            watchPageDeferred.await(),
             pipedDeferred.await()
           )
           else -> listOf(
             vineDeferred.await(),
             innerTubeDeferred.await(),
+            watchPageDeferred.await(),
             pipedDeferred.await(),
             invidiousDeferred.await()
           )
@@ -609,8 +732,73 @@ object VideoStreamExtractor {
   }
 
   /**
+   * Extracts `ytInitialPlayerResponse` JSON directly from the YouTube watch page HTML for `videoId`
+   * (yMusic watch-page extraction mechanism).
+   */
+  internal fun tryWatchPageEmbeddedPlayerResponse(
+    videoId: String,
+    baseline: ResolvedVideoStreamBundle
+  ): ResolvedVideoStreamBundle? {
+    return runCatching {
+      val ua = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+      val url = "https://m.youtube.com/watch?v=$videoId&bpctr=9999999999&has_verified=1"
+      val reqBuilder = Request.Builder()
+        .url(url)
+        .header("User-Agent", ua)
+        .header("Accept-Language", "en-US,en;q=0.9")
+      applyYoutubeSessionHeaders(reqBuilder, "https://m.youtube.com")
+      fastClusterClient.newCall(reqBuilder.get().build()).execute().use { resp ->
+        if (!resp.isSuccessful) return@use null
+        val html = SecureNetworkClient.readBoundedUtf8Body(resp)
+        val visitorMatch = Regex(""""visitorData"\s*:\s*"([^"]+)"""").find(html)
+        visitorMatch?.groupValues?.getOrNull(1)?.takeIf { it.isNotBlank() }?.let {
+          cachedVisitorData = it
+        }
+        val marker = "ytInitialPlayerResponse = "
+        val startIdx = html.indexOf(marker)
+        if (startIdx < 0) return@use null
+        val jsonStart = html.indexOf('{', startIdx + marker.length)
+        if (jsonStart < 0) return@use null
+        var depth = 0
+        var inString = false
+        var escaped = false
+        var endIdx = -1
+        for (i in jsonStart until html.length) {
+          val ch = html[i]
+          if (escaped) {
+            escaped = false
+            continue
+          }
+          if (ch == '\\') {
+            escaped = true
+            continue
+          }
+          if (ch == '"') {
+            inString = !inString
+            continue
+          }
+          if (!inString) {
+            if (ch == '{') depth++
+            else if (ch == '}') {
+              depth--
+              if (depth == 0) {
+                endIdx = i
+                break
+              }
+            }
+          }
+        }
+        if (endIdx <= jsonStart) return@use null
+        val jsonStr = html.substring(jsonStart, endIdx + 1)
+        val parsed = parseInnerTubeStreamingData(videoId, JSONObject(jsonStr), baseline, ua)
+        if (isResolvedBundleReachable(parsed)) parsed else null
+      }
+    }.getOrNull()
+  }
+
+  /**
    * Vine Music / yMusic SDK (`WEB_REMIX`, `ANDROID_MUSIC` & `MWEB`) ad-free extractor with
-   * optional YouTube `CookieManager` + `SAPISIDHASH` authentication support.
+   * `visitorData` token + optional YouTube `CookieManager` + `SAPISIDHASH` authentication support.
    */
   internal fun tryVineYMusicSdkFallback(
     videoId: String,
@@ -619,6 +807,7 @@ object VideoStreamExtractor {
     val providerKey = "vine_ymusic_sdk"
     if (isProviderInCooldown(providerKey)) return null
 
+    val visitorData = fetchOrGetVisitorData(videoId)
     val vineClients = listOf(
       Triple(
         "WEB_REMIX",
@@ -660,6 +849,9 @@ object VideoStreamExtractor {
                   put("clientVersion", clientVersion)
                   put("hl", "en")
                   put("gl", "US")
+                  if (!visitorData.isNullOrBlank()) {
+                    put("visitorData", visitorData)
+                  }
                 }
               )
             }
@@ -669,6 +861,9 @@ object VideoStreamExtractor {
           .url(endpointUrl)
           .header("User-Agent", ua)
           .header("Content-Type", "application/json")
+        if (!visitorData.isNullOrBlank()) {
+          reqBuilder.header("X-Goog-Visitor-Id", visitorData)
+        }
         if (clientName == "WEB_REMIX" || clientName == "MWEB") {
           reqBuilder.header("Origin", originUrl)
         }
@@ -716,6 +911,7 @@ object VideoStreamExtractor {
     baseline: ResolvedVideoStreamBundle
   ): ResolvedVideoStreamBundle? {
     val endpoint = "https://www.youtube.com/youtubei/v1/player?prettyPrint=false"
+    val visitorData = fetchOrGetVisitorData(videoId)
     for (profile in INNERTUBE_PROFILES) {
       val providerKey = "innertube_${profile.clientName}"
       if (isProviderInCooldown(providerKey)) continue
@@ -725,6 +921,7 @@ object VideoStreamExtractor {
           put("clientVersion", profile.clientVersion)
           put("hl", "en")
           put("gl", "US")
+          if (!visitorData.isNullOrBlank()) put("visitorData", visitorData)
           if (profile.deviceMake != null) put("deviceMake", profile.deviceMake)
           if (profile.deviceModel != null) put("deviceModel", profile.deviceModel)
           if (profile.osName != null) put("osName", profile.osName)
@@ -771,6 +968,9 @@ object VideoStreamExtractor {
           .header("X-YouTube-Client-Name", profile.clientIdHeader)
           .header("X-YouTube-Client-Version", profile.clientVersion)
           .header("Content-Type", "application/json")
+        if (!visitorData.isNullOrBlank()) {
+          reqBuilder.header("X-Goog-Visitor-Id", visitorData)
+        }
         if (profile.isEmbeddedTv) {
           reqBuilder.header("Origin", "https://www.youtube-nocookie.com")
           reqBuilder.header("Referer", "https://www.youtube-nocookie.com/embed/$videoId")

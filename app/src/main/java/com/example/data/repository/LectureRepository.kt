@@ -815,23 +815,38 @@ class LectureRepository(
             }
           }
 
-          // Explicit cross-link boost if the candidate is in relatedYoutubeIds of a watched video
+          // Explicit cross-link & series affinity boost if candidate is related to a watched video
+          var isRelatedToWatched = false
           for ((watchedId, sec) in watchTimeByYoutubeId) {
             if (sec > 0 && watchedId != candidate.youtubeId) {
               val watched = lectureById[watchedId]
-              if (watched != null && candidate.youtubeId in watched.relatedYoutubeIds) {
-                score += sec * 3.0
+              if (watched != null) {
+                val sharesTopic = candidate.topics.any { it in watched.topics }
+                val isExplicitlyLinked =
+                  candidate.youtubeId in watched.relatedYoutubeIds ||
+                    watched.youtubeId in candidate.relatedYoutubeIds ||
+                    watched.youtubeId in candidate.alternateYoutubeIds ||
+                    candidate.youtubeId in watched.alternateYoutubeIds
+                val sameSeries =
+                  !candidate.seriesName.isNullOrBlank() && candidate.seriesName == watched.seriesName
+                if (isExplicitlyLinked && sharesTopic) {
+                  score += sec * 6.0
+                  isRelatedToWatched = true
+                } else if (sameSeries && sharesTopic) {
+                  score += sec * 3.5
+                  isRelatedToWatched = true
+                } else if (sharesTopic) {
+                  isRelatedToWatched = true
+                }
               }
             }
           }
 
-          // Completion percentage & saved/search signals
+          // Watched video priority: if the user watched a video, promote that watched video itself
+          // to the very top of Recommendations alongside its related videos
           val alreadyWatchedSec = watchTimeByYoutubeId[candidate.youtubeId] ?: 0
-          val candidateDur = (candidate.durationSec ?: 1800).coerceAtLeast(60)
-          val completionRatio = (alreadyWatchedSec.toDouble() / candidateDur.toDouble()).coerceIn(0.0, 1.0)
           if (alreadyWatchedSec > 0 && hasWatchHistory) {
-            // Deprioritize nearly-completed videos (>85%) more strongly than partially-watched videos
-            score *= if (completionRatio >= 0.85) 0.20 else 0.35
+            score += 5000.0 + (alreadyWatchedSec * 10.0)
           }
 
           // Saved / Bookmarked topic & cross-link affinity
@@ -866,11 +881,20 @@ class LectureRepository(
             score += 20.0
           }
 
-          val reason = if (hasWatchHistory && matchedTopics.isNotEmpty()) {
-            val primaryTopicName = topicTitleById[matchedTopics.first()] ?: matchedTopics.first()
-            "Recommended · $primaryTopicName"
-          } else {
-            candidate.seriesName ?: candidate.channelDisplayName
+          val reason = when {
+            alreadyWatchedSec > 0 && hasWatchHistory -> {
+              val primaryTopicName = matchedTopics.firstOrNull()?.let { topicTitleById[it] ?: it }
+                ?: (candidate.seriesName ?: "Watch History")
+              "Watched · $primaryTopicName"
+            }
+            hasWatchHistory && (isRelatedToWatched || matchedTopics.isNotEmpty()) -> {
+              val primaryTopicName = matchedTopics.firstOrNull()?.let { topicTitleById[it] ?: it }
+                ?: (candidate.seriesName ?: candidate.channelDisplayName)
+              "Related to Watched · $primaryTopicName"
+            }
+            else -> {
+              candidate.seriesName ?: candidate.channelDisplayName
+            }
           }
 
           RecommendedLectureItem(

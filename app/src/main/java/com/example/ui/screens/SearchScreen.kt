@@ -327,9 +327,31 @@ fun SearchScreen(
     }
   }
 
+  // Search Sahaba & Ahl al-Bayt Biographies (Sunni & Shia Separate Accounts)
+  val biographyHits = remember(searchQuery, hadithTraditionScope, searchCategory) {
+    val q = searchQuery.trim()
+    if (q.isEmpty() && searchCategory != SearchCategory.SAHABA_AHL_AL_BAYT) {
+      emptyList()
+    } else {
+      com.example.data.repository.ClassicalLibraryAndBiographiesRepository.searchBiographies(
+        query = q,
+        traditionFilter = hadithTraditionScope,
+        categoryFilter = "ALL"
+      )
+    }
+  }
+
   val suggestions = listOf(
     "2:255",
     "36:1",
+    "Sahaba",
+    "Ahl al-Bayt",
+    "Abu Bakr",
+    "Umar",
+    "Uthman",
+    "Ali ibn Abi Talib",
+    "Lady Fatimah",
+    "Imam Husayn",
     "Complete Salah",
     "Nimaz Janaza",
     "Al-Kafi 1",
@@ -340,6 +362,18 @@ fun SearchScreen(
     "Mercy",
     "Knowledge"
   )
+
+  val showAyahs = searchCategory == SearchCategory.ALL || searchCategory == SearchCategory.QURAN
+  val showHadiths = searchCategory == SearchCategory.ALL || searchCategory == SearchCategory.HADITH
+  val showTafsirs = searchCategory == SearchCategory.ALL || searchCategory == SearchCategory.TAFSIR
+  val showBiographies = searchCategory == SearchCategory.ALL || searchCategory == SearchCategory.SAHABA_AHL_AL_BAYT
+  val showExtraSources = searchCategory == SearchCategory.ALL || searchCategory == SearchCategory.SAHABA_AHL_AL_BAYT
+
+  val totalCount = (if (showAyahs) ayahResults.size else 0) +
+    (if (showHadiths) scopedHadithResults.size else 0) +
+    (if (showTafsirs) scopedTafsirResults.size else 0) +
+    (if (showBiographies) biographyHits.size else 0) +
+    (if (searchCategory == SearchCategory.ALL) learnIslamHits.size + classicalBookHits.size else 0)
 
   Column(modifier = modifier.fillMaxSize()) {
     // Top Row: Search Bar + YouTube-Style Rotating Circular Loading Indicator Beside Search Bar
@@ -358,7 +392,7 @@ fun SearchScreen(
           .testTag("unified_search_input"),
         placeholder = {
           Text(
-            text = "Search Quran, Sunni/Shia Hadith, Tafsir, Books, Salah...",
+            text = "Search Quran, Hadith, Sahaba & Ahl al-Bayt, Tafsir, Books...",
             fontSize = 12.sp,
             maxLines = 1
           )
@@ -418,241 +452,246 @@ fun SearchScreen(
       }
     }
 
-    // Clearly visible Video Library shortcut right beside/below the main search bar
-    Row(
-      modifier = Modifier
-        .fillMaxWidth()
-        .padding(horizontal = 16.dp, vertical = 4.dp),
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.SpaceBetween
+    // Single Full-Page Scrollable LazyColumn so Video Library, Category Chips, and Tradition Scope scroll up off-screen
+    LazyColumn(
+      modifier = Modifier.fillMaxSize(),
+      contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+      verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-      Button(
-        onClick = onOpenVideoLibrary,
-        colors = ButtonDefaults.buttonColors(
-          containerColor = EmeraldPrimary,
-          contentColor = Color.White
-        ),
-        shape = RoundedCornerShape(12.dp),
-        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-        modifier = Modifier
-          .fillMaxWidth()
-          .testTag("search_open_video_library_btn")
-      ) {
-        Icon(
-          imageVector = Icons.Default.PlayArrow,
-          contentDescription = "Open Video Library",
-          tint = GoldPrimary,
-          modifier = Modifier.size(18.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-          text = "Video Library (Engineer Muhammad Ali Mirza Lectures)",
-          style = MaterialTheme.typography.labelMedium.copy(
-            fontWeight = FontWeight.Bold,
-            fontSize = 12.sp
-          ),
-          maxLines = 1
-        )
-      }
-    }
-
-    // Category filter chips (Scrollable LazyRow so chips never wrap vertically)
-    LazyRow(
-      modifier = Modifier
-        .fillMaxWidth()
-        .padding(horizontal = 16.dp, vertical = 2.dp),
-      horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-      item {
-        FilterChip(
-          selected = searchCategory == SearchCategory.ALL,
-          onClick = { onSearchCategoryChanged(SearchCategory.ALL) },
-          label = { Text("All Sources (Offline + Online)", fontSize = 11.sp, maxLines = 1, softWrap = false) },
-          colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = EmeraldPrimary,
-            selectedLabelColor = Color.White
-          )
-        )
-      }
-      item {
-        FilterChip(
-          selected = searchCategory == SearchCategory.QURAN,
-          onClick = { onSearchCategoryChanged(SearchCategory.QURAN) },
-          label = { Text("Quran (6,236 Verses + Translations)", fontSize = 11.sp, maxLines = 1, softWrap = false) },
-          colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = EmeraldPrimary,
-            selectedLabelColor = Color.White
-          )
-        )
-      }
-      item {
-        FilterChip(
-          selected = searchCategory == SearchCategory.HADITH,
-          onClick = { onSearchCategoryChanged(SearchCategory.HADITH) },
-          label = {
-            Text(
-              text = when (hadithTraditionScope) {
-                "SHIA" -> "Hadith (All Shia Collections)"
-                "SUNNI" -> "Hadith (All Sunni Collections)"
-                else -> "Hadith (36 Sunni & Shia Books)"
-              },
-              fontSize = 11.sp,
-              maxLines = 1,
-              softWrap = false
+      item(key = "search_scrollable_header_controls") {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+          // Clearly visible Video Library shortcut right below the main search bar
+          Button(
+            onClick = onOpenVideoLibrary,
+            colors = ButtonDefaults.buttonColors(
+              containerColor = EmeraldPrimary,
+              contentColor = Color.White
+            ),
+            shape = RoundedCornerShape(12.dp),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("search_open_video_library_btn")
+          ) {
+            Icon(
+              imageVector = Icons.Default.PlayArrow,
+              contentDescription = "Open Video Library",
+              tint = GoldPrimary,
+              modifier = Modifier.size(18.dp)
             )
-          },
-          colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = EmeraldPrimary,
-            selectedLabelColor = Color.White
-          )
-        )
-      }
-      item {
-        FilterChip(
-          selected = searchCategory == SearchCategory.TAFSIR,
-          onClick = { onSearchCategoryChanged(SearchCategory.TAFSIR) },
-          label = {
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
-              text = when (hadithTraditionScope) {
-                "SHIA" -> "Tafsir (8 Shia Exegeses)"
-                "SUNNI" -> "Tafsir (8+ Sunni Exegeses)"
-                else -> "Tafsir (16+ Sunni & Shia Exegeses)"
-              },
-              fontSize = 11.sp,
-              maxLines = 1,
-              softWrap = false
+              text = "Video Library (Engineer Muhammad Ali Mirza Lectures)",
+              style = MaterialTheme.typography.labelMedium.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+              ),
+              maxLines = 1
             )
-          },
-          colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = EmeraldPrimary,
-            selectedLabelColor = Color.White
-          )
-        )
-      }
-    }
+          }
 
-    // Tradition Scope Filter (Strict Sunni / Shia separation across Hadith, Tafsir, and Classical Books)
-    Row(
-      modifier = Modifier
-        .fillMaxWidth()
-        .padding(horizontal = 16.dp, vertical = 2.dp),
-      horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-      FilterChip(
-        selected = hadithTraditionScope == "BOTH",
-        onClick = { updateTraditionScope("BOTH") },
-        label = { Text("Both Traditions", fontSize = 11.sp, maxLines = 1, softWrap = false) },
-        colors = FilterChipDefaults.filterChipColors(
-          selectedContainerColor = MaterialTheme.colorScheme.primary,
-          selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-        ),
-        modifier = Modifier.weight(1f).testTag("search_hadith_scope_both")
-      )
-      FilterChip(
-        selected = hadithTraditionScope == "SUNNI",
-        onClick = { updateTraditionScope("SUNNI") },
-        label = { Text("Sunni Only", fontSize = 11.sp, maxLines = 1, softWrap = false) },
-        colors = FilterChipDefaults.filterChipColors(
-          selectedContainerColor = EmeraldPrimary,
-          selectedLabelColor = Color.White
-        ),
-        modifier = Modifier.weight(1f).testTag("search_hadith_scope_sunni")
-      )
-      FilterChip(
-        selected = hadithTraditionScope == "SHIA",
-        onClick = { updateTraditionScope("SHIA") },
-        label = { Text("Shia Only", fontSize = 11.sp, maxLines = 1, softWrap = false) },
-        colors = FilterChipDefaults.filterChipColors(
-          selectedContainerColor = GoldPrimary,
-          selectedLabelColor = Color.Black
-        ),
-        modifier = Modifier.weight(1f).testTag("search_hadith_scope_shia")
-      )
-    }
-
-    if (searchQuery.isBlank()) {
-      // Prompt with suggested topics & direct reference examples
-      Column(
-        modifier = Modifier
-          .fillMaxSize()
-          .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-      ) {
-        Icon(
-          imageVector = Icons.Default.Search,
-          contentDescription = null,
-          modifier = Modifier.size(56.dp),
-          tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-          text = "Two-Stage Global Hybrid Search Engine",
-          style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-          textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-          text = "Stage 1 searches all 6,236 Quran verses, 36 bundled Sunni & Shia Hadith books, 16+ Tafsirs, Classical Books, Complete Salah, and Nimaz Janaza offline instantly. Stage 2 simultaneously queries global online APIs & remote databases.",
-          style = MaterialTheme.typography.bodyMedium.copy(
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-          )
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-          text = "Try Quick Reference & Topic Searches:",
-          style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-          items(suggestions) { topic ->
-            Surface(
-              modifier = Modifier
-                .clickable { onSearchQueryChanged(topic) }
-                .testTag("search_suggestion_${topic.replace(" ", "_")}"),
-              shape = RoundedCornerShape(20.dp),
-              color = MaterialTheme.colorScheme.surfaceVariant
-            ) {
-              Text(
-                text = topic,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                style = MaterialTheme.typography.labelSmall.copy(
-                  fontWeight = FontWeight.Medium,
-                  color = MaterialTheme.colorScheme.primary
+          // Category filter chips (Scrollable LazyRow so chips never wrap vertically)
+          LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            item {
+              FilterChip(
+                selected = searchCategory == SearchCategory.ALL,
+                onClick = { onSearchCategoryChanged(SearchCategory.ALL) },
+                label = { Text("All Sources (Offline + Online)", fontSize = 11.sp, maxLines = 1, softWrap = false) },
+                colors = FilterChipDefaults.filterChipColors(
+                  selectedContainerColor = EmeraldPrimary,
+                  selectedLabelColor = Color.White
+                )
+              )
+            }
+            item {
+              FilterChip(
+                selected = searchCategory == SearchCategory.SAHABA_AHL_AL_BAYT,
+                onClick = { onSearchCategoryChanged(SearchCategory.SAHABA_AHL_AL_BAYT) },
+                label = {
+                  Text(
+                    text = "Sahaba & Ahl al-Bayt (Sunni & Shia Sources)",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    softWrap = false
+                  )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                  selectedContainerColor = EmeraldPrimary,
+                  selectedLabelColor = Color.White
+                ),
+                modifier = Modifier.testTag("search_category_sahaba_ahl_al_bayt")
+              )
+            }
+            item {
+              FilterChip(
+                selected = searchCategory == SearchCategory.QURAN,
+                onClick = { onSearchCategoryChanged(SearchCategory.QURAN) },
+                label = { Text("Quran (6,236 Verses + Translations)", fontSize = 11.sp, maxLines = 1, softWrap = false) },
+                colors = FilterChipDefaults.filterChipColors(
+                  selectedContainerColor = EmeraldPrimary,
+                  selectedLabelColor = Color.White
+                )
+              )
+            }
+            item {
+              FilterChip(
+                selected = searchCategory == SearchCategory.HADITH,
+                onClick = { onSearchCategoryChanged(SearchCategory.HADITH) },
+                label = {
+                  Text(
+                    text = when (hadithTraditionScope) {
+                      "SHIA" -> "Hadith (All Shia Collections)"
+                      "SUNNI" -> "Hadith (All Sunni Collections)"
+                      else -> "Hadith (36 Sunni & Shia Books)"
+                    },
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    softWrap = false
+                  )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                  selectedContainerColor = EmeraldPrimary,
+                  selectedLabelColor = Color.White
+                )
+              )
+            }
+            item {
+              FilterChip(
+                selected = searchCategory == SearchCategory.TAFSIR,
+                onClick = { onSearchCategoryChanged(SearchCategory.TAFSIR) },
+                label = {
+                  Text(
+                    text = when (hadithTraditionScope) {
+                      "SHIA" -> "Tafsir (8 Shia Exegeses)"
+                      "SUNNI" -> "Tafsir (8+ Sunni Exegeses)"
+                      else -> "Tafsir (16+ Sunni & Shia Exegeses)"
+                    },
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    softWrap = false
+                  )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                  selectedContainerColor = EmeraldPrimary,
+                  selectedLabelColor = Color.White
                 )
               )
             }
           }
+
+          // Tradition Scope Filter (Strict Sunni / Shia separation across Hadith, Tafsir, Biographies, and Classical Books)
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+          ) {
+            FilterChip(
+              selected = hadithTraditionScope == "BOTH",
+              onClick = { updateTraditionScope("BOTH") },
+              label = { Text("Both Traditions", fontSize = 11.sp, maxLines = 1, softWrap = false) },
+              colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+              ),
+              modifier = Modifier.weight(1f).testTag("search_hadith_scope_both")
+            )
+            FilterChip(
+              selected = hadithTraditionScope == "SUNNI",
+              onClick = { updateTraditionScope("SUNNI") },
+              label = { Text("Sunni Only", fontSize = 11.sp, maxLines = 1, softWrap = false) },
+              colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = EmeraldPrimary,
+                selectedLabelColor = Color.White
+              ),
+              modifier = Modifier.weight(1f).testTag("search_hadith_scope_sunni")
+            )
+            FilterChip(
+              selected = hadithTraditionScope == "SHIA",
+              onClick = { updateTraditionScope("SHIA") },
+              label = { Text("Shia Only", fontSize = 11.sp, maxLines = 1, softWrap = false) },
+              colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = GoldPrimary,
+                selectedLabelColor = Color.Black
+              ),
+              modifier = Modifier.weight(1f).testTag("search_hadith_scope_shia")
+            )
+          }
         }
       }
-    } else {
-      val showAyahs = searchCategory == SearchCategory.ALL || searchCategory == SearchCategory.QURAN
-      val showHadiths = searchCategory == SearchCategory.ALL || searchCategory == SearchCategory.HADITH
-      val showTafsirs = searchCategory == SearchCategory.ALL || searchCategory == SearchCategory.TAFSIR
-      val showExtraSources = searchCategory == SearchCategory.ALL
 
-      val totalCount = (if (showAyahs) ayahResults.size else 0) +
-        (if (showHadiths) scopedHadithResults.size else 0) +
-        (if (showTafsirs) scopedTafsirResults.size else 0) +
-        (if (showExtraSources) learnIslamHits.size + classicalBookHits.size else 0)
+      if (searchQuery.isBlank() && searchCategory != SearchCategory.SAHABA_AHL_AL_BAYT) {
+        item(key = "search_empty_prompt_card") {
+          Column(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(vertical = 20.dp, horizontal = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+          ) {
+            Icon(
+              imageVector = Icons.Default.Search,
+              contentDescription = null,
+              modifier = Modifier.size(56.dp),
+              tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+              text = "Two-Stage Global Hybrid Search Engine",
+              style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+              textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+              text = "Stage 1 searches all 6,236 Quran verses, 36 bundled Sunni & Shia Hadith books, Sahaba & Ahl al-Bayt Biographies, 16+ Tafsirs, Classical Books, Complete Salah, and Nimaz Janaza offline instantly. Stage 2 simultaneously queries global online APIs & remote databases.",
+              style = MaterialTheme.typography.bodyMedium.copy(
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+            )
 
-      LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-      ) {
-        item {
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Text(
+              text = "Try Quick Reference & Topic Searches:",
+              style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+              items(suggestions) { topic ->
+                Surface(
+                  modifier = Modifier
+                    .clickable { onSearchQueryChanged(topic) }
+                    .testTag("search_suggestion_${topic.replace(" ", "_")}"),
+                  shape = RoundedCornerShape(20.dp),
+                  color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                  Text(
+                    text = topic,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      fontWeight = FontWeight.Medium,
+                      color = MaterialTheme.colorScheme.primary
+                    )
+                  )
+                }
+              }
+            }
+          }
+        }
+      } else {
+        item(key = "search_results_count_banner") {
           Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
           ) {
             Text(
-              text = if (isSearchingRemote) {
+              text = if (searchQuery.isBlank() && searchCategory == SearchCategory.SAHABA_AHL_AL_BAYT) {
+                "Showing all ${biographyHits.size} Sahaba & Ahl al-Bayt Multi-Perspective Biographies (Sunni & Shia Sources Separate)"
+              } else if (isSearchingRemote) {
                 "Showing $totalCount instant offline matches • Fetching global online sources for \"$searchQuery\"..."
               } else {
                 "Found $totalCount verified results across local & online sources for \"$searchQuery\""
@@ -666,8 +705,131 @@ fun SearchScreen(
           }
         }
 
+        // Sahaba & Ahl al-Bayt Biographies Section (Sunni & Shia Accounts Strictly Separated)
+        if (showBiographies && biographyHits.isNotEmpty()) {
+          item(key = "search_biographies_header") {
+            Text(
+              text = "Sahaba & Ahl al-Bayt Biographies — Sunni & Shia Classical Sources (${biographyHits.size})",
+              style = MaterialTheme.typography.titleSmall.copy(
+                fontWeight = FontWeight.Bold,
+                color = EmeraldPrimary
+              ),
+              modifier = Modifier.padding(top = 4.dp)
+            )
+          }
+
+          items(biographyHits, key = { "search_bio_${it.id}" }) { bio ->
+            val isShiaBio = bio.traditionPerspective.equals("SHIA", ignoreCase = true)
+            val accentColor = if (isShiaBio) Color(0xFF0D47A1) else Color(0xFF1B5E20)
+            Card(
+              modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onOpenLibraryBooks() },
+              shape = RoundedCornerShape(14.dp),
+              colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+              Column(modifier = Modifier.padding(14.dp)) {
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.SpaceBetween,
+                  verticalAlignment = Alignment.Top
+                ) {
+                  Column(modifier = Modifier.weight(1f)) {
+                    Surface(
+                      shape = RoundedCornerShape(6.dp),
+                      color = accentColor.copy(alpha = 0.14f)
+                    ) {
+                      Text(
+                        text = "${bio.traditionPerspective} BIOGRAPHICAL SOURCE • ${bio.category}",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                          fontWeight = FontWeight.Bold,
+                          color = accentColor
+                        ),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                      )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                      text = buildRedHighlightedSearchText(bio.personNameEnglish, searchQuery),
+                      style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                      )
+                    )
+                    Text(
+                      text = "${bio.titleHonorific} • Era: ${bio.eraHijri}",
+                      style = MaterialTheme.typography.labelSmall.copy(
+                        color = MaterialTheme.colorScheme.secondary
+                      )
+                    )
+                    Text(
+                      text = "Source: ${bio.primarySourceBook} (${bio.volumeAndPage}) • ${bio.author}",
+                      style = MaterialTheme.typography.labelSmall.copy(
+                        color = accentColor,
+                        fontWeight = FontWeight.SemiBold
+                      )
+                    )
+                  }
+                  Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                      text = bio.personNameArabic,
+                      style = MaterialTheme.typography.titleMedium.copy(
+                        fontFamily = AmiriFontFamily,
+                        color = MaterialTheme.colorScheme.primary
+                      )
+                    )
+                    Text(
+                      text = bio.personNameUrdu,
+                      style = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = UrduNastaliqFontFamily,
+                        color = MaterialTheme.colorScheme.secondary
+                      )
+                    )
+                  }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                  text = buildRedHighlightedSearchText(bio.arabicText, searchQuery),
+                  style = MaterialTheme.typography.bodyLarge.copy(
+                    fontFamily = AmiriFontFamily,
+                    fontSize = 19.sp,
+                    lineHeight = 32.sp,
+                    textAlign = TextAlign.Right
+                  ),
+                  modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                  text = buildRedHighlightedSearchText(bio.urduTranslation, searchQuery),
+                  style = MaterialTheme.typography.bodySmall.copy(
+                    fontFamily = UrduNastaliqFontFamily,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Right,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                  ),
+                  modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                  text = buildRedHighlightedSearchText(bio.englishTranslation, searchQuery),
+                  style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                  text = "Refs: ${bio.crossReferences} • Translator: ${bio.translatorAttribution}",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    color = GoldPrimary,
+                    fontWeight = FontWeight.SemiBold
+                  )
+                )
+              }
+            }
+          }
+        }
+
         // Learn Islam Hits ("Complete Salah" & "Nimaz Janaza")
-        if (showExtraSources && learnIslamHits.isNotEmpty()) {
+        if (searchCategory == SearchCategory.ALL && learnIslamHits.isNotEmpty()) {
           item {
             Text(
               text = "Learn Islam — Complete Salah & Nimaz Janaza (${learnIslamHits.size})",

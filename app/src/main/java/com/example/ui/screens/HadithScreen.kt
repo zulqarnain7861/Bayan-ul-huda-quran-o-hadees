@@ -90,10 +90,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import com.example.data.local.ExtendedHadithDataProvider
 import com.example.data.local.entities.AyahEntity
 import com.example.data.local.entities.BookmarkEntity
 import com.example.data.local.entities.HadithEntity
+import com.example.data.repository.ClassicalLibraryAndBiographiesRepository
 import com.example.ui.components.SahihGradeBadge
 import com.example.ui.theme.AmiriFontFamily
 import com.example.ui.theme.EmeraldPrimary
@@ -315,11 +320,42 @@ fun HadithScreen(
     }
   }
 
-  val bundledCollectionItems = remember(selectedCollectionKey) {
-    if (com.example.data.local.OfflineHadithAssetLoader.hasBundledAsset(selectedCollectionKey)) {
-      com.example.data.local.OfflineHadithAssetLoader.loadCollection(context, selectedCollectionKey)
+  var bundledCollectionItems by remember(selectedCollectionKey) {
+    mutableStateOf(
+      if (com.example.data.local.OfflineHadithAssetLoader.hasBundledAsset(selectedCollectionKey)) {
+        com.example.data.local.OfflineHadithAssetLoader.getCachedCollection(selectedCollectionKey)
+      } else {
+        emptyList()
+      }
+    )
+  }
+
+  LaunchedEffect(selectedCollectionKey) {
+    if (bundledCollectionItems.isEmpty() &&
+      com.example.data.local.OfflineHadithAssetLoader.hasBundledAsset(selectedCollectionKey)
+    ) {
+      val loaded = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        runCatching {
+          com.example.data.local.OfflineHadithAssetLoader.loadCollection(context, selectedCollectionKey)
+        }.getOrDefault(emptyList())
+      }
+      if (loaded.isNotEmpty()) {
+        bundledCollectionItems = loaded
+      }
+    }
+  }
+
+  val availableBookNumbers = remember(selectedCollectionKey, bundledCollectionItems, hadiths, totalBooksInCollection) {
+    val isBundled = com.example.data.local.OfflineHadithAssetLoader.hasBundledAsset(selectedCollectionKey)
+    val distinctLoadedBooks = (bundledCollectionItems.map { it.bookNumber } + hadiths.map { it.bookNumber })
+      .filter { it > 0 }
+      .distinct()
+      .sorted()
+    if (isBundled && distinctLoadedBooks.isNotEmpty()) {
+      distinctLoadedBooks
     } else {
-      emptyList()
+      val fullRange = (1..totalBooksInCollection).toList()
+      (fullRange + distinctLoadedBooks).distinct().sorted()
     }
   }
 
@@ -585,184 +621,225 @@ fun HadithScreen(
       }
     }
 
-    // 3. Dedicated Search by Text + Search by Number Controls (Preserves both Text Search and Number Search clearly!)
-    Column(
-      modifier = Modifier
-        .fillMaxWidth()
-        .padding(horizontal = 10.dp, vertical = 2.dp),
-      verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-      // Row A: Full-Width Search by Text (English, Urdu, Arabic, Narrator, Topic, or Reference)
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-      ) {
-        OutlinedTextField(
-          value = searchQuery,
-          onValueChange = {
-            searchQuery = it
-            if (it.isNotBlank() && selectedBookNumber != 0) {
-              selectedBookNumber = 0
-            }
-          },
-          modifier = Modifier
-            .weight(1f)
-            .testTag("hadith_library_search_input"),
-          placeholder = {
-            Text(
-              text = if (isShiaActive) {
-                "Search Hadees by text (English, اردو, عربي, narrator, topic)..."
-              } else {
-                "Search Hadith by text (English, اردو, عربي, narrator, topic)..."
-              },
-              fontSize = 11.sp,
-              maxLines = 1,
-              overflow = TextOverflow.Ellipsis
-            )
-          },
-          leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search by Text", modifier = Modifier.size(18.dp)) },
-          trailingIcon = {
-            if (searchQuery.isNotEmpty()) {
-              IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(28.dp)) {
-                Icon(Icons.Default.Close, contentDescription = "Clear", modifier = Modifier.size(16.dp))
-              }
-            }
-          },
-          singleLine = true,
-          keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-          keyboardActions = KeyboardActions(
-            onSearch = { triggerTextSearch() }
-          ),
-          shape = RoundedCornerShape(10.dp)
-        )
-
-        Button(
-          onClick = { triggerTextSearch() },
-          shape = RoundedCornerShape(10.dp),
-          contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-          colors = ButtonDefaults.buttonColors(
-            containerColor = if (isShiaActive) GoldPrimary else EmeraldPrimary,
-            contentColor = if (isShiaActive) Color.Black else Color.White
-          ),
-          modifier = Modifier
-            .height(48.dp)
-            .testTag("hadith_text_search_button")
-        ) {
-          Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(15.dp))
-          Spacer(modifier = Modifier.width(4.dp))
-          Text("Search", fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1)
-        }
-      }
-
-      // Row B: Search by Hadith Number + Quick Topic Chips
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-      ) {
-        OutlinedTextField(
-          value = hadithNumberInput,
-          onValueChange = { hadithNumberInput = it },
-          modifier = Modifier
-            .weight(1f)
-            .testTag("hadith_number_search_input"),
-          placeholder = {
-            Text(
-              text = if (isShiaActive) "Search by Hadees # (e.g. 1, 50, حديث ٥٠)" else "Search by Hadith # (e.g. 50, Hadith 70, حديث ٥٠)",
-              fontSize = 11.sp,
-              maxLines = 1,
-              overflow = TextOverflow.Ellipsis
-            )
-          },
-          leadingIcon = { Icon(Icons.Default.Numbers, contentDescription = "Hadith Number", modifier = Modifier.size(16.dp)) },
-          trailingIcon = {
-            if (hadithNumberInput.isNotEmpty()) {
-              IconButton(onClick = { hadithNumberInput = "" }, modifier = Modifier.size(28.dp)) {
-                Icon(Icons.Default.Close, contentDescription = "Clear Number", modifier = Modifier.size(16.dp))
-              }
-            }
-          },
-          singleLine = true,
-          keyboardOptions = KeyboardOptions(
-            keyboardType = KeyboardType.Text,
-            imeAction = ImeAction.Search
-          ),
-          keyboardActions = KeyboardActions(onSearch = { triggerNumberSearch() }),
-          shape = RoundedCornerShape(10.dp)
-        )
-
-        Button(
-          onClick = { triggerNumberSearch(hadithNumberInput, selectedCollectionKey) },
-          enabled = !isHadithLookupLoading,
-          shape = RoundedCornerShape(10.dp),
-          contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-          colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
-          modifier = Modifier
-            .height(48.dp)
-            .testTag("hadith_number_lookup_button")
-        ) {
-          if (isHadithLookupLoading) {
-            CircularProgressIndicator(
-              modifier = Modifier.size(16.dp),
-              strokeWidth = 2.dp,
-              color = Color.White
-            )
-          } else {
-            Text("Find #", fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1)
-          }
-        }
-      }
-
-      if (!hadithLookupErrorMessage.isNullOrBlank()) {
-        Surface(
-          shape = RoundedCornerShape(8.dp),
-          color = MaterialTheme.colorScheme.errorContainer,
-          modifier = Modifier
-            .fillMaxWidth()
-            .testTag("hadith_not_found_banner")
-        ) {
-          Row(
-            modifier = Modifier
-              .fillMaxWidth()
-              .padding(horizontal = 10.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Text(
-              text = hadithLookupErrorMessage,
-              style = MaterialTheme.typography.labelMedium.copy(
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onErrorContainer
-              ),
-              modifier = Modifier.weight(1f)
-            )
-            IconButton(
-              onClick = onClearHadithLookupError,
-              modifier = Modifier.size(24.dp)
-            ) {
-              Icon(
-                Icons.Default.Close,
-                contentDescription = "Dismiss",
-                tint = MaterialTheme.colorScheme.onErrorContainer,
-                modifier = Modifier.size(14.dp)
-              )
-            }
-          }
-        }
-      }
-    }
-
-    // 4. Scrollable Hadith List + Compact Metadata/Filter Header Items (No vertical crowding!)
+    // 3. Full-Page Scrollable Hadith List + Search & Filter Header Items
     LazyColumn(
       state = listState,
       modifier = Modifier.fillMaxSize(),
       contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
       verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-      // Compact Header Item inside LazyColumn so Hadith cards have full screen space
+      // Compact Header Item inside LazyColumn so Hadith cards have full screen space when scrolling up
       item(key = "hadith_compact_header_controls") {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+          // Dedicated Search by Text + Search by Number Controls (Scrolls with list for full-screen reading!)
+          Column(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(vertical = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+          ) {
+            // Row A: Full-Width Search by Text (English, Urdu, Arabic, Narrator, Topic, or Reference)
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+              OutlinedTextField(
+                value = searchQuery,
+                onValueChange = {
+                  searchQuery = it
+                  if (it.isNotBlank() && selectedBookNumber != 0) {
+                    selectedBookNumber = 0
+                  }
+                },
+                modifier = Modifier
+                  .weight(1f)
+                  .testTag("hadith_library_search_input"),
+                placeholder = {
+                  Text(
+                    text = if (isShiaActive) {
+                      "Search Hadees by text (English, اردو, عربي, narrator, topic)..."
+                    } else {
+                      "Search Hadith by text (English, اردو, عربي, narrator, topic)..."
+                    },
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                  )
+                },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search by Text", modifier = Modifier.size(18.dp)) },
+                trailingIcon = {
+                  if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(28.dp)) {
+                      Icon(Icons.Default.Close, contentDescription = "Clear", modifier = Modifier.size(16.dp))
+                    }
+                  }
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(
+                  onSearch = { triggerTextSearch() }
+                ),
+                shape = RoundedCornerShape(10.dp)
+              )
+
+              Button(
+                onClick = { triggerTextSearch() },
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                colors = ButtonDefaults.buttonColors(
+                  containerColor = if (isShiaActive) GoldPrimary else EmeraldPrimary,
+                  contentColor = if (isShiaActive) Color.Black else Color.White
+                ),
+                modifier = Modifier
+                  .height(48.dp)
+                  .testTag("hadith_text_search_button")
+              ) {
+                Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(15.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Search", fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1)
+              }
+            }
+
+            // Row B: Search by Hadith Number + -1 / +1 Step Controls
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+              OutlinedTextField(
+                value = hadithNumberInput,
+                onValueChange = { hadithNumberInput = it },
+                modifier = Modifier
+                  .weight(1f)
+                  .testTag("hadith_number_search_input"),
+                placeholder = {
+                  Text(
+                    text = if (isShiaActive) "Search by Hadees # (e.g. 1, 50, حديث ٥٠)" else "Search by Hadith # (e.g. 50, Hadith 70, حديث ٥٠)",
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                  )
+                },
+                leadingIcon = { Icon(Icons.Default.Numbers, contentDescription = "Hadith Number", modifier = Modifier.size(16.dp)) },
+                trailingIcon = {
+                  if (hadithNumberInput.isNotEmpty()) {
+                    IconButton(onClick = { hadithNumberInput = "" }, modifier = Modifier.size(28.dp)) {
+                      Icon(Icons.Default.Close, contentDescription = "Clear Number", modifier = Modifier.size(16.dp))
+                    }
+                  }
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                  keyboardType = KeyboardType.Text,
+                  imeAction = ImeAction.Search
+                ),
+                keyboardActions = KeyboardActions(onSearch = { triggerNumberSearch() }),
+                shape = RoundedCornerShape(10.dp)
+              )
+
+              Button(
+                onClick = { triggerNumberSearch(hadithNumberInput, selectedCollectionKey) },
+                enabled = !isHadithLookupLoading,
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+                modifier = Modifier
+                  .height(48.dp)
+                  .testTag("hadith_number_lookup_button")
+              ) {
+                if (isHadithLookupLoading) {
+                  CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp,
+                    color = Color.White
+                  )
+                } else {
+                  Text("Find #", fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1)
+                }
+              }
+
+              OutlinedButton(
+                onClick = {
+                  val currentBase = ExtendedHadithDataProvider.parseHadithNumberQuery(hadithNumberInput)
+                    ?: selectedHadithDetail?.takeIf { it.collectionKey == selectedCollectionKey }?.hadithNumber
+                    ?: savedHadithNumberForBook.takeIf { it > 0 }
+                    ?: paginatedHadiths.firstOrNull()?.hadithNumber
+                    ?: 2
+                  val prevNum = (currentBase - 1).coerceAtLeast(1)
+                  hadithNumberInput = prevNum.toString()
+                  triggerNumberSearch(prevNum.toString(), selectedCollectionKey)
+                },
+                enabled = !isHadithLookupLoading,
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                modifier = Modifier
+                  .height(48.dp)
+                  .testTag("hadith_number_step_prev_button")
+              ) {
+                Text("-1", fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1)
+              }
+
+              OutlinedButton(
+                onClick = {
+                  val currentBase = ExtendedHadithDataProvider.parseHadithNumberQuery(hadithNumberInput)
+                    ?: selectedHadithDetail?.takeIf { it.collectionKey == selectedCollectionKey }?.hadithNumber
+                    ?: savedHadithNumberForBook.takeIf { it > 0 }
+                    ?: paginatedHadiths.firstOrNull()?.hadithNumber
+                    ?: 0
+                  val nextNum = (currentBase + 1).coerceAtLeast(1)
+                  hadithNumberInput = nextNum.toString()
+                  triggerNumberSearch(nextNum.toString(), selectedCollectionKey)
+                },
+                enabled = !isHadithLookupLoading,
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                modifier = Modifier
+                  .height(48.dp)
+                  .testTag("hadith_number_step_next_button")
+              ) {
+                Text("+1", fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1)
+              }
+            }
+
+            if (!hadithLookupErrorMessage.isNullOrBlank()) {
+              Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.errorContainer,
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .testTag("hadith_not_found_banner")
+              ) {
+                Row(
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                  horizontalArrangement = Arrangement.SpaceBetween,
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  Text(
+                    text = hadithLookupErrorMessage,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                      fontWeight = FontWeight.Bold,
+                      color = MaterialTheme.colorScheme.onErrorContainer
+                    ),
+                    modifier = Modifier.weight(1f)
+                  )
+                  IconButton(
+                    onClick = onClearHadithLookupError,
+                    modifier = Modifier.size(24.dp)
+                  ) {
+                    Icon(
+                      Icons.Default.Close,
+                      contentDescription = "Dismiss",
+                      tint = MaterialTheme.colorScheme.onErrorContainer,
+                      modifier = Modifier.size(14.dp)
+                    )
+                  }
+                }
+              }
+            }
+          }
           // Tradition, Sub-Tradition & Scholarly Attribution Banner
           activeCollectionMeta?.let { meta ->
             Surface(
@@ -839,7 +916,7 @@ fun HadithScreen(
                 onClick = { selectedBookNumber = 0 },
                 label = {
                   Text(
-                    text = if (isShiaActive) "All Jilds ($totalBooksInCollection)" else "All Books ($totalBooksInCollection)",
+                    text = if (isShiaActive) "All Jilds (${availableBookNumbers.size})" else "All Books (${availableBookNumbers.size})",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1
@@ -875,12 +952,13 @@ fun HadithScreen(
                 modifier = Modifier.height(30.dp).testTag("hadith_book_chip_all_tradition")
               )
             }
-            items(totalBooksInCollection) { idx ->
-              val bookNum = idx + 1
+            items(availableBookNumbers.size) { idx ->
+              val bookNum = availableBookNumbers[idx]
               FilterChip(
                 selected = selectedBookNumber == bookNum,
                 onClick = {
                   selectedBookNumber = bookNum
+                  currentPage = 1
                   onLoadBookSection(bookNum)
                 },
                 label = {
@@ -1222,18 +1300,6 @@ fun HadithScreen(
           hadith = hadith,
           isBookmarked = isBookmarked,
           showEntryTimeBadge = showEntryTimeBadges,
-          hasPrevious = index > 0,
-          hasNext = index < paginatedHadiths.lastIndex,
-          onPrevious = {
-            if (index > 0) {
-              coroutineScope.launch { listState.animateScrollToItem(index - 1) }
-            }
-          },
-          onNext = {
-            if (index < paginatedHadiths.lastIndex) {
-              coroutineScope.launch { listState.animateScrollToItem(index + 1) }
-            }
-          },
           onOpenDetail = { onShowHadithDetail(hadith) },
           onClickDarussalamBadge = {
             hadithNumberInput = hadith.hadithNumber.toString()
@@ -1403,22 +1469,145 @@ fun HadithScreen(
     }
   }
 
-  // Focused Hadith Reader Modal with Separate Edition Labels & Previous / Next Navigation
+  // Focused Hadith Reader Modal with Smart Sequential Navigation (index + 1 / index - 1),
+  // Persisted Reading State, Online/Offline Status Chip, and No-Internet Preloaded Content Popup
   selectedHadithDetail?.let { currentHadith ->
-    val currentIndex = filteredHadiths.indexOfFirst {
-      it.collectionKey == currentHadith.collectionKey && it.hadithNumber == currentHadith.hadithNumber
+    val orderedCollectionHadiths = remember(currentHadith.collectionKey, hadiths) {
+      ClassicalLibraryAndBiographiesRepository.buildOrderedHadithNavigationList(
+        context = context,
+        collectionKey = currentHadith.collectionKey,
+        inMemoryList = hadiths
+      )
     }
+    val orderedIndex = remember(orderedCollectionHadiths, currentHadith.collectionKey, currentHadith.hadithNumber) {
+      orderedCollectionHadiths.indexOfFirst {
+        it.collectionKey.equals(currentHadith.collectionKey, ignoreCase = true) &&
+          it.hadithNumber == currentHadith.hadithNumber
+      }
+    }
+
+    // Check actual network connectivity + allow user to toggle Offline Preloaded mode
+    val isDeviceNetworkAvailable = remember(currentHadith.hadithNumber) {
+      runCatching {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        val net = cm?.activeNetwork
+        val caps = cm?.getNetworkCapabilities(net)
+        caps != null && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+      }.getOrDefault(false)
+    }
+    var forceOfflinePreloadedMode by remember { mutableStateOf(!isDeviceNetworkAvailable) }
+    var activeSourceModeLabel by remember(isDeviceNetworkAvailable, forceOfflinePreloadedMode) {
+      mutableStateOf(
+        if (!isDeviceNetworkAvailable || forceOfflinePreloadedMode) "Offline - Preloaded Content" else "Online"
+      )
+    }
+    var pendingOfflineNavigationDelta by remember { mutableStateOf<Int?>(null) }
+    var missingOfflineContentMessage by remember { mutableStateOf<String?>(null) }
+
+    val modalScrollState = rememberScrollState()
+
+    // Persist reading state (collection, book, chapter, hadithNumber, scrollPosition) across rotation & process death
+    LaunchedEffect(
+      currentHadith.collectionKey,
+      currentHadith.bookNumber,
+      currentHadith.chapterNumber,
+      currentHadith.hadithNumber,
+      modalScrollState.value
+    ) {
+      ClassicalLibraryAndBiographiesRepository.saveHadithReadingState(
+        context = context,
+        state = ClassicalLibraryAndBiographiesRepository.HadithReadingStatePersisted(
+          collectionKey = currentHadith.collectionKey,
+          bookNumber = currentHadith.bookNumber,
+          chapterNumber = currentHadith.chapterNumber,
+          hadithNumber = currentHadith.hadithNumber,
+          scrollPosition = modalScrollState.value
+        )
+      )
+    }
+
+    fun handleAdjacentButtonClick(delta: Int) {
+      val directionLabel = if (delta > 0) "NEXT" else "PREVIOUS"
+      val targetNum = (currentHadith.hadithNumber + delta).coerceAtLeast(1)
+      hadithNumberInput = targetNum.toString()
+
+      // 1. Check exact n ± 1 in ordered local/bundled collection first (0ms instant transition)
+      val exactInOrdered = orderedCollectionHadiths.firstOrNull {
+        it.collectionKey.equals(currentHadith.collectionKey, ignoreCase = true) &&
+          it.hadithNumber == targetNum
+      } ?: if (com.example.data.local.OfflineHadithAssetLoader.hasBundledAsset(currentHadith.collectionKey)) {
+        com.example.data.local.OfflineHadithAssetLoader.findHadithByNumber(
+          context = context,
+          collectionKey = currentHadith.collectionKey,
+          hadithNumber = targetNum
+        )
+      } else {
+        ExtendedHadithDataProvider.findExactHadithInCollection(
+          localCollectionHadiths = hadiths,
+          collectionKey = currentHadith.collectionKey,
+          hadithNumber = targetNum
+        )
+      }
+
+      if (exactInOrdered != null) {
+        ClassicalLibraryAndBiographiesRepository.recordNavigationTrace(
+          collectionKey = currentHadith.collectionKey,
+          fromHadithNumber = currentHadith.hadithNumber,
+          toHadithNumber = exactInOrdered.hadithNumber,
+          direction = directionLabel,
+          sourceMode = activeSourceModeLabel
+        )
+        onShowHadithDetail(exactInOrdered)
+        return
+      }
+
+      // 2. Universal Online n + 1 / n - 1 Lookup (fetches Hadith #targetNum online just like Hadith # Search)
+      val isCurrentlyOnline = isDeviceNetworkAvailable && !forceOfflinePreloadedMode
+      if (isCurrentlyOnline) {
+        activeSourceModeLabel = "Online"
+        ClassicalLibraryAndBiographiesRepository.recordNavigationTrace(
+          collectionKey = currentHadith.collectionKey,
+          fromHadithNumber = currentHadith.hadithNumber,
+          toHadithNumber = targetNum,
+          direction = directionLabel,
+          sourceMode = "Online"
+        )
+        triggerNumberSearch(targetNum.toString(), currentHadith.collectionKey)
+        return
+      }
+
+      // 3. Offline fallback: step to adjacent preloaded Hadith in ordered list if available, else try lookup
+      val fallbackPreloaded = ClassicalLibraryAndBiographiesRepository.resolveAdjacentHadithSequential(
+        orderedList = orderedCollectionHadiths,
+        currentHadithNumber = currentHadith.hadithNumber,
+        delta = delta
+      )
+      if (fallbackPreloaded != null) {
+        activeSourceModeLabel = "Offline - Preloaded Content"
+        ClassicalLibraryAndBiographiesRepository.recordNavigationTrace(
+          collectionKey = currentHadith.collectionKey,
+          fromHadithNumber = currentHadith.hadithNumber,
+          toHadithNumber = fallbackPreloaded.hadithNumber,
+          direction = directionLabel,
+          sourceMode = "Offline - Preloaded Content"
+        )
+        onShowHadithDetail(fallbackPreloaded)
+      } else {
+        triggerNumberSearch(targetNum.toString(), currentHadith.collectionKey)
+      }
+    }
+
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val isShiaDetail = ExtendedHadithDataProvider.isShiaCollection(currentHadith.collectionKey)
     val primaryEditionLabel = ExtendedHadithDataProvider.formatPrimaryEditionBadge(currentHadith)
     val inBookLabel = ExtendedHadithDataProvider.formatInBookBadge(currentHadith)
     var modalSearchQuery by remember { mutableStateOf("") }
 
-    val modalSearchResults = remember(modalSearchQuery, filteredHadiths) {
+    val modalSearchResults = remember(modalSearchQuery, orderedCollectionHadiths) {
       val q = modalSearchQuery.trim()
       if (q.isBlank()) emptyList()
       else {
-        filteredHadiths.filter { h ->
+        orderedCollectionHadiths.filter { h ->
           h.hadithNumber.toString() == q ||
             h.reference.contains(q, ignoreCase = true) ||
             h.arabicText.contains(q) ||
@@ -1439,22 +1628,49 @@ fun HadithScreen(
         modifier = Modifier
           .fillMaxWidth()
           .padding(horizontal = 20.dp, vertical = 8.dp)
-          .verticalScroll(rememberScrollState())
+          .verticalScroll(modalScrollState)
       ) {
-        // Top Header with Close button (Two rows to prevent horizontal squishing on narrow screens)
+        // Top Header with Unobtrusive Online / Offline - Preloaded Content Status Chip & Close Button
         Row(
           modifier = Modifier.fillMaxWidth(),
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          Text(
-            text = currentHadith.reference,
-            style = MaterialTheme.typography.titleMedium.copy(
-              fontWeight = FontWeight.Bold,
-              color = MaterialTheme.colorScheme.primary
-            ),
-            modifier = Modifier.weight(1f)
-          )
+          Column(modifier = Modifier.weight(1f)) {
+            Text(
+              text = currentHadith.reference,
+              style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+              )
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Surface(
+              shape = RoundedCornerShape(8.dp),
+              color = if (activeSourceModeLabel == "Online") {
+                EmeraldPrimary.copy(alpha = 0.14f)
+              } else {
+                GoldPrimary.copy(alpha = 0.22f)
+              },
+              modifier = Modifier
+                .clickable {
+                  forceOfflinePreloadedMode = !forceOfflinePreloadedMode
+                  activeSourceModeLabel =
+                    if (!isDeviceNetworkAvailable || forceOfflinePreloadedMode) "Offline - Preloaded Content" else "Online"
+                }
+                .testTag("hadith_reader_source_status_chip")
+            ) {
+              Text(
+                text = activeSourceModeLabel,
+                style = MaterialTheme.typography.labelSmall.copy(
+                  fontWeight = FontWeight.Bold,
+                  color = if (activeSourceModeLabel == "Online") EmeraldPrimary else Color(0xFFE65100),
+                  fontSize = 10.sp
+                ),
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+              )
+            }
+          }
           IconButton(onClick = onCloseHadithDetail) {
             Icon(Icons.Default.Close, contentDescription = "Close")
           }
@@ -1571,8 +1787,10 @@ fun HadithScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // First / Previous / Next / Last Hadith Bar inside Reader Modal
+        // First / Previous (n - 1) / Next (n + 1) / Last Hadith Bar inside Reader Modal
         val modalRange = com.example.data.local.OfflineHadithAssetLoader.getNumberRangeForCollection(context, currentHadith.collectionKey)
+        val prevTargetNum = (currentHadith.hadithNumber - 1).coerceAtLeast(1)
+        val nextTargetNum = currentHadith.hadithNumber + 1
         Row(
           modifier = Modifier.fillMaxWidth(),
           horizontalArrangement = Arrangement.SpaceBetween,
@@ -1580,13 +1798,10 @@ fun HadithScreen(
         ) {
           OutlinedButton(
             onClick = {
-              if (filteredHadiths.isNotEmpty() && filteredHadiths.first().collectionKey == currentHadith.collectionKey) {
-                onShowHadithDetail(filteredHadiths.first())
-              } else {
-                triggerNumberSearch(modalRange.first.toString(), currentHadith.collectionKey)
-              }
+              hadithNumberInput = modalRange.first.toString()
+              triggerNumberSearch(modalRange.first.toString(), currentHadith.collectionKey)
             },
-            enabled = currentHadith.hadithNumber > modalRange.first,
+            enabled = !isHadithLookupLoading && currentHadith.hadithNumber > modalRange.first,
             shape = RoundedCornerShape(10.dp),
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
             modifier = Modifier.testTag("modal_first_hadith_button")
@@ -1595,52 +1810,46 @@ fun HadithScreen(
           }
 
           OutlinedButton(
-            onClick = {
-              if (currentIndex > 0) {
-                onShowHadithDetail(filteredHadiths[currentIndex - 1])
-              } else if (currentHadith.hadithNumber > 1) {
-                triggerNumberSearch((currentHadith.hadithNumber - 1).toString(), currentHadith.collectionKey)
-              }
-            },
-            enabled = currentIndex > 0 || currentHadith.hadithNumber > 1,
+            onClick = { handleAdjacentButtonClick(-1) },
+            enabled = !isHadithLookupLoading && (currentHadith.hadithNumber > 1 || orderedIndex > 0),
             shape = RoundedCornerShape(10.dp),
             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
             modifier = Modifier.testTag("modal_prev_hadith_button")
           ) {
             Icon(Icons.AutoMirrored.Filled.NavigateBefore, contentDescription = null, modifier = Modifier.size(16.dp))
-            Text("Prev", fontSize = 11.sp)
+            Text("Prev (#$prevTargetNum)", fontSize = 11.sp)
           }
 
-          Text(
-            text = if (currentIndex >= 0) "${currentIndex + 1} / ${filteredHadiths.size}" else "#${currentHadith.hadithNumber}",
-            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
-          )
+          if (isHadithLookupLoading) {
+            CircularProgressIndicator(
+              modifier = Modifier.size(18.dp),
+              strokeWidth = 2.dp,
+              color = EmeraldPrimary
+            )
+          } else {
+            Text(
+              text = "#${currentHadith.hadithNumber} / ${modalRange.last}",
+              style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+            )
+          }
 
           OutlinedButton(
-            onClick = {
-              if (currentIndex in 0 until filteredHadiths.lastIndex) {
-                onShowHadithDetail(filteredHadiths[currentIndex + 1])
-              } else {
-                triggerNumberSearch((currentHadith.hadithNumber + 1).toString(), currentHadith.collectionKey)
-              }
-            },
+            onClick = { handleAdjacentButtonClick(1) },
+            enabled = !isHadithLookupLoading && (currentHadith.hadithNumber < modalRange.last || (orderedIndex >= 0 && orderedIndex < orderedCollectionHadiths.lastIndex)),
             shape = RoundedCornerShape(10.dp),
             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
             modifier = Modifier.testTag("modal_next_hadith_button")
           ) {
-            Text("Next", fontSize = 11.sp)
+            Text("Next (#$nextTargetNum)", fontSize = 11.sp)
             Icon(Icons.AutoMirrored.Filled.NavigateNext, contentDescription = null, modifier = Modifier.size(16.dp))
           }
 
           OutlinedButton(
             onClick = {
-              if (filteredHadiths.isNotEmpty() && filteredHadiths.last().collectionKey == currentHadith.collectionKey) {
-                onShowHadithDetail(filteredHadiths.last())
-              } else {
-                triggerNumberSearch(modalRange.last.toString(), currentHadith.collectionKey)
-              }
+              hadithNumberInput = modalRange.last.toString()
+              triggerNumberSearch(modalRange.last.toString(), currentHadith.collectionKey)
             },
-            enabled = currentHadith.hadithNumber < modalRange.last,
+            enabled = !isHadithLookupLoading && currentHadith.hadithNumber < modalRange.last,
             shape = RoundedCornerShape(10.dp),
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
             modifier = Modifier.testTag("modal_last_hadith_button")
@@ -2448,48 +2657,27 @@ fun HadithCardItem(
 
       Spacer(modifier = Modifier.height(12.dp))
 
-      // Action row with Prev / Next and Reader Mode
+      // Action row with Open Reader Mode (Prev/Next is inside the Reader Modal and Top Search bar)
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          IconButton(
-            onClick = onPrevious,
-            enabled = hasPrevious,
-            modifier = Modifier
-              .size(34.dp)
-              .testTag("card_prev_hadith_${hadith.hadithNumber}")
-          ) {
-            Icon(
-              Icons.AutoMirrored.Filled.NavigateBefore,
-              contentDescription = "Previous Hadith",
-              tint = if (hasPrevious) EmeraldPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-            )
-          }
+        Surface(
+          shape = RoundedCornerShape(8.dp),
+          color = EmeraldPrimary.copy(alpha = 0.12f),
+          modifier = Modifier
+            .clickable { onOpenDetail() }
+            .testTag("card_open_reader_${hadith.hadithNumber}")
+        ) {
           Text(
-            text = "Prev / Next",
+            text = "Open Reader (#${hadith.hadithNumber})",
             style = MaterialTheme.typography.labelSmall.copy(
-              color = MaterialTheme.colorScheme.onSurfaceVariant
+              color = EmeraldPrimary,
+              fontWeight = FontWeight.Bold
             ),
-            modifier = Modifier
-              .clickable { onOpenDetail() }
-              .padding(horizontal = 4.dp)
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
           )
-          IconButton(
-            onClick = onNext,
-            enabled = hasNext,
-            modifier = Modifier
-              .size(34.dp)
-              .testTag("card_next_hadith_${hadith.hadithNumber}")
-          ) {
-            Icon(
-              Icons.AutoMirrored.Filled.NavigateNext,
-              contentDescription = "Next Hadith",
-              tint = if (hasNext) EmeraldPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-            )
-          }
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {

@@ -1,0 +1,131 @@
+{
+  "tajweed_engine": {
+    "arabic-alphabet.json": {
+      "size": 18109,
+      "sha256": "6d53ad538da73636c8acbaedfd3d7d1879135a50e800e29f5017f3c67677e4f1"
+    },
+    "juz.json": {
+      "size": 5843,
+      "sha256": "ed9b3eb076749b51166355354c0876418f41eb20bbab511c184ec40136ed2299"
+    },
+    "morphology.json": {
+      "size": 834842,
+      "sha256": "0c76a453875cab80264525420fc921ff4da7a5fc2fde4c887c03d131be69e702"
+    },
+    "qiraat-counts.json": {
+      "size": 6491,
+      "sha256": "6da65c916481407659c844c85d0d9a3dc6be110b605772a5fa3099992dc4c454"
+    },
+    "quran.json.gz": {
+      "size": 1359846,
+      "sha256": "ca4bf20f7b3dda6e3f203b64b05dc1ad704c585afc4be4c105ddd22dd8ccdb7e"
+    },
+    "reciters.json": {
+      "size": 21799,
+      "sha256": "04156af62228e82ca1105d2a398e0029005907e239e4cfe84bbfa19e7d9b5004"
+    },
+    "tajweed-annotations.json.gz": {
+      "size": 458115,
+      "sha256": "9319072997bbca3de0b7cbe766c02e116caab0363ac157d955a7267834dc6bad"
+    },
+    "tajweed-lessons.json": {
+      "size": 458880,
+      "sha256": "751f7c167f61d0590d2a5957976fc12bf84aaeaddb2a205eb7010e84a77a01a7"
+    },
+    "tajweed-rules.json": {
+      "size": 16468,
+      "sha256": "9e43a256a9e694226d2c731e1319344144557e8ff2b3fb98d308fa70676ee8a1"
+    },
+    "word-by-word.json.gz": {
+      "size": 484546,
+      "sha256": "9135dcafa60225cfc7a5cd3f1386ed48862b10395134d8cb4716b46d3ef8c104"
+    },
+    "tajweed-qiraat/rules.json": {
+      "size": 4646,
+      "sha256": "69a15c9045ac66555d7f18e07536a67f4f512ab2305c0c4a311b1d853a0a2d0e"
+    }
+  },
+  "islamqa": {
+    "islamqa.zip": {
+      "size": 4822421,
+      "sha256": "b1d3a59a2152471095029ee9d73e08b78d6896693e2725d1dfcb333131233758"
+    }
+  },
+  "hadith_forties": {
+    "nawawi40.json": {
+      "size": 71317,
+      "sha256": "d824cec8d82751669a9ed1d41f2854219f8e6770a2cab151ed87f9a501357def"
+    },
+    "qudsi40.json": {
+      "size": 83412,
+      "sha256": "55210e39051cc102da28c2ba3c5fe3c8c27fae9f1afd322138f5f38ddc0eaa3b"
+    },
+    "shahwaliullah40.json": {
+      "size": 9556,
+      "sha256": "1a1501422af8c08469bb06f21e4283004f4c51430e9278b486bcb5a4bf1e6263"
+    },
+    "shahwaliullah40.dat": {
+      "size": 2913,
+      "sha256": "e884f32f3ff82520b60d6d2e5e368fbd6ac9bee2fe5fb0158f99b93fe79c4101"
+    }
+  },
+  "azkar_corpus": {
+    "after_prayer.json": {
+      "size": 206,
+      "sha256": "233e68d573cae1366c523aea921c7e07204898ff05101218bd057a3e56c8d414"
+    },
+    "azkar-masaa.json": {
+      "size": 10812,
+      "sha256": "bdb257062f6bc3dfba559c1e61a8caa4643e36d2036d0e771892dff7de3ef0b5"
+    },
+    "azkar-sabah.json": {
+      "size": 13612,
+      "sha256": "a20a165830a6519314215512cb1eba244fb85794fac73ec72c7c0aa7f164e276"
+    },
+    "doaa-for-all-death-people.json": {
+      "size": 6309,
+      "sha256": "3c486e481732f2ea8f5eca6a983ec2d665e905bf512dd58746fea5b11c150bd1"
+    },
+    "doaa-for-dead-person.json": {
+      "size": 5200,
+      "sha256": "2be3373199eeca8ad3db1ef64a35468375c7ee48d739e150c66aa7afc4c5091f"
+    },
+    "famous-doaa.json": {
+      "size": 11889,
+      "sha256": "6c89b3f2ba8c5a0ac312eae531f11b916d72af57b1c916938ccc2bcf986552b5"
+    },
+    "food.json": {
+      "size": 1706,
+      "sha256": "441b999381f7ead8fbad34f9571b4c67716c45c210b365a8839b1af671adcc31"
+    },
+    "home.json": {
+      "size": 1394,
+      "sha256": "cc0ca76ea7d0850bb63ca441031637809912d13fe31301228202154f908137f6"
+    },
+    "morning_evening.json": {
+      "size": 375,
+      "sha256": "c1980cdd9d43960983e660f7a9b9c9663db6d6ddf834b8dddf9f4f9838a77cc9"
+    },
+    "mosque.json": {
+      "size": 1663,
+      "sha256": "a1684ebcf386102b69671276fa5dd618d18cd2e919426283388237d44645af28"
+    },
+    "ruqyah-shariah.json": {
+      "size": 16617,
+      "sha256": "17c0226539e6e42648309f13f1c87423c2bf7c93f04967f1081f4168514bc361"
+    },
+    "sleep.json": {
+      "size": 173,
+      "sha256": "05296042a75608038d14e65297a4bfc22b4748a5e013aa4f70c7b28e20f6fec4"
+    },
+    "travel.json": {
+      "size": 2543,
+      "sha256": "d584a281fb31e8dd21f4865e7ace1ff53bb6ef9dbaa1527a70b6728c60867138"
+    },
+    "wudu.json": {
+      "size": 1176,
+      "sha256": "4d40696769a1b786c27cfaea51e8110a8d49b6d9ff08ca52b7030691983b871a"
+    }
+  },
+  "prophet_stories_count": 27
+}

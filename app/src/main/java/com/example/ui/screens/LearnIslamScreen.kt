@@ -57,7 +57,8 @@ enum class LearnIslamTab(
     NAMAZ_AND_WUDU("namaz", "Namaz & Wudu", "وضو اور مکمل نماز"),
     NIMAZ_JANAZA("nimaz_janaza", "Nimaz Janaza", "نمازِ جنازہ"),
     DAILY_DUAS_SEQ("duas_seq", "Daily Duas", "مسنون دعائیں (ترتیب وار)"),
-    SEHRI_NIYAT_SOURCES("sehri_niyat", "Sehri Niyat & Fiqh", "سحری کی نیت اور فقہی رہنمائی")
+    SEHRI_NIYAT_SOURCES("sehri_niyat", "Sehri Niyat & Fiqh", "سحری کی نیت اور فقہی رہنمائی"),
+    PROPHET_STORIES("prophet_stories", "25 Prophet Stories", "قصص الانبیاء (۲۵ انبیاء)")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -328,6 +329,10 @@ fun LearnIslamScreen(
                             )
                         }
                     )
+                }
+
+                LearnIslamTab.PROPHET_STORIES -> {
+                    ProphetStoriesHubView()
                 }
             }
         }

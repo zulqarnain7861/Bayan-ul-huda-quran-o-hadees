@@ -1,0 +1,415 @@
+{
+  "retrieved_at": "2026-11-05T18:52:00Z",
+  "repository": "https://github.com/mohammed-2-5/islamic-library-data",
+  "folder": "prophet_stories",
+  "files": [
+    {
+      "name": "adam.json",
+      "path": "prophet_stories/adam.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/adam.json",
+      "git_sha": "52e15edbf4bf6a4803762b560c2e625322e607c3",
+      "size_bytes": 29174,
+      "sha256": "dce3d1bbbb8cb584872eb0dc140b7a1e3f9814c3df5a3b28fbacda26ede91a66"
+    },
+    {
+      "name": "alyasa.json",
+      "path": "prophet_stories/alyasa.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/alyasa.json",
+      "git_sha": "ae42d81ed9ab4664cd10864081eed59d5a9b0363",
+      "size_bytes": 17319,
+      "sha256": "c923f40746dcbaab99c32410ac56c8db799d2b73bfcb9a6d7946a40e4f0ee4c7"
+    },
+    {
+      "name": "ayyub.json",
+      "path": "prophet_stories/ayyub.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/ayyub.json",
+      "git_sha": "7097ced3ebfa5457ba34a7361eea0f2e9af5fdaf",
+      "size_bytes": 19208,
+      "sha256": "5667be7b09a66c90a75cc5406ec063f5a0b223df77e44013a99baed7a788dd0b"
+    },
+    {
+      "name": "dawud.json",
+      "path": "prophet_stories/dawud.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/dawud.json",
+      "git_sha": "9b74473b1bae8723148746e85506813feacaa331",
+      "size_bytes": 17569,
+      "sha256": "60116fd54cfce3807ff76f34b895519951b1b154b8f0441f6717d56e90f92475"
+    },
+    {
+      "name": "dhul_kifl.json",
+      "path": "prophet_stories/dhul_kifl.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/dhul_kifl.json",
+      "git_sha": "cfee10e47a262d4305b2c02974d4111ed41cc353",
+      "size_bytes": 14553,
+      "sha256": "76ec393c83e683abbef189a8741c01a07e5f79951fb1a4424d2270a16eaa535c"
+    },
+    {
+      "name": "harun.json",
+      "path": "prophet_stories/harun.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/harun.json",
+      "git_sha": "87f7968ecaf9e7a0ae9a1a3447a54f82740d50b2",
+      "size_bytes": 16975,
+      "sha256": "2d21a7b0740d58a42f00ef62c057a6d7d01133a94acc667edf49edb8985523eb"
+    },
+    {
+      "name": "hud.json",
+      "path": "prophet_stories/hud.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/hud.json",
+      "git_sha": "24784a47963c5a84b3a11a4946cdc4a9b309c0d4",
+      "size_bytes": 32209,
+      "sha256": "6fe900dcb2baa2ebb81fccaf2a5ff162b933579225bd74f2039e9d2240a4b559"
+    },
+    {
+      "name": "ibrahim.json",
+      "path": "prophet_stories/ibrahim.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/ibrahim.json",
+      "git_sha": "9e80cfaca10a5a3f2a32058dc89798a1461a4210",
+      "size_bytes": 16282,
+      "sha256": "b00de295e91b8efdaf1f0904deb1f1a862180356f94b384f9bdb56583ab5437f"
+    },
+    {
+      "name": "idris.json",
+      "path": "prophet_stories/idris.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/idris.json",
+      "git_sha": "bb31480eb79f29674d934db43cf67572bf759f36",
+      "size_bytes": 21545,
+      "sha256": "b3ccf40ade808df582e176c96a6f1d2ceca2e7f05e991d697bb737de937cee26"
+    },
+    {
+      "name": "ilyas.json",
+      "path": "prophet_stories/ilyas.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/ilyas.json",
+      "git_sha": "ccd8dbae5c9e48eeebe12be0251843ea5e8af428",
+      "size_bytes": 7718,
+      "sha256": "f5d7ecb0e3457561469a3c7bdddb7911af77ef5a941e54129ab997f001b50652"
+    },
+    {
+      "name": "index.json",
+      "path": "prophet_stories/index.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/index.json",
+      "git_sha": "431d5b8742a050ae3d59ae556396340dd38dc046",
+      "size_bytes": 12422,
+      "sha256": "23325c140cfcadc5323d0eca1d92400cc5174b5869ece5f61db69e6143c79c2c"
+    },
+    {
+      "name": "isa.json",
+      "path": "prophet_stories/isa.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/isa.json",
+      "git_sha": "955305f523117667a147ea4a28c720b719ddf838",
+      "size_bytes": 20568,
+      "sha256": "a8827b8f10ac777c5dd2b1ec567a296fd89a2d4e914eab5f9a6f2ae557d06a17"
+    },
+    {
+      "name": "ishaq.json",
+      "path": "prophet_stories/ishaq.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/ishaq.json",
+      "git_sha": "64cc6db93bca87f0af858df5de89c5345cf30e1b",
+      "size_bytes": 18723,
+      "sha256": "2267c9190edbc6d390e26e15705edea72e842d46dbb008993056c4d78c17f56a"
+    },
+    {
+      "name": "ismail.json",
+      "path": "prophet_stories/ismail.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/ismail.json",
+      "git_sha": "f8d3b9030c0270231d7b7183c8948a93f538efdf",
+      "size_bytes": 36185,
+      "sha256": "ef21c3f230d0f41993a489e5f8b524ef9c775e08d85cc2dce3009fdee3dd65d3"
+    },
+    {
+      "name": "lut.json",
+      "path": "prophet_stories/lut.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/lut.json",
+      "git_sha": "4079729568e6213e3e25b5d272201bb22b2a30d0",
+      "size_bytes": 30497,
+      "sha256": "66c6ffd872182bb2f0819401bf42ff27e0733066d7aae23361b68613541f93d6"
+    },
+    {
+      "name": "muhammad.json",
+      "path": "prophet_stories/muhammad.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/muhammad.json",
+      "git_sha": "53e1b462cff78554f73eeda8d5c67df1a95fd147",
+      "size_bytes": 23555,
+      "sha256": "b3e7a147b6f04f19e02b744332e05c236174b142a7b43da40ea804f46df33240"
+    },
+    {
+      "name": "musa.json",
+      "path": "prophet_stories/musa.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/musa.json",
+      "git_sha": "9d9bc5eaed81113bdbc1f8233df00856310964e3",
+      "size_bytes": 23402,
+      "sha256": "04f26b0fcbcf20630b06498ceae481693ac9fb553ff903b13e018f2615ba7e13"
+    },
+    {
+      "name": "nuh.json",
+      "path": "prophet_stories/nuh.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/nuh.json",
+      "git_sha": "d2b29b5aca75e764714ce9b0e514326f8e786e42",
+      "size_bytes": 35864,
+      "sha256": "5339f9a25caecaaaddb6ff969b8be669071d8af8ff4b9e6badb188b25b3afe1a"
+    },
+    {
+      "name": "quizzes/adam.json",
+      "path": "prophet_stories/quizzes/adam.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/adam.json",
+      "git_sha": "719417b35e7b2ac1064894dca9232f24fcb92999",
+      "size_bytes": 27541,
+      "sha256": "ef3478ba5fb9978453c7d2d4fd999ba56afa14df6b690dedd71491611f65415f"
+    },
+    {
+      "name": "quizzes/alyasa.json",
+      "path": "prophet_stories/quizzes/alyasa.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/alyasa.json",
+      "git_sha": "3cbf50a80ba1b6b8aec85fe6c3bcce14411aa63d",
+      "size_bytes": 49232,
+      "sha256": "4d05034e9861a897819fb2caa043ac73cfae4fad5cf016f8657e31716da1710d"
+    },
+    {
+      "name": "quizzes/ayyub.json",
+      "path": "prophet_stories/quizzes/ayyub.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/ayyub.json",
+      "git_sha": "050c988be817040323b92142437b57c8acb619aa",
+      "size_bytes": 43634,
+      "sha256": "ef47b7e5285818a5174ec0902ed649fc140b39392614575dc4b6a301617ed7a5"
+    },
+    {
+      "name": "quizzes/dawud.json",
+      "path": "prophet_stories/quizzes/dawud.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/dawud.json",
+      "git_sha": "b442080107fb442946d746ffd20a9d3ccb496135",
+      "size_bytes": 41362,
+      "sha256": "c7c3c39156b9534a6c0e3729ee5c6f16141c7bdf0bb293e24f52a2606df00f18"
+    },
+    {
+      "name": "quizzes/dhul_kifl.json",
+      "path": "prophet_stories/quizzes/dhul_kifl.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/dhul_kifl.json",
+      "git_sha": "da50d0fa7976253fd0ddbf2aeaed4c492d918704",
+      "size_bytes": 47036,
+      "sha256": "f00668fc2446a378ddb83b9276e8d62a62e9480375ec80b2f891b03efcfa0187"
+    },
+    {
+      "name": "quizzes/harun.json",
+      "path": "prophet_stories/quizzes/harun.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/harun.json",
+      "git_sha": "494d63f878ae6cf1b3a31eec0a941fb6a9b6f294",
+      "size_bytes": 49348,
+      "sha256": "03f7bfae483d0ba6dc683866addb8c03e64f8020a6ebef6ecd607be8b674db8f"
+    },
+    {
+      "name": "quizzes/hud.json",
+      "path": "prophet_stories/quizzes/hud.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/hud.json",
+      "git_sha": "62531d344e8c1b19189afe60a96ee51aee02cca4",
+      "size_bytes": 37922,
+      "sha256": "cb0220ca99396741023dce122a8bef93499994b04bfe58306f7d66cc7b886cf8"
+    },
+    {
+      "name": "quizzes/ibrahim.json",
+      "path": "prophet_stories/quizzes/ibrahim.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/ibrahim.json",
+      "git_sha": "82a77d83e8d5ddde82863efb2c7120bef0569e74",
+      "size_bytes": 46117,
+      "sha256": "c4056a78310f4705872d609c492701e64604047a08353d96fe4ce889f982220d"
+    },
+    {
+      "name": "quizzes/idris.json",
+      "path": "prophet_stories/quizzes/idris.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/idris.json",
+      "git_sha": "017dd75592808706c89412222c74a2e404d68bcd",
+      "size_bytes": 36861,
+      "sha256": "baf15ed09c80ed3b372f2fea2b26746de10883fb23b1a08efafa8e9da02072ae"
+    },
+    {
+      "name": "quizzes/ilyas.json",
+      "path": "prophet_stories/quizzes/ilyas.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/ilyas.json",
+      "git_sha": "674524ee6ba0c6fa62c205c202eba29e73b44a75",
+      "size_bytes": 45717,
+      "sha256": "542bc00a19daa3b35b7085fc4f5fd342c0b36632790d9af0d107b401469c71bf"
+    },
+    {
+      "name": "quizzes/isa.json",
+      "path": "prophet_stories/quizzes/isa.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/isa.json",
+      "git_sha": "45c492472cae55416e6c876c383d9aa861326d3a",
+      "size_bytes": 29978,
+      "sha256": "832abd01f53725a694eda1b14e18fd6c1e0affb707d191854176e1ac54fa7a15"
+    },
+    {
+      "name": "quizzes/ishaq.json",
+      "path": "prophet_stories/quizzes/ishaq.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/ishaq.json",
+      "git_sha": "078393921ae8970ac714d29d67a9630e25428a15",
+      "size_bytes": 42677,
+      "sha256": "7cb92a6971f5f786891164ab7576a16a61750e2e2f73b1355bee77136277dce7"
+    },
+    {
+      "name": "quizzes/ismail.json",
+      "path": "prophet_stories/quizzes/ismail.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/ismail.json",
+      "git_sha": "9c7b63dedabb3e6e712ad0e84c65d832e8243e9d",
+      "size_bytes": 44101,
+      "sha256": "49d9114775ac3dc1ab36717f7aa585f7338d0e100b225ea86b836d7af140ba8d"
+    },
+    {
+      "name": "quizzes/lut.json",
+      "path": "prophet_stories/quizzes/lut.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/lut.json",
+      "git_sha": "31421ccab8ec016d690927e5142c7ca6f8a0ffdf",
+      "size_bytes": 44988,
+      "sha256": "ac4c9f5810abe825802fe20185e0ef8f97426d23e02d7560fed951aef5957f3a"
+    },
+    {
+      "name": "quizzes/muhammad.json",
+      "path": "prophet_stories/quizzes/muhammad.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/muhammad.json",
+      "git_sha": "c89991b4be9855c8bd969bc2aed53676a6615df6",
+      "size_bytes": 45596,
+      "sha256": "8a00a8d4eabe1c2cf95ebbe4a941097b6a4696d48a06a1fa64ab3e2e96ef0f9f"
+    },
+    {
+      "name": "quizzes/musa.json",
+      "path": "prophet_stories/quizzes/musa.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/musa.json",
+      "git_sha": "f62a8a794cb4e8c87c499f7aca3c17fccaf23956",
+      "size_bytes": 56191,
+      "sha256": "5c2ffa9adf4aa9be43665a44f11b14c2f8f29fb57036e0c6ca918b6296e1d1c0"
+    },
+    {
+      "name": "quizzes/nuh.json",
+      "path": "prophet_stories/quizzes/nuh.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/nuh.json",
+      "git_sha": "b94b00e3456f55f95b4dd28174a6f3f98bd2721f",
+      "size_bytes": 34420,
+      "sha256": "5230eca003e81e71b415f486a906df8064fa08cb38dd7ec3a70d27af870e2708"
+    },
+    {
+      "name": "quizzes/salih.json",
+      "path": "prophet_stories/quizzes/salih.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/salih.json",
+      "git_sha": "cac3dbe3bd5fed82884437cf9df6d6ffcd2c2d42",
+      "size_bytes": 43119,
+      "sha256": "7f776678a36462e5562b4c3427a94aef78cbeb5cca390291f46584bdd785a245"
+    },
+    {
+      "name": "quizzes/shuaib.json",
+      "path": "prophet_stories/quizzes/shuaib.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/shuaib.json",
+      "git_sha": "73c5ad91fed29c55c8a033dad2e3ec7ab37bb1a5",
+      "size_bytes": 42371,
+      "sha256": "3b5f76a0df3e28d309ac574c9678144e1ced15a716dcfaab0e744c7a1a9c35ad"
+    },
+    {
+      "name": "quizzes/sulaiman.json",
+      "path": "prophet_stories/quizzes/sulaiman.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/sulaiman.json",
+      "git_sha": "a591812b675cb3873693932a68b320ee241fa7a6",
+      "size_bytes": 53411,
+      "sha256": "32ef69b281483a15e6eafbac7034b41e265f607c75e05a63c3638369912c8ae5"
+    },
+    {
+      "name": "quizzes/yahya.json",
+      "path": "prophet_stories/quizzes/yahya.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/yahya.json",
+      "git_sha": "e0fc827204d96586e812001603f991210c9858bc",
+      "size_bytes": 49329,
+      "sha256": "3ef9add644892d064e5f50cc3e09ab17b9979d998cf50710f854565404ef0160"
+    },
+    {
+      "name": "quizzes/yaqub.json",
+      "path": "prophet_stories/quizzes/yaqub.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/yaqub.json",
+      "git_sha": "48def2920f612a3c3872fb053c0b6a771954d92a",
+      "size_bytes": 46149,
+      "sha256": "b0dd592d0051ab0df787e2b0ea58c440b815e52522844da80c55cdabcca828a1"
+    },
+    {
+      "name": "quizzes/yunus.json",
+      "path": "prophet_stories/quizzes/yunus.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/yunus.json",
+      "git_sha": "e764f8ae3008387d9a8d13f9cd61eb9e57c44870",
+      "size_bytes": 44787,
+      "sha256": "8dcb9ea407aa8f04012262cbc2ef5638a240a89ac64b67443793373869ebcc95"
+    },
+    {
+      "name": "quizzes/yusuf.json",
+      "path": "prophet_stories/quizzes/yusuf.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/yusuf.json",
+      "git_sha": "13e025f8305b018fcd7d6926d63eb4fc29cff5d9",
+      "size_bytes": 36907,
+      "sha256": "7c591f4fc21f7d6e0e9c26bad25b08652539d7e9adda46782654d3bc0547d53b"
+    },
+    {
+      "name": "quizzes/zakariyya.json",
+      "path": "prophet_stories/quizzes/zakariyya.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/quizzes/zakariyya.json",
+      "git_sha": "a707d0ab16495799099bbe399352b8712a060357",
+      "size_bytes": 52680,
+      "sha256": "28239b27062e1441b75132416bde9bb5115a91fe80bc1357968a7a7873caa85c"
+    },
+    {
+      "name": "salih.json",
+      "path": "prophet_stories/salih.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/salih.json",
+      "git_sha": "e45b51a61efd8a32531b31d2e9a8cee50bdc9d92",
+      "size_bytes": 32790,
+      "sha256": "06270772f779c38a243d65995ad4fc705f5d5fb26447cc9bcb1775d68c2f8ba1"
+    },
+    {
+      "name": "shuaib.json",
+      "path": "prophet_stories/shuaib.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/shuaib.json",
+      "git_sha": "de8de5d0e68a4ad41af6f99098b8a8f135b22399",
+      "size_bytes": 19369,
+      "sha256": "59ade1c0b01f1e63f275d019f6c2347f924c865eabd8d01c471ae52f54151718"
+    },
+    {
+      "name": "sulaiman.json",
+      "path": "prophet_stories/sulaiman.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/sulaiman.json",
+      "git_sha": "c62d4940b5a692309fe6f3c69f6d83490880954f",
+      "size_bytes": 17051,
+      "sha256": "660321486c538a5fb4cab665816ca3e36665a394b97decbdce0a71f1fe5f1877"
+    },
+    {
+      "name": "yahya.json",
+      "path": "prophet_stories/yahya.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/yahya.json",
+      "git_sha": "88fe658b5e8fa6d855ce290733430f1d0eb7b329",
+      "size_bytes": 11001,
+      "sha256": "6cb908421ee34b3fcb9358bc51cf5aab24a8c674bd538992b63734bd4b63bb1c"
+    },
+    {
+      "name": "yaqub.json",
+      "path": "prophet_stories/yaqub.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/yaqub.json",
+      "git_sha": "541e78a307bc530f45b51c8c8020f473e88352ae",
+      "size_bytes": 22176,
+      "sha256": "952f4ac13a14933ad1c384a68ad45883035180105c5fde086d5891c7e28c0990"
+    },
+    {
+      "name": "yunus.json",
+      "path": "prophet_stories/yunus.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/yunus.json",
+      "git_sha": "1d13c920c14e676b0efc69c8099dc1da31c4d33c",
+      "size_bytes": 17097,
+      "sha256": "2027093246f2238fa53f32f4f5cc787d8ea169f65a457b9d242d201163e63c14"
+    },
+    {
+      "name": "yusuf.json",
+      "path": "prophet_stories/yusuf.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/yusuf.json",
+      "git_sha": "ade802a859702015238f02236432abad18a989aa",
+      "size_bytes": 33678,
+      "sha256": "68bf70aabbadc1b865bd736d81aea413c374a24af5f8aa1bbb39566b69e04163"
+    },
+    {
+      "name": "zakariyya.json",
+      "path": "prophet_stories/zakariyya.json",
+      "download_url": "https://raw.githubusercontent.com/mohammed-2-5/islamic-library-data/master/prophet_stories/zakariyya.json",
+      "git_sha": "46d9164a7a9c8a6d8b71043ffa37e117481b851a",
+      "size_bytes": 12926,
+      "sha256": "3cf0a3e8c1bb22728de619a6c7611369d3f98a3daf5900bcde4f154f56f0abfb"
+    }
+  ]
+}

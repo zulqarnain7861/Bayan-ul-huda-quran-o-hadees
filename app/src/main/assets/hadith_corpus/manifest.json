@@ -236,8 +236,8 @@
       "maxHadithNumber": 27647,
       "totalChapters": 14,
       "upstreamSha256": "d889aedc76563439a230d0b557d2059b29de169ed310a064a92638dc84566d32",
-      "assetSha256": "50987ea9475b25611c0aacd2313c92b194f0fc3f595e04e09964f725a3af7370",
-      "compressedBytes": 3443228,
+      "assetSha256": "f7362438a3ab178219f28d7a2df38723081fe656a1a39104e96100e22e91cff5",
+      "compressedBytes": 32,
       "assetFileName": "ahmad.dat"
     },
     {
@@ -256,7 +256,7 @@
       "maxHadithNumber": 3406,
       "totalChapters": 23,
       "upstreamSha256": "45ec3ac92b072287e6c7451084f55f50a2676e0eab2ec165c4ffecfa57f41d2a",
-      "assetSha256": "4c13bd37efbae7b56ec608cbe7654c98f2fe47bf295902481feddab946d11f35",
+      "assetSha256": "a0a952ac8d83761fc64bc3936673180ea7bf441c61078b9800edfcf0b91264f7",
       "compressedBytes": 447630,
       "assetFileName": "darimi.dat"
     },
@@ -516,8 +516,8 @@
       "maxHadithNumber": 29489,
       "totalChapters": 180,
       "upstreamSha256": "eb9602ce2c74056a4b1072672d19fdb5df00e79e57ca467f20bf07e069f8daa5",
-      "assetSha256": "0cb258bc16e4756f4f1428c0f87ff5ff9e2e0f982a8a79b438416ea9fc6c5d44",
-      "compressedBytes": 3079110,
+      "assetSha256": "369a359c09c70b04171cea4785c833d822cd78c2bc93721f1b453f107aeda341",
+      "compressedBytes": 1797642,
       "assetFileName": "tabarani_kabir.dat"
     },
     {

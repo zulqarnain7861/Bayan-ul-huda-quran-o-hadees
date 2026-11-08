@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.FactCheck
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.NoteAdd
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -42,6 +43,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -77,7 +79,7 @@ import com.example.ui.theme.GoldPrimary
 import com.example.ui.theme.UrduNastaliqFontFamily
 import kotlinx.coroutines.launch
 
-private fun copyExtraResearchText(context: Context, label: String, text: String) {
+internal fun copyExtraResearchText(context: Context, label: String, text: String) {
   val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
   clipboard?.setPrimaryClip(ClipData.newPlainText(label, text))
   Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
@@ -260,106 +262,6 @@ fun Paper1WasiyatInteractiveReaderView(
             }
           }
         }
-
-        // In-Paper Search Input
-        OutlinedTextField(
-          value = inPaperSearchQuery,
-          onValueChange = { inPaperSearchQuery = it },
-          modifier = Modifier
-            .fillMaxWidth()
-            .testTag("paper_1_search_input"),
-          placeholder = {
-            Text(
-              "Search within آخری وصیّتیں (e.g. قرطاس, ثقلین, 4437, 6288, غدیرِ خُم, ابوبکر)...",
-              fontSize = 11.sp
-            )
-          },
-          leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
-          trailingIcon = {
-            if (inPaperSearchQuery.isNotEmpty()) {
-              IconButton(onClick = { inPaperSearchQuery = "" }) {
-                Icon(Icons.Default.Close, contentDescription = "Clear", modifier = Modifier.size(16.dp))
-              }
-            }
-          },
-          singleLine = true,
-          shape = RoundedCornerShape(10.dp)
-        )
-
-        // Evidence Type Filter Chips (Distinguishing Hadiths, Qur'an/Dua, Scholar Quotes, and Author's Notes)
-        LazyRow(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-          val typeFilters = listOf(
-            "ALL" to "All Content",
-            "HADITH" to "صحیح احادیث (Hadiths)",
-            "QURAN_DUA" to "قرآنی آیات و دُعا (Qur'an & Dua)",
-            "SCHOLAR" to "اقوالِ علماء و تاریخ (Scholars)",
-            "NOTE" to "مصنف کے نوٹس (Author's Notes)"
-          )
-          itemsIndexed(typeFilters) { _, (filterKey, filterLabel) ->
-            FilterChip(
-              selected = selectedTypeFilter == filterKey,
-              onClick = { selectedTypeFilter = filterKey },
-              label = {
-                Text(
-                  text = filterLabel,
-                  fontFamily = UrduNastaliqFontFamily,
-                  fontSize = 11.sp,
-                  fontWeight = FontWeight.Bold
-                )
-              },
-              colors = FilterChipDefaults.filterChipColors(
-                selectedContainerColor = GoldPrimary.copy(alpha = 0.24f),
-                selectedLabelColor = EmeraldPrimary
-              ),
-              modifier = Modifier.testTag("paper_1_type_filter_$filterKey")
-            )
-          }
-        }
-
-        // Horizontal Section Jump Pills (12 Sections)
-        LazyRow(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-          item {
-            FilterChip(
-              selected = selectedSectionFilter == -1,
-              onClick = { selectedSectionFilter = -1 },
-              label = {
-                Text("All Sections (${paper.sections.size})", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-              },
-              colors = FilterChipDefaults.filterChipColors(
-                selectedContainerColor = EmeraldPrimary,
-                selectedLabelColor = Color.White
-              )
-            )
-          }
-          itemsIndexed(paper.sections) { idx, sec ->
-            FilterChip(
-              selected = selectedSectionFilter == idx,
-              onClick = {
-                selectedSectionFilter = if (selectedSectionFilter == idx) -1 else idx
-                coroutineScope.launch { listState.scrollToItem(0) }
-              },
-              label = {
-                Text(
-                  text = "${idx + 1}. ${sec.titleUr.take(26)}${if (sec.titleUr.length > 26) "…" else ""}",
-                  fontFamily = UrduNastaliqFontFamily,
-                  fontSize = 12.sp,
-                  fontWeight = FontWeight.Bold
-                )
-              },
-              colors = FilterChipDefaults.filterChipColors(
-                selectedContainerColor = EmeraldPrimary,
-                selectedLabelColor = Color.White
-              ),
-              modifier = Modifier.testTag("paper_1_filter_chip_${sec.id}")
-            )
-          }
-        }
       }
     }
 
@@ -371,6 +273,111 @@ fun Paper1WasiyatInteractiveReaderView(
       contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
       verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+      // Scrolling Search & Section Filter Controls (scrolls naturally like Quran reader instead of covering half screen)
+      item {
+        Column(
+          modifier = Modifier.fillMaxWidth(),
+          verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+          OutlinedTextField(
+            value = inPaperSearchQuery,
+            onValueChange = { inPaperSearchQuery = it },
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("paper_1_search_input"),
+            placeholder = {
+              Text(
+                "Search within آخری وصیّتیں (e.g. قرطاس, ثقلین, 4437, 6288, غدیرِ خُم, ابوبکر)...",
+                fontSize = 11.sp
+              )
+            },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
+            trailingIcon = {
+              if (inPaperSearchQuery.isNotEmpty()) {
+                IconButton(onClick = { inPaperSearchQuery = "" }) {
+                  Icon(Icons.Default.Close, contentDescription = "Clear", modifier = Modifier.size(16.dp))
+                }
+              }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(10.dp)
+          )
+
+          LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+          ) {
+            val typeFilters = listOf(
+              "ALL" to "All Content",
+              "HADITH" to "صحیح احادیث (Hadiths)",
+              "QURAN_DUA" to "قرآنی آیات و دُعا (Qur'an & Dua)",
+              "SCHOLAR" to "اقوالِ علماء و تاریخ (Scholars)",
+              "NOTE" to "مصنف کے نوٹس (Author's Notes)"
+            )
+            itemsIndexed(typeFilters) { _, (filterKey, filterLabel) ->
+              FilterChip(
+                selected = selectedTypeFilter == filterKey,
+                onClick = { selectedTypeFilter = filterKey },
+                label = {
+                  Text(
+                    text = filterLabel,
+                    fontFamily = UrduNastaliqFontFamily,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                  )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                  selectedContainerColor = GoldPrimary.copy(alpha = 0.24f),
+                  selectedLabelColor = EmeraldPrimary
+                ),
+                modifier = Modifier.testTag("paper_1_type_filter_$filterKey")
+              )
+            }
+          }
+
+          LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+          ) {
+            item {
+              FilterChip(
+                selected = selectedSectionFilter == -1,
+                onClick = { selectedSectionFilter = -1 },
+                label = {
+                  Text("All Sections (${paper.sections.size})", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                  selectedContainerColor = EmeraldPrimary,
+                  selectedLabelColor = Color.White
+                )
+              )
+            }
+            itemsIndexed(paper.sections) { idx, sec ->
+              FilterChip(
+                selected = selectedSectionFilter == idx,
+                onClick = {
+                  selectedSectionFilter = if (selectedSectionFilter == idx) -1 else idx
+                  coroutineScope.launch { listState.scrollToItem(0) }
+                },
+                label = {
+                  Text(
+                    text = "${idx + 1}. ${sec.titleUr.take(26)}${if (sec.titleUr.length > 26) "…" else ""}",
+                    fontFamily = UrduNastaliqFontFamily,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                  )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                  selectedContainerColor = EmeraldPrimary,
+                  selectedLabelColor = Color.White
+                ),
+                modifier = Modifier.testTag("paper_1_filter_chip_${sec.id}")
+              )
+            }
+          }
+        }
+      }
+
       // Top Attribution & Methodological Notice Card
       item {
         ElevatedCard(
@@ -443,26 +450,6 @@ fun Paper1WasiyatInteractiveReaderView(
               ),
               modifier = Modifier.fillMaxWidth()
             )
-
-            // Editorial transparency banner (distinguishing Hadith vs Author's Note)
-            Surface(
-              shape = RoundedCornerShape(8.dp),
-              color = MaterialTheme.colorScheme.surface,
-              border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.45f)),
-              modifier = Modifier.fillMaxWidth()
-            ) {
-              Text(
-                text = "تحقیقی وضاحت: اِس مقالے میں صحیح احادیث، قرآنی آیات، مفسرین کے اقوال اور مصنف کے تحقیقی نوٹس (نوٹ) کو الگ الگ رنگوں اور عنوانات کے ساتھ واضح طور پر ممتاز کیا گیا ہے تاکہ قاری حدیث کے الفاظ اور مصنف کے تبصرے میں بآسانی فرق کر سکے۔",
-                modifier = Modifier.padding(10.dp),
-                style = MaterialTheme.typography.bodySmall.copy(
-                  fontFamily = UrduNastaliqFontFamily,
-                  fontSize = 13.sp,
-                  lineHeight = 22.sp,
-                  color = MaterialTheme.colorScheme.onSurface,
-                  textAlign = TextAlign.Right
-                )
-              )
-            }
           }
         }
       }
@@ -484,48 +471,22 @@ fun Paper1WasiyatInteractiveReaderView(
         )
       }
 
-      // Footer Attribution & Transcription Notes Card
-      if (paper.meta.transcriptionNotesEn.isNotEmpty()) {
-        item {
-          Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = EmeraldPrimary.copy(alpha = 0.08f),
-            border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.25f)),
-            modifier = Modifier.fillMaxWidth()
-          ) {
-            Column(
-              modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-              verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-              Text(
-                text = "Publisher & Editorial Notes (${paper.meta.website})",
-                style = MaterialTheme.typography.labelMedium.copy(
-                  fontWeight = FontWeight.Bold,
-                  color = EmeraldPrimary
-                )
-              )
-              paper.meta.transcriptionNotesEn.forEach { note ->
-                Text(
-                  text = "• $note",
-                  style = MaterialTheme.typography.bodySmall.copy(
-                    fontSize = 11.sp,
-                    lineHeight = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                  )
-                )
-              }
-            }
+      // Clean Report Footer Card (replaces Publisher & Editorial Notes)
+      item(key = "paper1_report_footer") {
+        ResearchPaperReportFooterCard(
+          paperTitle = "${paper.meta.paperLabel}: ${paper.meta.titleUr}",
+          tagPrefix = "paper1",
+          onReportSubmitted = { reportMsg ->
+            onAddNote(reportMsg)
           }
-        }
+        )
       }
     }
   }
 }
 
 @Composable
-private fun Paper1WasiyatSectionCard(
+internal fun Paper1WasiyatSectionCard(
   section: WasiyatSection,
   arabicBoost: Int,
   urduBoost: Int,
@@ -1074,83 +1035,6 @@ fun Paper7CommandmentsInteractiveReaderView(
             }
           }
         }
-
-        // In-Paper Search Bar
-        OutlinedTextField(
-          value = inPaperSearchQuery,
-          onValueChange = { inPaperSearchQuery = it },
-          modifier = Modifier
-            .fillMaxWidth()
-            .testTag("paper_7_search_input"),
-          placeholder = {
-            Text(
-              "Search 10 Commandments & 12 Attributes (e.g. والدین, اسراف, عباد الرحمن, النمل, 62)...",
-              fontSize = 11.sp
-            )
-          },
-          leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
-          trailingIcon = {
-            if (inPaperSearchQuery.isNotEmpty()) {
-              IconButton(onClick = { inPaperSearchQuery = "" }) {
-                Icon(Icons.Default.Close, contentDescription = "Clear", modifier = Modifier.size(16.dp))
-              }
-            }
-          },
-          singleLine = true,
-          shape = RoundedCornerShape(10.dp)
-        )
-
-        // Section Filter Tabs (All 22, 10 Commandments, 12 Attributes of Awliya)
-        LazyRow(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-          item {
-            FilterChip(
-              selected = selectedSectionTab == -1,
-              onClick = {
-                selectedSectionTab = -1
-                coroutineScope.launch { listState.scrollToItem(0) }
-              },
-              label = {
-                Text("All ($totalPointsCount Points)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-              },
-              colors = FilterChipDefaults.filterChipColors(
-                selectedContainerColor = EmeraldPrimary,
-                selectedLabelColor = Color.White
-              ),
-              modifier = Modifier.testTag("paper_7_tab_all")
-            )
-          }
-          paper.sections.forEachIndexed { idx, _ ->
-            item {
-              FilterChip(
-                selected = selectedSectionTab == idx,
-                onClick = {
-                  selectedSectionTab = if (selectedSectionTab == idx) -1 else idx
-                  coroutineScope.launch { listState.scrollToItem(0) }
-                },
-                label = {
-                  Text(
-                    text = if (idx == 0) {
-                      "① 10 بنیادی احکام (سورۃ بنی اسرائیل)"
-                    } else {
-                      "② اولیاء کی 12 صفات (سورۃ الفرقان)"
-                    },
-                    fontFamily = UrduNastaliqFontFamily,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                  )
-                },
-                colors = FilterChipDefaults.filterChipColors(
-                  selectedContainerColor = EmeraldPrimary,
-                  selectedLabelColor = Color.White
-                ),
-                modifier = Modifier.testTag("paper_7_tab_section_$idx")
-              )
-            }
-          }
-        }
       }
     }
 
@@ -1162,6 +1046,89 @@ fun Paper7CommandmentsInteractiveReaderView(
       contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
       verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+      // Scrolling Search & Section Filter Controls (scrolls naturally like Quran reader instead of covering half screen)
+      item {
+        Column(
+          modifier = Modifier.fillMaxWidth(),
+          verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+          OutlinedTextField(
+            value = inPaperSearchQuery,
+            onValueChange = { inPaperSearchQuery = it },
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("paper_7_search_input"),
+            placeholder = {
+              Text(
+                "Search 10 Commandments & 12 Attributes (e.g. والدین, اسراف, عباد الرحمن, النمل, 62)...",
+                fontSize = 11.sp
+              )
+            },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
+            trailingIcon = {
+              if (inPaperSearchQuery.isNotEmpty()) {
+                IconButton(onClick = { inPaperSearchQuery = "" }) {
+                  Icon(Icons.Default.Close, contentDescription = "Clear", modifier = Modifier.size(16.dp))
+                }
+              }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(10.dp)
+          )
+
+          LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            item {
+              FilterChip(
+                selected = selectedSectionTab == -1,
+                onClick = {
+                  selectedSectionTab = -1
+                  coroutineScope.launch { listState.scrollToItem(0) }
+                },
+                label = {
+                  Text("All ($totalPointsCount Points)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                  selectedContainerColor = EmeraldPrimary,
+                  selectedLabelColor = Color.White
+                ),
+                modifier = Modifier.testTag("paper_7_tab_all")
+              )
+            }
+            paper.sections.forEachIndexed { idx, _ ->
+              item {
+                FilterChip(
+                  selected = selectedSectionTab == idx,
+                  onClick = {
+                    selectedSectionTab = if (selectedSectionTab == idx) -1 else idx
+                    coroutineScope.launch { listState.scrollToItem(0) }
+                  },
+                  label = {
+                    Text(
+                      text = if (idx == 0) {
+                        "① 10 بنیادی احکام (سورۃ بنی اسرائیل)"
+                      } else {
+                        "② اولیاء کی 12 صفات (سورۃ الفرقان)"
+                      },
+                      fontFamily = UrduNastaliqFontFamily,
+                      fontSize = 12.sp,
+                      fontWeight = FontWeight.Bold
+                    )
+                  },
+                  colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = EmeraldPrimary,
+                    selectedLabelColor = Color.White
+                  ),
+                  modifier = Modifier.testTag("paper_7_tab_section_$idx")
+                )
+              }
+            }
+          }
+        }
+      }
+
       // Publication & Interactive Muhasabah Header Card
       item {
         ElevatedCard(
@@ -1326,12 +1293,22 @@ fun Paper7CommandmentsInteractiveReaderView(
           }
         }
       }
+
+      item(key = "paper7_report_footer") {
+        ResearchPaperReportFooterCard(
+          paperTitle = "Research Paper #${paper.publication.researchPaperNumber}",
+          tagPrefix = "paper7",
+          onReportSubmitted = { reportMsg ->
+            onAddNote(reportMsg)
+          }
+        )
+      }
     }
   }
 }
 
 @Composable
-private fun Paper7SectionHeaderBanner(
+internal fun Paper7SectionHeaderBanner(
   section: Paper7Section,
   urduBoost: Int
 ) {
@@ -1425,7 +1402,7 @@ private fun Paper7SectionHeaderBanner(
 }
 
 @Composable
-private fun Paper7CommandmentOrAttributeCard(
+internal fun Paper7CommandmentOrAttributeCard(
   sectionNumber: Int,
   sectionTitleUrdu: String,
   item: CommandmentOrAttributeItem,
@@ -1758,7 +1735,7 @@ private fun Paper7CommandmentOrAttributeCard(
 }
 
 @Composable
-private fun Paper7FinalAdviceCard(
+internal fun Paper7FinalAdviceCard(
   sectionTitleUrdu: String,
   finalAdvice: FinalAdviceBlock,
   arabicBoost: Int,
@@ -1845,3 +1822,80 @@ private fun Paper7FinalAdviceCard(
     }
   }
 }
+
+@Composable
+internal fun ResearchPaperReportFooterCard(
+  paperTitle: String,
+  tagPrefix: String = "research",
+  onReportSubmitted: (String) -> Unit = {}
+) {
+  val context = LocalContext.current
+  var isReported by remember(paperTitle) { mutableStateOf(false) }
+
+  Surface(
+    shape = RoundedCornerShape(12.dp),
+    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+    border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.25f)),
+    modifier = Modifier
+      .fillMaxWidth()
+      .testTag("${tagPrefix}_report_footer_card")
+  ) {
+    Row(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 14.dp, vertical = 10.dp),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      Column(modifier = Modifier.weight(1f)) {
+        Text(
+          text = if (isReported) "Report Submitted ✓" else "Report an Issue",
+          style = MaterialTheme.typography.labelLarge.copy(
+            fontWeight = FontWeight.Bold,
+            color = EmeraldPrimary
+          )
+        )
+        Text(
+          text = if (isReported) {
+            "Thank you. Your report for this research paper has been recorded."
+          } else {
+            "Found a typographical or reference issue in this paper? Let us know."
+          },
+          style = MaterialTheme.typography.bodySmall.copy(
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+          )
+        )
+      }
+      Spacer(modifier = Modifier.width(10.dp))
+      OutlinedButton(
+        onClick = {
+          if (!isReported) {
+            isReported = true
+            onReportSubmitted("[Report] Review requested for $paperTitle")
+            Toast.makeText(context, "Report recorded for $paperTitle", Toast.LENGTH_SHORT).show()
+          }
+        },
+        shape = RoundedCornerShape(10.dp),
+        border = BorderStroke(1.dp, EmeraldPrimary),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+        modifier = Modifier.testTag("research_paper_report_button")
+      ) {
+        Icon(
+          imageVector = if (isReported) Icons.Default.CheckCircle else Icons.Default.Flag,
+          contentDescription = "Report",
+          tint = EmeraldPrimary,
+          modifier = Modifier.size(15.dp)
+        )
+        Spacer(modifier = Modifier.width(5.dp))
+        Text(
+          text = if (isReported) "Reported" else "Report",
+          fontSize = 12.sp,
+          fontWeight = FontWeight.Bold,
+          color = EmeraldPrimary
+        )
+      }
+    }
+  }
+}
+

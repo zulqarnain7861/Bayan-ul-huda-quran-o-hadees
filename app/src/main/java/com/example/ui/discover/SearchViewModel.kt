@@ -628,9 +628,14 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
   }
 
   fun openLectureDetail(lecture: LectureRecord) {
-    _uiState.update { it.copy(selectedLecture = lecture) }
-    // Record initial 5-second engagement signal on opening a lecture so related topics surface immediately
-    recordWatchProgress(lecture.youtubeId, 5, 5)
+    _uiState.update {
+      it.copy(
+        selectedLecture = lecture,
+        selectedShelfTab = RecommendationShelfTab.RECOMMENDED
+      )
+    }
+    // Record initial engagement signal on opening a lecture so that video and its related videos surface immediately in Recommendations
+    recordWatchProgress(lecture.youtubeId, 15, 15)
   }
 
   fun closeLectureDetail() {
@@ -660,6 +665,20 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
       )
       _uiState.update { state ->
         state.copy(
+          visibleLectures = applyFilters(
+            lectures = visible,
+            topicId = state.selectedTopicId,
+            category = state.selectedCategory,
+            dateFilter = state.selectedDateFilter,
+            durationFilter = state.selectedDurationFilter,
+            sortOption = state.selectedSortOption,
+            format = state.selectedFormatFilter,
+            onlyConfirmed = state.onlyConfirmedLive,
+            onlyFan = state.onlyFanChannels,
+            channelHandle = state.selectedChannelHandle,
+            watchVideoMap = watchVideoMap,
+            watchTopicMap = watchTopicMap
+          ),
           recommendedByWatchTime = recs,
           continueWatchingLectures = shelves.continueWatching,
           recentlyAddedLectures = shelves.recentlyAdded,
@@ -722,26 +741,56 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
   ): ShelfBundle {
     val topicNames = topicDefs.associate { it.id to it.titleEn }
 
-    val continueWatching = visible
-      .filter { rec ->
-        val watched = watchVideoMap[rec.youtubeId] ?: 0
-        val dur = (rec.durationSec ?: 1800).coerceAtLeast(60)
-        watched > 0 && (watched.toDouble() / dur.toDouble()) < 0.90
-      }
+    val watchedList = visible
+      .filter { rec -> (watchVideoMap[rec.youtubeId] ?: 0) > 0 }
       .sortedByDescending { watchVideoMap[it.youtubeId] ?: 0 }
-      .take(12)
       .map { rec ->
         val watched = watchVideoMap[rec.youtubeId] ?: 0
         val dur = (rec.durationSec ?: 1800).coerceAtLeast(60)
-        val pct = ((watched.toDouble() / dur.toDouble()) * 100).toInt().coerceIn(1, 99)
+        val pct = ((watched.toDouble() / dur.toDouble()) * 100).toInt().coerceIn(1, 100)
         RecommendedLectureItem(
           lecture = rec,
-          score = watched.toDouble(),
-          reasonLabel = "Continue Watching ($pct% completed)",
+          score = 10_000.0 + watched.toDouble(),
+          reasonLabel = "Watched ($pct% · ${watched}s)",
           matchedTopicIds = rec.topics,
           userWatchedSecondsOnTopic = watched
         )
       }
+
+    val watchedIds = watchedList.map { it.lecture.youtubeId }.toSet()
+    val watchedTopics = watchedList.flatMap { it.lecture.topics }.toSet()
+    val relatedToWatchedList = if (watchedList.isNotEmpty()) {
+      visible
+        .filter { cand ->
+          cand.youtubeId !in watchedIds &&
+            (cand.topics.any { it in watchedTopics } ||
+              watchedList.any { w ->
+                cand.youtubeId in w.lecture.relatedYoutubeIds ||
+                  w.lecture.youtubeId in cand.relatedYoutubeIds ||
+                  (!cand.seriesName.isNullOrBlank() && cand.seriesName == w.lecture.seriesName)
+              })
+        }
+        .sortedByDescending { cand ->
+          cand.topics.sumOf { watchTopicMap[it] ?: 0 } +
+            (if (watchedList.any { cand.youtubeId in it.lecture.relatedYoutubeIds }) 500 else 0)
+        }
+        .take(12)
+        .map { rec ->
+          val primaryTopic = rec.topics.firstOrNull { it in watchedTopics } ?: rec.topics.firstOrNull()
+          val topicLabel = primaryTopic?.let { topicNames[it] ?: it } ?: "Related Lecture"
+          RecommendedLectureItem(
+            lecture = rec,
+            score = 5000.0,
+            reasonLabel = "Related to Watched · $topicLabel",
+            matchedTopicIds = rec.topics,
+            userWatchedSecondsOnTopic = primaryTopic?.let { watchTopicMap[it] ?: 0 } ?: 0
+          )
+        }
+    } else {
+      emptyList()
+    }
+
+    val continueWatching = (watchedList + relatedToWatchedList).take(16)
 
     val recentlyAdded = visible
       .sortedByDescending { it.recordedYear ?: 2013 }
@@ -778,6 +827,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
     val relatedTopics = visible
       .filter { topTopicId in it.topics }
+      .sortedByDescending { (watchVideoMap[it.youtubeId] ?: 0) }
       .take(12)
       .map { rec ->
         RecommendedLectureItem(
@@ -789,25 +839,41 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         )
       }
 
-    val anchorLecture = visible.firstOrNull { (watchVideoMap[it.youtubeId] ?: 0) > 0 }
+    val anchorLecture = visible
+      .filter { (watchVideoMap[it.youtubeId] ?: 0) > 0 }
+      .maxByOrNull { watchVideoMap[it.youtubeId] ?: 0 }
       ?: visible.firstOrNull { it.youtubeId in bookmarkedIds }
       ?: visible.firstOrNull()
 
     val similarLectures = if (anchorLecture != null) {
       visible
         .filter { cand ->
-          cand.youtubeId != anchorLecture.youtubeId &&
-            (cand.seriesName != null && cand.seriesName == anchorLecture.seriesName ||
-              cand.topics.any { it in anchorLecture.topics })
+          cand.youtubeId == anchorLecture.youtubeId ||
+            cand.youtubeId in anchorLecture.relatedYoutubeIds ||
+            anchorLecture.youtubeId in cand.relatedYoutubeIds ||
+            (cand.seriesName != null && cand.seriesName == anchorLecture.seriesName) ||
+            cand.topics.any { it in anchorLecture.topics }
+        }
+        .sortedByDescending { cand ->
+          when {
+            cand.youtubeId == anchorLecture.youtubeId -> 10_000
+            cand.youtubeId in anchorLecture.relatedYoutubeIds || anchorLecture.youtubeId in cand.relatedYoutubeIds -> 5_000
+            cand.seriesName != null && cand.seriesName == anchorLecture.seriesName -> 2_500
+            else -> cand.topics.count { it in anchorLecture.topics } * 500
+          }
         }
         .take(12)
         .map { rec ->
           RecommendedLectureItem(
             lecture = rec,
             score = 90.0,
-            reasonLabel = "Similar to ${anchorLecture.seriesName ?: anchorLecture.displayTitle.take(24)}",
+            reasonLabel = if (rec.youtubeId == anchorLecture.youtubeId) {
+              "Watched · ${anchorLecture.displayTitle.take(26)}"
+            } else {
+              "Related to ${anchorLecture.seriesName ?: anchorLecture.displayTitle.take(24)}"
+            },
             matchedTopicIds = rec.topics,
-            userWatchedSecondsOnTopic = 0
+            userWatchedSecondsOnTopic = watchVideoMap[rec.youtubeId] ?: 0
           )
         }
     } else {
@@ -828,17 +894,18 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
       }
 
     return ShelfBundle(
-      continueWatching = continueWatching,
-      recentlyAdded = recentlyAdded,
-      newLectures = newLectures,
-      relatedTopics = relatedTopics,
-      similarLectures = similarLectures,
-      unwatched = unwatched
+      continueWatching = continueWatching.distinctBy { it.lecture.youtubeId },
+      recentlyAdded = recentlyAdded.distinctBy { it.lecture.youtubeId },
+      newLectures = newLectures.distinctBy { it.lecture.youtubeId },
+      relatedTopics = relatedTopics.distinctBy { it.lecture.youtubeId },
+      similarLectures = similarLectures.distinctBy { it.lecture.youtubeId },
+      unwatched = unwatched.distinctBy { it.lecture.youtubeId }
     )
   }
 
   private fun buildChannelFilterList(lectures: List<LectureRecord>): List<ChannelFilterItem> {
     return lectures
+      .distinctBy { it.youtubeId }
       .groupBy { it.channelHandle ?: "@RAAH-e-HIDAYAT-EMAM" }
       .map { (handle, items) ->
         val sample = items.first()
@@ -865,29 +932,48 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     format: LectureFormat?,
     onlyConfirmed: Boolean,
     onlyFan: Boolean,
-    channelHandle: String?
+    channelHandle: String?,
+    watchVideoMap: Map<String, Int> = _uiState.value.watchTimeByVideo,
+    watchTopicMap: Map<String, Int> = _uiState.value.watchTimeByTopic
   ): List<LectureRecord> {
-    val filtered = lectures.filter { record ->
-      (topicId == null || topicId in record.topics) &&
-        category.matchesLecture(record) &&
-        dateFilter.matchesYear(record.recordedYear) &&
-        durationFilter.matchesDuration(record.durationSec) &&
-        (format == null || record.recordFormat == format) &&
-        (!onlyConfirmed || record.verificationState.name == "CONFIRMED_LIVE") &&
-        (!onlyFan || record.sourceTier == SourceTier.FAN_CHANNEL) &&
-        (channelHandle == null || record.channelHandle.equals(channelHandle, ignoreCase = true))
-    }
+    val filtered = lectures
+      .distinctBy { it.youtubeId }
+      .filter { record ->
+        (topicId == null || topicId in record.topics) &&
+          category.matchesLecture(record) &&
+          dateFilter.matchesYear(record.recordedYear) &&
+          durationFilter.matchesDuration(record.durationSec) &&
+          (format == null || record.recordFormat == format) &&
+          (!onlyConfirmed || record.verificationState.name == "CONFIRMED_LIVE") &&
+          (!onlyFan || record.sourceTier == SourceTier.FAN_CHANNEL) &&
+          (channelHandle == null || record.channelHandle.equals(channelHandle, ignoreCase = true))
+      }
 
     return when (sortOption) {
       LectureSortOption.RELEVANCE -> {
+        val watchedIds = watchVideoMap.filterValues { it > 0 }.keys
+        val watchedRecords = lectures.filter { it.youtubeId in watchedIds }
         filtered.sortedWith(
-          compareByDescending<LectureRecord> {
-            LectureRepository.computeEmamRelevanceScore(
-              title = it.displayTitle,
-              descriptionSnippet = it.summary ?: "",
-              channelName = it.channelDisplayName,
-              channelHandle = it.channelHandle ?: "",
-              tags = it.topics
+          compareByDescending<LectureRecord> { rec ->
+            val directWatchedSec = watchVideoMap[rec.youtubeId] ?: 0
+            val isExplicitRelated = watchedRecords.any { w ->
+              rec.youtubeId in w.relatedYoutubeIds ||
+                w.youtubeId in rec.relatedYoutubeIds ||
+                (!rec.seriesName.isNullOrBlank() && rec.seriesName == w.seriesName)
+            }
+            val topicAffinitySec = rec.topics.sumOf { watchTopicMap[it] ?: 0 }
+            val watchBoost = when {
+              directWatchedSec > 0 -> 100_000 + directWatchedSec * 10
+              isExplicitRelated && topicAffinitySec > 0 -> 40_000 + topicAffinitySec * 5
+              topicAffinitySec > 0 -> 10_000 + topicAffinitySec * 2
+              else -> 0
+            }
+            watchBoost + LectureRepository.computeEmamRelevanceScore(
+              title = rec.displayTitle,
+              descriptionSnippet = rec.summary ?: "",
+              channelName = rec.channelDisplayName,
+              channelHandle = rec.channelHandle ?: "",
+              tags = rec.topics
             )
           }
             .thenBy { if (it.sourceTier == SourceTier.FAN_CHANNEL) 0 else 1 }

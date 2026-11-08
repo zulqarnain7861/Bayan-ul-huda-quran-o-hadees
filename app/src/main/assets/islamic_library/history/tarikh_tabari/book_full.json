@@ -1,0 +1,270 @@
+{
+  "book_id": "hist_book_01_tabari",
+  "book_number": 1,
+  "arabic_title": "تاريخ الرسل والملوك (تاريخ الطبري)",
+  "urdu_title": "تاریخ الرسل والملوک (تاریخ طبری)",
+  "english_title": "Tarikh al-Tabari (History of the Prophets and Kings)",
+  "author": "Imam Abu Ja'far Muhammad ibn Jarir al-Tabari",
+  "author_arabic": "الإمام أبو جعفر محمد بن جرير الطبري",
+  "author_urdu": "امام ابو جعفر محمد بن جریر طبری رحمہ اللہ",
+  "era_hijri": "224–310 AH (839–923 CE)",
+  "category": "Historical Books",
+  "tradition": "SUNNI",
+  "original_source": "Al-Maktaba Al-Shamela #9783 / OpenITI 0310Tabari.Tarikh / Dar al-Ma'arif Cairo",
+  "edition_info": "Dar al-Ma'arif Critical Edition edited by Muhammad Abu al-Fadl Ibrahim (11 Volumes + Supplements)",
+  "attribution_confidence": "Confirmed Authentic Attribution (100% — Primary Isnad-based Universal Chronicle)",
+  "translator_name": "Maulana Syed Muhammad Ibrahim Nadvi & Allama Rashid Ahmad Arshad (Urdu) / SUNY Series (English)",
+  "arabic_available": true,
+  "urdu_available": true,
+  "license_info": "Public Domain Classical Islamic Heritage (OpenITI / Shamela)",
+  "thematic_tags": [
+    "Historical Books",
+    "Sunni Historical Sources",
+    "Seerah",
+    "Khulafa",
+    "Sahaba",
+    "Ahl al-Bayt",
+    "Islamic Battles and Conquests",
+    "Karbala History"
+  ],
+  "chapters": [
+    {
+      "chapter_number": 1,
+      "volume_number": 1,
+      "page_number": 14,
+      "title_arabic": "المجلد الأول: خطبة الكتاب، القول في الزمان وبدء الخلق وقصص الأنبياء",
+      "title_urdu": "جلد اول: مقدمۂ مؤلف، حقیقتِ زمانہ، ابتدائے آفرینش اور قصص الانبیاء علیہم السلام",
+      "title_english": "Volume 1: Author's Methodology, Definition of Time, Creation & History of the Prophets",
+      "arabic_text": "الْحَمْدُ لِلَّهِ الْأَوَّلِ قَبْلَ كُلِّ أَوَّلٍ، وَالْآخِرِ بَعْدَ كُلِّ آخِرٍ، الدَّائِمِ بِلَا زَوَالٍ... وَلْيَعْلَمِ النَّاظِرُ فِي كِتَابِنَا هَذَا أَنَّ اعْتِمَادِي فِي كُلِّ مَا أَحْضَرْتُ ذِكْرَهُ فِيهِ مِمَّا شَرَطْتُ أَنِّي رَاسِمُهُ فِيهِ، إِنَّمَا هُوَ عَلَى مَا رَوَيْتُ مِنْ أَخْبَارٍ عَرَّفْتُ رُوَاتَهَا، دُونَ مَا أُدْرِكَ بِحُجَجِ الْعُقُولِ وَاسْتُنْبِطَ بِفِكَرِ النُّفُوسِ.",
+      "transliteration": "Al-hamdu lillahil-Awwali qabla kulli awwalin... Wal-ya'lamin-naziru fi kitabina hadha anna i'timadi fi kulli ma ahdartu dhikrahu fihi innama huwa 'ala ma rawaytu min akhbarin 'arraftu ruwataha.",
+      "urdu_translation": "تمام تعریفیں اس اللہ کے لیے ہیں جو ہر اول سے پہلے اول اور ہر آخر کے بعد آخر ہے اور ہمیشہ بے زوال ہے۔ ہماری اس کتاب کا مطالعہ کرنے والے کو معلوم ہونا چاہیے کہ میں نے اس کتاب میں جو کچھ بھی درج کیا ہے اس کا مدار خالصتاً ان روایات اور اخبار پر ہے جن کے راویوں اور اسناد کا میں نے صراحت سے ذکر کیا ہے، نہ کہ محض عقلی قیاسات پر؛ کیونکہ ماضی کے واقعات کا علم خبر اور روایت ہی سے حاصل ہوتا ہے۔",
+      "english_translation": "All praise belongs to Allah, the First before every first and the Last after every last, Eternal without cessation. Let the reader of this book of ours know that my reliance in everything I have recorded herein rests strictly upon transmitted reports whose narrators I have explicitly named with their chains of transmission (isnad), rather than mere rational conjecture, for knowledge of past events is attained through authentic transmission.",
+      "scholarly_notes": "Tarikh al-Tabari Vol. 1, pp. 3–14 (Dar al-Ma'arif Edition). Establishes Imam al-Tabari's golden historiographical rule: preserving chains of transmission (isnad) so scholars can evaluate every narrator.",
+      "references": "Tarikh al-Tabari Vol. 1, pp. 3–14 • Shamela #9783",
+      "footnotes": [
+        "1. Imam al-Tabari states in his introduction that if a report seems unfamiliar, it is transmitted on the responsibility of its named narrator (من أسند لك فقد أحالك)."
+      ]
+    },
+    {
+      "chapter_number": 2,
+      "volume_number": 2,
+      "page_number": 298,
+      "title_arabic": "المجلد الثاني: السيرة النبوية، المبعث، الهجرة إلى المدينة وتأسيس الدولة",
+      "title_urdu": "جلد دوم: سیرت النبی ﷺ، بعثتِ مبارکہ، بیعتِ عقبہ اور ہجرتِ مدینہ",
+      "title_english": "Volume 2: The Prophetic Seerah, Revelation, Pledges of 'Aqabah & Hijrah to Madinah",
+      "arabic_text": "لَمَّا بَلَغَ رَسُولُ اللَّهِ ﷺ أَرْبَعِينَ سَنَةً بَعَثَهُ اللَّهُ رَحْمَةً لِلْعَالَمِينَ وَكَافَّةً لِلنَّاسِ بَشِيرًا وَنَذِيرًا... وَآخَى رَسُولُ اللَّهِ ﷺ بَيْنَ الْمُهَاجِرِينَ وَالْأَنْصَارِ عَلَى الْحَقِّ وَالْمُوَاسَاةِ.",
+      "transliteration": "Lamma balagha Rasulullahi (ﷺ) arba'ina sanatan ba'athahullahu rahmatan lil-'alamina wa kaffatan lin-nasi bashiran wa nadhira... Wa akha Rasulullahi (ﷺ) baynal-Muhajirina wal-Ansari 'alal-haqqi wal-muwasah.",
+      "urdu_translation": "جب رسول اللہ ﷺ کی عمر مبارک چالیس برس ہوئی تو اللہ تعالیٰ نے آپ ﷺ کو تمام جہانوں کے لیے رحمت اور پوری انسانیت کے لیے بشیر و نذیر بنا کر مبعوث فرمایا۔ ہجرتِ مدینہ (1 ہجری) کے بعد نبی کریم ﷺ نے مسجدِ نبوی کی تعمیر فرمائی، مہاجرین اور انصار کے درمیان حق اور ایثار و مواسات کی بنیاد پر مواخات (بھائی چارہ) قائم فرمایا اور میثاقِ مدینہ مرتب فرمایا۔",
+      "english_translation": "When the Messenger of Allah (ﷺ) reached forty years of age, Allah sent him as a mercy to the worlds and to all humanity as a bearer of glad tidings and a warner. Following the Hijrah to Madinah (1 AH), the Prophet (ﷺ) built the Prophetic Mosque, established the brotherhood (Mu'akhah) between the Muhajirun and the Ansar upon truth and mutual support, and instituted the covenant of Madinah.",
+      "scholarly_notes": "Tarikh al-Tabari Vol. 2, pp. 298–395. Covers Banu Hashim, the protection of Abu Talib, the steadfastness of the Sahaba in Makkah, the two migrations to Abyssinia, and the Hijrah to Madinah.",
+      "references": "Tarikh al-Tabari Vol. 2, pp. 298–395 • Quran 21:107, 34:28",
+      "footnotes": [
+        "1. Transmitted via Ibn Humayd — Salamah — Muhammad ibn Ishaq."
+      ]
+    },
+    {
+      "chapter_number": 3,
+      "volume_number": 2,
+      "page_number": 449,
+      "title_arabic": "المجلد الثاني (القسم الثاني): غزوة بدر الكبرى وغزوة أحد والخندق وخيبر وفتح مكة",
+      "title_urdu": "جلد دوم (حصہ دوم): غزوہ بدر الکبریٰ، غزوہ احد، خندق، صلح حدیبیہ، خیبر اور فتحِ مکہ",
+      "title_english": "Volume 2 (Part 2): Prophetic Maghazi — Badr (2 AH), Uhud (3 AH), Khandaq (5 AH), Khaybar (7 AH) & Conquest of Makkah (8 AH)",
+      "arabic_text": "اللَّهُمَّ هَذِهِ قُرَيْشٌ قَدْ أَقْبَلَتْ بِخُيَلَائِهَا وَفَخْرِهَا تُحَادُّكَ وَتُكَذِّبُ رَسُولَكَ، اللَّهُمَّ فَنَصْرَكَ الَّذِي وَعَدْتَنِي... اذْهَبُوا فَأَنْتُمُ الطُّلَقَاءُ.",
+      "transliteration": "Allahumma hadhihi Qurayshun qad aqbalat bi-khuyala'iha wa fakhriha tuhadduka wa tukadhdhibu Rasulaka, Allahumma fa-nasrakal-ladhi wa'adtani... Idhhabu fa-antumut-tulaqa'.",
+      "urdu_translation": "غزوہ بدر الکبریٰ (17 رمضان 2 ہجری / یوم الفرقان) میں رسول اللہ ﷺ نے بارگاہِ الٰہی میں تضرع کے ساتھ دعا فرمائی اور اللہ تعالیٰ نے تین سو تیرہ (313) اصحابِ بدر کو عظیم فتح عطا فرمائی۔ اس کے بعد غزوہ احد (3 ہجری)، غزوہ خندق (5 ہجری)، بیعتِ رضوان و صلح حدیبیہ (6 ہجری)، غزوہ خیبر (7 ہجری) اور رمضان 8 ہجری میں فتحِ مکہ کے موقع پر عام معافی (اذھبوا فأنتم الطلقاء) کے مستند واقعات درج ہیں۔",
+      "english_translation": "At the Great Battle of Badr (17 Ramadan 2 AH / Yawm al-Furqan), the Messenger of Allah (ﷺ) supplicated earnestly for Divine help and Allah granted victory to the 313 Companions of Badr. Imam al-Tabari then chronicles the Battle of Uhud (3 AH), the Battle of the Trench / Khandaq (5 AH), the Pledge of Ridwan and Treaty of Hudaybiyyah (6 AH), the Conquest of Khaybar (7 AH), and the general amnesty at the Conquest of Makkah (8 AH): 'Go, for you are free (al-Tulaqa').'",
+      "scholarly_notes": "Tarikh al-Tabari Vol. 2, pp. 449–645; Vol. 3, pp. 9–165.",
+      "references": "Tarikh al-Tabari 2:449, 2:505, 2:564, 3:9, 3:56 • Quran 3:123, 8:9, 48:18",
+      "footnotes": [
+        "1. Includes the complete roster of the Ahl Badr from the Muhajirun and Ansar."
+      ]
+    },
+    {
+      "chapter_number": 4,
+      "volume_number": 3,
+      "page_number": 201,
+      "title_arabic": "المجلد الثالث: خلافة أبي بكر الصديق رضي الله عنه، سقيفة بني ساعدة وحروب الردة وبدء الفتوح",
+      "title_urdu": "جلد سوم: خلافتِ سیدنا ابو بکر صدیق رضی اللہ عنہ، سقیفہ بنی ساعدہ، لشکرِ اسامہ اور فتوحاتِ عراق و شام کا آغاز",
+      "title_english": "Volume 3: Caliphate of Abu Bakr al-Siddiq (RA, 11–13 AH), Saqifah, Usamah's Expedition & Early Conquests",
+      "arabic_text": "أَيُّهَا النَّاسُ، فَإِنِّي قَدْ وُلِّيتُ عَلَيْكُمْ وَلَسْتُ بِخَيْرِكُمْ، فَإِنْ أَحْسَنْتُ فَأَعِينُونِي، وَإِنْ أَسَأْتُ فَقَوِّمُونِي، الصِّدْقُ أَمَانَةٌ، وَالْكَذِبُ خِيَانَةٌ، وَالضَّعِيفُ فِيكُمْ قَوِيٌّ عِنْدِي حَتَّى أُرِيحَ عَلَيْهِ حَقَّهُ إِنْ شَاءَ اللَّهُ، وَالْقَوِيُّ فِيكُمْ ضَعِيفٌ عِنْدِي حَتَّى آخُذَ الْحَقَّ مِنْهُ إِنْ شَاءَ اللَّهُ.",
+      "transliteration": "Ayyuhan-nasu, fa-inni qad wullitu 'alaykum wa lastu bi-khayrikum, fa-in ahsantu fa-a'inuni, wa in asa'tu fa-qawwimuni, as-sidqu amanatun, wal-kadhibu khiyanatun.",
+      "urdu_translation": "سیدنا ابو بکر صدیق رضی اللہ عنہ نے خلافت سنبھالنے کے بعد خطبہ دیا: ’اے لوگو! مجھے تم پر امیر مقرر کیا گیا ہے حالانکہ میں تم سے بہتر نہیں ہوں؛ اگر میں نیکی اور بھلائی کروں تو میری مدد کرو اور اگر میں خطا کروں تو مجھے سیدھا کر دو۔ سچائی امانت ہے اور جھوٹ خیانت ہے۔ تمہارا کمزور شخص میرے نزدیک طاقتور ہے یہاں تک کہ میں اس کا حق دلوا دوں، اور تمہارا طاقتور میرے نزدیک کمزور ہے یہاں تک کہ میں اس سے حق وصول کر لوں۔‘",
+      "english_translation": "Upon assuming the Caliphate (11 AH), Abu Bakr al-Siddiq (RA) delivered his inaugural address: 'O people, I have been placed in authority over you though I am not the best of you. If I do well, assist me; and if I err, set me right. Truthfulness is a trust and falsehood is treachery. The weak among you is strong in my sight until I restore his right to him, Allah willing, and the strong among you is weak in my sight until I take the right from him.'",
+      "scholarly_notes": "Tarikh al-Tabari Vol. 3, pp. 201–430. Documents the events of 11–13 AH, the dispatch of Usamah ibn Zayd's army, the preservation of the unity of the Arabian Peninsula, the compilation of the Suhuf of the Qur'an, and the dispatch of Khalid ibn al-Walid and Abu 'Ubaydah ibn al-Jarrah (RA) to Iraq and Bilad al-Sham.",
+      "references": "Tarikh al-Tabari 3:201, 3:210, 3:342 • Ibn Hisham 4:311",
+      "footnotes": [
+        "1. Inaugural address recorded with authentic chains in Tarikh al-Tabari 3:210 and Ibn Sa'd's Tabaqat 3:182."
+      ]
+    },
+    {
+      "chapter_number": 5,
+      "volume_number": 3,
+      "page_number": 395,
+      "title_arabic": "المجلد الثالث (القسم الثاني): معركة اليرموك الحاسمة في بلاد الشام (15 هـ)",
+      "title_urdu": "جلد سوم (حصہ دوم): بلادِ شام میں فیصلہ کن معرکہ یرموک (15 ہجری)",
+      "title_english": "Volume 3 (Part 2): The Decisive Battle of Yarmouk in Bilad al-Sham (15 AH / 636 CE)",
+      "arabic_text": "إِنَّ هَذَا يَوْمٌ مِنْ أَيَّامِ اللَّهِ، لَا يَنْبَغِي فِيهِ الْفَخْرُ وَلَا الْبَغْيُ، أَخْلِصُوا جِهَادَكُمْ وَأَرِيدُوا اللَّهَ بِعَمَلِكُمْ، وَإِنَّ هَذَا يَوْمٌ لَهُ مَا بَعْدَهُ.",
+      "transliteration": "Inna hadha yawmun min ayyamillahi, la yanbaghi fihil-fakhru wa lal-baghy, akhlisu jihadakum wa aridullaha bi-'amalikum, wa inna hadha yawmun lahu ma ba'dah.",
+      "urdu_translation": "معرکہ یرموک (15 ہجری) میں حضرت ابو عبیدہ بن الجراح، حضرت خالد بن ولید، حضرت معاذ بن جبل، حضرت عمرو بن العاص اور حضرت عکرمہ بن ابی جہل رضی اللہ عنہم نے رومی لشکر کے مقابلے میں بے مثال استقامت دکھائی۔ حضرت خالد بن ولید رضی اللہ عنہ نے فرمایا: ’یہ اللہ کے دنوں میں سے ایک دن ہے، اس میں فخر اور سرکشی مناسب نہیں، اپنے جہاد کو خالص کرو اور اپنے عمل سے صرف اللہ کی رضا چاہو۔‘",
+      "english_translation": "At the Battle of Yarmouk (Rajab 15 AH / August 636 CE), Abu 'Ubaydah ibn al-Jarrah, Khalid ibn al-Walid, Mu'adh ibn Jabal, 'Amr ibn al-'As, and 'Ikrimah ibn Abi Jahl (RA) organized the Muslim army into 36–40 squadrons (Kardus). Khalid ibn al-Walid (RA) proclaimed: 'Indeed this is one of the Days of Allah; neither pride nor transgression befits it. Purify your struggle and seek Allah alone by your deeds.'",
+      "scholarly_notes": "Tarikh al-Tabari Vol. 3, pp. 395–408. Chronicles the tactical Kardus formation, the pledge of 'Ikrimah ibn Abi Jahl (RA), and the opening of Damascus, Homs, and Bilad al-Sham.",
+      "references": "Tarikh al-Tabari 3:395–408 • Al-Bidaya wa al-Nihaya 7:8 • Futuh al-Buldan p. 141",
+      "footnotes": [
+        "1. Covers both the chronological 13 AH and 15 AH reports regarding the culmination of Yarmouk."
+      ]
+    },
+    {
+      "chapter_number": 6,
+      "volume_number": 3,
+      "page_number": 520,
+      "title_arabic": "المجلد الثالث (القسم الثالث): معركة القادسية (14–15 هـ) وسفارة ربعي بن عامر إلى رستم",
+      "title_urdu": "جلد سوم (حصہ سوم): معرکہ قادسیہ (14–15 ہجری) اور حضرت ربعی بن عامرؓ کا رستم کے دربار میں تاریخی خطبہ",
+      "title_english": "Volume 3 (Part 3): The Battle of al-Qadisiyyah (14–15 AH) & Rib'i ibn 'Amir's Embassy to Rustam",
+      "arabic_text": "إِنَّ اللَّهَ ابْتَعَثَنَا لِنُخْرِجَ مَنْ شَاءَ مِنْ عِبَادَةِ الْعِبَادِ إِلَى عِبَادَةِ اللَّهِ، وَمِنْ ضِيقِ الدُّنْيَا إِلَى سَعَتِهَا، وَمِنْ جَوْرِ الْأَدْيَانِ إِلَى عَدْلِ الْإِسْلَامِ، فَأَرْسَلَنَا بِدِينِهِ إِلَى خَلْقِهِ لِنَدْعُوَهُمْ إِلَيْهِ.",
+      "transliteration": "Innallaha ibta'athana li-nukhrija man sha'a min 'ibadatil-'ibadi ila 'ibadatillahi, wa min diqid-dunya ila sa'atiha, wa min jawril-adyani ila 'adlil-Islam, fa-arsalana bi-dinihi ila khalqihi li-nad'uwahum ilayh.",
+      "urdu_translation": "امام طبری نے ’تاریخ طبری‘ (جلد 3 ص 520) میں سیدنا عمر فاروق رضی اللہ عنہ کے عہدِ خلافت میں حضرت سعد بن ابی وقاص رضی اللہ عنہ کی زیرِ قیادت معرکہ قادسیہ (یوم ارماث، یوم اغواث، یوم عماس اور لیلۃ الہریر) کی مکمل تفصیل درج کی ہے۔ جب ایرانی سپہ سالار رستم نے حضرت ربعی بن عامر رضی اللہ عنہ سے پوچھا کہ تمہیں کون سی چیز یہاں لائی ہے؟ تو آپؓ نے فرمایا: ’اللہ نے ہمیں اس لیے بھیجا ہے تاکہ ہم جسے وہ چاہے بندوں کی بندگی سے نکال کر اللہ واحد کی بندگی کی طرف، دنیا کی تنگی سے اس کی وسعت کی طرف اور ادیان کے ظلم سے اسلام کے عدل کی طرف لے آئیں۔‘",
+      "english_translation": "In Tarikh al-Tabari (Vol. 3, p. 520), Imam al-Tabari records the four days of the Battle of al-Qadisiyyah (Yawm Armath, Yawm Aghwath, Yawm 'Imas, and Laylat al-Harir) under Sa'd ibn Abi Waqqas (RA) during the Caliphate of 'Umar ibn al-Khattab (RA). When the Persian commander Rustam asked Rib'i ibn 'Amir (RA) what brought the Muslims, he declared: 'Allah has sent us to bring forth whomever He wills from the servitude of human beings to the worship of Allah alone, from the narrowness of this world to its vastness, and from the tyranny of religions to the justice of Islam.'",
+      "scholarly_notes": "Tarikh al-Tabari Vol. 3, pp. 492–586. Details the embassies of al-Mughirah ibn Shu'bah, Zuhrah ibn al-Hawiyyah, and Rib'i ibn 'Amir (RA), the arrival of al-Qa'qa' ibn 'Amr and Hashim ibn 'Utbah (RA), and the subsequent opening of al-Mada'in and Nahawand.",
+      "references": "Tarikh al-Tabari 3:520–586 • Al-Kamil fi al-Tarikh 2:452 • Al-Bidaya wa al-Nihaya 7:38",
+      "footnotes": [
+        "1. One of the most famous primary documents of Islamic diplomatic and intellectual history."
+      ]
+    },
+    {
+      "chapter_number": 7,
+      "volume_number": 3,
+      "page_number": 609,
+      "title_arabic": "المجلد الرابع: خلافة عمر بن الخطاب رضي الله عنه، فتح بيت المقدس والعهدة العمرية وتدوين الدواوين",
+      "title_urdu": "جلد چہارم: خلافتِ سیدنا عمر فاروق رضی اللہ عنہ، فتح بیت المقدس (عہدہ عمریہ 16 ہجری)، فتحِ مصر اور تدوینِ دواوین",
+      "title_english": "Volume 4: Caliphate of 'Umar ibn al-Khattab (RA, 13–23 AH), Covenant of Jerusalem ('Uhdat 'Umar, 16 AH) & Administrative Reforms",
+      "arabic_text": "بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ. هَذَا مَا أَعْطَى عَبْدُ اللَّهِ عُمَرُ أَمِيرُ الْمُؤْمِنِينَ أَهْلَ إِيلِيَاءَ مِنَ الْأَمَانِ: أَعْطَاهُمْ أَمَانًا لِأَنْفُسِهِمْ وَأَمْوَالِهِمْ وَلِكَنائِسِهِمْ وَصُلْبَانِهِمْ... لَا تُسْكَنُ كَنَائِسُهُمْ وَلَا تُهْدَمُ وَلَا يُنْتَقَصُ مِنْهَا وَلَا مِنْ حَيِّزِهَا وَلَا يُكْرَهُونَ عَلَى دِينِهِمْ وَلَا يُضَارُّ أَحَدٌ مِنْهُمْ.",
+      "transliteration": "Bismillahir-Rahmanir-Rahim. Hadha ma a'ta 'Abdullahi 'Umaru Amirul-Mu'minina ahla Iliya'a minal-aman: a'tahum amanan li-anfusihim wa amwalihim wa li-kana'isihim wa sulbanihim... la tuskanu kana'isuhum wa la tuhdamu wa la yukrahuna 'ala dinihim.",
+      "urdu_translation": "سیدنا عمر بن خطاب رضی اللہ عنہ نے 16 ہجری میں بیت المقدس (ایلیاء) کا پرامن سفر فرمایا اور وہاں کے باشندوں کو تاریخی ’عہدہ عمریہ‘ عطا فرمایا: ’یہ وہ امان ہے جو اللہ کے بندے، امیر المومنین عمر نے اہلِ ایلیاء کو دی ہے: ان کی جانوں، مالوں، گرجا گھروں اور صلیبوں کو امان دی جاتی ہے؛ ان کے عبادت خانے نہ گرائے جائیں گے، نہ ان کے احاطے کم کیے جائیں گے، اور نہ ان پر دین کے معاملے میں کوئی جبر کیا جائے گا۔‘ اس عہد نامے پر حضرت خالد بن ولید، حضرت عمرو بن العاص، حضرت عبد الرحمن بن عوف اور حضرت معاویہ بن ابی سفیان رضی اللہ عنہم نے گواہی دی۔",
+      "english_translation": "In 16 AH (637 CE), Caliph 'Umar ibn al-Khattab (RA) traveled peacefully to Jerusalem (Iliya') and granted its inhabitants the historic Covenant of 'Umar ('Uhdat 'Umar): 'In the Name of Allah, the Most Merciful, the Especially Merciful. This is the assurance of safety which the servant of Allah, 'Umar, Commander of the Faithful, has granted to the people of Iliya': He has granted them safety for their lives, their property, their churches, and their crosses; their churches shall neither be occupied nor demolished, nor shall any of them be coerced in their religion or harmed.' Witnessed by Khalid ibn al-Walid, 'Amr ibn al-'As, 'Abd al-Rahman ibn 'Awf, and Mu'awiyah ibn Abi Sufyan (RA).",
+      "scholarly_notes": "Tarikh al-Tabari Vol. 3, p. 609; Vol. 4, pp. 112–240. Also documents the institution of the Hijri calendar (with the counsel of 'Ali ibn Abi Talib RA), the Diwan registry, the conquest of Egypt under 'Amr ibn al-'As (RA), and the Shura of the Six Companions.",
+      "references": "Tarikh al-Tabari 3:609, 4:112–240 • Quran 2:256, 60:8",
+      "footnotes": [
+        "1. Complete text of 'Uhdat 'Umar preserved in Tarikh al-Tabari Vol. 3, p. 609."
+      ]
+    },
+    {
+      "chapter_number": 8,
+      "volume_number": 4,
+      "page_number": 241,
+      "title_arabic": "المجلد الرابع (القسم الثاني): خلافة عثمان بن عفان رضي الله عنه، جمع المصحف الإمام والفتوح البحرية وأحداث الفتنة",
+      "title_urdu": "جلد چہارم (حصہ دوم): خلافتِ سیدنا عثمان بن عفان ذوالنورین رضی اللہ عنہ (24–35 ہجری)، جمعِ مصحفِ امامی، بحری فتوحات اور شہادتِ عثمانؓ",
+      "title_english": "Volume 4 (Part 2): Caliphate of 'Uthman ibn 'Affan (RA, 24–35 AH), Standardization of the Mushaf, Naval Conquests & Martyrdom",
+      "arabic_text": "إِنِّي لَا أَخْلَعُ قَمِيصًا قَمَّصَنِيهِ اللَّهُ عَزَّ وَجَلَّ، وَلَا أُحِبُّ أَنْ يُهْرَاقَ فِي سَبَبِي مِحْجَمَةٌ مِنْ دَمٍ... اللَّهُمَّ اجْمَعْ أُمَّةَ مُحَمَّدٍ ﷺ.",
+      "transliteration": "Inni la akhla'u qamisan qammasanihillahu 'azza wa jalla, wa la uhibbu an yuhraqa fi sababi mihjamatun min dam... Allahummajma' ummata Muhammadin (ﷺ).",
+      "urdu_translation": "سیدنا عثمان بن عفان رضی اللہ عنہ کے بارہ سالہ عہدِ خلافت (24–35 ہجری) میں خراسان، طبرستان، آرمینیہ، قبرص اور شمالی افریقہ کی فتوحات ہوئیں اور حضرت حذیفہ بن الیمان رضی اللہ عنہ کے مشورے سے حضرت زید بن ثابتؓ کی سربراہی میں قریشی صحابہ کے ذریعے مصحفِ امامی کے نسخے تیار کر کے تمام اسلامی مراکز میں بھیجے گئے۔ محاصرۂ دار کے دوران حضرت علیؓ نے حضرت حسنؓ اور حضرت حسینؓ کو سیدنا عثمانؓ کے دروازے کی حفاظت کے لیے مقرر فرمایا، مگر سیدنا عثمانؓ نے مدینہ منورہ میں خونریزی سے بچنے کے لیے صحابہ کو تلوار اٹھانے سے منع فرمایا اور روزے کی حالت میں تلاوتِ قرآن کرتے ہوئے شہید ہوئے۔",
+      "english_translation": "During the twelve-year Caliphate of 'Uthman ibn 'Affan (RA, 24–35 AH), Islamic conquests expanded across Khurasan, Armenia, Cyprus, and North Africa, and upon the counsel of Hudhayfah ibn al-Yaman (RA), standard copies of the Mushaf al-Imam were transcribed by Zayd ibn Thabit (RA) and sent to the major cities. During the siege of his house in 35 AH, 'Ali ibn Abi Talib (RA) stationed al-Hasan and al-Husayn (RA) to guard 'Uthman's door, while 'Uthman (RA) forbade the Companions from shedding blood in Madinah on his behalf, saying: 'I will not remove a shirt with which Allah has clothed me, nor do I wish a single cupping-glass of blood to be spilled on my account,' attaining martyrdom while fasting and reciting the Qur'an.",
+      "scholarly_notes": "Tarikh al-Tabari Vol. 4, pp. 241–425. Preserves the authentic reports of the Companions' defense of 'Uthman (RA) and refutes weak reports through parallel chains.",
+      "references": "Tarikh al-Tabari 4:241–425 • Sahih al-Bukhari 4987 • Jami' al-Tirmidhi 3705",
+      "footnotes": [
+        "1. Corroborated by Sahih al-Bukhari #4987 regarding the Uthmanic Mushaf compilation."
+      ]
+    },
+    {
+      "chapter_number": 9,
+      "volume_number": 4,
+      "page_number": 427,
+      "title_arabic": "المجلد الرابع (القسم الثالث): خلافة أمير المؤمنين علي بن أبي طالب رضي الله عنه ووقعة الجمل (36 هـ)",
+      "title_urdu": "جلد چہارم (حصہ سوم): خلافتِ امیر المومنین سیدنا علی بن ابی طالب رضی اللہ عنہ (35–40 ہجری) اور واقعہ جمل (36 ہجری)",
+      "title_english": "Volume 4 (Part 3): Caliphate of Amir al-Mu'minin 'Ali ibn Abi Talib (RA, 35–40 AH) & The Battle of Jamal (36 AH)",
+      "arabic_text": "لَا تَتْبَعُوا مُدْبِرًا، وَلَا تُذَفِّفُوا عَلَى جَرِيحٍ، وَمَنْ أَغْلَقَ بَابَهُ فَهُوَ آمِنٌ، وَلَا يُؤْخَذُ مَالُهُمْ... وَأَكْرِمُوا أُمَّ الْمُؤْمِنِينَ عَائِشَةَ رَضِيَ اللَّهُ عَنْهَا وَشَيِّعُوهَا إِلَى الْمَدِينَةِ مَعَ أَخِيهَا مُحَمَّدِ بْنِ أَبِي بَكْرٍ.",
+      "transliteration": "La tatba'u mudbiran, wa la tudhaffifu 'ala jarihin, wa man aghlaqa babahu fa-huwa amin, wa la yu'khadhu maluhum... Wa akrimu Ummal-Mu'minina 'A'ishata (RA) wa shayyi'uha ilal-Madinati ma'a akhiha Muhammad ibn Abi Bakr.",
+      "urdu_translation": "شہادتِ عثمانؓ کے بعد مہاجرین و انصار نے مدینہ منورہ میں امیر المومنین سیدنا علی بن ابی طالب رضی اللہ عنہ کے ہاتھ پر بیعت کی۔ 36 ہجری میں بصرہ کے مقام پر حضرت علیؓ، حضرت طلحہؓ اور حضرت زبیرؓ کے درمیان صلح پر اتفاق ہو چکا تھا، لیکن قاتلینِ عثمان اور سبائی فتنہ گروں نے رات کی تاریکی میں دونوں لشکروں پر حملہ کر کے جنگِ جمل بھڑکا دی۔ حضرت زبیرؓ نبی کریم ﷺ کی پیشگوئی یاد آنے پر میدانِ جنگ سے الگ ہو گئے اور وادیِ سباع میں نماز کی حالت میں ابنِ جرموز کے ہاتھوں شہید ہوئے۔ جنگ کے بعد حضرت علیؓ نے اعلان فرمایا کہ کسی پیٹھ پھیرنے والے کا تعاقب نہ کیا جائے، کسی زخمی پر وار نہ کیا جائے، کسی کا مال غنیمت نہ بنایا جائے، اور ام المومنین سیدہ عائشہ صدیقہ رضی اللہ عنہا کو ان کے بھائی محمد بن ابی بکرؓ کی معیت میں مکمل عزت و تکریم کے ساتھ مدینہ منورہ رخصت فرمایا۔",
+      "english_translation": "Following the martyrdom of 'Uthman (RA), the Muhajirun and Ansar in Madinah pledged allegiance to Amir al-Mu'minin 'Ali ibn Abi Talib (RA). At Basra in 36 AH, 'Ali, Talhah, and al-Zubayr (RA) reached an agreement on peace, but insurgents who feared accountability for 'Uthman's assassination attacked both camps at night, igniting the Battle of Jamal. Al-Zubayr (RA) withdrew from the battle after 'Ali (RA) reminded him of the Prophet's prophecy and was martyred in prayer at Wadi al-Siba'. After the battle, 'Ali (RA) instituted strict ethical rules: no retreating person was pursued, no wounded person was harmed, no property was taken as spoils, and he escorted Mother of the Believers 'A'ishah (RA) back to Madinah with the highest honor accompanied by her brother Muhammad ibn Abi Bakr.",
+      "scholarly_notes": "Tarikh al-Tabari Vol. 4, pp. 427–544. Documents the peace negotiations between 'Ali, Talhah, and al-Zubayr (RA), the Prophetic hadith reminded to al-Zubayr, and the mutual respect between 'Ali and 'A'ishah (RA).",
+      "references": "Tarikh al-Tabari 4:427–544 • Musnad Ahmad 696 • Al-Mustadrak 3:366 • Al-Bidaya wa al-Nihaya 7:250",
+      "footnotes": [
+        "1. Establishes the Islamic legal rulings on fighting rebels/internal Muslim disputes (Ahkam al-Bughat) derived from Imam 'Ali's conduct at Jamal."
+      ]
+    },
+    {
+      "chapter_number": 10,
+      "volume_number": 5,
+      "page_number": 5,
+      "title_arabic": "المجلد الخامس: وقعة صفين (37 هـ)، استشهاد عمار بن ياسر والتحكيم ومعركة النهروان (38 هـ)",
+      "title_urdu": "جلد پنجم: واقعہ صفین (37 ہجری)، شہادتِ حضرت عمار بن یاسرؓ، مسئلہ تحکیم اور معرکہ نہروان (38 ہجری)",
+      "title_english": "Volume 5: The Battle of Siffin (37 AH), Martyrdom of 'Ammar ibn Yasir (RA), Arbitration & Battle of Nahrawan (38 AH)",
+      "arabic_text": "وَيْحَ عَمَّارٍ تَقْتُلُهُ الْفِئَةُ الْبَاغِيَةُ، يَدْعُوهُمْ إِلَى الْجَنَّةِ وَيَدْعُونَهُ إِلَى النَّارِ... اللَّهُمَّ احْقِنْ دِمَاءَنَا وَدِمَاءَهُمْ، وَأَصْلِحْ ذَاتَ بَيْنِنَا وَبَيْنِهِمْ.",
+      "transliteration": "Wayha 'Ammarin taqtuluhul-fi'atul-baghiyah, yad'uhum ilal-Jannati wa yad'unahu ilan-Nar... Allahummahqin dima'ana wa dima'ahum, wa aslih dhata baynina wa baynihim.",
+      "urdu_translation": "صفر 37 ہجری میں میدانِ صفین میں امیر المومنین سیدنا علی بن ابی طالب رضی اللہ عنہ اور امیرِ شام حضرت معاویہ بن ابی سفیان رضی اللہ عنہ کے لشکروں کے مابین مقابلہ ہوا۔ جب شامی لشکر نے دریائے فرات کے گھاٹ پر قبضہ کیا تو حضرت علیؓ کے لشکر (بقیادت مالک اشتر نخعی اور اشعث بن قیس) نے گھاٹ آزاد کرایا، لیکن حضرت علیؓ نے شامی لشکر پر پانی بند کرنے سے سختی سے منع فرمایا۔ معرکہ صفین میں جلیل القدر صحابی حضرت عمار بن یاسر رضی اللہ عنہ نے امیر المومنین حضرت علیؓ کی نصرت کرتے ہوئے جامِ شہادت نوش کیا، جس سے صحیح بخاری (2812) کی متواتر حدیث پوری ہوئی: ’افسوس عمار پر! انہیں باغی گروہ قتل کرے گا، وہ انہیں جنت کی طرف بلائیں گے اور وہ انہیں آگ کی طرف بلا رہے ہوں گے۔‘ اس کے بعد تحکیم (ثالثی) کا واقعہ اور 38 ہجری میں نہروان کے مقام پر مسلح خوارج کی سرکوبی اور رمضان 40 ہجری میں خارجی عبد الرحمن بن ملجم کے ہاتھوں مسجدِ کوفہ میں سیدنا علیؓ کی شہادت واقع ہوئی۔",
+      "english_translation": "In Safar 37 AH at Siffin, the forces of Caliph 'Ali ibn Abi Talib (RA) and Mu'awiyah ibn Abi Sufyan faced each other on the banks of the Euphrates. After 'Ali's commanders liberated the water access of the Euphrates, 'Ali (RA) strictly forbade denying water to the Syrian soldiers. During the Battle of Siffin, the senior Companion 'Ammar ibn Yasir (RA) was martyred fighting in 'Ali's ranks, fulfilling the mutawatir Prophetic Hadith (Sahih al-Bukhari 2812): 'Alas for 'Ammar! The rebellious group (al-fi'at al-baghiyah) will kill him; he will be calling them to Paradise while they call him to the Fire.' This was followed by the Arbitration (Tahkim), the defeat of the armed Khawarij insurgents at Nahrawan (38 AH), and the martyrdom of Amir al-Mu'minin 'Ali (RA) in the Mosque of Kufah in Ramadan 40 AH.",
+      "scholarly_notes": "Tarikh al-Tabari Vol. 5, pp. 5–153. Preserves the complete letters, sermons, and battlefield reports of Siffin, Dumat al-Jandal, Nahrawan, and the martyrdom of 'Ali (RA).",
+      "references": "Tarikh al-Tabari 5:5–153 • Sahih al-Bukhari 447, 2812 • Sahih Muslim 1065, 2915",
+      "footnotes": [
+        "1. Sahih Muslim 1065 confirms the Prophetic prophecy that the righteous party nearest to the truth would fight the Khawarij, fulfilled by 'Ali (RA) at Nahrawan."
+      ]
+    },
+    {
+      "chapter_number": 11,
+      "volume_number": 5,
+      "page_number": 158,
+      "title_arabic": "المجلد الخامس (القسم الثاني): خلافة الإمام الحسن بن علي رضي الله عنهما وعام الجماعة (40–41 هـ)",
+      "title_urdu": "جلد پنجم (حصہ دوم): خلافتِ سیدنا امام حسن بن علی رضی اللہ عنہما اور عام الجماعۃ (صلحِ حسنؓ، 41 ہجری)",
+      "title_english": "Volume 5 (Part 2): Caliphate of Imam al-Hasan ibn 'Ali (RA) & The Year of Unity ('Am al-Jama'ah, 41 AH)",
+      "arabic_text": "إِنَّ ابْنِي هَذَا سَيِّدٌ، وَلَعَلَّ اللَّهَ أَنْ يُصْلِحَ بِهِ بَيْنَ فِئَتَيْنِ عَظِيمَتَيْنِ مِنَ الْمُسْلِمِينَ.",
+      "transliteration": "Inna ibni hadha sayyidun, wa la'allallaha an yusliha bihi bayna fi'atayni 'azimatayni minal-muslimin.",
+      "urdu_translation": "شہادتِ علیؓ کے بعد کوفہ و حجاز و عراق کے مسلمانوں نے نواسۂ رسول سیدنا امام حسن بن علی رضی اللہ عنہما کے ہاتھ پر بیعتِ خلافت کی۔ چھ ماہ کی خلافت کے بعد ربیع الاول 41 ہجری میں سیدنا امام حسن رضی اللہ عنہ نے امتِ مسلمہ کو خونریزی سے بچانے کے لیے حضرت معاویہ بن ابی سفیان رضی اللہ عنہ کے ساتھ مشروط صلح فرمائی، جس سے رسول اللہ ﷺ کی صحیح بخاری (2704) میں مذکور پیشگوئی پوری ہوئی: ’میرا یہ بیٹا (حسن) سردار (سید) ہے اور امید ہے کہ اللہ تعالیٰ اس کے ذریعے مسلمانوں کے دو عظیم گروہوں کے درمیان صلح کرا دے گا۔‘ اس سال کو تاریخِ اسلام میں ’عام الجماعۃ‘ (اتحاد کا سال) کہا گیا۔",
+      "english_translation": "Following the martyrdom of 'Ali (RA), the Muslims pledged allegiance to the Prophet's grandson, Imam al-Hasan ibn 'Ali (RA), as the fifth Rightly Guided Caliph (completing the thirty years of Prophetic Khilafah foretold in Sunan Abi Dawud 4646). In Rabi' al-Awwal 41 AH, Imam al-Hasan (RA) made peace to prevent massive bloodshed among Muslims, fulfilling the Prophetic Hadith in Sahih al-Bukhari (2704): 'Indeed this son of mine is a master (Sayyid), and perhaps Allah will reconcile through him two great groups of Muslims.' That year was named 'Am al-Jama'ah (The Year of Unity).",
+      "scholarly_notes": "Tarikh al-Tabari Vol. 5, pp. 158–165. Chronicles the six-month Caliphate of Imam al-Hasan (RA), the terms of the peace treaty at Maskin/Kufah, and the subsequent Umayyad governorships.",
+      "references": "Tarikh al-Tabari 5:158–165 • Sahih al-Bukhari 2704 • Sunan Abi Dawud 4646",
+      "footnotes": [
+        "1. Imam al-Hasan's six-month caliphate completed the exact 30 years of Khilafah 'ala Minhaj al-Nubuwwah after the Prophet's passing."
+      ]
+    },
+    {
+      "chapter_number": 12,
+      "volume_number": 5,
+      "page_number": 400,
+      "title_arabic": "المجلد الخامس (القسم الثالث): مقتل الإمام الحسين بن علي رضي الله عنهما وأهل بيته في كربلاء (61 هـ)",
+      "title_urdu": "جلد پنجم (حصہ سوم): سانحۂ کربلا (10 محرم 61 ہجری) — سید الشہداء سیدنا امام حسین بن علی رضی اللہ عنہما اور اہلِ بیت و اصحاب کی شہادت",
+      "title_english": "Volume 5 (Part 3): The Tragedy of Karbala (10 Muharram 61 AH) — Martyrdom of Imam al-Husayn ibn 'Ali (RA) & Ahl al-Bayt",
+      "arabic_text": "أَمَا وَاللَّهِ لَا أُعْطِيكُمْ بِيَدِي إِعْطَاءَ الذَّلِيلِ، وَلَا أَفِرُّ فِرَارَ الْعَبِيدِ... اللَّهُمَّ احْكُمْ بَيْنَنَا وَبَيْنَ قَوْمٍ دَعَوْنَا لِيَنْصُرُونَا فَقَتَلُونَا.",
+      "transliteration": "Ama wallahi la u'tikum bi-yadi i'ta'adh-dhalil, wa la afirru firaral-'abid... Allahummahkum baynana wa bayna qawmin da'awna li-yansuruna fa-qataluna.",
+      "urdu_translation": "امام ابن جریر طبری نے ’تاریخ طبری‘ (جلد 5 ص 338 تا 465) میں واقعہ کربلا کی سب سے مفصل اور قدیم ترین تاریخی دستاویز محفوظ فرمائی ہے: یزید بن معاویہ کی بیعت سے سیدنا امام حسین رضی اللہ عنہ اور حضرت عبداللہ بن زبیر رضی اللہ عنہ کا انکار، مکہ مکرمہ روانگی، حضرت مسلم بن عقیلؓ کی کوفہ آمد اور عبید اللہ بن زیاد کے ہاتھوں شہادت، کربلا میں عمر بن سعد کے لشکر کی جانب سے نواسۂ رسول ﷺ اور آپ کے خاندان پر فرات کا پانی بند کرنا، امام حسینؓ کی تین منصفانہ شرائط کو ابنِ زیاد کی جانب سے رد کرنا، اور یومِ عاشورہ (10 محرم 61 ہجری) کو سیدنا امام حسینؓ، حضرت عباس بن علیؓ، حضرت علی اکبرؓ، بنو ہاشم کے شہزادوں اور باوفا اصحاب (زہیر بن قین، حبیب بن مظاہر، حر بن یزید ریاحی وغیرہ) کی بے مثال شہادت۔",
+      "english_translation": "In Tarikh al-Tabari (Vol. 5, pp. 338–465), Imam al-Tabari preserves the most detailed earliest historical chronicle of the tragedy of Karbala: Imam al-Husayn ibn 'Ali (RA) and 'Abdullah ibn al-Zubayr (RA) declining forced allegiance to Yazid ibn Mu'awiyah, the mission and martyrdom of Muslim ibn 'Aqil (RA) in Kufah under 'Ubaydullah ibn Ziyad, the blockade of the water of the Euphrates against the Prophet's family at Karbala by the army of 'Umar ibn Sa'd, Ibn Ziyad's rejection of Imam al-Husayn's three peaceful proposals, and the martyrdom of Imam al-Husayn (RA), al-'Abbas ibn 'Ali, 'Ali al-Akbar, the youths of Banu Hashim, and his seventy-two loyal companions (including Zuhayr ibn al-Qayn, Habib ibn Muzahir, and al-Hurr ibn Yazid al-Riyahi) on the Day of 'Ashura (10 Muharram 61 AH / October 680 CE).",
+      "scholarly_notes": "Tarikh al-Tabari Vol. 5, pp. 338–465. Imam al-Tabari records every report with its exact chain of transmission (including Hisham ibn Muhammad al-Kalbi from Abu Mikhnaf, as well as reports via 'Ammar al-Duhni from Imam Muhammad al-Baqir RA and Husayn ibn 'Abd al-Rahman) without altering a single word.",
+      "references": "Tarikh al-Tabari 5:338–465 • Sahih al-Bukhari 3748, 3753 • Jami' al-Tirmidhi 3768",
+      "footnotes": [
+        "1. Sahih al-Bukhari #3748 records Anas ibn Malik (RA) witnessing the blessed head of al-Husayn (RA) brought before 'Ubaydullah ibn Ziyad and testifying that al-Husayn resembled the Messenger of Allah (ﷺ) more than anyone else."
+      ]
+    },
+    {
+      "chapter_number": 13,
+      "volume_number": 5,
+      "page_number": 482,
+      "title_arabic": "المجلد الخامس (القسم الرابع): وقعة الحرة في المدينة المنورة (63 هـ) وحصار مكة المكرمة (64 هـ)",
+      "title_urdu": "جلد پنجم (حصہ چہارم): مدینہ منورہ میں واقعہ حرہ (ذوالحجہ 63 ہجری) اور محاصرۂ مکہ مکرمہ (64 ہجری)",
+      "title_english": "Volume 5 (Part 4): Waqia Harrah — The Battle of al-Harrah in Madinah (63 AH) & Siege of Makkah (64 AH)",
+      "arabic_text": "اللَّهُمَّ إِنَّ هَذَا قَدْ أَخَافَ الْمَدِينَةَ وَأَهْلَهَا... فَسَبِيلُ مَنْ أَخَافَ أَهْلَ الْمَدِينَةِ ظُلْمًا أَنْ يُخِيفَهُ اللَّهُ، وَعَلَيْهِ لَعْنَةُ اللَّهِ وَالْمَلَائِكَةِ وَالنَّاسِ أَجْمَعِينَ.",
+      "transliteration": "Allahumma inna hadha qad akhafal-Madinata wa ahlaha... Fa-sabilu man akhafa ahlal-Madinati zulman an yukhifahullahu, wa 'alayhi la'natullahi wal-mala'ikati wan-nasi ajma'in.",
+      "urdu_translation": "ذوالحجہ 63 ہجری میں جب اہلِ مدینہ (بقیادت صحابیِ رسول حضرت عبداللہ بن حنظلہ غسیل الملائکہ رضی اللہ عنہ اور حضرت عبداللہ بن مطیع قرشیؓ) نے یزید کے فسق و مظالم کی وجہ سے اس کی اطاعت سے علیحدگی اختیار کی تو یزید نے مسلم بن عقبہ مری کی سرکردگی میں لشکر بھیجا جس نے ’حرہ واقم‘ کے میدان میں اہلِ مدینہ سے جنگ کی، حضرت عبداللہ بن حنظلہؓ اور بیسیوں صحابہ و تابعین کو شہید کیا اور تین دن تک مدینہ طیبہ کو مباح قرار دیا۔ البتہ مسلم بن عقبہ نے حضرت علی بن حسین زین العابدین رحمہ اللہ کے گھر اور خاندان کو امان دی کیونکہ آپ اس شورش میں شریک نہ تھے اور آپ نے مدینہ کے سینکڑوں مستورات اور خاندانوں کو اپنے ہاں پناہ دی۔ اس کے بعد ربیع الاول 64 ہجری میں حصین بن نمیر نے مکہ مکرمہ میں حضرت عبداللہ بن زبیر رضی اللہ عنہ کا محاصرہ کیا جس کے دوران یزید کی موت کی خبر پہنچی۔",
+      "english_translation": "In Dhu al-Hijjah 63 AH (August 683 CE), when the people of Madinah—led by the Companion 'Abdullah ibn Hanzalah (RA, son of Hanzalah Ghasil al-Mala'ikah) and 'Abdullah ibn Muti' (RA)—repudiated Yazid due to his open transgressions, Yazid dispatched Muslim ibn 'Uqbah al-Murri, who assaulted Madinah at Harrah Waqim (Waqia Harrah), martyring 'Abdullah ibn Hanzalah (RA), scores of Companions and Ansar, and hundreds of Qurra' and Tabi'in, and permitting the city to be pillaged for three days. However, Imam 'Ali ibn al-Husayn Zayn al-'Abidin (RA) and his household were treated with safety and sheltered hundreds of families of Madinah. The army then marched to besiege 'Abdullah ibn al-Zubayr (RA) in Makkah in 64 AH until news arrived of Yazid's death.",
+      "scholarly_notes": "Tarikh al-Tabari Vol. 5, pp. 482–502. Corroborated by Sahih Muslim #1362 & #1365 warning against terrifying or intending evil toward the people of Madinah.",
+      "references": "Tarikh al-Tabari 5:482–502 • Sahih Muslim 1362, 1365 • Al-Bidaya wa al-Nihaya 8:217",
+      "footnotes": [
+        "1. Imam al-Tabari records how Imam Zayn al-'Abidin 'Ali ibn al-Husayn protected the families of Marwan ibn al-Hakam alongside four hundred households of Madinah during the crisis."
+      ]
+    },
+    {
+      "chapter_number": 14,
+      "volume_number": 6,
+      "page_number": 120,
+      "title_arabic": "المجلدات السادس إلى الحادي عشر: العصر الأموي، خلافة عمر بن عبد العزيز، قيام الدولة العباسية وأحداث القرون الثلاثة الأولى (65–302 هـ)",
+      "title_urdu": "جلد ششم تا یازدہم: عہدِ بنو امیہ، فتوحاتِ اندلس و سندھ و ماوراء النہر، خلافتِ عمر بن عبد العزیزؒ اور عہدِ عباسی (65 تا 302 ہجری)",
+      "title_english": "Volumes 6–11: The Umayyad Era, Conquests of Andalus, Sindh & Transoxiana, Caliphate of 'Umar ibn 'Abd al-'Aziz & The Abbasid Era (65–302 AH)",
+      "arabic_text": "إِنَّ اللَّهَ بَعَثَ مُحَمَّدًا ﷺ هَادِيًا وَلَمْ يَبْعَثْهُ جَابِيًا... أَلَا إِنِّي لَسْتُ بِقَاضٍ وَلَكِنِّي مُنَفِّذٌ، وَلَسْتُ بِمُبْتَدِعٍ وَلَكِنِّي مُتَّبِعٌ.",
+      "transliteration": "Innallaha ba'atha Muhammadan (ﷺ) hadiyan wa lam yab'athhu jabiyan... Ala inni lastu bi-qadin wa lakinni munaffidhun, wa lastu bi-mubtadi'in wa lakinni muttabi'.",
+      "urdu_translation": "تاریخ طبری کی جلد 6 سے جلد 11 تک 65 ہجری سے 302 ہجری تک کی مکمل سال بہ سال تاریخ درج ہے: خلافتِ عبداللہ بن زبیرؓ، عہدِ عبد الملک و ولید بن عبد الملک، قتیبہ بن مسلم باہلی کے ہاتھوں ماوراء النہر (بخارا و سمرقند)، محمد بن قاسم ثقفی کے ہاتھوں سندھ اور طارق بن زیاد و موسیٰ بن نصیر کے ہاتھوں اندلس کی فتوحات (92–96 ہجری)؛ پھر خلیفہ راشد حضرت عمر بن عبد العزیز رحمہ اللہ (99–101 ہجری) کی اصلاحات، مظالم کی واپسی، تدوینِ حدیث اور اہلِ بیت پر سب و شتم کے خاتمے کا حکم؛ اور اس کے بعد 132 ہجری میں خلافتِ بنو عباس کا قیام، بغداد کی تعمیر، ہارون الرشید اور مامون الرشید کے عہد سے لے کر 302 ہجری تک کے مستند واقعات۔",
+      "english_translation": "Volumes 6 through 11 of Tarikh al-Tabari chronicle year-by-year the events from 65 AH to 302 AH: the Caliphate of 'Abdullah ibn al-Zubayr (RA), the conquests of Transoxiana (Bukhara & Samarkand) under Qutaybah ibn Muslim, Sindh under Muhammad ibn al-Qasim, and Al-Andalus under Tariq ibn Ziyad and Musa ibn Nusayr (92–96 AH); the righteous reformist Caliphate of 'Umar ibn 'Abd al-'Aziz (99–101 AH), who restored usurped rights, abolished reviling on pulpits, and commissioned the official codification of Hadith; and the rise of the Abbasid Caliphate (132 AH), the founding of Baghdad, the reigns of al-Mansur, Harun al-Rashid, and al-Ma'mun, continuing down to 302 AH.",
+      "scholarly_notes": "Tarikh al-Tabari Vols. 6–11 (Dar al-Ma'arif Edition). Completes Imam al-Tabari's universal chronicle down to his own lifetime in 302 AH.",
+      "references": "Tarikh al-Tabari Vols. 6–11 • Siyar A'lam al-Nubala 5:114",
+      "footnotes": [
+        "1. Includes the verbatim texts of 'Umar ibn 'Abd al-'Aziz's reform decrees (99–101 AH)."
+      ]
+    }
+  ]
+}

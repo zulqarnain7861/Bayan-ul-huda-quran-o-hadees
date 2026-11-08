@@ -204,6 +204,33 @@ data class LectureRecord(
       else -> channelHandle ?: "Community Channel"
     }
 
+  /**
+   * Stable composite video identity combining source tier, playlist/series identity, and
+   * validated 11-character YouTube ID (`sourceId:playlistId:itemId` per Section 4.1).
+   * Used as the canonical key for thumbnails, list items, search results, deep links,
+   * stream resolution validation, and resume position storage.
+   */
+  val stableVideoId: String
+    get() {
+      val normalizedSeries = (seriesName ?: "general")
+        .trim()
+        .lowercase()
+        .replace(Regex("[^a-z0-9]+"), "_")
+        .trim('_')
+        .ifEmpty { "general" }
+      return "${sourceTier.name}:$normalizedSeries:$youtubeId"
+    }
+
+  fun matchesVideoIdentity(
+    candidateYoutubeId: String?,
+    candidateStableId: String? = null
+  ): Boolean {
+    if (!isValidYoutubeId(youtubeId) || !isValidYoutubeId(candidateYoutubeId)) return false
+    if (youtubeId != candidateYoutubeId) return false
+    if (!candidateStableId.isNullOrBlank() && candidateStableId != stableVideoId) return false
+    return true
+  }
+
   fun shouldShowInUi(isDebugBuild: Boolean): Boolean {
     return isDebugBuild || sourceTier != SourceTier.UNKNOWN_PENDING
   }

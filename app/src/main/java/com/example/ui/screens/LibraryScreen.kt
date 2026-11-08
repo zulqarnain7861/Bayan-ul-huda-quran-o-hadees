@@ -38,11 +38,14 @@ import androidx.compose.material.icons.automirrored.filled.NavigateBefore
 import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.BookmarkRemove
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.HistoryEdu
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Note
 import androidx.compose.material.icons.filled.NoteAdd
@@ -50,6 +53,7 @@ import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -92,12 +96,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.Flag
 import com.example.data.local.ExtendedHadithDataProvider
 import com.example.data.local.entities.BookmarkEntity
 import com.example.data.local.entities.NoteEntity
 import com.example.data.model.IslamicBooksCatalog
 import com.example.data.model.IslamicClassicalBook
+import com.example.ui.components.ClassifiedFolderLibraryExplorerView
+import com.example.ui.components.IslamQaScholarlyArchiveView
 import com.example.ui.components.IslamicResearchHubView
+import com.example.ui.components.ProphetStoriesHubView
+import com.example.ui.components.SahabaAhlAlBaytBiographiesView
 import com.example.ui.theme.AmiriFontFamily
 import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.GoldPrimary
@@ -178,6 +187,8 @@ fun LibraryScreen(
   // History of Islam state (in Library)
   var historyTraditionFilter by remember { mutableStateOf("BOTH") } // "BOTH", "SUNNI", "SHIA"
   var historySearchQuery by remember { mutableStateOf("") }
+  var selectedHistoryThematicSection by remember { mutableStateOf("All Historical Books") }
+  var offlineDownloadRefreshTick by remember { mutableIntStateOf(0) }
   var lastReadHistoryBookId by remember {
     mutableStateOf(historyPrefs.getString("last_history_book_id", "") ?: "")
   }
@@ -203,6 +214,13 @@ fun LibraryScreen(
     selectedChapterIndex = safeIdx
     activeReaderHighlightQuery = highlightQuery
     openedBook = book
+    val jildNum = book.chapters.getOrNull(safeIdx)?.jildNumber ?: 1
+    com.example.data.repository.IslamicDigitalLibraryRepository.saveReadingProgress(
+      context = context,
+      bookId = book.id,
+      chapterIndex = safeIdx,
+      volumeNumber = jildNum
+    )
     if (book.category.equals("History of Islam", ignoreCase = true) ||
       book.category.equals("Seerah & History", ignoreCase = true)
     ) {
@@ -226,6 +244,13 @@ fun LibraryScreen(
       initialHighlightQuery = activeReaderHighlightQuery,
       onSelectChapter = { idx ->
         selectedChapterIndex = idx
+        val jildNum = book.chapters.getOrNull(idx)?.jildNumber ?: 1
+        com.example.data.repository.IslamicDigitalLibraryRepository.saveReadingProgress(
+          context = context,
+          bookId = book.id,
+          chapterIndex = idx,
+          volumeNumber = jildNum
+        )
         if (book.category.equals("History of Islam", ignoreCase = true) ||
           book.category.equals("Seerah & History", ignoreCase = true)
         ) {
@@ -242,10 +267,12 @@ fun LibraryScreen(
       },
       onClose = { openedBook = null },
       onNavigateBook = { delta ->
-        val allBooks = IslamicBooksCatalog.allSunniAndShiaBooks
-        val idx = allBooks.indexOfFirst { it.id == book.id }
+        val allBooks = com.example.data.repository.ClassicalLibraryAndBiographiesRepository.getAllUniversalLibraryBooks(context)
+        val idx = allBooks.indexOfFirst { it.id == book.id }.let { found ->
+          if (found >= 0) found else allBooks.indexOfFirst { it.number == book.number }
+        }
         val nextIdx = idx + delta
-        if (nextIdx in allBooks.indices) {
+        if (idx >= 0 && nextIdx in allBooks.indices) {
           openBookAtChapter(allBooks[nextIdx], 0, "")
         }
       },
@@ -298,13 +325,25 @@ fun LibraryScreen(
     }
   }
 
-  // History of Islam Books & Search Results
-  val baseHistoryBooks = remember(historyTraditionFilter) {
-    IslamicBooksCatalog.getHistoryBooksByTradition(historyTraditionFilter)
+  // Complete 26 Historical Books & Thematic Filtering
+  val all26HistoryBooks = remember(context) {
+    com.example.data.repository.IslamicDigitalLibraryRepository.getCompleteHistoricalBooks26(context)
+  }
+
+  val baseHistoryBooks = remember(historyTraditionFilter, selectedHistoryThematicSection, offlineDownloadRefreshTick, context) {
+    com.example.data.repository.IslamicDigitalLibraryRepository.filterHistoricalBooks(
+      context = context,
+      traditionFilter = historyTraditionFilter,
+      thematicSection = selectedHistoryThematicSection
+    )
   }
 
   val historyBooksWithSerial = remember(baseHistoryBooks) {
-    baseHistoryBooks.mapIndexed { idx, book -> (idx + 1) to book }
+    baseHistoryBooks.mapIndexed { idx, book -> book.catalogBookNumber.takeIf { it > 0 }?.let { it to book } ?: ((idx + 1) to book) }
+  }
+
+  val hadithAuditReports = remember(context) {
+    com.example.data.repository.IslamicDigitalLibraryRepository.auditRequested15HadithCollections(context)
   }
 
   val filteredHistoryBooksWithSerial = remember(historyBooksWithSerial, historySearchQuery) {
@@ -312,19 +351,21 @@ fun LibraryScreen(
     if (q.isBlank()) {
       historyBooksWithSerial
     } else {
-      val asNumber = q.removePrefix("#").trim().toIntOrNull()
+      val asNumber = q.removePrefix("#").removePrefix("book").trim().toIntOrNull()
       val matchingInsideBookIds = IslamicBooksCatalog.searchInsideBooks(
         booksToSearch = baseHistoryBooks,
         rawQuery = q
       ).map { it.book.id }.toSet()
 
       historyBooksWithSerial.filter { (serialNumber, book) ->
-        (asNumber != null && (serialNumber == asNumber || book.number == asNumber)) ||
+        (asNumber != null && (serialNumber == asNumber || book.number == asNumber || book.catalogBookNumber == asNumber)) ||
           book.id in matchingInsideBookIds ||
           book.titleEnglish.contains(q, ignoreCase = true) ||
           book.titleArabic.contains(q) ||
           book.titleUrdu.contains(q) ||
           book.author.contains(q, ignoreCase = true) ||
+          book.authorArabic.contains(q) ||
+          book.authorUrdu.contains(q) ||
           findMatchingChapterIndex(book, q) >= 0
       }
     }
@@ -395,18 +436,30 @@ fun LibraryScreen(
     else filteredBooks.subList(start, (start + itemsPerPage).coerceAtMost(filteredBooks.size))
   }
 
+  val safeSelectedTab = selectedTab.coerceIn(0, 11)
+
   Box(modifier = modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
       // Non-clipped top section bar: History of Islam is the very first top-level item,
       // fully visible without scrolling or opening any submenu.
       ScrollableTabRow(
-        selectedTabIndex = selectedTab,
+        selectedTabIndex = safeSelectedTab,
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.primary,
-        edgePadding = 8.dp
+        edgePadding = 8.dp,
+        indicator = { tabPositions ->
+          if (safeSelectedTab in tabPositions.indices) {
+            androidx.compose.material3.TabRowDefaults.SecondaryIndicator(
+              modifier = with(androidx.compose.material3.TabRowDefaults) {
+                Modifier.tabIndicatorOffset(tabPositions[safeSelectedTab])
+              },
+              color = EmeraldPrimary
+            )
+          }
+        }
       ) {
         Tab(
-          selected = selectedTab == 0,
+          selected = safeSelectedTab == 0,
           onClick = { selectedTab = 0 },
           modifier = Modifier.testTag("library_tab_history"),
           text = {
@@ -418,7 +471,7 @@ fun LibraryScreen(
                 Icons.Default.HistoryEdu,
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
-                tint = if (selectedTab == 0) EmeraldPrimary else GoldPrimary
+                tint = if (safeSelectedTab == 0) EmeraldPrimary else GoldPrimary
               )
               Text(
                 text = "History (${IslamicBooksCatalog.historyBooks.size})",
@@ -430,7 +483,7 @@ fun LibraryScreen(
           }
         )
         Tab(
-          selected = selectedTab == 1,
+          selected = safeSelectedTab == 1,
           onClick = { selectedTab = 1 },
           modifier = Modifier.testTag("library_tab_islamic_books"),
           text = {
@@ -443,7 +496,7 @@ fun LibraryScreen(
           }
         )
         Tab(
-          selected = selectedTab == 2,
+          selected = safeSelectedTab == 2,
           onClick = { selectedTab = 2 },
           modifier = Modifier.testTag("library_tab_bookmarks"),
           text = {
@@ -456,7 +509,7 @@ fun LibraryScreen(
           }
         )
         Tab(
-          selected = selectedTab == 3,
+          selected = safeSelectedTab == 3,
           onClick = { selectedTab = 3 },
           modifier = Modifier.testTag("library_tab_notes"),
           text = {
@@ -469,7 +522,7 @@ fun LibraryScreen(
           }
         )
         Tab(
-          selected = selectedTab == 4,
+          selected = safeSelectedTab == 4,
           onClick = { selectedTab = 4 },
           modifier = Modifier.testTag("library_tab_offline_downloads"),
           text = {
@@ -482,7 +535,7 @@ fun LibraryScreen(
           }
         )
         Tab(
-          selected = selectedTab == 5,
+          selected = safeSelectedTab == 5,
           onClick = { selectedTab = 5 },
           modifier = Modifier.testTag("library_tab_video_lectures"),
           text = {
@@ -495,7 +548,7 @@ fun LibraryScreen(
           }
         )
         Tab(
-          selected = selectedTab == 6,
+          selected = safeSelectedTab == 6,
           onClick = { selectedTab = 6 },
           modifier = Modifier.testTag("library_tab_maududi_library"),
           text = {
@@ -508,12 +561,64 @@ fun LibraryScreen(
           }
         )
         Tab(
-          selected = selectedTab == 7,
+          selected = safeSelectedTab == 7,
           onClick = { selectedTab = 7 },
           modifier = Modifier.testTag("library_tab_islamic_research"),
           text = {
             Text(
-              text = "Islamic Research (2)",
+              text = "Islamic Research (4)",
+              fontWeight = FontWeight.Bold,
+              fontSize = 12.sp,
+              maxLines = 1
+            )
+          }
+        )
+        Tab(
+          selected = safeSelectedTab == 8,
+          onClick = { selectedTab = 8 },
+          modifier = Modifier.testTag("library_tab_prophet_stories"),
+          text = {
+            Text(
+              text = "Prophet Stories (25)",
+              fontWeight = FontWeight.Bold,
+              fontSize = 12.sp,
+              maxLines = 1
+            )
+          }
+        )
+        Tab(
+          selected = safeSelectedTab == 9,
+          onClick = { selectedTab = 9 },
+          modifier = Modifier.testTag("library_tab_classified_folders"),
+          text = {
+            Text(
+              text = "Folders & Subfolders",
+              fontWeight = FontWeight.Bold,
+              fontSize = 12.sp,
+              maxLines = 1
+            )
+          }
+        )
+        Tab(
+          selected = safeSelectedTab == 10,
+          onClick = { selectedTab = 10 },
+          modifier = Modifier.testTag("library_tab_sahaba_ahl_al_bayt"),
+          text = {
+            Text(
+              text = "Sahaba & Ahl al-Bayt",
+              fontWeight = FontWeight.Bold,
+              fontSize = 12.sp,
+              maxLines = 1
+            )
+          }
+        )
+        Tab(
+          selected = safeSelectedTab == 11,
+          onClick = { selectedTab = 11 },
+          modifier = Modifier.testTag("library_tab_islamqa_archive"),
+          text = {
+            Text(
+              text = "IslamQA (4,203)",
               fontWeight = FontWeight.Bold,
               fontSize = 12.sp,
               maxLines = 1
@@ -522,75 +627,7 @@ fun LibraryScreen(
         )
       }
 
-      // Always-visible quick access bar so Islamic Research, Video Lectures & Fikr-e-Maududi are immediately accessible
-      // without needing to horizontally scroll the ScrollableTabRow on compact phone screens
-      FlowRow(
-        modifier = Modifier
-          .fillMaxWidth()
-          .background(MaterialTheme.colorScheme.surface)
-          .padding(horizontal = 12.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-      ) {
-        FilterChip(
-          selected = selectedTab == 7,
-          onClick = { selectedTab = 7 },
-          label = {
-            Text(
-              text = "Islamic Research • تحقیقی مقالات (4)",
-              fontWeight = FontWeight.Bold,
-              fontSize = 11.sp
-            )
-          },
-          colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = EmeraldPrimary.copy(alpha = 0.18f),
-            selectedLabelColor = EmeraldPrimary
-          ),
-          modifier = Modifier.testTag("library_quick_pill_islamic_research")
-        )
-        FilterChip(
-          selected = selectedTab == 5,
-          onClick = { selectedTab = 5 },
-          label = {
-            Text(
-              text = "▶ Video Lectures (EMAM)",
-              fontWeight = FontWeight.Bold,
-              fontSize = 11.sp
-            )
-          },
-          colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = EmeraldPrimary.copy(alpha = 0.18f),
-            selectedLabelColor = EmeraldPrimary
-          ),
-          modifier = Modifier.testTag("library_quick_pill_video_lectures")
-        )
-        FilterChip(
-          selected = selectedTab == 6,
-          onClick = { selectedTab = 6 },
-          label = {
-            Text(
-              text = "Fikr-e-Maududi",
-              fontWeight = FontWeight.SemiBold,
-              fontSize = 11.sp
-            )
-          },
-          modifier = Modifier.testTag("library_quick_pill_maududi")
-        )
-        FilterChip(
-          selected = selectedTab == 0,
-          onClick = { selectedTab = 0 },
-          label = {
-            Text(
-              text = "History (${IslamicBooksCatalog.historyBooks.size})",
-              fontWeight = FontWeight.SemiBold,
-              fontSize = 11.sp
-            )
-          },
-          modifier = Modifier.testTag("library_quick_pill_history")
-        )
-      }
-
-      when (selectedTab) {
+      when (safeSelectedTab) {
         0 -> {
           // =========================================================================
           // TAB 0: HISTORY OF ISLAM (Top-level in Library)
@@ -643,7 +680,7 @@ fun LibraryScreen(
                         modifier = Modifier.fillMaxWidth()
                       )
                       Text(
-                        text = "${IslamicBooksCatalog.historyBooks.size} Verified Sunni & Shia Historical Works • Arabic, English & Urdu",
+                        text = "${all26HistoryBooks.size} Classical Historical Books & ${hadithAuditReports.size} Audited Hadith Collections • Arabic, Urdu & English",
                         style = MaterialTheme.typography.bodySmall.copy(
                           fontSize = 11.sp,
                           color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -654,8 +691,9 @@ fun LibraryScreen(
                   }
 
                   // Resume Last Read History Book button if available
-                  val lastBook = remember(lastReadHistoryBookId) {
-                    IslamicBooksCatalog.historyBooks.find { it.id == lastReadHistoryBookId }
+                  val lastBook = remember(lastReadHistoryBookId, all26HistoryBooks) {
+                    all26HistoryBooks.find { it.id == lastReadHistoryBookId }
+                      ?: IslamicBooksCatalog.historyBooks.find { it.id == lastReadHistoryBookId }
                   }
                   if (lastBook != null) {
                     Surface(
@@ -757,7 +795,7 @@ fun LibraryScreen(
                   onClick = { historyTraditionFilter = "BOTH" },
                   label = {
                     Text(
-                      text = "All History (${IslamicBooksCatalog.historyBooks.size})",
+                      text = "All History (${all26HistoryBooks.size})",
                       fontSize = 11.sp,
                       fontWeight = FontWeight.Bold
                     )
@@ -773,7 +811,7 @@ fun LibraryScreen(
                   onClick = { historyTraditionFilter = "SUNNI" },
                   label = {
                     Text(
-                      text = "Sunni History (${IslamicBooksCatalog.getHistoryBooksByTradition("SUNNI").size})",
+                      text = "Sunni History (${all26HistoryBooks.count { it.tradition == "SUNNI" }})",
                       fontSize = 11.sp,
                       fontWeight = FontWeight.Bold
                     )
@@ -789,7 +827,7 @@ fun LibraryScreen(
                   onClick = { historyTraditionFilter = "SHIA" },
                   label = {
                     Text(
-                      text = "Shia History (${IslamicBooksCatalog.getHistoryBooksByTradition("SHIA").size})",
+                      text = "Shia History (${all26HistoryBooks.count { it.tradition == "SHIA" }})",
                       fontSize = 11.sp,
                       fontWeight = FontWeight.Bold
                     )
@@ -800,6 +838,144 @@ fun LibraryScreen(
                   ),
                   modifier = Modifier.height(32.dp).testTag("history_tradition_shia_chip")
                 )
+              }
+            }
+
+            // Thematic Library Sub-Sections Filter Bar (Historical Books, Seerah, Sahaba, Ahl al-Bayt, Khulafa, Battles, Karbala, Sunni Sources, Hadith Collections, Downloaded Books)
+            item {
+              Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+              ) {
+                Text(
+                  text = "Library Sub-Sections (Browse by Theme, Personality, or Collection):",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = EmeraldPrimary
+                  ),
+                  modifier = Modifier.fillMaxWidth()
+                )
+                FlowRow(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.spacedBy(6.dp),
+                  verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                  IslamicBooksCatalog.libraryThematicSubSections.forEach { sectionLabel ->
+                    val isSelected = selectedHistoryThematicSection.equals(sectionLabel, ignoreCase = true)
+                    FilterChip(
+                      selected = isSelected,
+                      onClick = {
+                        selectedHistoryThematicSection = if (isSelected && sectionLabel != "All Historical Books") {
+                          "All Historical Books"
+                        } else {
+                          sectionLabel
+                        }
+                      },
+                      label = {
+                        Text(
+                          text = sectionLabel,
+                          fontSize = 11.sp,
+                          fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        )
+                      },
+                      colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = GoldPrimary,
+                        selectedLabelColor = Color(0xFF101915)
+                      ),
+                      modifier = Modifier
+                        .height(30.dp)
+                        .testTag("history_theme_chip_${sectionLabel.lowercase().replace(" ", "_")}")
+                    )
+                  }
+                }
+              }
+            }
+
+            // If user selected "Hadith Collections" sub-section, show the 15 Audited Hadith Collections Explorer Card
+            if (selectedHistoryThematicSection.equals("Hadith Collections", ignoreCase = true)) {
+              item {
+                ElevatedCard(
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("hadith_15_collections_audit_card"),
+                  shape = RoundedCornerShape(14.dp),
+                  colors = CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                  )
+                ) {
+                  Column(
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                  ) {
+                    Text(
+                      text = "Audited Hadith Collections (15 Canonical Sunni Compilations • Arabic + Urdu)",
+                      style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = EmeraldPrimary
+                      )
+                    )
+                    Text(
+                      text = "All 15 requested Hadith collections verified with Arabic text, Urdu translation, preserved Book/Chapter/Hadith numbering, and zero duplicate entries:",
+                      style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                      )
+                    )
+                    hadithAuditReports.forEach { report ->
+                      Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = EmeraldPrimary.copy(alpha = 0.07f),
+                        border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.25f)),
+                        modifier = Modifier.fillMaxWidth()
+                      ) {
+                        Column(
+                          modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(10.dp),
+                          verticalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                          Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                          ) {
+                            Text(
+                              text = "${report.collectionNumber}. ${report.englishTitle}",
+                              style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                              )
+                            )
+                            Text(
+                              text = "${report.arabicTitle} • ${report.urduTitle}",
+                              style = MaterialTheme.typography.labelMedium.copy(
+                                fontFamily = UrduNastaliqFontFamily,
+                                color = GoldPrimary,
+                                fontWeight = FontWeight.Bold
+                              )
+                            )
+                          }
+                          Text(
+                            text = "Author: ${report.author} • Edition: ${report.sourceEdition}",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                              fontSize = 11.sp,
+                              color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                          )
+                          Text(
+                            text = "Arabic: ${if (report.arabicAvailable) "Available ✓" else "Missing"} • Urdu: ${if (report.urduAvailable) "Available ✓" else "Missing"} • Canonical: ${report.canonicalTotal} (Offline Core: ${report.localBundledCount}) • Duplicates: ${report.duplicateCount}",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                              fontWeight = FontWeight.Bold,
+                              color = EmeraldPrimary
+                            )
+                          )
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
 
@@ -1095,476 +1271,478 @@ fun LibraryScreen(
         1 -> {
           // =========================================================================
           // TAB 1: ALL CLASSICAL & AUTHENTIC SUNNI + SHIA ISLAMIC BOOKS
-          // Includes prominent shortcut card to History of Islam at the top level
-          // and full-width book cards without narrow-column squeezing.
+          // Full-page vertical scrolling: History of Islam, Video Assets, Islamic Research,
+          // search, filter chips, and pagination bar scroll up inside LazyColumn
+          // giving 100% full screen height to view book names and cards.
           // =========================================================================
-          Column(modifier = Modifier.fillMaxSize()) {
-            // Top-level History Quick Card inside All Books tab as well
-            Surface(
-              shape = RoundedCornerShape(10.dp),
-              color = EmeraldPrimary.copy(alpha = 0.12f),
-              border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.35f)),
-              modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp)
-                .clickable { selectedTab = 0 }
-                .testTag("library_books_open_history_card")
-            ) {
-              Row(
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+          LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            item(key = "library_books_header_shortcuts_and_filters") {
+              Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
               ) {
-                Row(
-                  verticalAlignment = Alignment.CenterVertically,
-                  horizontalArrangement = Arrangement.spacedBy(8.dp),
-                  modifier = Modifier.weight(1f)
-                ) {
-                  Icon(
-                    Icons.Default.HistoryEdu,
-                    contentDescription = null,
-                    tint = EmeraldPrimary,
-                    modifier = Modifier.size(20.dp)
-                  )
-                  Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                      text = "History of Islam (${IslamicBooksCatalog.historyBooks.size} Sunni & Shia History Books)",
-                      style = MaterialTheme.typography.labelLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                      )
-                    )
-                    Text(
-                      text = "Qadisiyyah • Waqia Hurrah • Yarmouk • Badr • Karbala • Full-Text Search",
-                      style = MaterialTheme.typography.labelSmall.copy(
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                      )
-                    )
-                  }
-                }
-                Text(
-                  text = "Open →",
-                  style = MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = EmeraldPrimary
-                  )
-                )
-              }
-            }
-
-            // Video Assets to Understand Islam (Engineer Muhammad Ali Mirza Lectures Since 2013) Card inside Books Tab
-            Surface(
-              shape = RoundedCornerShape(10.dp),
-              color = GoldPrimary.copy(alpha = 0.14f),
-              border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.45f)),
-              modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp)
-                .clickable { selectedTab = 5 }
-                .testTag("library_books_open_video_assets_card")
-            ) {
-              Row(
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-              ) {
-                Column(modifier = Modifier.weight(1f)) {
-                  Text(
-                    text = "Video Assets · Understand Islam (Engr. Muhammad Ali Mirza Since 2013)",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                      fontWeight = FontWeight.Bold,
-                      color = EmeraldPrimary
-                    )
-                  )
-                  Text(
-                    text = "Smart Watch-Time Topic Suggestions: Imam Hussain A.S. → Karbala & Reality of Yazeed • Tafseer 1–344 • Salah & Azan",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                      fontSize = 10.sp,
-                      color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                  )
-                }
-                Text(
-                  text = "Watch →",
-                  style = MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = EmeraldPrimary
-                  )
-                )
-              }
-            }
-
-            // Islamic Research Quick Card inside All Books Tab
-            Surface(
-              shape = RoundedCornerShape(10.dp),
-              color = EmeraldPrimary.copy(alpha = 0.10f),
-              border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.35f)),
-              modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 2.dp)
-                .clickable { selectedTab = 7 }
-                .testTag("library_books_open_islamic_research_card")
-            ) {
-              Row(
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-              ) {
-                Column(modifier = Modifier.weight(1f)) {
-                  Text(
-                    text = "Islamic Research • رافضیت ، ناصبیت اور یزیدیت کا تحقیقی جائزہ (5a) + فرض نماز کے بعد سُنّت اَذکار",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                      fontFamily = UrduNastaliqFontFamily,
-                      fontWeight = FontWeight.Bold,
-                      color = EmeraldPrimary
-                    )
-                  )
-                  Text(
-                    text = "Research Paper 5a (12 Sections) & 19 Sahih Post-Prayer Adhkar with International Hadith #",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                      fontSize = 10.sp,
-                      color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                  )
-                }
-                Text(
-                  text = "Read →",
-                  style = MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = EmeraldPrimary
-                  )
-                )
-              }
-            }
-
-            // Sunni / Shia / Both Tradition Filter + Entry Time + Retry Bar
-            LazyRow(
-              contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-              horizontalArrangement = Arrangement.spacedBy(6.dp),
-              verticalAlignment = Alignment.CenterVertically
-            ) {
-              item {
-                FilterChip(
-                  selected = selectedTraditionFilter == "SUNNI",
-                  onClick = {
-                    selectedTraditionFilter = "SUNNI"
-                    selectedCategory = "All"
-                    currentPageIndex = 0
-                  },
-                  label = {
-                    Text(
-                      text = "Sunni Books (${IslamicBooksCatalog.allSunniBooks.size})",
-                      fontSize = 11.sp,
-                      fontWeight = FontWeight.Bold
-                    )
-                  },
-                  colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = EmeraldPrimary,
-                    selectedLabelColor = Color.White
-                  ),
-                  modifier = Modifier.testTag("library_books_sunni_chip")
-                )
-              }
-              item {
-                FilterChip(
-                  selected = selectedTraditionFilter == "SHIA",
-                  onClick = {
-                    selectedTraditionFilter = "SHIA"
-                    selectedCategory = "All"
-                    currentPageIndex = 0
-                  },
-                  label = {
-                    Text(
-                      text = "Shia Books (${IslamicBooksCatalog.allShiaBooks.size})",
-                      fontSize = 11.sp,
-                      fontWeight = FontWeight.Bold
-                    )
-                  },
-                  colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = GoldPrimary,
-                    selectedLabelColor = Color.Black
-                  ),
-                  modifier = Modifier.testTag("library_books_shia_chip")
-                )
-              }
-              item {
-                FilterChip(
-                  selected = selectedTraditionFilter == "BOTH",
-                  onClick = {
-                    selectedTraditionFilter = "BOTH"
-                    selectedCategory = "All"
-                    currentPageIndex = 0
-                  },
-                  label = {
-                    Text(
-                      text = "All Books (${IslamicBooksCatalog.allSunniAndShiaBooks.size})",
-                      fontSize = 11.sp,
-                      fontWeight = FontWeight.Bold
-                    )
-                  },
-                  colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                  ),
-                  modifier = Modifier.testTag("library_books_both_chip")
-                )
-              }
-              item {
-                FilterChip(
-                  selected = showEntryTimeOnCards,
-                  onClick = {
-                    if (!showEntryTimeOnCards) {
-                      showEntryTimeOnCards = true
-                    } else {
-                      sortByEntryTimeDesc = !sortByEntryTimeDesc
-                    }
-                    currentPageIndex = 0
-                  },
-                  leadingIcon = {
-                    Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(14.dp))
-                  },
-                  label = {
-                    Text(
-                      text = if (sortByEntryTimeDesc) "Entry Time (Newest)" else "Entry Time",
-                      fontSize = 11.sp
-                    )
-                  },
-                  modifier = Modifier.testTag("library_entry_time_toggle_chip")
-                )
-              }
-              item {
-                OutlinedButton(
-                  onClick = {
-                    retryTriggerCount++
-                    currentPageIndex = 0
-                    Toast.makeText(
-                      context,
-                      "Verified ${filteredBooks.size} Islamic Books reloaded (Arabic, English & Urdu ready)",
-                      Toast.LENGTH_SHORT
-                    ).show()
-                  },
-                  shape = RoundedCornerShape(8.dp),
-                  contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                // Top-level History Quick Card inside All Books tab
+                Surface(
+                  shape = RoundedCornerShape(10.dp),
+                  color = EmeraldPrimary.copy(alpha = 0.12f),
+                  border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.35f)),
                   modifier = Modifier
-                    .height(32.dp)
-                    .testTag("library_retry_books_button")
+                    .fillMaxWidth()
+                    .clickable { selectedTab = 0 }
+                    .testTag("library_books_open_history_card")
                 ) {
-                  Icon(Icons.Default.Refresh, contentDescription = "Retry", modifier = Modifier.size(14.dp))
-                  Spacer(modifier = Modifier.width(4.dp))
-                  Text("Retry", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-              }
-            }
-
-            OutlinedTextField(
-              value = bookSearchQuery,
-              onValueChange = {
-                bookSearchQuery = it
-                currentPageIndex = 0
-              },
-              modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 2.dp)
-                .testTag("islamic_books_search_input"),
-              placeholder = {
-                Text(
-                  text = "Search by book #, keyword, or sentence (English, اردو, العربية)...",
-                  fontSize = 12.sp
-                )
-              },
-              leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-              trailingIcon = {
-                if (bookSearchQuery.isNotEmpty()) {
-                  IconButton(onClick = {
-                    bookSearchQuery = ""
-                    currentPageIndex = 0
-                  }) {
-                    Icon(Icons.Default.Close, contentDescription = "Clear")
-                  }
-                }
-              },
-              singleLine = true,
-              shape = RoundedCornerShape(12.dp)
-            )
-
-            LazyRow(
-              contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
-              horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-              items(IslamicBooksCatalog.categories) { cat ->
-                FilterChip(
-                  selected = selectedCategory == cat || (selectedCategory == "All" && cat.startsWith("All")),
-                  onClick = {
-                    selectedCategory = if (cat.startsWith("All")) "All" else cat
-                    currentPageIndex = 0
-                  },
-                  label = { Text(cat, fontSize = 11.sp) },
-                  colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = EmeraldPrimary,
-                    selectedLabelColor = Color.White
-                  )
-                )
-              }
-            }
-
-            // Fast Pagination Bar for Books
-            Surface(
-              color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-              modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .testTag("library_books_pagination_bar")
-            ) {
-              Row(
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .padding(horizontal = 10.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-              ) {
-                OutlinedButton(
-                  onClick = { if (safePageIndex > 0) currentPageIndex = safePageIndex - 1 },
-                  enabled = safePageIndex > 0,
-                  contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                  shape = RoundedCornerShape(8.dp),
-                  modifier = Modifier
-                    .height(30.dp)
-                    .testTag("library_pagination_prev_button")
-                ) {
-                  Icon(Icons.AutoMirrored.Filled.NavigateBefore, contentDescription = "Prev Page", modifier = Modifier.size(15.dp))
-                  Text("Prev", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                  Text(
-                    text = "Page ${safePageIndex + 1} of $totalPages • ${filteredBooks.size} Books",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                      fontWeight = FontWeight.Bold,
-                      color = MaterialTheme.colorScheme.primary
-                    ),
-                    modifier = Modifier.testTag("library_pagination_status_label")
-                  )
-                  TextButton(
-                    onClick = {
-                      itemsPerPage = when (itemsPerPage) {
-                        10 -> 20
-                        20 -> IslamicBooksCatalog.allSunniAndShiaBooks.size
-                        else -> 10
-                      }
-                      currentPageIndex = 0
-                    },
-                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
-                    modifier = Modifier
-                      .height(20.dp)
-                      .testTag("library_page_size_toggle_button")
-                  ) {
-                    Text(
-                      text = "$itemsPerPage/page (Tap to change)",
-                      fontSize = 10.sp,
-                      color = GoldPrimary
-                    )
-                  }
-                }
-
-                OutlinedButton(
-                  onClick = { if (safePageIndex < totalPages - 1) currentPageIndex = safePageIndex + 1 },
-                  enabled = safePageIndex < totalPages - 1,
-                  contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                  shape = RoundedCornerShape(8.dp),
-                  modifier = Modifier
-                    .height(30.dp)
-                    .testTag("library_pagination_next_button")
-                ) {
-                  Text("Next", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                  Icon(Icons.AutoMirrored.Filled.NavigateNext, contentDescription = "Next Page", modifier = Modifier.size(15.dp))
-                }
-              }
-            }
-
-            LazyColumn(
-              modifier = Modifier.fillMaxSize(),
-              contentPadding = PaddingValues(12.dp),
-              verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-              // If user typed a search query in All Books, also display highlighted line matches
-              if (bookSearchQuery.isNotBlank() && allBooksLineMatches.isNotEmpty()) {
-                item {
-                  Text(
-                    text = "Matching Lines Inside Books (${allBooksLineMatches.size}):",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                      fontWeight = FontWeight.Bold,
-                      color = EmeraldPrimary
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                  )
-                }
-                itemsIndexed(
-                  items = allBooksLineMatches.take(12),
-                  key = { idx, match -> "all_book_line_${match.book.id}_${match.chapterIndex}_$idx" }
-                ) { _, match ->
-                  Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.3f)),
+                  Row(
                     modifier = Modifier
                       .fillMaxWidth()
-                      .clickable {
-                        openBookAtChapter(match.book, match.chapterIndex, bookSearchQuery.trim())
-                      }
+                      .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                   ) {
-                    Column(
-                      modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(10.dp),
-                      verticalArrangement = Arrangement.spacedBy(4.dp)
+                    Row(
+                      verticalAlignment = Alignment.CenterVertically,
+                      horizontalArrangement = Arrangement.spacedBy(8.dp),
+                      modifier = Modifier.weight(1f)
                     ) {
+                      Icon(
+                        Icons.Default.HistoryEdu,
+                        contentDescription = null,
+                        tint = EmeraldPrimary,
+                        modifier = Modifier.size(20.dp)
+                      )
+                      Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                          text = "History of Islam (${IslamicBooksCatalog.historyBooks.size} Sunni & Shia History Books)",
+                          style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                          )
+                        )
+                        Text(
+                          text = "Qadisiyyah • Waqia Hurrah • Yarmouk • Badr • Karbala • Full-Text Search",
+                          style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                          )
+                        )
+                      }
+                    }
+                    Text(
+                      text = "Open →",
+                      style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = EmeraldPrimary
+                      )
+                    )
+                  }
+                }
+
+                // Video Assets to Understand Islam (Engineer Muhammad Ali Mirza Lectures Since 2013) Card
+                Surface(
+                  shape = RoundedCornerShape(10.dp),
+                  color = GoldPrimary.copy(alpha = 0.14f),
+                  border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.45f)),
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { selectedTab = 5 }
+                    .testTag("library_books_open_video_assets_card")
+                ) {
+                  Row(
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                  ) {
+                    Column(modifier = Modifier.weight(1f)) {
                       Text(
-                        text = "#${match.book.number} ${match.book.titleEnglish} • Ch. ${match.chapterNumber}: ${match.chapterTitle}",
-                        style = MaterialTheme.typography.labelMedium.copy(
+                        text = "Video Assets · Understand Islam (Engr. Muhammad Ali Mirza Since 2013)",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                          fontWeight = FontWeight.Bold,
+                          color = EmeraldPrimary
+                        )
+                      )
+                      Text(
+                        text = "Smart Watch-Time Topic Suggestions: Imam Hussain A.S. → Karbala & Reality of Yazeed • Tafseer 1–344 • Salah & Azan",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                          fontSize = 10.sp,
+                          color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                      )
+                    }
+                    Text(
+                      text = "Watch →",
+                      style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = EmeraldPrimary
+                      )
+                    )
+                  }
+                }
+
+                // Islamic Research Quick Card inside All Books Tab
+                Surface(
+                  shape = RoundedCornerShape(10.dp),
+                  color = EmeraldPrimary.copy(alpha = 0.10f),
+                  border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.35f)),
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { selectedTab = 7 }
+                    .testTag("library_books_open_islamic_research_card")
+                ) {
+                  Row(
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                  ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                      Text(
+                        text = "Islamic Research • رافضیت ، ناصبیت اور یزیدیت کا تحقیقی جائزہ (5a) + فرض نماز کے بعد سُنّت اَذکار",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                          fontFamily = UrduNastaliqFontFamily,
+                          fontWeight = FontWeight.Bold,
+                          color = EmeraldPrimary
+                        )
+                      )
+                      Text(
+                        text = "Research Paper 5a (12 Sections) & 19 Sahih Post-Prayer Adhkar with International Hadith #",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                          fontSize = 10.sp,
+                          color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                      )
+                    }
+                    Text(
+                      text = "Read →",
+                      style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = EmeraldPrimary
+                      )
+                    )
+                  }
+                }
+
+                // Sunni / Shia / Both Tradition Filter + Entry Time + Retry Bar
+                LazyRow(
+                  contentPadding = PaddingValues(vertical = 2.dp),
+                  horizontalArrangement = Arrangement.spacedBy(6.dp),
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  item {
+                    FilterChip(
+                      selected = selectedTraditionFilter == "SUNNI",
+                      onClick = {
+                        selectedTraditionFilter = "SUNNI"
+                        selectedCategory = "All"
+                        currentPageIndex = 0
+                      },
+                      label = {
+                        Text(
+                          text = "Sunni Books (${IslamicBooksCatalog.allSunniBooks.size})",
+                          fontSize = 11.sp,
+                          fontWeight = FontWeight.Bold
+                        )
+                      },
+                      colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = EmeraldPrimary,
+                        selectedLabelColor = Color.White
+                      ),
+                      modifier = Modifier.testTag("library_books_sunni_chip")
+                    )
+                  }
+                  item {
+                    FilterChip(
+                      selected = selectedTraditionFilter == "SHIA",
+                      onClick = {
+                        selectedTraditionFilter = "SHIA"
+                        selectedCategory = "All"
+                        currentPageIndex = 0
+                      },
+                      label = {
+                        Text(
+                          text = "Shia Books (${IslamicBooksCatalog.allShiaBooks.size})",
+                          fontSize = 11.sp,
+                          fontWeight = FontWeight.Bold
+                        )
+                      },
+                      colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = GoldPrimary,
+                        selectedLabelColor = Color.Black
+                      ),
+                      modifier = Modifier.testTag("library_books_shia_chip")
+                    )
+                  }
+                  item {
+                    FilterChip(
+                      selected = selectedTraditionFilter == "BOTH",
+                      onClick = {
+                        selectedTraditionFilter = "BOTH"
+                        selectedCategory = "All"
+                        currentPageIndex = 0
+                      },
+                      label = {
+                        Text(
+                          text = "All Books (${IslamicBooksCatalog.allSunniAndShiaBooks.size})",
+                          fontSize = 11.sp,
+                          fontWeight = FontWeight.Bold
+                        )
+                      },
+                      colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                      ),
+                      modifier = Modifier.testTag("library_books_both_chip")
+                    )
+                  }
+                  item {
+                    FilterChip(
+                      selected = showEntryTimeOnCards,
+                      onClick = {
+                        if (!showEntryTimeOnCards) {
+                          showEntryTimeOnCards = true
+                        } else {
+                          sortByEntryTimeDesc = !sortByEntryTimeDesc
+                        }
+                        currentPageIndex = 0
+                      },
+                      leadingIcon = {
+                        Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(14.dp))
+                      },
+                      label = {
+                        Text(
+                          text = if (sortByEntryTimeDesc) "Entry Time (Newest)" else "Entry Time",
+                          fontSize = 11.sp
+                        )
+                      },
+                      modifier = Modifier.testTag("library_entry_time_toggle_chip")
+                    )
+                  }
+                  item {
+                    OutlinedButton(
+                      onClick = {
+                        retryTriggerCount++
+                        currentPageIndex = 0
+                        Toast.makeText(
+                          context,
+                          "Verified ${filteredBooks.size} Islamic Books reloaded (Arabic, English & Urdu ready)",
+                          Toast.LENGTH_SHORT
+                        ).show()
+                      },
+                      shape = RoundedCornerShape(8.dp),
+                      contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                      modifier = Modifier
+                        .height(32.dp)
+                        .testTag("library_retry_books_button")
+                    ) {
+                      Icon(Icons.Default.Refresh, contentDescription = "Retry", modifier = Modifier.size(14.dp))
+                      Spacer(modifier = Modifier.width(4.dp))
+                      Text("Retry", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                  }
+                }
+
+                OutlinedTextField(
+                  value = bookSearchQuery,
+                  onValueChange = {
+                    bookSearchQuery = it
+                    currentPageIndex = 0
+                  },
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("islamic_books_search_input"),
+                  placeholder = {
+                    Text(
+                      text = "Search by book #, keyword, or sentence (English, اردو, العربية)...",
+                      fontSize = 12.sp
+                    )
+                  },
+                  leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                  trailingIcon = {
+                    if (bookSearchQuery.isNotEmpty()) {
+                      IconButton(onClick = {
+                        bookSearchQuery = ""
+                        currentPageIndex = 0
+                      }) {
+                        Icon(Icons.Default.Close, contentDescription = "Clear")
+                      }
+                    }
+                  },
+                  singleLine = true,
+                  shape = RoundedCornerShape(12.dp)
+                )
+
+                LazyRow(
+                  contentPadding = PaddingValues(vertical = 2.dp),
+                  horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                  items(IslamicBooksCatalog.categories) { cat ->
+                    FilterChip(
+                      selected = selectedCategory == cat || (selectedCategory == "All" && cat.startsWith("All")),
+                      onClick = {
+                        selectedCategory = if (cat.startsWith("All")) "All" else cat
+                        currentPageIndex = 0
+                      },
+                      label = { Text(cat, fontSize = 11.sp) },
+                      colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = EmeraldPrimary,
+                        selectedLabelColor = Color.White
+                      )
+                    )
+                  }
+                }
+
+                // Fast Pagination Bar for Books
+                Surface(
+                  color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .testTag("library_books_pagination_bar")
+                ) {
+                  Row(
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .padding(horizontal = 10.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    OutlinedButton(
+                      onClick = { if (safePageIndex > 0) currentPageIndex = safePageIndex - 1 },
+                      enabled = safePageIndex > 0,
+                      contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                      shape = RoundedCornerShape(8.dp),
+                      modifier = Modifier
+                        .height(30.dp)
+                        .testTag("library_pagination_prev_button")
+                    ) {
+                      Icon(Icons.AutoMirrored.Filled.NavigateBefore, contentDescription = "Prev Page", modifier = Modifier.size(15.dp))
+                      Text("Prev", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                      Text(
+                        text = "Page ${safePageIndex + 1} of $totalPages • ${filteredBooks.size} Books",
+                        style = MaterialTheme.typography.labelSmall.copy(
                           fontWeight = FontWeight.Bold,
                           color = MaterialTheme.colorScheme.primary
                         ),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.testTag("library_pagination_status_label")
                       )
-                      Text(
-                        text = buildHighlightedAnnotatedText(match.matchedLine, bookSearchQuery),
-                        style = MaterialTheme.typography.bodySmall.copy(
-                          fontSize = 13.sp,
-                          color = MaterialTheme.colorScheme.onSurface
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                      )
+                      TextButton(
+                        onClick = {
+                          itemsPerPage = when (itemsPerPage) {
+                            10 -> 20
+                            20 -> IslamicBooksCatalog.allSunniAndShiaBooks.size
+                            else -> 10
+                          }
+                          currentPageIndex = 0
+                        },
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                        modifier = Modifier
+                          .height(20.dp)
+                          .testTag("library_page_size_toggle_button")
+                      ) {
+                        Text(
+                          text = "$itemsPerPage/page (Tap to change)",
+                          fontSize = 10.sp,
+                          color = GoldPrimary
+                        )
+                      }
+                    }
+
+                    OutlinedButton(
+                      onClick = { if (safePageIndex < totalPages - 1) currentPageIndex = safePageIndex + 1 },
+                      enabled = safePageIndex < totalPages - 1,
+                      contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                      shape = RoundedCornerShape(8.dp),
+                      modifier = Modifier
+                        .height(30.dp)
+                        .testTag("library_pagination_next_button")
+                    ) {
+                      Text("Next", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                      Icon(Icons.AutoMirrored.Filled.NavigateNext, contentDescription = "Next Page", modifier = Modifier.size(15.dp))
                     }
                   }
                 }
               }
+            }
 
-              items(paginatedBooks, key = { it.id }) { book ->
-                val isShiaBook = book.tradition.equals("SHIA", ignoreCase = true)
-                val matchedChapterIdx = remember(book, bookSearchQuery) {
-                  findMatchingChapterIndex(book, bookSearchQuery)
-                }
-                FullWidthIslamicBookCard(
-                  serialNumber = book.number,
-                  book = book,
-                  isShiaBook = isShiaBook,
-                  matchedChapterIdx = matchedChapterIdx,
-                  activeSearchQuery = bookSearchQuery,
-                  showEntryTimeOnCards = showEntryTimeOnCards,
-                  onOpenBook = { targetChapterIdx ->
-                    openBookAtChapter(book, targetChapterIdx, bookSearchQuery.trim())
-                  },
-                  cardTestTag = "islamic_book_card_${book.number}"
+            // If user typed a search query in All Books, also display highlighted line matches
+            if (bookSearchQuery.isNotBlank() && allBooksLineMatches.isNotEmpty()) {
+              item {
+                Text(
+                  text = "Matching Lines Inside Books (${allBooksLineMatches.size}):",
+                  style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = EmeraldPrimary
+                  ),
+                  modifier = Modifier.fillMaxWidth()
                 )
               }
+              itemsIndexed(
+                items = allBooksLineMatches.take(12),
+                key = { idx, match -> "all_book_line_${match.book.id}_${match.chapterIndex}_$idx" }
+              ) { _, match ->
+                Surface(
+                  shape = RoundedCornerShape(10.dp),
+                  color = MaterialTheme.colorScheme.surface,
+                  border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.3f)),
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                      openBookAtChapter(match.book, match.chapterIndex, bookSearchQuery.trim())
+                    }
+                ) {
+                  Column(
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                  ) {
+                    Text(
+                      text = "#${match.book.number} ${match.book.titleEnglish} • Ch. ${match.chapterNumber}: ${match.chapterTitle}",
+                      style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                      ),
+                      modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                      text = buildHighlightedAnnotatedText(match.matchedLine, bookSearchQuery),
+                      style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                      ),
+                      modifier = Modifier.fillMaxWidth()
+                    )
+                  }
+                }
+              }
+            }
+
+            itemsIndexed(paginatedBooks, key = { _, it -> it.id }) { idxInPage, book ->
+              val isShiaBook = book.tradition.equals("SHIA", ignoreCase = true)
+              val matchedChapterIdx = remember(book, bookSearchQuery) {
+                findMatchingChapterIndex(book, bookSearchQuery)
+              }
+              val orderedSerialNumber = (safePageIndex * itemsPerPage) + idxInPage + 1
+              FullWidthIslamicBookCard(
+                serialNumber = orderedSerialNumber,
+                book = book,
+                isShiaBook = isShiaBook,
+                matchedChapterIdx = matchedChapterIdx,
+                activeSearchQuery = bookSearchQuery,
+                showEntryTimeOnCards = showEntryTimeOnCards,
+                onOpenBook = { targetChapterIdx ->
+                  openBookAtChapter(book, targetChapterIdx, bookSearchQuery.trim())
+                },
+                cardTestTag = "islamic_book_card_${book.number}"
+              )
             }
           }
         }
@@ -1789,6 +1967,48 @@ fun LibraryScreen(
             }
           )
         }
+
+        8 -> {
+          ProphetStoriesHubView(
+            onAddStudyNote = { ref ->
+              initialNoteReference = ref
+              showAddNoteDialog = true
+            },
+            onOpenClassicalBookById = { bookId ->
+              val targetBook = all26HistoryBooks.firstOrNull { it.id == bookId }
+                ?: IslamicBooksCatalog.allExpandedLibraryBooks.firstOrNull { it.id == bookId }
+              if (targetBook != null) {
+                openBookAtChapter(targetBook, 0, "")
+              }
+            }
+          )
+        }
+
+        9 -> {
+          ClassifiedFolderLibraryExplorerView(
+            onOpenClassicalBook = { book ->
+              openBookAtChapter(book, 0, "")
+            },
+            onOpenProphetStories = {
+              selectedTab = 8
+            },
+            onOpenResearchPapers = {
+              selectedTab = 7
+            }
+          )
+        }
+
+        10 -> {
+          SahabaAhlAlBaytBiographiesView(
+            onOpenClassicalBook = { book ->
+              openBookAtChapter(book, 0, "")
+            }
+          )
+        }
+
+        11 -> {
+          IslamQaScholarlyArchiveView()
+        }
       }
     }
 
@@ -1996,16 +2216,43 @@ private fun FullWidthIslamicBookCard(
       }
 
       if (showEntryTimeOnCards) {
-        Text(
-          text = "Entry Time: ${book.entryTimestamp} • Methodology: ${book.gradingMethodology}",
-          style = MaterialTheme.typography.labelSmall.copy(
-            fontSize = 10.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        val isDisputedAttribution = book.attributionConfidence.contains("DISPUTED", ignoreCase = true)
+        Surface(
+          shape = RoundedCornerShape(8.dp),
+          color = if (isDisputedAttribution) Color(0xFFFFF3E0) else EmeraldPrimary.copy(alpha = 0.08f),
+          border = BorderStroke(
+            1.dp,
+            if (isDisputedAttribution) Color(0xFFE65100) else EmeraldPrimary.copy(alpha = 0.25f)
           ),
           modifier = Modifier
             .fillMaxWidth()
             .testTag("book_entry_time_badge_${book.number}")
-        )
+        ) {
+          Column(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(horizontal = 8.dp, vertical = 5.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+          ) {
+            Text(
+              text = "Attribution Confidence: ${book.attributionConfidence}",
+              style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isDisputedAttribution) Color(0xFFE65100) else EmeraldPrimary
+              ),
+              modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+              text = "Translator: ${book.translatorName} • Source: ${book.sourceTypeLabel}",
+              style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              ),
+              modifier = Modifier.fillMaxWidth()
+            )
+          }
+        }
       }
 
       // 4. Full-Width Book Summary
@@ -2044,7 +2291,12 @@ private fun FullWidthIslamicBookCard(
         }
       }
 
-      // 6. Footer Row: Jilds/Chapters count + Read Book Button
+      // 6. Footer Row: Jilds/Chapters count + Offline Download + Read Book Button
+      var isBookOffline by remember(book.id) {
+        mutableStateOf(
+          com.example.data.repository.IslamicDigitalLibraryRepository.isBookDownloadedOffline(context, book.id)
+        )
+      }
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -2052,14 +2304,14 @@ private fun FullWidthIslamicBookCard(
       ) {
         Column(modifier = Modifier.weight(1f)) {
           Text(
-            text = "${book.chapters.size} Jilds / Historical Sections (Full Text)",
+            text = "${book.volumesCount} Volumes (${book.chapters.size} Sections • Full Arabic & Urdu)",
             style = MaterialTheme.typography.labelSmall.copy(
               fontWeight = FontWeight.SemiBold,
               color = EmeraldPrimary
             )
           )
           Text(
-            text = "Source: ${book.officialSourceUrl}",
+            text = "Edition: ${book.sourceTypeLabel} (Tap to Read In-App)",
             style = MaterialTheme.typography.labelSmall.copy(
               fontSize = 10.sp,
               color = MaterialTheme.colorScheme.primary
@@ -2067,16 +2319,43 @@ private fun FullWidthIslamicBookCard(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.clickable {
-              if (com.example.data.remote.SecurityIntegrityGuard.isExternalIntentSafe(book.officialSourceUrl)) {
-                runCatching {
-                  context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(book.officialSourceUrl)))
-                }
-              }
+              onOpenBook(if (matchedChapterIdx >= 0) matchedChapterIdx else 0)
             }
           )
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(6.dp))
+
+        OutlinedButton(
+          onClick = {
+            if (!isBookOffline) {
+              com.example.data.repository.IslamicDigitalLibraryRepository.downloadBookOffline(context, book)
+              isBookOffline = true
+              Toast.makeText(context, "${book.titleEnglish} saved for offline reading", Toast.LENGTH_SHORT).show()
+            } else {
+              Toast.makeText(context, "${book.titleEnglish} is ready offline", Toast.LENGTH_SHORT).show()
+            }
+          },
+          shape = RoundedCornerShape(10.dp),
+          contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+          modifier = Modifier.testTag("download_book_btn_${book.number}")
+        ) {
+          Icon(
+            if (isBookOffline) Icons.Default.CheckCircle else Icons.Default.Add,
+            contentDescription = null,
+            tint = EmeraldPrimary,
+            modifier = Modifier.size(14.dp)
+          )
+          Spacer(modifier = Modifier.width(4.dp))
+          Text(
+            text = if (isBookOffline) "Offline ✓" else "Offline",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = EmeraldPrimary
+          )
+        }
+
+        Spacer(modifier = Modifier.width(6.dp))
 
         Button(
           onClick = {
@@ -2096,6 +2375,7 @@ private fun FullWidthIslamicBookCard(
   }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun IslamicBookReaderView(
   book: IslamicClassicalBook,
@@ -2113,13 +2393,40 @@ fun IslamicBookReaderView(
   var inBookSearchQuery by remember(book.id) { mutableStateOf("") }
   var searchAllBooksScope by remember { mutableStateOf(false) }
   var showAllJildsFullText by remember(book.id) { mutableStateOf(selectedChapterIndex == 0 && initialHighlightQuery.isBlank()) }
+  var selectedJildFilter by remember(book.id) { mutableIntStateOf(0) }
+  val distinctJildNumbers = remember(book) {
+    book.chapters.map { it.jildNumber }.filter { it > 0 }.distinct().sorted().ifEmpty { listOf(1) }
+  }
+  val allUniversalBooks = remember(book.id) {
+    com.example.data.repository.ClassicalLibraryAndBiographiesRepository.getAllUniversalLibraryBooks(context)
+  }
+  val currentBookUniversalIdx = remember(allUniversalBooks, book.id, book.number) {
+    allUniversalBooks.indexOfFirst { it.id == book.id }.let { found ->
+      if (found >= 0) found else allUniversalBooks.indexOfFirst { it.number == book.number }
+    }
+  }
+  var readerLanguageMode by remember {
+    mutableStateOf(com.example.data.repository.IslamicDigitalLibraryRepository.BookReaderLanguageMode.FULL_TRILINGUAL)
+  }
+  var showBookMetadataSheet by remember(book.id) {
+    mutableStateOf(book.attributionConfidence.contains("DISPUTED", ignoreCase = true))
+  }
+  var fontScaleDelta by remember { mutableIntStateOf(0) }
+  var isBookDownloaded by remember(book.id) {
+    mutableStateOf(com.example.data.repository.IslamicDigitalLibraryRepository.isBookDownloadedOffline(context, book.id))
+  }
+  var bookmarkedChaptersSet by remember(book.id) {
+    mutableStateOf(com.example.data.repository.IslamicDigitalLibraryRepository.getBookmarkedChapters(context))
+  }
+  var reportTargetPassageLabel by remember(book.id) { mutableStateOf<String?>(null) }
+  var reportReasonInput by remember(book.id) { mutableStateOf("") }
   val effectiveHighlightQuery = if (inBookSearchQuery.isNotBlank()) inBookSearchQuery else initialHighlightQuery
 
-  val inBookSearchResults = remember(inBookSearchQuery, searchAllBooksScope, book) {
+  val inBookSearchResults = remember(inBookSearchQuery, searchAllBooksScope, book, allUniversalBooks) {
     val q = inBookSearchQuery.trim()
     if (q.isBlank()) emptyList()
     else {
-      val targetBooks = if (searchAllBooksScope) IslamicBooksCatalog.allSunniAndShiaBooks else listOf(book)
+      val targetBooks = if (searchAllBooksScope) allUniversalBooks else listOf(book)
       IslamicBooksCatalog.searchInsideBooks(
         booksToSearch = targetBooks,
         rawQuery = q
@@ -2134,7 +2441,7 @@ fun IslamicBookReaderView(
       tonalElevation = 3.dp,
       modifier = Modifier.fillMaxWidth()
     ) {
-      Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+      Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
         Row(
           modifier = Modifier.fillMaxWidth(),
           verticalAlignment = Alignment.CenterVertically,
@@ -2160,14 +2467,37 @@ fun IslamicBookReaderView(
               overflow = TextOverflow.Ellipsis
             )
           }
-          IconButton(
-            onClick = { onAddBookNote("${book.titleEnglish} - Ch. ${currentChapter.chapterNumber}") }
-          ) {
-            Icon(Icons.Default.NoteAdd, contentDescription = "Add Note", tint = EmeraldPrimary)
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(
+              onClick = { fontScaleDelta = (fontScaleDelta - 2).coerceAtLeast(-4) },
+              contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+              modifier = Modifier.size(width = 32.dp, height = 30.dp).testTag("book_reader_font_decrease")
+            ) {
+              Text("A-", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+            TextButton(
+              onClick = { fontScaleDelta = (fontScaleDelta + 2).coerceAtMost(8) },
+              contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+              modifier = Modifier.size(width = 32.dp, height = 30.dp).testTag("book_reader_font_increase")
+            ) {
+              Text("A+", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+            IconButton(
+              onClick = { showBookMetadataSheet = !showBookMetadataSheet },
+              modifier = Modifier.size(34.dp).testTag("book_reader_info_toggle_button")
+            ) {
+              Icon(Icons.Default.Info, contentDescription = "Book Info & Attribution", tint = GoldPrimary)
+            }
+            IconButton(
+              onClick = { onAddBookNote("${book.titleEnglish} - Ch. ${currentChapter.chapterNumber}") },
+              modifier = Modifier.size(34.dp)
+            ) {
+              Icon(Icons.Default.NoteAdd, contentDescription = "Add Note", tint = EmeraldPrimary)
+            }
           }
         }
 
-        // Previous Book / Next Book Navigation Bar
+        // Previous Book / Next Book Navigation Bar (Universal across all Library Books)
         Row(
           modifier = Modifier
             .fillMaxWidth()
@@ -2177,7 +2507,7 @@ fun IslamicBookReaderView(
         ) {
           OutlinedButton(
             onClick = { onNavigateBook(-1) },
-            enabled = book.number > 1,
+            enabled = currentBookUniversalIdx > 0 || book.number > 1,
             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier.testTag("prev_book_button")
@@ -2187,13 +2517,13 @@ fun IslamicBookReaderView(
           }
 
           Text(
-            text = "Book ${book.number}/${IslamicBooksCatalog.allSunniAndShiaBooks.size} • ${book.tradition} • ${book.chapters.size} Jilds",
+            text = "Book ${book.number} • ${book.tradition} • ${distinctJildNumbers.size} Jilds (${book.chapters.size} Pages)",
             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
           )
 
           OutlinedButton(
             onClick = { onNavigateBook(1) },
-            enabled = book.number < IslamicBooksCatalog.allSunniAndShiaBooks.size,
+            enabled = currentBookUniversalIdx < 0 || currentBookUniversalIdx < allUniversalBooks.lastIndex,
             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier.testTag("next_book_button")
@@ -2203,8 +2533,39 @@ fun IslamicBookReaderView(
           }
         }
 
+        // Language Display Mode Switcher (Arabic + Urdu Side-by-Side, Stacked, Arabic Only, Urdu Only, Full Tri-Lingual)
+        Spacer(modifier = Modifier.height(4.dp))
+        LazyRow(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(6.dp),
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          com.example.data.repository.IslamicDigitalLibraryRepository.BookReaderLanguageMode.entries.forEach { mode ->
+            item {
+              FilterChip(
+                selected = readerLanguageMode == mode,
+                onClick = { readerLanguageMode = mode },
+                label = {
+                  Text(
+                    text = mode.label,
+                    fontSize = 10.sp,
+                    fontWeight = if (readerLanguageMode == mode) FontWeight.Bold else FontWeight.Medium
+                  )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                  selectedContainerColor = EmeraldPrimary,
+                  selectedLabelColor = Color.White
+                ),
+                modifier = Modifier
+                  .height(28.dp)
+                  .testTag("book_reader_lang_mode_${mode.name.lowercase()}")
+              )
+            }
+          }
+        }
+
         // In-Book Search Bar & Scope Toggle
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         Row(
           modifier = Modifier.fillMaxWidth(),
           horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -2215,7 +2576,7 @@ fun IslamicBookReaderView(
             onValueChange = { inBookSearchQuery = it },
             placeholder = {
               Text(
-                text = if (searchAllBooksScope) "Search all ${IslamicBooksCatalog.allSunniAndShiaBooks.size} books..." else "Search inside this book (English, اردو, العربية)...",
+                text = if (searchAllBooksScope) "Search all ${IslamicBooksCatalog.allExpandedLibraryBooks.size} books..." else "Search inside this book (English, اردو, العربية)...",
                 fontSize = 12.sp
               )
             },
@@ -2251,7 +2612,7 @@ fun IslamicBookReaderView(
           )
         }
 
-        // Jild / Volume Selector Row (All Jilds Full Book Text + Individual Jilds 1..N)
+        // Jild / Volume Selector Row (All Jilds Full Book Text + Full Jilds 1..N + Individual Pages/Chapters)
         Spacer(modifier = Modifier.height(4.dp))
         LazyRow(
           modifier = Modifier.fillMaxWidth(),
@@ -2260,8 +2621,11 @@ fun IslamicBookReaderView(
         ) {
           item {
             FilterChip(
-              selected = showAllJildsFullText,
-              onClick = { showAllJildsFullText = true },
+              selected = showAllJildsFullText && selectedJildFilter == 0,
+              onClick = {
+                selectedJildFilter = 0
+                showAllJildsFullText = true
+              },
               label = {
                 Text(
                   text = "All Jilds — Full Text (${book.chapters.size})",
@@ -2277,17 +2641,46 @@ fun IslamicBookReaderView(
               modifier = Modifier.height(30.dp).testTag("book_reader_all_jilds_chip")
             )
           }
+          items(distinctJildNumbers.size) { jIdx ->
+            val jildNum = distinctJildNumbers[jIdx]
+            val pagesInJild = book.chapters.count { it.jildNumber == jildNum }.coerceAtLeast(1)
+            FilterChip(
+              selected = selectedJildFilter == jildNum,
+              onClick = {
+                selectedJildFilter = jildNum
+                showAllJildsFullText = false
+                val firstChIdx = book.chapters.indexOfFirst { it.jildNumber == jildNum }
+                if (firstChIdx >= 0) {
+                  onSelectChapter(firstChIdx)
+                }
+              },
+              label = {
+                Text(
+                  text = "Full Jild $jildNum ($pagesInJild Pages)",
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.Bold,
+                  maxLines = 1
+                )
+              },
+              colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = EmeraldPrimary.copy(alpha = 0.85f),
+                selectedLabelColor = Color.White
+              ),
+              modifier = Modifier.height(30.dp).testTag("book_reader_jild_volume_chip_$jildNum")
+            )
+          }
           items(book.chapters.size) { idx ->
             val ch = book.chapters[idx]
             FilterChip(
-              selected = !showAllJildsFullText && safeChapterIdx == idx,
+              selected = !showAllJildsFullText && selectedJildFilter == 0 && safeChapterIdx == idx,
               onClick = {
+                selectedJildFilter = 0
                 showAllJildsFullText = false
                 onSelectChapter(idx)
               },
               label = {
                 Text(
-                  text = "Jild ${ch.jildNumber} (Ch. ${ch.chapterNumber})",
+                  text = "Jild ${ch.jildNumber} (Ch. ${ch.chapterNumber} • Pg. ${ch.pageNumber})",
                   fontSize = 11.sp,
                   fontWeight = FontWeight.SemiBold,
                   maxLines = 1
@@ -2299,6 +2692,100 @@ fun IslamicBookReaderView(
               ),
               modifier = Modifier.height(30.dp).testTag("book_reader_jild_chip_${idx + 1}")
             )
+          }
+        }
+      }
+    }
+
+    // Expandable Book Metadata, Attribution Confidence & Offline Download Sheet
+    if (showBookMetadataSheet) {
+      val isDisputed = book.attributionConfidence.contains("DISPUTED", ignoreCase = true)
+      Surface(
+        color = if (isDisputed) Color(0xFFFFF8E1) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(horizontal = 12.dp, vertical = 4.dp)
+          .testTag("book_reader_metadata_sheet")
+      ) {
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(10.dp),
+          verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+          Text(
+            text = "${book.titleArabic} • ${book.titleUrdu}",
+            style = MaterialTheme.typography.titleSmall.copy(
+              fontFamily = ScheherazadeFontFamily,
+              fontSize = 17.sp,
+              fontWeight = FontWeight.Bold,
+              color = EmeraldPrimary,
+              textAlign = TextAlign.Right
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+          Text(
+            text = "Author: ${book.author} (${book.eraHijri})",
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+          )
+          Text(
+            text = "Original Source & Edition: ${book.sourceTypeLabel} • ${book.numberingSystem}",
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp)
+          )
+          Text(
+            text = "Attribution Confidence: ${book.attributionConfidence}",
+            style = MaterialTheme.typography.bodySmall.copy(
+              fontSize = 11.sp,
+              fontWeight = FontWeight.Bold,
+              color = if (isDisputed) Color(0xFFE65100) else EmeraldPrimary
+            )
+          )
+          Text(
+            text = "Translator: ${book.translatorName} • Licence: ${book.licenseInfo}",
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp)
+          )
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Button(
+              onClick = {
+                com.example.data.repository.IslamicDigitalLibraryRepository.downloadBookOffline(context, book)
+                isBookDownloaded = true
+                Toast.makeText(context, "Full book downloaded for offline reading", Toast.LENGTH_SHORT).show()
+              },
+              shape = RoundedCornerShape(8.dp),
+              colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+              contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+              modifier = Modifier.testTag("book_reader_download_full_book_btn")
+            ) {
+              Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
+              Spacer(modifier = Modifier.width(4.dp))
+              Text(
+                text = if (isBookDownloaded) "Full Book Offline ✓" else "Download Full Book",
+                fontSize = 11.sp
+              )
+            }
+            OutlinedButton(
+              onClick = {
+                com.example.data.repository.IslamicDigitalLibraryRepository.downloadBookVolumeOffline(
+                  context = context,
+                  book = book,
+                  jildNumber = currentChapter.jildNumber
+                )
+                Toast.makeText(
+                  context,
+                  "Volume (Jild ${currentChapter.jildNumber}) downloaded offline",
+                  Toast.LENGTH_SHORT
+                ).show()
+              },
+              shape = RoundedCornerShape(8.dp),
+              contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+              modifier = Modifier.testTag("book_reader_download_volume_btn")
+            ) {
+              Text("Download Jild ${currentChapter.jildNumber}", fontSize = 11.sp)
+            }
           }
         }
       }
@@ -2419,19 +2906,29 @@ fun IslamicBookReaderView(
       }
     }
 
-    // Chapter Content Body (Displays either All Jilds continuously or the selected Jild/Chapter)
-    val chaptersToRender = remember(book, showAllJildsFullText, currentChapter) {
-      if (showAllJildsFullText) book.chapters else listOf(currentChapter)
+    // Chapter Content Body (Displays All Jilds continuously, all pages of a selected Jild, or a single Chapter)
+    val chaptersToRender = remember(book, showAllJildsFullText, selectedJildFilter, currentChapter) {
+      when {
+        showAllJildsFullText -> book.chapters
+        selectedJildFilter > 0 -> book.chapters.filter { it.jildNumber == selectedJildFilter }.ifEmpty { listOf(currentChapter) }
+        else -> listOf(currentChapter)
+      }
     }
 
-    Column(
+    LazyColumn(
       modifier = Modifier
         .fillMaxSize()
-        .verticalScroll(rememberScrollState())
-        .padding(12.dp),
+        .padding(horizontal = 12.dp),
+      contentPadding = PaddingValues(vertical = 12.dp),
       verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-      chaptersToRender.forEach { renderedChapter ->
+      items(
+        items = chaptersToRender,
+        key = { renderedChapter -> "${book.id}_ch_${renderedChapter.chapterNumber}_pg_${renderedChapter.pageNumber}" }
+      ) { renderedChapter ->
+        val chapterBookmarkKey = "${book.id}_ch_${renderedChapter.chapterNumber}"
+        val isChapterBookmarked = chapterBookmarkKey in bookmarkedChaptersSet
+
         ElevatedCard(
           modifier = Modifier.fillMaxWidth(),
           shape = RoundedCornerShape(16.dp),
@@ -2449,7 +2946,7 @@ fun IslamicBookReaderView(
             ) {
               Column(modifier = Modifier.weight(1f)) {
                 Text(
-                  text = "${renderedChapter.jildTitle} • Chapter ${renderedChapter.chapterNumber}",
+                  text = "${renderedChapter.jildTitle} • Chapter ${renderedChapter.chapterNumber} • Page ${renderedChapter.pageNumber}",
                   style = MaterialTheme.typography.labelMedium.copy(
                     color = GoldPrimary,
                     fontWeight = FontWeight.Bold
@@ -2465,21 +2962,77 @@ fun IslamicBookReaderView(
                   modifier = Modifier.fillMaxWidth()
                 )
               }
-              IconButton(
-                onClick = {
-                  val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                  val text = buildString {
-                    append("${book.titleEnglish} — ${renderedChapter.titleEnglish}\n\n")
-                    append("${renderedChapter.arabicExcerpt}\n\n")
-                    append("${renderedChapter.englishContent}\n\n")
-                    append("${renderedChapter.urduContent}\n\n")
-                    append("Refs: ${renderedChapter.crossReferences}")
-                  }
-                  clipboard.setPrimaryClip(ClipData.newPlainText("Islamic Book Chapter", text))
-                  Toast.makeText(context, "Chapter copied to clipboard", Toast.LENGTH_SHORT).show()
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                  onClick = {
+                    val nowBookmarked = com.example.data.repository.IslamicDigitalLibraryRepository.toggleBookChapterBookmark(
+                      context = context,
+                      bookId = book.id,
+                      chapterNumber = renderedChapter.chapterNumber
+                    )
+                    bookmarkedChaptersSet = com.example.data.repository.IslamicDigitalLibraryRepository.getBookmarkedChapters(context)
+                    Toast.makeText(
+                      context,
+                      if (nowBookmarked) "Chapter bookmarked" else "Bookmark removed",
+                      Toast.LENGTH_SHORT
+                    ).show()
+                  },
+                  modifier = Modifier.testTag("bookmark_chapter_btn_${renderedChapter.chapterNumber}")
+                ) {
+                  Icon(
+                    if (isChapterBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                    contentDescription = "Bookmark Chapter",
+                    tint = if (isChapterBookmarked) GoldPrimary else EmeraldPrimary
+                  )
                 }
-              ) {
-                Icon(Icons.Default.ContentCopy, contentDescription = "Copy Chapter")
+                IconButton(
+                  onClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val text = buildString {
+                      append("${book.titleArabic} — ${book.titleEnglish}\n")
+                      append("Author: ${book.author} (${book.eraHijri})\n")
+                      append("${renderedChapter.jildTitle} • Ch. ${renderedChapter.chapterNumber} • Pg. ${renderedChapter.pageNumber}: ${renderedChapter.titleEnglish}\n\n")
+                      append("${renderedChapter.arabicExcerpt}\n\n")
+                      append("${IslamicBooksCatalog.formatUrduForReader(renderedChapter.urduContent)}\n\n")
+                      append("${renderedChapter.englishContent}\n\n")
+                      append("Source & Citation: ${book.numberingSystem} • Refs: ${renderedChapter.crossReferences}")
+                    }
+                    clipboard.setPrimaryClip(ClipData.newPlainText("Islamic Book Chapter", text))
+                    Toast.makeText(context, "Chapter copied with full source citation", Toast.LENGTH_SHORT).show()
+                  },
+                  modifier = Modifier.testTag("copy_chapter_btn_${renderedChapter.chapterNumber}")
+                ) {
+                  Icon(Icons.Default.ContentCopy, contentDescription = "Copy Chapter")
+                }
+                IconButton(
+                  onClick = {
+                    val shareText = buildString {
+                      append("${book.titleArabic} (${book.titleEnglish}) — ${book.author}\n")
+                      append("${renderedChapter.jildTitle} • Ch. ${renderedChapter.chapterNumber} • Pg. ${renderedChapter.pageNumber}\n\n")
+                      append("${renderedChapter.arabicExcerpt}\n\n")
+                      append("${IslamicBooksCatalog.formatUrduForReader(renderedChapter.urduContent)}\n\n")
+                      append("Refs: ${renderedChapter.crossReferences}")
+                    }
+                    runCatching {
+                      val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, shareText)
+                      }
+                      context.startActivity(Intent.createChooser(intent, "Share Classical Book Passage"))
+                    }
+                  },
+                  modifier = Modifier.testTag("share_chapter_btn_${renderedChapter.chapterNumber}")
+                ) {
+                  Icon(Icons.Default.Share, contentDescription = "Share Chapter", tint = EmeraldPrimary)
+                }
+                IconButton(
+                  onClick = {
+                    reportTargetPassageLabel = "${book.titleEnglish} • ${renderedChapter.jildTitle} • Ch. ${renderedChapter.chapterNumber} (Pg. ${renderedChapter.pageNumber})"
+                  },
+                  modifier = Modifier.testTag("report_chapter_btn_${renderedChapter.chapterNumber}")
+                ) {
+                  Icon(Icons.Default.Flag, contentDescription = "Report Passage Issue", tint = MaterialTheme.colorScheme.error)
+                }
               }
             }
 
@@ -2489,8 +3042,23 @@ fun IslamicBookReaderView(
                 text = buildHighlightedAnnotatedText(renderedChapter.titleArabic, effectiveHighlightQuery),
                 style = MaterialTheme.typography.titleMedium.copy(
                   fontFamily = ScheherazadeFontFamily,
-                  fontSize = 20.sp,
+                  fontSize = (20 + fontScaleDelta).sp,
                   color = GoldPrimary,
+                  fontWeight = FontWeight.Bold,
+                  textAlign = TextAlign.Right
+                ),
+                modifier = Modifier.fillMaxWidth()
+              )
+            }
+
+            if (renderedChapter.titleUrdu.isNotBlank()) {
+              Spacer(modifier = Modifier.height(2.dp))
+              Text(
+                text = buildHighlightedAnnotatedText(renderedChapter.titleUrdu, effectiveHighlightQuery),
+                style = MaterialTheme.typography.bodyMedium.copy(
+                  fontFamily = UrduNastaliqFontFamily,
+                  fontSize = (15 + fontScaleDelta).sp,
+                  color = EmeraldPrimary,
                   fontWeight = FontWeight.Bold,
                   textAlign = TextAlign.Right
                 ),
@@ -2500,100 +3068,216 @@ fun IslamicBookReaderView(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
-            // Arabic Primary Text in Amiri Classical Naskh Font
-            Surface(
-              shape = RoundedCornerShape(12.dp),
-              color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-              modifier = Modifier.fillMaxWidth()
-            ) {
-              Text(
-                text = buildHighlightedAnnotatedText(renderedChapter.arabicExcerpt, effectiveHighlightQuery),
-                style = MaterialTheme.typography.headlineSmall.copy(
-                  fontFamily = AmiriFontFamily,
-                  fontSize = 22.sp,
-                  lineHeight = 38.sp,
-                  textAlign = TextAlign.Right,
-                  color = MaterialTheme.colorScheme.onSurface
-                ),
+            val showArabic = readerLanguageMode != com.example.data.repository.IslamicDigitalLibraryRepository.BookReaderLanguageMode.URDU_ONLY
+            val showUrdu = readerLanguageMode != com.example.data.repository.IslamicDigitalLibraryRepository.BookReaderLanguageMode.ARABIC_ONLY
+            val showEnglish = readerLanguageMode == com.example.data.repository.IslamicDigitalLibraryRepository.BookReaderLanguageMode.FULL_TRILINGUAL
+            val isSideBySide = readerLanguageMode == com.example.data.repository.IslamicDigitalLibraryRepository.BookReaderLanguageMode.SIDE_BY_SIDE_AR_UR
+
+            if (isSideBySide) {
+              // Side-by-Side Arabic (Right column) + Urdu (Left column)
+              Row(
                 modifier = Modifier
                   .fillMaxWidth()
-                  .padding(14.dp)
-              )
+                  .testTag("side_by_side_ar_ur_container_${renderedChapter.chapterNumber}"),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.Top
+              ) {
+                Surface(
+                  shape = RoundedCornerShape(12.dp),
+                  color = GoldPrimary.copy(alpha = 0.08f),
+                  border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.30f)),
+                  modifier = Modifier.weight(1f)
+                ) {
+                  Column(modifier = Modifier.padding(10.dp)) {
+                    Text(
+                      text = "اردو ترجمہ",
+                      style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = GoldPrimary,
+                        textAlign = TextAlign.Right
+                      ),
+                      modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                      text = buildHighlightedAnnotatedText(
+                        IslamicBooksCatalog.formatUrduForReader(renderedChapter.urduContent),
+                        effectiveHighlightQuery
+                      ),
+                      style = MaterialTheme.typography.bodyLarge.copy(
+                        fontFamily = UrduNastaliqFontFamily,
+                        fontSize = (15 + fontScaleDelta).sp,
+                        lineHeight = (26 + fontScaleDelta).sp,
+                        textAlign = TextAlign.Right,
+                        color = MaterialTheme.colorScheme.onSurface
+                      ),
+                      modifier = Modifier.fillMaxWidth()
+                    )
+                  }
+                }
+
+                Surface(
+                  shape = RoundedCornerShape(12.dp),
+                  color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                  border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.30f)),
+                  modifier = Modifier.weight(1f)
+                ) {
+                  Column(modifier = Modifier.padding(10.dp)) {
+                    Text(
+                      text = "النص العربي الأصلي",
+                      style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = EmeraldPrimary,
+                        textAlign = TextAlign.Right
+                      ),
+                      modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                      text = buildHighlightedAnnotatedText(renderedChapter.arabicExcerpt, effectiveHighlightQuery),
+                      style = MaterialTheme.typography.headlineSmall.copy(
+                        fontFamily = AmiriFontFamily,
+                        fontSize = (20 + fontScaleDelta).sp,
+                        lineHeight = (35 + fontScaleDelta).sp,
+                        textAlign = TextAlign.Right,
+                        color = MaterialTheme.colorScheme.onSurface
+                      ),
+                      modifier = Modifier.fillMaxWidth()
+                    )
+                  }
+                }
+              }
+            } else {
+              // Stacked / Individual Language Display
+              if (showArabic) {
+                Surface(
+                  shape = RoundedCornerShape(12.dp),
+                  color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                  modifier = Modifier.fillMaxWidth()
+                ) {
+                  Text(
+                    text = buildHighlightedAnnotatedText(renderedChapter.arabicExcerpt, effectiveHighlightQuery),
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                      fontFamily = AmiriFontFamily,
+                      fontSize = (22 + fontScaleDelta).sp,
+                      lineHeight = (38 + fontScaleDelta).sp,
+                      textAlign = TextAlign.Right,
+                      color = MaterialTheme.colorScheme.onSurface
+                    ),
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .padding(14.dp)
+                  )
+                }
+              }
+
+              if (showEnglish && renderedChapter.transliteration.isNotBlank()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                  text = "Transliteration:",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = GoldPrimary
+                  ),
+                  modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                  text = buildHighlightedAnnotatedText(renderedChapter.transliteration, effectiveHighlightQuery),
+                  style = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = (13 + fontScaleDelta).sp,
+                    fontStyle = FontStyle.Italic,
+                    color = MaterialTheme.colorScheme.secondary
+                  ),
+                  modifier = Modifier.fillMaxWidth()
+                )
+              }
+
+              if (showUrdu) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Text(
+                  text = "اردو ترجمہ و تشریح",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = GoldPrimary,
+                    textAlign = TextAlign.Right
+                  ),
+                  modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                  text = buildHighlightedAnnotatedText(
+                    IslamicBooksCatalog.formatUrduForReader(renderedChapter.urduContent),
+                    effectiveHighlightQuery
+                  ),
+                  style = MaterialTheme.typography.bodyLarge.copy(
+                    fontFamily = UrduNastaliqFontFamily,
+                    fontSize = (16 + fontScaleDelta).sp,
+                    lineHeight = (27 + fontScaleDelta).sp,
+                    textAlign = TextAlign.Right,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                  ),
+                  modifier = Modifier.fillMaxWidth()
+                )
+              }
+
+              if (showEnglish) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Text(
+                  text = "English Translation & Exposition",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = EmeraldPrimary
+                  ),
+                  modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                  text = buildHighlightedAnnotatedText(
+                    IslamicBooksCatalog.formatBookEnglishContent(renderedChapter.englishContent),
+                    effectiveHighlightQuery
+                  ),
+                  style = MaterialTheme.typography.bodyLarge.copy(
+                    fontSize = (15 + fontScaleDelta).sp,
+                    lineHeight = (23 + fontScaleDelta).sp
+                  ),
+                  modifier = Modifier.fillMaxWidth()
+                )
+              }
             }
 
-            // Transliteration
-            if (renderedChapter.transliteration.isNotBlank()) {
+            // Footnotes Section (if present)
+            if (renderedChapter.footnotes.isNotEmpty()) {
               Spacer(modifier = Modifier.height(10.dp))
-              Text(
-                text = "Transliteration:",
-                style = MaterialTheme.typography.labelSmall.copy(
-                  fontWeight = FontWeight.Bold,
-                  color = GoldPrimary
-                ),
+              Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = GoldPrimary.copy(alpha = 0.10f),
                 modifier = Modifier.fillMaxWidth()
-              )
-              Text(
-                text = buildHighlightedAnnotatedText(renderedChapter.transliteration, effectiveHighlightQuery),
-                style = MaterialTheme.typography.bodyMedium.copy(
-                  fontSize = 13.sp,
-                  fontStyle = FontStyle.Italic,
-                  color = MaterialTheme.colorScheme.secondary
-                ),
-                modifier = Modifier.fillMaxWidth()
-              )
+              ) {
+                Column(
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(10.dp),
+                  verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                  Text(
+                    text = "Footnotes & Critical Apparatus (حواشي وتحقيقات):",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      fontWeight = FontWeight.Bold,
+                      color = EmeraldPrimary
+                    )
+                  )
+                  renderedChapter.footnotes.forEach { fn ->
+                    Text(
+                      text = "• $fn",
+                      style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                      )
+                    )
+                  }
+                }
+              }
             }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // English Translation & Exposition
-            Text(
-              text = "English Translation & Exposition",
-              style = MaterialTheme.typography.labelSmall.copy(
-                fontWeight = FontWeight.Bold,
-                color = EmeraldPrimary
-              ),
-              modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-              text = buildHighlightedAnnotatedText(
-                IslamicBooksCatalog.formatBookEnglishContent(renderedChapter.englishContent),
-                effectiveHighlightQuery
-              ),
-              style = MaterialTheme.typography.bodyLarge.copy(
-                fontSize = 15.sp,
-                lineHeight = 23.sp
-              ),
-              modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Urdu Translation & Exposition
-            Text(
-              text = "اردو ترجمہ و تشریح",
-              style = MaterialTheme.typography.labelSmall.copy(
-                fontWeight = FontWeight.Bold,
-                color = GoldPrimary,
-                textAlign = TextAlign.Right
-              ),
-              modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-              text = buildHighlightedAnnotatedText(
-                IslamicBooksCatalog.formatBookUrduContent(renderedChapter.urduContent),
-                effectiveHighlightQuery
-              ),
-              style = MaterialTheme.typography.bodyLarge.copy(
-                fontFamily = UrduNastaliqFontFamily,
-                fontSize = 15.sp,
-                lineHeight = 25.sp,
-                textAlign = TextAlign.Right,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-              ),
-              modifier = Modifier.fillMaxWidth()
-            )
 
             Spacer(modifier = Modifier.height(14.dp))
 
@@ -2658,15 +3342,17 @@ fun IslamicBookReaderView(
                   modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                      runCatching {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(book.officialSourceUrl)))
-                      }
+                      val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                      clipboard.setPrimaryClip(
+                        ClipData.newPlainText("Book Citation", "${book.titleEnglish} — ${book.author} (${book.numberingSystem})")
+                      )
+                      Toast.makeText(context, "Book citation copied", Toast.LENGTH_SHORT).show()
                     }
                 ) {
-                  Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(13.dp), tint = MaterialTheme.colorScheme.primary)
+                  Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(13.dp), tint = MaterialTheme.colorScheme.primary)
                   Spacer(modifier = Modifier.width(4.dp))
                   Text(
-                    text = "Official Source: ${book.officialSourceUrl}",
+                    text = "Source Edition: ${book.sourceTypeLabel} • ${book.numberingSystem}",
                     style = MaterialTheme.typography.labelSmall.copy(
                       fontSize = 11.sp,
                       fontWeight = FontWeight.Bold,
@@ -2680,45 +3366,178 @@ fun IslamicBookReaderView(
         }
       }
 
-      // Previous Chapter / Next Chapter Buttons
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        OutlinedButton(
-          onClick = {
-            showAllJildsFullText = false
-            if (safeChapterIdx > 0) {
-              onSelectChapter(safeChapterIdx - 1)
-            }
-          },
-          enabled = safeChapterIdx > 0,
-          shape = RoundedCornerShape(10.dp),
-          modifier = Modifier.testTag("prev_chapter_button")
-        ) {
-          Icon(Icons.AutoMirrored.Filled.NavigateBefore, contentDescription = null, modifier = Modifier.size(18.dp))
-          Spacer(modifier = Modifier.width(4.dp))
-          Text("Previous Jild / Ch.", fontSize = 12.sp)
-        }
+      item {
+        val activeJildNum = if (selectedJildFilter > 0) selectedJildFilter else currentChapter.jildNumber
+        val activeJildPos = distinctJildNumbers.indexOf(activeJildNum).coerceAtLeast(0)
 
-        OutlinedButton(
-          onClick = {
-            showAllJildsFullText = false
-            if (safeChapterIdx < book.chapters.lastIndex) {
-              onSelectChapter(safeChapterIdx + 1)
-            }
-          },
-          enabled = safeChapterIdx < book.chapters.lastIndex,
-          shape = RoundedCornerShape(10.dp),
-          modifier = Modifier.testTag("next_chapter_button")
+        Column(
+          modifier = Modifier.fillMaxWidth(),
+          verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-          Text("Next Jild / Ch.", fontSize = 12.sp)
-          Spacer(modifier = Modifier.width(4.dp))
-          Icon(Icons.AutoMirrored.Filled.NavigateNext, contentDescription = null, modifier = Modifier.size(18.dp))
+          // Universal Previous Jild / Next Jild Row
+          if (distinctJildNumbers.size > 1) {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              OutlinedButton(
+                onClick = {
+                  if (activeJildPos > 0) {
+                    val prevJild = distinctJildNumbers[activeJildPos - 1]
+                    selectedJildFilter = prevJild
+                    showAllJildsFullText = false
+                    val firstChIdx = book.chapters.indexOfFirst { it.jildNumber == prevJild }
+                    if (firstChIdx >= 0) onSelectChapter(firstChIdx)
+                  } else if (currentBookUniversalIdx > 0) {
+                    onNavigateBook(-1)
+                  }
+                },
+                enabled = activeJildPos > 0 || currentBookUniversalIdx > 0,
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.testTag("prev_jild_button")
+              ) {
+                Icon(Icons.AutoMirrored.Filled.NavigateBefore, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Prev Jild", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+              }
+
+              Text(
+                text = "Jild $activeJildNum of ${distinctJildNumbers.last()}",
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, color = EmeraldPrimary)
+              )
+
+              OutlinedButton(
+                onClick = {
+                  if (activeJildPos < distinctJildNumbers.lastIndex) {
+                    val nextJild = distinctJildNumbers[activeJildPos + 1]
+                    selectedJildFilter = nextJild
+                    showAllJildsFullText = false
+                    val firstChIdx = book.chapters.indexOfFirst { it.jildNumber == nextJild }
+                    if (firstChIdx >= 0) onSelectChapter(firstChIdx)
+                  } else if (currentBookUniversalIdx >= 0 && currentBookUniversalIdx < allUniversalBooks.lastIndex) {
+                    onNavigateBook(1)
+                  }
+                },
+                enabled = activeJildPos < distinctJildNumbers.lastIndex || (currentBookUniversalIdx >= 0 && currentBookUniversalIdx < allUniversalBooks.lastIndex),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.testTag("next_jild_button")
+              ) {
+                Text("Next Jild", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(Icons.AutoMirrored.Filled.NavigateNext, contentDescription = null, modifier = Modifier.size(16.dp))
+              }
+            }
+          }
+
+          // Universal Previous Chapter / Next Chapter Row (steps across chapters & books)
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            OutlinedButton(
+              onClick = {
+                selectedJildFilter = 0
+                showAllJildsFullText = false
+                if (safeChapterIdx > 0) {
+                  onSelectChapter(safeChapterIdx - 1)
+                } else if (currentBookUniversalIdx > 0) {
+                  onNavigateBook(-1)
+                }
+              },
+              enabled = safeChapterIdx > 0 || currentBookUniversalIdx > 0,
+              shape = RoundedCornerShape(10.dp),
+              modifier = Modifier.testTag("prev_chapter_button")
+            ) {
+              Icon(Icons.AutoMirrored.Filled.NavigateBefore, contentDescription = null, modifier = Modifier.size(18.dp))
+              Spacer(modifier = Modifier.width(4.dp))
+              Text("Previous Jild / Ch.", fontSize = 12.sp)
+            }
+
+            Text(
+              text = "Ch. ${safeChapterIdx + 1} / ${book.chapters.size}",
+              style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
+            )
+
+            OutlinedButton(
+              onClick = {
+                selectedJildFilter = 0
+                showAllJildsFullText = false
+                if (safeChapterIdx < book.chapters.lastIndex) {
+                  onSelectChapter(safeChapterIdx + 1)
+                } else if (currentBookUniversalIdx >= 0 && currentBookUniversalIdx < allUniversalBooks.lastIndex) {
+                  onNavigateBook(1)
+                }
+              },
+              enabled = safeChapterIdx < book.chapters.lastIndex || (currentBookUniversalIdx >= 0 && currentBookUniversalIdx < allUniversalBooks.lastIndex),
+              shape = RoundedCornerShape(10.dp),
+              modifier = Modifier.testTag("next_chapter_button")
+            ) {
+              Text("Next Jild / Ch.", fontSize = 12.sp)
+              Spacer(modifier = Modifier.width(4.dp))
+              Icon(Icons.AutoMirrored.Filled.NavigateNext, contentDescription = null, modifier = Modifier.size(18.dp))
+            }
+          }
+          Spacer(modifier = Modifier.height(24.dp))
         }
       }
-      Spacer(modifier = Modifier.height(24.dp))
+    }
+
+    if (reportTargetPassageLabel != null) {
+      AlertDialog(
+        onDismissRequest = {
+          reportTargetPassageLabel = null
+          reportReasonInput = ""
+        },
+        title = {
+          Text("Report Passage / Source Verification", fontWeight = FontWeight.Bold)
+        },
+        text = {
+          Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+              text = "Reference: $reportTargetPassageLabel",
+              style = MaterialTheme.typography.labelMedium.copy(color = EmeraldPrimary, fontWeight = FontWeight.Bold)
+            )
+            OutlinedTextField(
+              value = reportReasonInput,
+              onValueChange = { reportReasonInput = it },
+              label = { Text("Describe textual, diacritic, or translation issue") },
+              minLines = 3,
+              modifier = Modifier
+                .fillMaxWidth()
+                .testTag("book_reader_report_reason_input")
+            )
+          }
+        },
+        confirmButton = {
+          Button(
+            onClick = {
+              Toast.makeText(
+                context,
+                "Report recorded for $reportTargetPassageLabel",
+                Toast.LENGTH_SHORT
+              ).show()
+              reportTargetPassageLabel = null
+              reportReasonInput = ""
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+            modifier = Modifier.testTag("book_reader_report_submit_btn")
+          ) {
+            Text("Submit Report")
+          }
+        },
+        dismissButton = {
+          TextButton(
+            onClick = {
+              reportTargetPassageLabel = null
+              reportReasonInput = ""
+            }
+          ) {
+            Text("Cancel")
+          }
+        }
+      )
     }
   }
 }

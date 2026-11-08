@@ -310,6 +310,68 @@ object YtEmbedUrlBuilder {
     }
   }
 
+  /**
+   * Returns `true` ONLY when `lecture` has a 1-to-1 verified Archive.org MP4 recording of that
+   * exact lecture (such as Practical Namaz `Cou1OW7jxx4`, `DPvekksFmBs` Surah Al-Fatiha Tafseer,
+   * or an explicit Mas'alah / Quran Class number in the Archive.org collection).
+   * Prevents `ExoPlayer` from ever playing a different-topic or 46-minute Archive.org fallback
+   * video in the background when the user clicks an arbitrary 1h 30m YouTube lecture.
+   */
+  fun isExactVerifiedArchiveMatch(lecture: LectureRecord): Boolean {
+    if (OfflineNamazVideoManager.isPracticalNamazLecture(lecture)) return true
+    if (lecture.youtubeId == "DPvekksFmBs") return true
+    val t = lecture.displayTitle.lowercase()
+    val exactTitleMarkers = listOf(
+      "007_qur",
+      "class no 001", "class no. 001",
+      "class no 002", "class no. 002",
+      "class no 003", "class no. 003",
+      "class no 004", "class no. 004",
+      "class no 005", "class no. 005",
+      "042-qur", "043-qur", "126-qur", "146-qur", "153-qur", "158-qur", "219_qur",
+      "mas'alah 070a", "masalah 070a", "70-a", "070-a",
+      "mas'alah 070b", "masalah 070b", "70-b", "070-b",
+      "mas'alah 050", "masalah 050",
+      "mas'alah 042", "masalah 042",
+      "mas'alah 030", "masalah 030",
+      "mas'alah 084", "masalah 084",
+      "mas'alah 091", "masalah 091",
+      "mas'alah 092", "masalah 092",
+      "mas'alah 111b", "masalah 111b", "111-b",
+      "mas'alah 130", "masalah 130",
+      "mas'alah 001", "masalah 001",
+      "mas'alah 002", "masalah 002",
+      "mas'alah 003", "masalah 003",
+      "mas'alah 071a", "masalah 071a", "71-a",
+      "mas'alah 073", "masalah 073",
+      "mas'alah 082", "masalah 082",
+      "mas'alah 066a", "masalah 066a", "66-a",
+      "mas'alah 061", "masalah 061",
+      "mas'alah 101", "masalah 101",
+      "mas'alah 102", "masalah 102",
+      "mas'alah 048", "masalah 048",
+      "mas'alah 096", "masalah 096",
+      "mas'alah 156", "masalah 156",
+      "mas'alah 157", "masalah 157",
+      "mas'alah 162a", "masalah 162a", "162-a",
+      "mas'alah 159a", "masalah 159a", "159-a"
+    )
+    return exactTitleMarkers.any { marker -> t.contains(marker) }
+  }
+
+  /**
+   * Returns a verified Archive.org MP4 stream URL ONLY when `isExactVerifiedArchiveMatch(lecture)`
+   * is `true`. Returns `null` for all other lectures so an unrelated fallback video is never
+   * substituted when a user taps a thumbnail.
+   */
+  fun resolveVerifiedArchiveMp4OrNull(lecture: LectureRecord): String? {
+    return if (isExactVerifiedArchiveMatch(lecture)) {
+      resolveDirectMp4StreamUrl(lecture).takeIf { it.startsWith("https://") }
+    } else {
+      null
+    }
+  }
+
   fun buildDirectPlayerHtml(lecture: LectureRecord): String {
     val safeId = if (LectureRecord.isValidYoutubeId(lecture.youtubeId)) lecture.youtubeId else "DPvekksFmBs"
     return """
@@ -318,6 +380,9 @@ object YtEmbedUrlBuilder {
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
         <meta name="referrer" content="strict-origin-when-cross-origin">
+        <link rel="preconnect" href="https://www.youtube-nocookie.com">
+        <link rel="preconnect" href="https://www.youtube.com">
+        <link rel="preconnect" href="https://i.ytimg.com">
         <style>
           * { box-sizing: border-box; margin: 0; padding: 0; }
           html, body { width: 100%; height: 100%; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; }
@@ -340,13 +405,15 @@ object YtEmbedUrlBuilder {
               if (!playbackStarted && window.YtPlayerBridge) {
                 window.YtPlayerBridge.onEmbedRestricted(150);
               }
-            }, 4800);
+            }, 8500);
             window.onYouTubeIframeAPIReady = function() {
               try {
                 playerInstance = new YT.Player('ytFrame', {
                   host: 'https://www.youtube-nocookie.com',
                   events: {
                     onReady: function(e) {
+                      playbackStarted = true;
+                      clearTimeout(watchdogTimer);
                       try {
                         var d = e.target.getDuration();
                         if (d && d > 0 && window.YtPlayerBridge) {
@@ -468,7 +535,8 @@ class YtPlayerJsBridge(
   private val onErrorCallback: (Int) -> Unit,
   private val onDurationCallback: (Int) -> Unit,
   private val onEmbedRestrictedCallback: (Int) -> Unit = {},
-  private val onWebViewUnplayableCallback: () -> Unit = {}
+  private val onWebViewUnplayableCallback: () -> Unit = {},
+  private val onDirectStreamExtractedCallback: (String, String, Int) -> Unit = { _, _, _ -> }
 ) {
   @JavascriptInterface
   fun onError(code: Int) {
@@ -490,6 +558,13 @@ class YtPlayerJsBridge(
   @JavascriptInterface
   fun onWebViewUnplayable() {
     onWebViewUnplayableCallback()
+  }
+
+  @JavascriptInterface
+  fun onDirectStreamExtracted(videoId: String, streamUrl: String, durationSec: Int) {
+    if (streamUrl.startsWith("https://")) {
+      onDirectStreamExtractedCallback(videoId, streamUrl, durationSec)
+    }
   }
 }
 
@@ -724,12 +799,21 @@ fun YtEmbedHost(
   }
   var selectedQuality by remember(lecture.youtubeId) {
     mutableStateOf(
-      when (selectedProfile) {
+      VideoPlaybackResumeStore.getStickyQuality(context) ?: when (selectedProfile) {
         PlaybackDataProfile.SAVER -> VideoQualityOption.Q_240P
         PlaybackDataProfile.BALANCED -> VideoQualityOption.Q_360P
         else -> VideoQualityOption.DEFAULT_SAVER_QUALITY
       }
     )
+  }
+  var savedResumeState by remember(lecture.youtubeId) {
+    mutableStateOf(VideoPlaybackResumeStore.getSavedResumeState(context, lecture))
+  }
+  var showResumeBanner by remember(lecture.youtubeId) {
+    mutableStateOf(savedResumeState != null && (savedResumeState?.positionMs ?: 0L) >= 3_000L)
+  }
+  var hasAppliedInitialResumeSeek by remember(lecture.youtubeId) {
+    mutableStateOf(false)
   }
   var selectedPipeline by remember(lecture.youtubeId) {
     mutableStateOf(PipelineOption.VINE_YMUSIC_SDK)
@@ -742,6 +826,9 @@ fun YtEmbedHost(
   }
   var showFullscreenControls by remember(lecture.youtubeId) {
     mutableStateOf(false)
+  }
+  var showInlineOverlayControls by remember(lecture.youtubeId) {
+    mutableStateOf(true)
   }
   var showQualitySelectorDialog by remember {
     mutableStateOf(false)
@@ -783,6 +870,9 @@ fun YtEmbedHost(
   var exoPlayerDirectFailed by remember(lecture.youtubeId) {
     mutableStateOf(false)
   }
+  var webViewSessionStarted by remember(lecture.youtubeId, selectedPipeline, authRefreshCounter) {
+    mutableStateOf(false)
+  }
 
   // Automatically enter full screen when device rotates to landscape, and reset manual-exit guard on portrait
   LaunchedEffect(isDeviceInLandscape) {
@@ -803,12 +893,25 @@ fun YtEmbedHost(
     }
   }
 
+  // Auto-hide inline top-right overlay ("360p" & "Landscape" pills) after 3.5s so they never cover the video;
+  // tapping anywhere on the inline player reveals them again for 3.5s.
+  LaunchedEffect(lecture.youtubeId, showInlineOverlayControls, showQualitySelectorDialog) {
+    if (showInlineOverlayControls && !showQualitySelectorDialog) {
+      delay(3500L)
+      showInlineOverlayControls = false
+    }
+  }
+
   LaunchedEffect(lecture.youtubeId, selectedPipeline, authRefreshCounter) {
     exoPlayerDirectFailed = false
     isYoutubeSignedIn = VideoStreamExtractor.hasYoutubeAuthCookie()
     isExtractingStreams = true
     val resolved = VideoStreamExtractor.extractStreamBundle(lecture, selectedPipeline)
-    streamBundle = resolved
+    // Only replace streamBundle if WebView is not already actively playing this lecture uninterrupted,
+    // or if the user requested an audio-only profile or WebView was blocked.
+    if (!webViewSessionStarted || selectedQuality.isAudioOnly) {
+      streamBundle = resolved
+    }
     isExtractingStreams = false
     if (resolved.extractedDurationSec != null && resolved.extractedDurationSec > 0) {
       dynamicDurationSec = resolved.extractedDurationSec
@@ -993,6 +1096,10 @@ fun YtEmbedHost(
         mutableStateOf(false)
       }
 
+      val isExactArchiveMatch = remember(lecture.youtubeId, lecture.displayTitle) {
+        YtEmbedUrlBuilder.isExactVerifiedArchiveMatch(lecture)
+      }
+
       val isWebViewPipeline =
         selectedPipeline == PipelineOption.PIPELINE_1 || selectedPipeline == PipelineOption.PIPELINE_4
 
@@ -1002,16 +1109,26 @@ fun YtEmbedHost(
           activeResolvedTrack.isDirectYoutubeStream &&
           !exoPlayerDirectFailed
 
-      val hasVerifiedFallbackDirectStream =
-        !exoPlayerDirectFailed &&
-          activeResolvedTrack.videoUrl.startsWith("https://") &&
-          (!isExtractingStreams || webViewBotOrEmbedBlocked || !isYoutubeSignedIn)
+      val hasHardwareRenderNode = VideoStreamExtractor.hasHardwareRenderNode
 
-      // Keep Vine / yMusic SDK as default native player; when Pipeline 1 (or Pipeline 4) is selected,
-      // render AdShieldedBridgeWebView so the user can use the YouTube WebView (including the bot-check Sign-In prompt).
+      // Only use Archive.org MP4 fallback in ExoPlayer when it is an EXACT verified match for this lecture,
+      // when audio-only mode is selected, when WebView is embed-blocked, or when running on a headless cloud emulator.
+      val hasVerifiedFallbackDirectStream =
+        (isExactArchiveMatch || webViewBotOrEmbedBlocked || selectedQuality.isAudioOnly || !hasHardwareRenderNode) &&
+          !exoPlayerDirectFailed &&
+          activeResolvedTrack.videoUrl.startsWith("https://")
+
+      // Mount AdShieldedBridgeWebView immediately at 0ms for YouTube lectures on hardware devices unless a real
+      // direct stream for lecture.youtubeId (or an exact verified Archive.org match) is already ready.
+      // Once AdShieldedBridgeWebView starts playing on a hardware device, never interrupt it mid-playback.
       val useNativeDirectExoPlayer =
         (preferOfflineLocalPlayback && !offlineLocalUri.isNullOrBlank()) ||
-          (!isWebViewPipeline && (hasLiveDirectTrack || hasVerifiedFallbackDirectStream))
+          !hasHardwareRenderNode ||
+          (
+            !isWebViewPipeline &&
+              (!webViewSessionStarted || webViewBotOrEmbedBlocked || selectedQuality.isAudioOnly) &&
+              (hasLiveDirectTrack || hasVerifiedFallbackDirectStream)
+          )
 
       var exoPlayerReady by remember(lecture.youtubeId, selectedPipeline) {
         mutableStateOf(false)
@@ -1037,8 +1154,8 @@ fun YtEmbedHost(
           }
       }
 
-      // Listen for duration updates; if a direct stream fails, switch to verified fallback MP4 or offline file
-      DisposableEffect(exoPlayer, lecture.youtubeId, isPracticalNamaz) {
+      // Listen for duration updates; if a direct stream fails, switch to exact verified fallback MP4 or yMusic WebView
+      DisposableEffect(exoPlayer, lecture.youtubeId, isPracticalNamaz, isExactArchiveMatch) {
         val listener = object : Player.Listener {
           override fun onPlaybackStateChanged(playbackState: Int) {
             if (playbackState == Player.STATE_READY) {
@@ -1076,7 +1193,7 @@ fun YtEmbedHost(
                 targetDurationSec = lecture.durationSec,
                 isPracticalNamazClip = isPracticalNamaz
               )
-            } else if (currentLoadedUrl != fallbackMp4 && fallbackMp4.startsWith("https://")) {
+            } else if (isExactArchiveMatch && currentLoadedUrl != fallbackMp4 && fallbackMp4.startsWith("https://")) {
               currentLoadedUrl = fallbackMp4
               bindResolvedTrackToExoPlayer(
                 context = context,
@@ -1108,8 +1225,10 @@ fun YtEmbedHost(
       val isReadyToBindStream =
         (preferOfflineLocalPlayback && !offlineLocalUri.isNullOrBlank()) ||
           hasLiveDirectTrack ||
-          !isExtractingStreams ||
-          webViewBotOrEmbedBlocked
+          isExactArchiveMatch ||
+          webViewBotOrEmbedBlocked ||
+          selectedQuality.isAudioOnly ||
+          !hasHardwareRenderNode
 
       LaunchedEffect(useNativeDirectExoPlayer, isReadyToBindStream, selectedPipeline, selectedQuality, activeResolvedTrack, preferOfflineLocalPlayback) {
         if (useNativeDirectExoPlayer && isReadyToBindStream) {
@@ -1143,13 +1262,13 @@ fun YtEmbedHost(
         }
       }
 
-      // Buffering watchdog: if a live stream stalls > 7.5s, fall over to the verified direct MP4 stream in ExoPlayer
-      LaunchedEffect(hasLiveDirectTrack, currentLoadedUrl, exoPlayerReady) {
+      // Buffering watchdog: if a live stream stalls > 7.5s, fall over to exact verified MP4 or yMusic WebView
+      LaunchedEffect(hasLiveDirectTrack, currentLoadedUrl, exoPlayerReady, isExactArchiveMatch) {
         if (hasLiveDirectTrack && currentLoadedUrl.isNotEmpty() && !exoPlayerReady) {
           delay(7500L)
           if (!exoPlayerReady && exoPlayer.playbackState != Player.STATE_READY) {
             val fallbackMp4 = YtEmbedUrlBuilder.resolveDirectMp4StreamUrl(lecture)
-            if (currentLoadedUrl != fallbackMp4 && fallbackMp4.startsWith("https://")) {
+            if (isExactArchiveMatch && currentLoadedUrl != fallbackMp4 && fallbackMp4.startsWith("https://")) {
               currentLoadedUrl = fallbackMp4
               bindResolvedTrackToExoPlayer(
                 context = context,
@@ -1189,43 +1308,72 @@ fun YtEmbedHost(
                 .fillMaxSize()
                 .testTag("yt_native_exoplayer_view"),
               factory = { ctx ->
-                PlayerView(ctx).apply {
+                TouchTapInterceptFrameLayout(ctx) {
+                  showInlineOverlayControls = !showInlineOverlayControls
+                }.apply {
                   layoutParams = FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
                   )
-                  useController = true
-                  resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                  setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
-                  keepScreenOn = true
-                  player = exoPlayer
+                  val pv = PlayerView(ctx).apply {
+                    layoutParams = FrameLayout.LayoutParams(
+                      ViewGroup.LayoutParams.MATCH_PARENT,
+                      ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                    useController = true
+                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+                    keepScreenOn = true
+                    player = exoPlayer
+                  }
+                  addView(pv)
                 }
               },
-              update = { pv ->
-                if (pv.player !== exoPlayer) {
+              update = { container ->
+                val pv = container.getChildAt(0) as? PlayerView
+                if (pv != null && pv.player !== exoPlayer) {
                   pv.player = exoPlayer
                 }
               },
-              onRelease = { pv ->
-                if (pv.player === exoPlayer) {
+              onRelease = { container ->
+                val pv = container.getChildAt(0) as? PlayerView
+                if (pv != null && pv.player === exoPlayer) {
                   pv.player = null
                 }
               }
             )
           } else {
+            LaunchedEffect(lecture.youtubeId, selectedPipeline, authRefreshCounter) {
+              webViewSessionStarted = true
+            }
             AdShieldedBridgeWebView(
               lecture = lecture,
               authRefreshKey = authRefreshCounter,
               onDurationDetected = { dynamicDurationSec = it },
+              onUserTouchTap = { showInlineOverlayControls = !showInlineOverlayControls },
               onBotOrEmbedBlocked = {
                 webViewBotOrEmbedBlocked = true
-                exoPlayerDirectFailed = false
+                if (isExactArchiveMatch || VideoStreamExtractor.getCachedDirectBundle(lecture.youtubeId) != null) {
+                  VideoStreamExtractor.getCachedDirectBundle(lecture.youtubeId)?.let { cached ->
+                    streamBundle = cached
+                  }
+                  exoPlayerDirectFailed = false
+                }
               },
               onYoutubeAuthDetected = {
                 if (!isYoutubeSignedIn) {
                   isYoutubeSignedIn = true
                   authRefreshCounter += 1
                 }
+              },
+              onDirectStreamExtracted = { extractedUrl, durSec ->
+                // Cache the extracted direct stream for instant future opens and offline downloads
+                // WITHOUT tearing down the currently playing WebView mid-session!
+                VideoStreamExtractor.registerWebViewExtractedStream(
+                  lecture = lecture,
+                  directStreamUrl = extractedUrl,
+                  durationSec = durSec.takeIf { it > 0 }
+                )
               }
             )
           }
@@ -1266,68 +1414,71 @@ fun YtEmbedHost(
         }
 
         // Top Overlay Controls inside Player: Quality Pill + Landscape Fullscreen Button
-        Row(
-          modifier = Modifier
-            .align(Alignment.TopEnd)
-            .padding(8.dp),
-          horizontalArrangement = Arrangement.spacedBy(6.dp),
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          Surface(
-            shape = RoundedCornerShape(18.dp),
-            color = Color.Black.copy(alpha = 0.72f),
+        // Auto-hides after 3.5s so it never blocks the video player header; tap video to toggle.
+        if (showInlineOverlayControls) {
+          Row(
             modifier = Modifier
-              .clickable { showQualitySelectorDialog = true }
-              .testTag("yt_overlay_quality_button")
+              .align(Alignment.TopEnd)
+              .padding(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            verticalAlignment = Alignment.CenterVertically
           ) {
-            Row(
-              modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-              verticalAlignment = Alignment.CenterVertically
+            Surface(
+              shape = RoundedCornerShape(16.dp),
+              color = Color.Black.copy(alpha = 0.68f),
+              modifier = Modifier
+                .clickable { showQualitySelectorDialog = true }
+                .testTag("yt_overlay_quality_button")
             ) {
-              Icon(
-                imageVector = Icons.Default.HighQuality,
-                contentDescription = "Select Video Quality",
-                tint = GoldPrimary,
-                modifier = Modifier.size(15.dp)
-              )
-              Spacer(modifier = Modifier.width(4.dp))
-              Text(
-                text = selectedQuality.shortLabel,
-                color = Color.White,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold
-              )
-            }
-          }
-
-          Surface(
-            shape = RoundedCornerShape(18.dp),
-            color = Color.Black.copy(alpha = 0.72f),
-            modifier = Modifier
-              .clickable {
-                userManuallyExitedLandscape = false
-                isLandscapeFullscreen = true
-                showFullscreenControls = false
+              Row(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Icon(
+                  imageVector = Icons.Default.HighQuality,
+                  contentDescription = "Select Video Quality",
+                  tint = GoldPrimary,
+                  modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                  text = selectedQuality.shortLabel,
+                  color = Color.White,
+                  fontSize = 10.sp,
+                  fontWeight = FontWeight.Bold
+                )
               }
-              .testTag("yt_overlay_landscape_fullscreen_button")
-          ) {
-            Row(
-              modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-              verticalAlignment = Alignment.CenterVertically
+            }
+
+            Surface(
+              shape = RoundedCornerShape(16.dp),
+              color = Color.Black.copy(alpha = 0.68f),
+              modifier = Modifier
+                .clickable {
+                  userManuallyExitedLandscape = false
+                  isLandscapeFullscreen = true
+                  showFullscreenControls = false
+                }
+                .testTag("yt_overlay_landscape_fullscreen_button")
             ) {
-              Icon(
-                imageVector = Icons.Default.Fullscreen,
-                contentDescription = "Toggle Landscape Fullscreen",
-                tint = Color.White,
-                modifier = Modifier.size(16.dp)
-              )
-              Spacer(modifier = Modifier.width(4.dp))
-              Text(
-                text = "Landscape",
-                color = Color.White,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold
-              )
+              Row(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Icon(
+                  imageVector = Icons.Default.Fullscreen,
+                  contentDescription = "Toggle Landscape Fullscreen",
+                  tint = Color.White,
+                  modifier = Modifier.size(15.dp)
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                  text = "Landscape",
+                  color = Color.White,
+                  fontSize = 10.sp,
+                  fontWeight = FontWeight.Bold
+                )
+              }
             }
           }
         }
@@ -1404,13 +1555,22 @@ fun YtEmbedHost(
                 onUserTouchTap = { showFullscreenControls = !showFullscreenControls },
                 onBotOrEmbedBlocked = {
                   webViewBotOrEmbedBlocked = true
-                  exoPlayerDirectFailed = false
+                  if (isExactArchiveMatch) {
+                    exoPlayerDirectFailed = false
+                  }
                 },
                 onYoutubeAuthDetected = {
                   if (!isYoutubeSignedIn) {
                     isYoutubeSignedIn = true
                     authRefreshCounter += 1
                   }
+                },
+                onDirectStreamExtracted = { extractedUrl, durSec ->
+                  VideoStreamExtractor.registerWebViewExtractedStream(
+                    lecture = lecture,
+                    directStreamUrl = extractedUrl,
+                    durationSec = durSec.takeIf { it > 0 }
+                  )
                 }
               )
             }
@@ -1492,8 +1652,11 @@ fun YtEmbedHost(
       )
     }
 
-    // Quality & Pipeline Modal Dialog
+    // Quality & Pipeline Modal Dialog (enumerates available qualities for this video per Section 4.2)
     if (showQualitySelectorDialog) {
+      val availableQualities = remember(streamBundle) {
+        streamBundle.getAvailableQualities()
+      }
       AlertDialog(
         onDismissRequest = { showQualitySelectorDialog = false },
         title = {
@@ -1505,12 +1668,12 @@ fun YtEmbedHost(
         text = {
           Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-              text = "Default qualities are 240p and 360p (Low Data Saver). Switching quality preserves your playback position.",
+              text = "Showing available stream qualities for this video. Switching quality preserves your playback position and remembers your preference.",
               style = MaterialTheme.typography.bodySmall,
               color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(6.dp))
-            VideoQualityOption.entries.forEach { option ->
+            availableQualities.forEach { option ->
               val isSelected = selectedQuality == option
               Surface(
                 shape = RoundedCornerShape(10.dp),
@@ -1522,8 +1685,10 @@ fun YtEmbedHost(
                 modifier = Modifier
                   .fillMaxWidth()
                   .clickable {
-                    selectedQuality = option
-                    onSelectProfile(option.toPlaybackDataProfile())
+                    val confirmed = VideoPlaybackResumeStore.confirmQualitySelection(streamBundle, option)
+                    selectedQuality = confirmed.activeQuality
+                    VideoPlaybackResumeStore.setStickyQuality(context, confirmed.activeQuality)
+                    onSelectProfile(confirmed.activeQuality.toPlaybackDataProfile())
                     showQualitySelectorDialog = false
                   }
                   .testTag("yt_quality_dialog_option_${option.name}")
@@ -1564,6 +1729,62 @@ fun YtEmbedHost(
     }
 
     Spacer(modifier = Modifier.height(6.dp))
+
+    // Non-intrusive Resume Position Indicator with Restart option (Section 4.3)
+    val currentResume = savedResumeState
+    if (showResumeBanner && currentResume != null && currentResume.positionMs >= 3_000L) {
+      Surface(
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("video_resume_banner"),
+        shape = RoundedCornerShape(10.dp),
+        color = EmeraldPrimary.copy(alpha = 0.12f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.35f))
+      ) {
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Text(
+            text = "Resumed from ${currentResume.formattedTime}",
+            style = MaterialTheme.typography.labelMedium.copy(
+              fontWeight = FontWeight.Bold,
+              color = EmeraldPrimary
+            ),
+            modifier = Modifier.weight(1f)
+          )
+          TextButton(
+            onClick = {
+              VideoPlaybackResumeStore.clearResumePosition(context, lecture.youtubeId)
+              savedResumeState = null
+              showResumeBanner = false
+              sessionWatchedSeconds = 0
+              authRefreshCounter += 1
+            },
+            modifier = Modifier.testTag("video_restart_button")
+          ) {
+            Icon(
+              imageVector = Icons.Default.Refresh,
+              contentDescription = "Restart Video from 0:00",
+              tint = EmeraldPrimary,
+              modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+              text = "Restart",
+              style = MaterialTheme.typography.labelMedium.copy(
+                fontWeight = FontWeight.ExtraBold,
+                color = EmeraldPrimary
+              )
+            )
+          }
+        }
+      }
+      Spacer(modifier = Modifier.height(6.dp))
+    }
 
     // Practical Tareqa of Nimaz Offline & Playback Mode Bar (for Cou1OW7jxx4 / Practical Namaz)
     if (isPracticalNamaz) {
@@ -2086,9 +2307,12 @@ private fun YMusicYoutubeSignInDialog(
             .weight(1f),
           factory = { ctx ->
             WebView(ctx).apply {
+              VideoStreamExtractor.seedYoutubeConsentCookies()
+              if (!VideoStreamExtractor.hasHardwareRenderNode) {
+                setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
+              }
               settings.javaScriptEnabled = true
               settings.domStorageEnabled = true
-              settings.databaseEnabled = true
               settings.userAgentString = DEFAULT_MOBILE_UA
               runCatching {
                 val cm = android.webkit.CookieManager.getInstance()
@@ -2122,7 +2346,8 @@ private fun AdShieldedBridgeWebView(
   onDurationDetected: (Int) -> Unit,
   onUserTouchTap: (() -> Unit)? = null,
   onBotOrEmbedBlocked: () -> Unit = {},
-  onYoutubeAuthDetected: () -> Unit = {}
+  onYoutubeAuthDetected: () -> Unit = {},
+  onDirectStreamExtracted: (String, Int) -> Unit = { _, _ -> }
 ) {
   var webViewInstance: WebView? by remember { mutableStateOf(null) }
   var fallbackStage by remember(lecture.youtubeId, authRefreshKey) { mutableIntStateOf(0) }
@@ -2146,13 +2371,17 @@ private fun AdShieldedBridgeWebView(
     YtEmbedUrlBuilder.buildDirectPlayerHtml(lecture)
   }
 
-  val mobileWatchUrl = remember(lecture.youtubeId) {
-    val safeId = if (LectureRecord.isValidYoutubeId(lecture.youtubeId)) lecture.youtubeId else "DPvekksFmBs"
-    "https://m.youtube.com/watch?v=$safeId&autoplay=1"
+  val safeVideoId = remember(lecture.youtubeId) {
+    if (LectureRecord.isValidYoutubeId(lecture.youtubeId)) lecture.youtubeId else "DPvekksFmBs"
+  }
+
+  val mobileWatchUrl = remember(safeVideoId) {
+    "https://m.youtube.com/watch?v=$safeVideoId&autoplay=1"
   }
 
   // Keep the YouTube "Sign in to confirm you're not a bot" screen and its "Sign in" button interactive inside Pipeline 1 WebView.
-  // If the iframe embed is restricted (fallbackStage == 1), transition to the mobile YouTube watch page for the exact video.
+  // If the iframe embed is restricted (fallbackStage == 1), transition to the mobile YouTube watch page for the exact video
+  // with yMusic Full-Bleed Theater Mode CSS & ytInitialPlayerResponse stream extraction.
   androidx.compose.runtime.key(lecture.youtubeId, rendererRecoveryKey, authRefreshKey) {
     AndroidView(
       modifier = Modifier.fillMaxSize(),
@@ -2168,9 +2397,13 @@ private fun AdShieldedBridgeWebView(
               ViewGroup.LayoutParams.MATCH_PARENT
             )
             VideoStreamExtractor.seedYoutubeConsentCookies()
+            if (!VideoStreamExtractor.hasHardwareRenderNode) {
+              setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
+            }
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
-            settings.databaseEnabled = true
+            settings.mediaPlaybackRequiresUserGesture = false
+            settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
             settings.userAgentString = DEFAULT_MOBILE_UA
             AdShieldConfig.hardenWebViewSettings(this)
             runCatching {
@@ -2189,6 +2422,14 @@ private fun AdShieldedBridgeWebView(
                       loadUrl(mobileWatchUrl)
                     } else {
                       onBotOrEmbedBlocked()
+                    }
+                  }
+                },
+                onDirectStreamExtractedCallback = { vId, streamUrl, durSec ->
+                  if (vId == safeVideoId) {
+                    post {
+                      if (durSec > 0) onDurationDetected(durSec)
+                      onDirectStreamExtracted(streamUrl, durSec)
                     }
                   }
                 }
@@ -2222,6 +2463,79 @@ private fun AdShieldedBridgeWebView(
                 runCatching { android.webkit.CookieManager.getInstance().flush() }
                 if (VideoStreamExtractor.hasYoutubeAuthCookie()) {
                   onYoutubeAuthDetected()
+                }
+                // yMusic WebView Mechanism: extract ytInitialPlayerResponse direct stream & apply Full-Bleed Theater Mode on m.youtube.com/watch
+                if (view != null && url != null && url.contains("youtube.com/watch")) {
+                  val yMusicInjectionJs = """
+                    (function() {
+                      try {
+                        var pr = window.ytInitialPlayerResponse;
+                        if (pr && pr.videoDetails && pr.videoDetails.videoId === '$safeVideoId') {
+                          var len = parseInt(pr.videoDetails.lengthSeconds || '0', 10) || 0;
+                          if (len > 0 && window.YtPlayerBridge) {
+                            window.YtPlayerBridge.onDuration(len);
+                          }
+                          var sd = pr.streamingData;
+                          if (sd) {
+                            var directUrl = '';
+                            if (sd.formats && sd.formats.length > 0) {
+                              for (var i = 0; i < sd.formats.length; i++) {
+                                if (sd.formats[i].url) {
+                                  directUrl = sd.formats[i].url;
+                                  break;
+                                }
+                              }
+                            }
+                            if (!directUrl && sd.hlsManifestUrl) {
+                              directUrl = sd.hlsManifestUrl;
+                            }
+                            if (directUrl && window.YtPlayerBridge && window.YtPlayerBridge.onDirectStreamExtracted) {
+                              window.YtPlayerBridge.onDirectStreamExtracted('$safeVideoId', directUrl, len);
+                            }
+                          }
+                        }
+                        var bodyText = (document.body && document.body.innerText) ? document.body.innerText : '';
+                        var isBotPrompt = bodyText.indexOf("confirm you're not a bot") !== -1 || bodyText.indexOf("Sign in to confirm") !== -1;
+                        if (!isBotPrompt) {
+                          var applyTheaterAndPlay = function() {
+                            var styleEl = document.getElementById('ymusic-theater-style');
+                            if (!styleEl) {
+                              styleEl = document.createElement('style');
+                              styleEl.id = 'ymusic-theater-style';
+                              styleEl.textContent =
+                                'html, body { margin: 0 !important; padding: 0 !important; background: #000 !important; overflow: hidden !important; } ' +
+                                'ytm-mobile-topbar-renderer, header, ytm-watch-metadata, ytm-slim-video-metadata-section-renderer, ' +
+                                'ytm-item-section-renderer, ytm-comments-entry-point-header-renderer, ytm-pivot-bar-renderer, ' +
+                                '.related-chips-slot-wrapper, ytm-companion-ad-renderer { display: none !important; } ' +
+                                '#player-container-id, .player-container, #player, .html5-video-player { ' +
+                                'position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; ' +
+                                'width: 100vw !important; height: 100vh !important; max-height: 100vh !important; z-index: 99999 !important; background: #000 !important; } ' +
+                                'video.html5-main-video { width: 100vw !important; height: 100vh !important; object-fit: contain !important; }';
+                              document.head.appendChild(styleEl);
+                            }
+                            var v = document.querySelector('video');
+                            if (v) {
+                              v.muted = false;
+                              if (v.paused) {
+                                v.play().catch(function(){});
+                              }
+                              if (v.duration && v.duration > 0 && window.YtPlayerBridge) {
+                                window.YtPlayerBridge.onDuration(Math.round(v.duration));
+                              }
+                            }
+                          };
+                          applyTheaterAndPlay();
+                          var ticks = 0;
+                          var theaterInterval = setInterval(function() {
+                            ticks++;
+                            applyTheaterAndPlay();
+                            if (ticks >= 5) clearInterval(theaterInterval);
+                          }, 400);
+                        }
+                      } catch (e) {}
+                    })();
+                  """.trimIndent()
+                  view.evaluateJavascript(yMusicInjectionJs, null)
                 }
               }
             }

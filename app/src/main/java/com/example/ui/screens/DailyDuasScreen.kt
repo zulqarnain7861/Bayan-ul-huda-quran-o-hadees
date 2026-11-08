@@ -93,6 +93,9 @@ import com.example.data.prayer.ReminderItemState
 import com.example.data.prayer.SunnahRemindersUiState
 import com.example.ui.audio.DuaAudioLanguageMode
 import com.example.ui.audio.DuaAudioPlaybackState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import com.example.data.repository.ClassicalLibraryAndBiographiesRepository
 import com.example.ui.theme.AmiriFontFamily
 import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.GoldPrimary
@@ -137,20 +140,37 @@ fun DailyDuasScreen(
   var selectedMasnoonCategory by remember { mutableStateOf<DuaCategory?>(null) }
   var showFavoritesOnly by remember { mutableStateOf(false) }
   var selectedOccasionType by remember { mutableStateOf(SpecialOccasionType.ALL) }
+  var selectedAzkar45CategoryNumber by remember { mutableStateOf<Int?>(null) }
+  var showAll45CategoriesBar by remember { mutableStateOf(true) }
+
+  val allCombinedDuas = remember(context) {
+    // Warm up imported azkar corpus cache and combine all 45 category duas with Masnoon Duas
+    ClassicalLibraryAndBiographiesRepository.loadImportedAzkarCorpus(context)
+    val azkar45Duas = (1..45).flatMap { catNum ->
+      ClassicalLibraryAndBiographiesRepository.getDuasForAzkarCategory45(catNum)
+    }
+    (DailyDuasDataProvider.allDuas + azkar45Duas).distinctBy { it.id }
+  }
 
   val filteredMasnoonDuas = remember(
     searchQuery,
     selectedMasnoonCategory,
+    selectedAzkar45CategoryNumber,
     showFavoritesOnly,
-    remindersState.favoriteDuaIds
+    remindersState.favoriteDuaIds,
+    allCombinedDuas
   ) {
     val query = searchQuery.trim()
-    val categoryCandidates = DailyDuasDataProvider.allDuas.filter { dua ->
-      when {
-        showFavoritesOnly -> remindersState.favoriteDuaIds.contains(dua.id)
-        query.isNotEmpty() && selectedMasnoonCategory == null -> true // Search across all Duas (including Safar, Iftar, etc.) when searching from Masnoon tab
-        selectedMasnoonCategory == null -> dua.category != DuaCategory.SPECIAL_OCCASIONS
-        else -> dua.category == selectedMasnoonCategory
+    val categoryCandidates = if (selectedAzkar45CategoryNumber != null) {
+      ClassicalLibraryAndBiographiesRepository.getDuasForAzkarCategory45(selectedAzkar45CategoryNumber!!)
+    } else {
+      allCombinedDuas.filter { dua ->
+        when {
+          showFavoritesOnly -> remindersState.favoriteDuaIds.contains(dua.id)
+          query.isNotEmpty() && selectedMasnoonCategory == null -> true
+          selectedMasnoonCategory == null -> dua.category != DuaCategory.SPECIAL_OCCASIONS
+          else -> dua.category == selectedMasnoonCategory
+        }
       }
     }
     val rawList = if (query.isEmpty()) {
@@ -485,10 +505,67 @@ fun DailyDuasScreen(
                 }
                 FilterChip(
                   selected = showFavoritesOnly,
-                  onClick = { showFavoritesOnly = !showFavoritesOnly },
+                  onClick = {
+                    showFavoritesOnly = !showFavoritesOnly
+                    selectedAzkar45CategoryNumber = null
+                  },
                   label = { Text("Saved Duas (${remindersState.favoriteDuaIds.size})", fontSize = 11.sp) },
                   modifier = Modifier.testTag("duas_cat_favorites")
                 )
+              }
+
+              Spacer(modifier = Modifier.height(8.dp))
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Text(
+                  text = "45 Searchable Azkar & Hisn al-Muslim Categories:",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = EmeraldPrimary
+                  )
+                )
+                if (selectedAzkar45CategoryNumber != null) {
+                  Text(
+                    text = "Clear Category #${selectedAzkar45CategoryNumber}",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      fontWeight = FontWeight.Bold,
+                      color = MaterialTheme.colorScheme.error
+                    ),
+                    modifier = Modifier.clickable { selectedAzkar45CategoryNumber = null }
+                  )
+                }
+              }
+              Spacer(modifier = Modifier.height(4.dp))
+              Row(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+              ) {
+                ClassicalLibraryAndBiographiesRepository.all45AzkarCategories.forEach { cat45 ->
+                  val isSel45 = selectedAzkar45CategoryNumber == cat45.number
+                  FilterChip(
+                    selected = isSel45,
+                    onClick = {
+                      selectedAzkar45CategoryNumber = if (isSel45) null else cat45.number
+                      showFavoritesOnly = false
+                    },
+                    label = {
+                      Text(
+                        text = "${cat45.number}. ${cat45.titleEnglish} (${cat45.titleArabic})",
+                        fontSize = 10.sp
+                      )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                      selectedContainerColor = EmeraldPrimary,
+                      selectedLabelColor = Color.White
+                    ),
+                    modifier = Modifier.testTag("azkar_45_cat_${cat45.number}")
+                  )
+                }
               }
             } else {
               // Special Occasions Filter Chips

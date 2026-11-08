@@ -1195,8 +1195,8 @@ object ExtendedHadithDataProvider {
         bookName = "Book 1: Sincerity & Repentance (كتاب المقدمات)",
         chapterNumber = 2,
         chapterName = "Chapter on Repentance (باب التوبة)",
-        hadithNumber = 14,
-        inBookReference = "Book 1, Hadith 14 • Riyad as-Salihin #14",
+        hadithNumber = 13,
+        inBookReference = "Book 1, Hadith 13 • Riyad as-Salihin #13",
         arabicText = "وَاللَّهِ إِنِّي لأَسْتَغْفِرُ اللَّهَ وَأَتُوبُ إِلَيْهِ فِي الْيَوْمِ أَكْثَرَ مِنْ سَبْعِينَ مَرَّةً",
         transliteration = "Wallahi inni la-astaghfirullaha wa atubu ilayhi fil-yawmi akthara min sab'ina marrah.",
         englishText = "By Allah, I seek the forgiveness of Allah and turn to Him in repentance more than seventy times every single day.",
@@ -1204,7 +1204,7 @@ object ExtendedHadithDataProvider {
         narrator = "Abu Hurairah (RA)",
         grade = "Sahih",
         gradingScholar = "Imam al-Bukhari (6307) & Imam an-Nawawi",
-        reference = "Riyad as-Salihin 14",
+        reference = "Riyad as-Salihin 13",
         linkedQuranVerses = "24:31, 66:8, 110:3"
       ),
       HadithEntity(
@@ -1214,8 +1214,8 @@ object ExtendedHadithDataProvider {
         bookName = "Book 1: Patience (باب الصبر)",
         chapterNumber = 3,
         chapterName = "Wondrous is the Affair of the Believer",
-        hadithNumber = 27,
-        inBookReference = "Book 1, Hadith 27 • Riyad as-Salihin #27",
+        hadithNumber = 28,
+        inBookReference = "Book 1, Hadith 28 • Riyad as-Salihin #28",
         arabicText = "عَجَبًا لأَمْرِ الْمُؤْمِنِ إِنَّ أَمْرَهُ كُلَّهُ خَيْرٌ، وَلَيْسَ ذَاكَ لأَحَدٍ إِلاَّ لِلْمُؤْمِنِ: إِنْ أَصَابَتْهُ سَرَّاءُ شَكَرَ فَكَانَ خَيْرًا لَهُ، وَإِنْ أَصَابَتْهُ ضَرَّاءُ صَبَرَ فَكَانَ خَيْرًا لَهُ",
         transliteration = "'Ajaban li-amril-mu'min, inna amrahu kullahu khayr, wa laysa dhaka li-ahadin illa lil-mu'min: in asabathu sarra'u shakara fakana khayran lahu, wa in asabathu darra'u sabara fakana khayran lah.",
         englishText = "Wondrous is the affair of the believer, for there is good for him in every matter, and this is for no one except the believer: if prosperity comes to him, he gives thanks and that is good for him; and if adversity befalls him, he is patient and that is good for him.",
@@ -1223,7 +1223,7 @@ object ExtendedHadithDataProvider {
         narrator = "Suhayb ar-Rumi (RA)",
         grade = "Sahih",
         gradingScholar = "Imam Muslim (2999) & Imam an-Nawawi",
-        reference = "Riyad as-Salihin 27",
+        reference = "Riyad as-Salihin 28",
         linkedQuranVerses = "2:153, 14:7, 39:10"
       ),
       HadithEntity(

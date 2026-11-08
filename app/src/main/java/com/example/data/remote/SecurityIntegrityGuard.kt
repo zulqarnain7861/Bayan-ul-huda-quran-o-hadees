@@ -402,13 +402,32 @@ object SecurityIntegrityGuard {
   }
 
   /**
-   * Redacts sensitive query parameters (such as apiKey, key, token) from URLs before logging.
+   * Redacts sensitive query parameters (such as apiKey, key, token, secret, authorization)
+   * and any raw bcrypt/token credentials (e.g. $2y$10$...) from URLs and diagnostic messages before logging.
    */
   fun redactSensitiveUrl(url: String): String {
-    return url.replace(
-      Regex("([?&](?:apiKey|api_key|key|token)=)[^&#\\s]+", RegexOption.IGNORE_CASE),
-      "$1[REDACTED]"
-    )
+    return redactSecrets(url)
+  }
+
+  /**
+   * Scrubs API keys, query credentials (`apiKey=...`), bcrypt hashes (`$2y$10$...`),
+   * and Bearer/header secrets from arbitrary strings, logs, or exception messages.
+   */
+  fun redactSecrets(raw: String): String {
+    if (raw.isEmpty()) return ""
+    return raw
+      .replace(
+        Regex("([?&](?:apiKey|api_key|key|token|access_token|secret|auth)=)[^&#\\s\"']+", RegexOption.IGNORE_CASE),
+        "$1[REDACTED]"
+      )
+      .replace(
+        Regex("\\$2[aby]\\$\\d{2}\\$[./A-Za-z0-9]{20,}"),
+        "[REDACTED_API_KEY]"
+      )
+      .replace(
+        Regex("(?i)(Bearer\\s+|X-API-Key\\s*:\\s*|Authorization\\s*:\\s*)[^\\s,;\"']+"),
+        "$1[REDACTED]"
+      )
   }
 
   /**

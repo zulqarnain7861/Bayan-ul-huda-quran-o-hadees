@@ -120,9 +120,11 @@ import com.example.data.local.entities.AyahEntity
 import com.example.data.local.entities.BookmarkEntity
 import com.example.data.local.entities.HadithEntity
 import com.example.data.local.entities.SurahEntity
+import com.example.data.repository.QuranTajweedEngineRepository
 import com.example.data.repository.TafsirRepository
 import com.example.ui.components.AyahNumberBadge
 import com.example.ui.components.BismillahHeader
+import com.example.ui.components.QuranTajweedEngineDialog
 import com.example.ui.components.RevelationTypeBadge
 import com.example.ui.components.SahihGradeBadge
 import com.example.ui.theme.AmiriFontFamily
@@ -178,12 +180,18 @@ fun QuranScreen(
 
   // Independent reciter choices for each tradition (Initialized from persisted config)
   var sunniSelectedReciter by remember(prayerConfig.sunniQuranReciterId) {
-    mutableStateOf(com.example.ui.audio.availableReciters.find { it.id == prayerConfig.sunniQuranReciterId } 
-      ?: com.example.ui.audio.availableReciters.first { it.tradition == "SUNNI" })
+    mutableStateOf(
+      com.example.ui.audio.availableReciters.find { it.id == prayerConfig.sunniQuranReciterId }
+        ?: com.example.ui.audio.availableReciters.firstOrNull { it.tradition.equals("SUNNI", ignoreCase = true) }
+        ?: com.example.ui.audio.availableReciters.first()
+    )
   }
   var shiaSelectedReciter by remember(prayerConfig.shiaQuranReciterId) {
-    mutableStateOf(com.example.ui.audio.availableReciters.find { it.id == prayerConfig.shiaQuranReciterId } 
-      ?: com.example.ui.audio.availableReciters.first { it.tradition == "SHIA" })
+    mutableStateOf(
+      com.example.ui.audio.availableReciters.find { it.id == prayerConfig.shiaQuranReciterId }
+        ?: com.example.ui.audio.availableReciters.firstOrNull { it.tradition.equals("SHIA", ignoreCase = true) }
+        ?: com.example.ui.audio.availableReciters.first()
+    )
   }
 
   val activeReciter = if (selectedTradition == "SUNNI") sunniSelectedReciter else shiaSelectedReciter
@@ -335,6 +343,7 @@ fun SurahCatalogView(
   val appStrings = com.example.ui.localization.LocalAppStrings.current
   var selectedTabIndex by remember { mutableIntStateOf(0) }
   var searchQuery by remember { mutableStateOf("") }
+  var showCatalogTajweedEngine by remember { mutableStateOf(false) }
 
   val filteredSurahs = remember(surahs, searchQuery) {
     if (searchQuery.isBlank()) {
@@ -351,18 +360,19 @@ fun SurahCatalogView(
   }
 
   Column(modifier = modifier.fillMaxSize()) {
+    val safeCatalogTabIndex = selectedTabIndex.coerceIn(0, 1)
     TabRow(
-      selectedTabIndex = selectedTabIndex,
+      selectedTabIndex = safeCatalogTabIndex,
       containerColor = MaterialTheme.colorScheme.surface,
       contentColor = MaterialTheme.colorScheme.primary
     ) {
       Tab(
-        selected = selectedTabIndex == 0,
+        selected = safeCatalogTabIndex == 0,
         onClick = { selectedTabIndex = 0 },
         text = { Text(appStrings.all114SurahsTab, fontWeight = FontWeight.Bold) }
       )
       Tab(
-        selected = selectedTabIndex == 1,
+        selected = safeCatalogTabIndex == 1,
         onClick = { selectedTabIndex = 1 },
         text = { Text(appStrings.juzIndexTab, fontWeight = FontWeight.Bold) }
       )
@@ -450,6 +460,19 @@ fun SurahCatalogView(
           color = EmeraldPrimary
         )
       }
+      OutlinedButton(
+        onClick = { showCatalogTajweedEngine = true },
+        border = BorderStroke(1.dp, GoldPrimary),
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+        modifier = Modifier.testTag("open_tajweed_engine_catalog_button")
+      ) {
+        Text(
+          text = "Tajweed Engine",
+          fontSize = 11.sp,
+          fontWeight = FontWeight.Bold,
+          color = EmeraldPrimary
+        )
+      }
       Spacer(modifier = Modifier.weight(1f))
       Button(
         onClick = onOpenOfflineDownloads,
@@ -493,7 +516,9 @@ fun SurahCatalogView(
         verticalArrangement = Arrangement.spacedBy(8.dp)
       ) {
         items((1..30).toList(), key = { it }) { juzNumber ->
-          val startingSurah = surahs.find { it.juzStart == juzNumber } ?: surahs.first()
+          val startingSurah = surahs.find { it.juzStart == juzNumber }
+            ?: surahs.firstOrNull()
+            ?: com.example.data.local.InitialDataLoader.getAll114Surahs().first { it.juzStart == juzNumber || it.number == 1 }
           Surface(
             modifier = Modifier
               .fillMaxWidth()
@@ -543,6 +568,23 @@ fun SurahCatalogView(
         }
       }
     }
+  }
+
+  if (showCatalogTajweedEngine) {
+    QuranTajweedEngineDialog(
+      initialSurahNumber = prayerConfig.lastReadSurahNumber.coerceIn(1, 114),
+      initialAyahNumber = prayerConfig.lastReadVerseNumber.coerceAtLeast(1),
+      selectedRuleFilterId = null,
+      onSelectRuleFilter = {},
+      onNavigateToSurahAyah = { sNum, aNum ->
+        showCatalogTajweedEngine = false
+        val targetSurah = surahs.firstOrNull { it.number == sNum }
+        if (targetSurah != null) {
+          onResumeReading(sNum, aNum, selectedTradition)
+        }
+      },
+      onDismiss = { showCatalogTajweedEngine = false }
+    )
   }
 }
 
@@ -736,28 +778,76 @@ fun SurahReaderView(
   var showTranslationSheet by remember { mutableStateOf(false) }
   var selectedAyahForTafsir by remember { mutableStateOf<AyahEntity?>(null) }
   var selectedAyahForTajweed by remember { mutableStateOf<AyahEntity?>(null) }
+  // Optional Tajweed Engine: defaults to false so normal offline Quran reading is instantaneous & crash-free
+  var isTajweedColoringEnabled by remember { mutableStateOf(false) }
+  var selectedTajweedRuleFilter by remember { mutableStateOf<String?>(null) }
+  var showTajweedEngineDialog by remember { mutableStateOf(false) }
+  var tajweedEngineInspectAyah by remember(surah.number) { mutableIntStateOf(1) }
+  var surahTajweedRecords by remember(surah.number) {
+    mutableStateOf<Map<Int, QuranTajweedEngineRepository.AyahTajweedRecord>>(emptyMap())
+  }
+  var tajweedRulesMap by remember {
+    mutableStateOf<Map<String, QuranTajweedEngineRepository.TajweedRuleCategory>>(emptyMap())
+  }
+  var tajweedFallbackNotice by remember(surah.number) { mutableStateOf<String?>(null) }
+
+  LaunchedEffect(surah.number, isTajweedColoringEnabled) {
+    if (isTajweedColoringEnabled) {
+      val requestedSurah = surah.number
+      val loadedPair = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        runCatching {
+          val rules = QuranTajweedEngineRepository.getTajweedRules(context).associateBy { it.id }
+          val records = QuranTajweedEngineRepository.getSurahTajweedRecords(
+            context = context,
+            surah = requestedSurah,
+            editionId = QuranTajweedEngineRepository.CANONICAL_TAJWEED_EDITION_ID
+          ).associateBy { it.ayah }
+          rules to records
+        }.getOrNull()
+      }
+      if (requestedSurah == surah.number) {
+        if (loadedPair != null && loadedPair.second.isNotEmpty()) {
+          tajweedRulesMap = loadedPair.first
+          surahTajweedRecords = loadedPair.second
+          tajweedFallbackNotice = null
+        } else {
+          tajweedFallbackNotice = "Tajweed annotations unavailable for Surah ${surah.number}; showing plain Uthmani text."
+        }
+      }
+    } else {
+      tajweedFallbackNotice = null
+    }
+  }
+
   var focusedVerseIndex by remember(surah.number) {
     mutableIntStateOf(((highlightedVerseNumber ?: 1) - 1).coerceAtLeast(0))
   }
   var verseJumpText by remember(surah.number) { mutableStateOf("") }
 
-  // Resume reading: scroll to highlightedVerseNumber when Surah opens and ayahs are loaded
-  LaunchedEffect(surah.number, highlightedVerseNumber, ayahs.isNotEmpty()) {
-    if (highlightedVerseNumber != null && highlightedVerseNumber > 1 && ayahs.isNotEmpty()) {
-      val idx = ayahs.indexOfFirst { it.verseNumber == highlightedVerseNumber }
-      if (idx >= 0) {
-        focusedVerseIndex = idx
-        val headerOffset = if (surah.number != 9 && surah.number != 1) 1 else 0
-        runCatching {
-          listState.scrollToItem((idx + headerOffset).coerceAtLeast(0))
+  var hasInitialHighlightScrolled by remember(surah.number) { mutableStateOf(false) }
+  var lastAutoScrolledAyah by remember(surah.number) { mutableIntStateOf(-1) }
+
+  // Resume reading: scroll to highlightedVerseNumber ONLY ONCE when Surah opens and ayahs are loaded
+  LaunchedEffect(surah.number, ayahs.isNotEmpty()) {
+    if (!hasInitialHighlightScrolled && ayahs.isNotEmpty()) {
+      hasInitialHighlightScrolled = true
+      if (highlightedVerseNumber != null && highlightedVerseNumber > 1) {
+        val idx = ayahs.indexOfFirst { it.verseNumber == highlightedVerseNumber }
+        if (idx >= 0) {
+          focusedVerseIndex = idx
+          val headerOffset = if (surah.number != 9) 1 else 0
+          runCatching {
+            listState.scrollToItem((idx + headerOffset).coerceAtLeast(0))
+          }
         }
       }
     }
   }
 
-  // Save reading progress automatically when user scrolls through verses
+  // Save reading progress automatically when user manually scrolls through verses (disabled while audio is actively playing this Surah to prevent scroll-jump feedback loops)
   LaunchedEffect(listState.firstVisibleItemIndex, ayahs.size, surah.number, selectedTradition) {
-    if (ayahs.isNotEmpty()) {
+    val isAudioDrivingThisSurah = audioState.isPlaying && audioState.surahNumber == surah.number
+    if (ayahs.isNotEmpty() && !isAudioDrivingThisSurah) {
       val headerOffset = if (surah.number != 9 && surah.number != 1) 1 else 0
       val rawIndex = listState.firstVisibleItemIndex
       if (rawIndex >= headerOffset) {
@@ -769,13 +859,15 @@ fun SurahReaderView(
     }
   }
 
-  // Auto-scroll to the active Ayah as full-Surah playback advances from Ayah to Ayah
+  // Smooth auto-scroll to the active Ayah as full-Surah playback advances from Ayah to Ayah
   LaunchedEffect(audioState.surahNumber, audioState.ayahNumber, audioState.isPlaying) {
-    if (audioState.isPlaying && audioState.surahNumber == surah.number && audioState.ayahNumber != null) {
-      val idx = ayahs.indexOfFirst { it.verseNumber == audioState.ayahNumber }
-      if (idx >= 0) {
+    val activeAyah = audioState.ayahNumber
+    if (audioState.isPlaying && audioState.surahNumber == surah.number && activeAyah != null) {
+      val idx = ayahs.indexOfFirst { it.verseNumber == activeAyah }
+      if (idx >= 0 && lastAutoScrolledAyah != activeAyah) {
+        lastAutoScrolledAyah = activeAyah
         focusedVerseIndex = idx
-        onSaveReadingProgress(surah, audioState.ayahNumber, selectedTradition)
+        onSaveReadingProgress(surah, activeAyah, selectedTradition)
         val headerOffset = if (surah.number != 9 && surah.number != 1) 1 else 0
         runCatching {
           listState.animateScrollToItem((idx + headerOffset).coerceAtLeast(0))
@@ -878,6 +970,45 @@ fun SurahReaderView(
               horizontalArrangement = Arrangement.spacedBy(6.dp),
               verticalAlignment = Alignment.CenterVertically
             ) {
+              item {
+                FilterChip(
+                  selected = isTajweedColoringEnabled,
+                  onClick = { isTajweedColoringEnabled = !isTajweedColoringEnabled },
+                  label = {
+                    Text(
+                      text = if (selectedTajweedRuleFilter != null) "Tajweed: $selectedTajweedRuleFilter" else "17-Rule Tajweed Colors",
+                      fontSize = 11.sp,
+                      fontWeight = FontWeight.Bold
+                    )
+                  },
+                  colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = EmeraldPrimary,
+                    selectedLabelColor = Color.White
+                  ),
+                  modifier = Modifier.testTag("toggle_tajweed_colors_chip")
+                )
+              }
+              item {
+                FilterChip(
+                  selected = showTajweedEngineDialog,
+                  onClick = {
+                    tajweedEngineInspectAyah = ayahs.getOrNull(focusedVerseIndex)?.verseNumber ?: 1
+                    showTajweedEngineDialog = true
+                  },
+                  label = {
+                    Text(
+                      text = "Tajweed Engine • Words & Roots • 57 Lessons • 7 Qiraat",
+                      fontSize = 11.sp,
+                      fontWeight = FontWeight.Bold
+                    )
+                  },
+                  colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = GoldPrimary.copy(alpha = 0.25f),
+                    selectedLabelColor = EmeraldPrimary
+                  ),
+                  modifier = Modifier.testTag("open_tajweed_engine_dialog_chip")
+                )
+              }
               item {
                 FilterChip(
                   selected = showTransliteration,
@@ -1037,7 +1168,7 @@ fun SurahReaderView(
                     ayahs.getOrNull(focusedVerseIndex)?.let {
                       onSaveReadingProgress(surah, it.verseNumber, selectedTradition)
                     }
-                    val headerOffset = if (surah.number != 9 && surah.number != 1) 1 else 0
+                    val headerOffset = if (surah.number != 9) 1 else 0
                     coroutineScope.launch {
                       listState.animateScrollToItem(focusedVerseIndex + headerOffset)
                     }
@@ -1048,31 +1179,59 @@ fun SurahReaderView(
                 ) {
                   Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(14.dp))
                   Spacer(modifier = Modifier.width(4.dp))
-                  Text("Prev Ayah", fontSize = 11.sp)
+                  Text("Prev Ayah", fontSize = 11.sp, maxLines = 1)
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                  OutlinedTextField(
-                    value = verseJumpText,
-                    onValueChange = { input ->
-                      verseJumpText = input.filter { it.isDigit() }
-                      val vNum = verseJumpText.toIntOrNull()
-                      if (vNum != null && vNum in 1..ayahs.size) {
-                        focusedVerseIndex = vNum - 1
-                        onSaveReadingProgress(surah, vNum, selectedTradition)
-                        val headerOffset = if (surah.number != 9 && surah.number != 1) 1 else 0
-                        coroutineScope.launch {
-                          listState.animateScrollToItem(focusedVerseIndex + headerOffset)
-                        }
-                      }
-                    },
-                    placeholder = { Text("Ayah # (1-${ayahs.size})", fontSize = 11.sp) },
-                    singleLine = true,
+                  Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
                     modifier = Modifier
                       .width(128.dp)
-                      .height(46.dp)
-                      .testTag("jump_to_ayah_input")
-                  )
+                      .height(36.dp)
+                  ) {
+                    Box(
+                      contentAlignment = Alignment.Center,
+                      modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 8.dp)
+                    ) {
+                      if (verseJumpText.isEmpty()) {
+                        Text(
+                          text = "Ayah # (1-${ayahs.size})",
+                          fontSize = 11.sp,
+                          maxLines = 1,
+                          color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                      }
+                      androidx.compose.foundation.text.BasicTextField(
+                        value = verseJumpText,
+                        onValueChange = { input ->
+                          verseJumpText = input.filter { it.isDigit() }
+                          val vNum = verseJumpText.toIntOrNull()
+                          if (vNum != null && vNum in 1..ayahs.size) {
+                            focusedVerseIndex = vNum - 1
+                            onSaveReadingProgress(surah, vNum, selectedTradition)
+                            val headerOffset = if (surah.number != 9) 1 else 0
+                            coroutineScope.launch {
+                              listState.animateScrollToItem(focusedVerseIndex + headerOffset)
+                            }
+                          }
+                        },
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodySmall.copy(
+                          fontSize = 12.sp,
+                          fontWeight = FontWeight.SemiBold,
+                          color = MaterialTheme.colorScheme.onSurface,
+                          textAlign = TextAlign.Center
+                        ),
+                        modifier = Modifier
+                          .fillMaxWidth()
+                          .testTag("jump_to_ayah_input")
+                      )
+                    }
+                  }
                 }
 
                 OutlinedButton(
@@ -1081,7 +1240,7 @@ fun SurahReaderView(
                     ayahs.getOrNull(focusedVerseIndex)?.let {
                       onSaveReadingProgress(surah, it.verseNumber, selectedTradition)
                     }
-                    val headerOffset = if (surah.number != 9 && surah.number != 1) 1 else 0
+                    val headerOffset = if (surah.number != 9) 1 else 0
                     coroutineScope.launch {
                       listState.animateScrollToItem(focusedVerseIndex + headerOffset)
                     }
@@ -1266,9 +1425,44 @@ fun SurahReaderView(
       ),
       verticalArrangement = Arrangement.spacedBy(verticalItemSpacing)
     ) {
-      if (surah.number != 9 && surah.number != 1) {
-        item {
-          BismillahHeader()
+      if (tajweedFallbackNotice != null) {
+        item(key = "tajweed_fallback_notice_${surah.number}") {
+          Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = GoldPrimary.copy(alpha = 0.14f),
+            border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.5f)),
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("tajweed_fallback_notice_banner")
+          ) {
+            Text(
+              text = tajweedFallbackNotice.orEmpty(),
+              style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+              ),
+              modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+            )
+          }
+        }
+      }
+
+      if (surah.number != 9) {
+        item(key = "bismillah_starting_verse_item_${surah.number}") {
+          BismillahHeader(
+            surahNumber = surah.number,
+            audioState = audioState,
+            currentReciter = currentReciter,
+            isTajweedEnabled = isTajweedColoringEnabled,
+            tajweedRulesMap = tajweedRulesMap,
+            selectedTajweedRuleFilter = selectedTajweedRuleFilter,
+            onPlayBasmala = {
+              val firstVerse = ayahs.firstOrNull()
+              if (firstVerse != null) {
+                onPlayAyahRecitation(firstVerse, surah.nameEnglish)
+              }
+            }
+          )
         }
       }
 
@@ -1347,6 +1541,16 @@ fun SurahReaderView(
               }
           }
 
+          val kashmiriVerseText = remember(translationsByKeyAndVerse, ayah.surahNumber, ayah.verseNumber) {
+            translationsByKeyAndVerse["qul.ks.273" to ayah.verseNumber]
+              ?: QulOfflineTranslationManager.getOfflineVerseText(
+                context = context,
+                editionKey = "qul.ks.273",
+                surahNumber = ayah.surahNumber,
+                verseNumber = ayah.verseNumber
+              )
+          }
+
           AyahCardItem(
             ayah = ayah,
             surahName = surah.nameEnglish,
@@ -1378,12 +1582,17 @@ fun SurahReaderView(
             isReadingMode = localReadingMode,
             englishTranslationOverride = enOverride,
             urduTranslationOverride = urOverride,
+            kashmiriTranslationText = kashmiriVerseText,
             activeQulEdition = activeQulSpec,
             qulTranslationText = qulVerseText,
             selectedVerseTranslations = multiTranslationsForVerse,
             audioState = audioState,
             currentReciter = currentReciter,
-            selectedTradition = selectedTradition
+            selectedTradition = selectedTradition,
+            isTajweedColoringEnabled = isTajweedColoringEnabled,
+            selectedTajweedRuleFilter = selectedTajweedRuleFilter,
+            ayahTajweedRecord = surahTajweedRecords[ayah.verseNumber],
+            tajweedRulesMap = tajweedRulesMap
           )
         }
 
@@ -1528,6 +1737,29 @@ fun SurahReaderView(
         onToggleTranslationKey(key)
       },
       onDismiss = { showTranslationSheet = false }
+    )
+  }
+
+  if (showTajweedEngineDialog) {
+    QuranTajweedEngineDialog(
+      initialSurahNumber = surah.number,
+      initialAyahNumber = tajweedEngineInspectAyah,
+      selectedRuleFilterId = selectedTajweedRuleFilter,
+      onSelectRuleFilter = { ruleId ->
+        selectedTajweedRuleFilter = ruleId
+        isTajweedColoringEnabled = true
+      },
+      onNavigateToSurahAyah = { targetSurah, targetAyah ->
+        if (targetSurah == surah.number) {
+          val idx = (targetAyah - 1).coerceIn(0, (ayahs.size - 1).coerceAtLeast(0))
+          focusedVerseIndex = idx
+          val headerOffset = if (surah.number != 9 && surah.number != 1) 1 else 0
+          coroutineScope.launch {
+            listState.animateScrollToItem(idx + headerOffset)
+          }
+        }
+      },
+      onDismiss = { showTajweedEngineDialog = false }
     )
   }
 }
@@ -2466,14 +2698,20 @@ fun AyahCardItem(
   isReadingMode: Boolean = false,
   englishTranslationOverride: String? = null,
   urduTranslationOverride: String? = null,
+  kashmiriTranslationText: String? = null,
   activeQulEdition: QulTranslationCatalog.QulTranslationEdition? = null,
   qulTranslationText: String? = null,
   selectedVerseTranslations: List<RenderedVerseTranslation> = emptyList(),
   audioState: com.example.ui.audio.AudioState = com.example.ui.audio.AudioState(),
   currentReciter: com.example.ui.audio.Reciter = com.example.ui.audio.availableReciters.first(),
   selectedTradition: String = "SUNNI",
+  isTajweedColoringEnabled: Boolean = false,
+  selectedTajweedRuleFilter: String? = null,
+  ayahTajweedRecord: QuranTajweedEngineRepository.AyahTajweedRecord? = null,
+  tajweedRulesMap: Map<String, QuranTajweedEngineRepository.TajweedRuleCategory> = emptyMap(),
   modifier: Modifier = Modifier
 ) {
+  val context = LocalContext.current
   val lineHeightMultiplier = if (isReadingMode) 2.45f else 2.0f
   val cardHorizontalPadding = if (isReadingMode) 16.dp else 10.dp
   val cardVerticalPadding = if (isReadingMode) 20.dp else 8.dp
@@ -2495,8 +2733,8 @@ fun AyahCardItem(
     cleanVerseArabic.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
   }
 
-  // Compute active word index during playback based on character-weighted timing (resets when reciter or surah changes)
-  val activeWordIndex = remember(
+  // Compute Basmala-aware, speed-normalized, repeat/backtrack-safe word index from currentPositionMs
+  val wordSyncResult = remember(
     ayah.surahNumber,
     ayah.verseNumber,
     audioState.reciter.id,
@@ -2504,31 +2742,34 @@ fun AyahCardItem(
     audioState.ayahNumber,
     isThisAyahPlaying,
     audioState.isPlaying,
+    audioState.isBuffering,
     audioState.currentPositionMs,
     audioState.durationMs,
+    audioState.isRecitingBasmalaPrefix,
+    audioState.isAudioAssistedRefinementEnabled,
     arabicWords
   ) {
     if (!isThisAyahPlaying || arabicWords.isEmpty()) {
-      -1
-    } else if (!audioState.isPlaying) {
-      0
+      null
     } else {
-      val duration = audioState.durationMs.coerceAtLeast(1)
-      val progress = (audioState.currentPositionMs.toFloat() / duration.toFloat()).coerceIn(0f, 0.999f)
-      val weights = arabicWords.map { it.length.coerceAtLeast(2).toFloat() }
-      val totalWeight = weights.sum().coerceAtLeast(1f)
-      val targetWeight = progress * totalWeight
-      var cumulative = 0f
-      var foundIdx = arabicWords.lastIndex
-      for (idx in weights.indices) {
-        cumulative += weights[idx]
-        if (targetWeight <= cumulative) {
-          foundIdx = idx
-          break
-        }
-      }
-      foundIdx
+      com.example.ui.audio.TajweedAudioSyncEngine.computeSyncedWordIndex(
+        context = context,
+        reciter = audioState.reciter,
+        surahNumber = ayah.surahNumber,
+        ayahNumber = ayah.verseNumber,
+        arabicWords = arabicWords,
+        currentPositionMs = audioState.currentPositionMs.toLong(),
+        durationMs = audioState.durationMs.toLong().coerceAtLeast(1000L),
+        isBuffering = audioState.isBuffering
+      )
     }
+  }
+
+  val activeWordIndex = when {
+    !isThisAyahPlaying || arabicWords.isEmpty() -> -1
+    wordSyncResult?.isRecitingBasmalaPrefix == true -> -1
+    !audioState.isPlaying -> 0
+    else -> (wordSyncResult?.activeAyahWordIndex ?: 0).coerceIn(0, arabicWords.lastIndex)
   }
 
   ElevatedCard(
@@ -2572,10 +2813,11 @@ fun AyahCardItem(
       ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
           AyahNumberBadge(verseNumber = ayah.verseNumber)
-          if (!isReadingMode) {
+          if (!isReadingMode && !isThisAyahPlaying) {
             Spacer(modifier = Modifier.width(6.dp))
             Surface(
               modifier = Modifier
+                .weight(1f, fill = false)
                 .clickable(onClick = onOpenTafsir)
                 .testTag("ayah_tafsir_button_${ayah.surahNumber}_${ayah.verseNumber}"),
               shape = RoundedCornerShape(8.dp),
@@ -2594,10 +2836,12 @@ fun AyahCardItem(
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                   text = if (selectedTradition.equals("SHIA", ignoreCase = true)) {
-                    "8 Shia Tafsirs & Hadith"
+                    "8 Shia Tafsirs"
                   } else {
-                    "14 Sunni Tafsirs & Hadith"
+                    "14 Sunni Tafsirs"
                   },
+                  maxLines = 1,
+                  overflow = TextOverflow.Ellipsis,
                   style = MaterialTheme.typography.labelSmall.copy(
                     fontWeight = FontWeight.Bold,
                     color = EmeraldPrimary,
@@ -2616,6 +2860,8 @@ fun AyahCardItem(
             ) {
               Text(
                 text = "● Word ${(activeWordIndex + 1).coerceIn(1, arabicWords.size)}/${arabicWords.size}",
+                maxLines = 1,
+                softWrap = false,
                 style = MaterialTheme.typography.labelSmall.copy(
                   fontSize = 10.sp,
                   fontWeight = FontWeight.Bold,
@@ -2680,10 +2926,34 @@ fun AyahCardItem(
 
       Spacer(modifier = Modifier.height(if (isReadingMode) 20.dp else 14.dp))
 
-      // Arabic Uthmani Text with Word-by-Word Green Highlighting while playing
+      // Arabic Uthmani Text with Crash-Proof 17-Rule Tajweed Highlighting AND Word-by-Word Audio Sync
       val baseTextColor = MaterialTheme.colorScheme.onSurface
-      val annotatedArabicText = remember(cleanVerseArabic, arabicWords, isThisAyahPlaying, activeWordIndex, baseTextColor) {
-        if (!isThisAyahPlaying || activeWordIndex < 0 || arabicWords.isEmpty()) {
+      val annotatedArabicText = remember(
+        ayah.surahNumber,
+        ayah.verseNumber,
+        cleanVerseArabic,
+        arabicWords,
+        isThisAyahPlaying,
+        activeWordIndex,
+        baseTextColor,
+        isTajweedColoringEnabled,
+        selectedTajweedRuleFilter,
+        ayahTajweedRecord,
+        tajweedRulesMap
+      ) {
+        if (isTajweedColoringEnabled && ayahTajweedRecord != null && tajweedRulesMap.isNotEmpty()) {
+          QuranTajweedEngineRepository.buildSafeTajweedAnnotatedString(
+            record = ayahTajweedRecord,
+            fallbackArabicText = cleanVerseArabic,
+            rulesMap = tajweedRulesMap,
+            baseTextColor = baseTextColor,
+            selectedRuleFilter = selectedTajweedRuleFilter,
+            isAudioPlayingOnThisVerse = isThisAyahPlaying && activeWordIndex >= 0,
+            activeWordIndex = activeWordIndex,
+            activeWordHighlightColor = Color(0xFF00E676),
+            recitedWordColor = Color(0xFF4CAF50)
+          )
+        } else if (!isThisAyahPlaying || activeWordIndex < 0 || arabicWords.isEmpty()) {
           buildAnnotatedString {
             withStyle(SpanStyle(color = baseTextColor)) {
               append(cleanVerseArabic)
@@ -2784,6 +3054,82 @@ fun AyahCardItem(
             ),
             modifier = Modifier.fillMaxWidth()
           )
+        }
+
+        // Attached Verbatim Kashmiri Translation & Tafsir (Bayanul Furqan — Maulana Muhammad Yusuf Shah, QUL #273) right below Urdu translation
+        if (!kashmiriTranslationText.isNullOrBlank() && activeQulEdition?.editionKey != "qul.ks.273") {
+          val (mainKsVerse, footnoteKsText) = remember(kashmiriTranslationText) {
+            QulOfflineTranslationManager.splitVerseAndFootnotes(kashmiriTranslationText)
+          }
+          var showKsFootnote by remember(ayah.surahNumber, ayah.verseNumber) { mutableStateOf(false) }
+          Spacer(modifier = Modifier.height(6.dp))
+          Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = EmeraldPrimary.copy(alpha = 0.06f),
+            border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.22f)),
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("ayah_kashmiri_tafsir_box_${ayah.surahNumber}_${ayah.verseNumber}")
+          ) {
+            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+              Text(
+                text = "کٲشُر ترجمہ و تفسیر (بیان الفرقان • مولانا محمد یوسف شاہ — QUL #273):",
+                style = MaterialTheme.typography.labelSmall.copy(
+                  fontFamily = UrduNastaliqFontFamily,
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = EmeraldPrimary,
+                  textAlign = TextAlign.Right
+                ),
+                modifier = Modifier.fillMaxWidth()
+              )
+              CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                Text(
+                  text = mainKsVerse,
+                  style = MaterialTheme.typography.bodyMedium.copy(
+                    fontFamily = UrduNastaliqFontFamily,
+                    fontSize = translationFontSizeSp.sp,
+                    lineHeight = (translationFontSizeSp * 1.85f).sp,
+                    textAlign = TextAlign.Right,
+                    textDirection = TextDirection.Rtl,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    platformStyle = PlatformTextStyle(includeFontPadding = true)
+                  ),
+                  modifier = Modifier.fillMaxWidth()
+                )
+                if (!footnoteKsText.isNullOrBlank()) {
+                  Spacer(modifier = Modifier.height(4.dp))
+                  Text(
+                    text = if (showKsFootnote) "▼ تفسیر (حاشیہ) بند کریں" else "▶ تفسیر و حاشیہ پڑھیں (بیان الفرقان)",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      fontFamily = UrduNastaliqFontFamily,
+                      color = GoldPrimary,
+                      fontWeight = FontWeight.Bold
+                    ),
+                    modifier = Modifier
+                      .clickable { showKsFootnote = !showKsFootnote }
+                      .padding(vertical = 2.dp)
+                  )
+                  if (showKsFootnote) {
+                    Text(
+                      text = footnoteKsText,
+                      style = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = UrduNastaliqFontFamily,
+                        fontSize = (translationFontSizeSp - 1f).coerceAtLeast(12f).sp,
+                        lineHeight = (translationFontSizeSp * 1.75f).sp,
+                        textAlign = TextAlign.Right,
+                        textDirection = TextDirection.Rtl,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                      ),
+                      modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp)
+                    )
+                  }
+                }
+              }
+            }
+          }
         }
       }
 
@@ -3093,7 +3439,7 @@ fun ContinuousMushafRecitationCard(
         )
         if (ayahs.isNotEmpty()) {
           OutlinedButton(
-            onClick = { onPlayAyah(ayahs.first()) },
+            onClick = { ayahs.firstOrNull()?.let { onPlayAyah(it) } },
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
             modifier = Modifier
               .heightIn(min = 48.dp)
@@ -3151,6 +3497,7 @@ fun QuranRecitersBottomSheet(
   onSelectReciter: (com.example.ui.audio.Reciter) -> Unit,
   onDismiss: () -> Unit
 ) {
+  val context = LocalContext.current
   val sunniReciters = remember(recitersList) {
     recitersList.filter { it.tradition == "SUNNI" }
   }
@@ -3197,6 +3544,10 @@ fun QuranRecitersBottomSheet(
 
       sunniReciters.forEach { reciter ->
         val isSelected = reciter.id == currentReciter.id
+        val hasCachedAudio = remember(reciter.id) {
+          val dir = java.io.File(context.filesDir, "audio_cache_v2/${reciter.id}")
+          dir.exists() && (dir.listFiles()?.isNotEmpty() == true)
+        }
         Surface(
           modifier = Modifier
             .fillMaxWidth()
@@ -3225,10 +3576,31 @@ fun QuranRecitersBottomSheet(
                   color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
               )
+              Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Text(
+                  text = if (hasCachedAudio) "✓ Offline Cached" else "☁ Stream + Auto-Cache",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = EmeraldPrimary
+                  )
+                )
+                Text(
+                  text = if (reciter.isSurahLevelReciter) "● Basmala Recited (Green)" else "● Direct Ayah 1 (Red)",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (reciter.isSurahLevelReciter) Color(0xFF1B5E20) else Color(0xFFD32F2F)
+                  )
+                )
+              }
             }
             if (isSelected) {
               Text(
-                text = "Active",
+                text = "✓ Active",
                 style = MaterialTheme.typography.labelSmall.copy(
                   fontWeight = FontWeight.Bold,
                   color = EmeraldPrimary
@@ -3259,6 +3631,10 @@ fun QuranRecitersBottomSheet(
 
       shiaReciters.forEach { reciter ->
         val isSelected = reciter.id == currentReciter.id
+        val hasCachedAudio = remember(reciter.id) {
+          val dir = java.io.File(context.filesDir, "audio_cache_v2/${reciter.id}")
+          dir.exists() && (dir.listFiles()?.isNotEmpty() == true)
+        }
         Surface(
           modifier = Modifier
             .fillMaxWidth()
@@ -3287,10 +3663,31 @@ fun QuranRecitersBottomSheet(
                   color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
               )
+              Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Text(
+                  text = if (hasCachedAudio) "✓ Offline Cached" else "☁ Stream + Auto-Cache",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = GoldPrimary
+                  )
+                )
+                Text(
+                  text = if (reciter.isSurahLevelReciter) "● Basmala Recited (Green)" else "● Direct Ayah 1 (Red)",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (reciter.isSurahLevelReciter) Color(0xFF1B5E20) else Color(0xFFD32F2F)
+                  )
+                )
+              }
             }
             if (isSelected) {
               Text(
-                text = "Active",
+                text = "✓ Active",
                 style = MaterialTheme.typography.labelSmall.copy(
                   fontWeight = FontWeight.Bold,
                   color = GoldPrimary

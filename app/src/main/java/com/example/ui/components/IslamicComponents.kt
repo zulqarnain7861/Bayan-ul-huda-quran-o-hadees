@@ -65,21 +65,155 @@ fun openWhatsAppSupport(context: Context) {
 @Composable
 fun BismillahHeader(
   modifier: Modifier = Modifier,
-  showBorder: Boolean = true
+  showBorder: Boolean = true,
+  surahNumber: Int? = null,
+  audioState: com.example.ui.audio.AudioState? = null,
+  currentReciter: com.example.ui.audio.Reciter? = null,
+  isTajweedEnabled: Boolean = false,
+  tajweedRulesMap: Map<String, com.example.data.repository.QuranTajweedEngineRepository.TajweedRuleCategory> = emptyMap(),
+  selectedTajweedRuleFilter: String? = null,
+  onPlayBasmala: (() -> Unit)? = null
 ) {
   val context = LocalContext.current
+  val effectiveReciter = currentReciter ?: audioState?.reciter
+  val isSurahReaderMode = surahNumber != null && surahNumber != 9
+
+  val isReciterRecitingBasmalaInSurah = if (isSurahReaderMode && effectiveReciter != null && surahNumber != null) {
+    com.example.ui.audio.TajweedAudioSyncEngine.doesReciterReciteBasmalaInSurah(
+      context = context,
+      reciter = effectiveReciter,
+      surahNumber = surahNumber,
+      activeAyahNumber = if (audioState?.surahNumber == surahNumber) (audioState.ayahNumber ?: 1) else 1,
+      fileDurationMs = (audioState?.durationMs ?: 0).toLong()
+    )
+  } else {
+    true
+  }
+
+  val isSurahAudioActive = isSurahReaderMode &&
+    audioState != null &&
+    (audioState.isPlaying || audioState.isBuffering) &&
+    audioState.surahNumber == surahNumber
+
+  val isActivelyPlayingBasmala = isSurahAudioActive &&
+    audioState != null &&
+    (audioState.ayahNumber == 0 ||
+      (surahNumber == 1 && audioState.ayahNumber == 1) ||
+      (audioState.ayahNumber == 1 && audioState.isRecitingBasmalaPrefix))
+
+  val wordSyncResult = if (isActivelyPlayingBasmala && audioState != null && effectiveReciter != null && surahNumber != null) {
+    com.example.ui.audio.TajweedAudioSyncEngine.computeSyncedWordIndex(
+      context = context,
+      reciter = effectiveReciter,
+      surahNumber = surahNumber,
+      ayahNumber = if (audioState.ayahNumber == 0) 0 else 1,
+      arabicWords = com.example.ui.audio.TajweedAudioSyncEngine.CANONICAL_BASMALA_WORDS,
+      currentPositionMs = audioState.currentPositionMs.toLong(),
+      durationMs = audioState.durationMs.toLong().coerceAtLeast(1000L),
+      isBuffering = audioState.isBuffering
+    )
+  } else {
+    null
+  }
+
+  val activeBasmalaWordIdx = wordSyncResult?.activeBasmalaWordIndex ?: -1
+
+  // Default color is Black (onSurface); during recitation, turn Green when recited or Red when not recited
+  val statusGreen = Color(0xFF00C853)
+  val statusDarkGreen = Color(0xFF1B5E20)
+  val statusRed = Color(0xFFD32F2F)
+  val defaultBlackColor = MaterialTheme.colorScheme.onSurface
+
+  val borderColor = when {
+    !isSurahAudioActive -> GoldPrimary.copy(alpha = 0.5f)
+    isActivelyPlayingBasmala -> statusGreen
+    isReciterRecitingBasmalaInSurah -> statusGreen.copy(alpha = 0.8f)
+    else -> statusRed.copy(alpha = 0.8f)
+  }
+
+  val baseArabicColor = when {
+    !isSurahAudioActive -> defaultBlackColor
+    isReciterRecitingBasmalaInSurah || isActivelyPlayingBasmala -> statusDarkGreen
+    else -> statusRed
+  }
+
+  val basmalaAnnotatedText = androidx.compose.runtime.remember(
+    isSurahReaderMode,
+    isSurahAudioActive,
+    isTajweedEnabled,
+    tajweedRulesMap,
+    selectedTajweedRuleFilter,
+    isReciterRecitingBasmalaInSurah,
+    isActivelyPlayingBasmala,
+    activeBasmalaWordIdx,
+    baseArabicColor
+  ) {
+    val basmalaRecord = com.example.data.repository.QuranTajweedEngineRepository.getCanonicalBasmalaTajweedRecord(context)
+    if (isTajweedEnabled && tajweedRulesMap.isNotEmpty()) {
+      com.example.data.repository.QuranTajweedEngineRepository.buildSafeTajweedAnnotatedString(
+        record = basmalaRecord,
+        fallbackArabicText = basmalaRecord.textUthmani,
+        rulesMap = tajweedRulesMap,
+        baseTextColor = baseArabicColor,
+        selectedRuleFilter = selectedTajweedRuleFilter,
+        isAudioPlayingOnThisVerse = isActivelyPlayingBasmala,
+        activeWordIndex = activeBasmalaWordIdx,
+        activeWordHighlightColor = statusGreen,
+        recitedWordColor = statusDarkGreen
+      )
+    } else if (isActivelyPlayingBasmala && activeBasmalaWordIdx >= 0) {
+      androidx.compose.ui.text.buildAnnotatedString {
+        val words = com.example.ui.audio.TajweedAudioSyncEngine.CANONICAL_BASMALA_WORDS
+        words.forEachIndexed { idx, w ->
+          val wColor = when {
+            idx == activeBasmalaWordIdx -> statusGreen
+            idx < activeBasmalaWordIdx -> statusDarkGreen
+            else -> baseArabicColor
+          }
+          pushStyle(
+            androidx.compose.ui.text.SpanStyle(
+              color = wColor,
+              background = if (idx == activeBasmalaWordIdx) statusGreen.copy(alpha = 0.22f) else Color.Transparent,
+              fontWeight = if (idx == activeBasmalaWordIdx) FontWeight.Bold else FontWeight.Normal
+            )
+          )
+          append(w)
+          pop()
+          if (idx < words.lastIndex) append(" ")
+        }
+      }
+    } else {
+      androidx.compose.ui.text.AnnotatedString(
+        text = basmalaRecord.textUthmani,
+        spanStyle = androidx.compose.ui.text.SpanStyle(color = baseArabicColor)
+      )
+    }
+  }
+
   Card(
-    modifier = modifier.fillMaxWidth(),
+    modifier = modifier
+      .fillMaxWidth()
+      .testTag(if (surahNumber != null) "bismillah_starting_verse_$surahNumber" else "bismillah_header_card"),
     colors = CardDefaults.cardColors(
-      containerColor = MaterialTheme.colorScheme.surfaceVariant
+      containerColor = when {
+        isActivelyPlayingBasmala -> statusGreen.copy(alpha = 0.12f)
+        isSurahAudioActive && isReciterRecitingBasmalaInSurah -> statusGreen.copy(alpha = 0.08f)
+        isSurahAudioActive && !isReciterRecitingBasmalaInSurah -> statusRed.copy(alpha = 0.08f)
+        else -> MaterialTheme.colorScheme.surfaceVariant
+      }
     ),
     shape = RoundedCornerShape(16.dp),
-    border = if (showBorder) CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(GoldPrimary.copy(alpha = 0.5f))) else null
+    border = if (showBorder) {
+      CardDefaults.outlinedCardBorder().copy(
+        width = if (isSurahAudioActive) 1.8.dp else 1.dp,
+        brush = androidx.compose.ui.graphics.SolidColor(borderColor)
+      )
+    } else null
   ) {
     Column(
       modifier = Modifier
         .fillMaxWidth()
-        .padding(vertical = 14.dp, horizontal = 16.dp),
+        .padding(vertical = 12.dp, horizontal = 14.dp),
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
       Surface(
@@ -91,24 +225,98 @@ fun BismillahHeader(
       ) {
         Text(
           text = "السَّلَامُ عَلَيْكُمْ • Assalamu Alaikum — Support Our App",
-          modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+          modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+          maxLines = 1,
+          overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
           style = MaterialTheme.typography.labelSmall.copy(
             fontWeight = FontWeight.Bold,
             color = EmeraldPrimary
           )
         )
       }
+
+      if (isSurahReaderMode && effectiveReciter != null) {
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          val badgeBgColor = when {
+            isSurahAudioActive && (isReciterRecitingBasmalaInSurah || isActivelyPlayingBasmala) -> statusGreen.copy(alpha = 0.18f)
+            isSurahAudioActive && !isReciterRecitingBasmalaInSurah -> statusRed.copy(alpha = 0.18f)
+            else -> MaterialTheme.colorScheme.surface
+          }
+          val badgeTextColor = when {
+            isSurahAudioActive && (isReciterRecitingBasmalaInSurah || isActivelyPlayingBasmala) -> statusDarkGreen
+            isSurahAudioActive && !isReciterRecitingBasmalaInSurah -> statusRed
+            else -> defaultBlackColor
+          }
+          Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = badgeBgColor,
+            modifier = Modifier
+              .weight(1f, fill = false)
+              .testTag("bismillah_reciter_status_badge")
+          ) {
+            Text(
+              text = when {
+                isSurahAudioActive && (isReciterRecitingBasmalaInSurah || isActivelyPlayingBasmala) ->
+                  "● Bismillah Recited (${effectiveReciter.name}) • GREEN"
+                isSurahAudioActive && !isReciterRecitingBasmalaInSurah ->
+                  "● Bismillah Not Recited (${effectiveReciter.name}) • RED"
+                isReciterRecitingBasmalaInSurah ->
+                  "Bismillah Recited by ${effectiveReciter.name}"
+                else ->
+                  "Bismillah Not in Stream (${effectiveReciter.name})"
+              },
+              modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+              maxLines = 1,
+              overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+              style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = badgeTextColor
+              )
+            )
+          }
+
+          if (onPlayBasmala != null) {
+            Surface(
+              shape = RoundedCornerShape(8.dp),
+              color = if (isActivelyPlayingBasmala) statusGreen.copy(alpha = 0.2f) else EmeraldPrimary.copy(alpha = 0.14f),
+              modifier = Modifier
+                .clickable { onPlayBasmala() }
+                .testTag("play_starting_bismillah_button")
+            ) {
+              Text(
+                text = if (isActivelyPlayingBasmala) "♫ Reciting..." else "▶ Recite",
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                maxLines = 1,
+                softWrap = false,
+                style = MaterialTheme.typography.labelSmall.copy(
+                  fontSize = 10.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = if (isActivelyPlayingBasmala) statusDarkGreen else EmeraldPrimary
+                )
+              )
+            }
+          }
+        }
+      }
+
       Spacer(modifier = Modifier.height(6.dp))
       Text(
-        text = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ",
+        text = basmalaAnnotatedText,
         style = MaterialTheme.typography.headlineMedium.copy(
           fontFamily = AmiriFontFamily,
           fontSize = 26.sp,
-          lineHeight = 46.sp,
+          lineHeight = 44.sp,
           fontWeight = FontWeight.Normal,
-          color = MaterialTheme.colorScheme.primary,
+          color = baseArabicColor,
           textAlign = TextAlign.Center
-        )
+        ),
+        modifier = Modifier.testTag("bismillah_arabic_text")
       )
       Spacer(modifier = Modifier.height(2.dp))
       Text(
@@ -119,6 +327,21 @@ fun BismillahHeader(
           textAlign = TextAlign.Center
         )
       )
+      if (isSurahReaderMode) {
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+          text = "شروع اللہ کے نام سے جو بڑا مہربان نہایت رحم والا ہے",
+          style = MaterialTheme.typography.labelSmall.copy(
+            fontSize = 11.sp,
+            color = when {
+              isSurahAudioActive && (isReciterRecitingBasmalaInSurah || isActivelyPlayingBasmala) -> statusDarkGreen
+              isSurahAudioActive && !isReciterRecitingBasmalaInSurah -> statusRed
+              else -> defaultBlackColor.copy(alpha = 0.8f)
+            },
+            textAlign = TextAlign.Center
+          )
+        )
+      }
     }
   }
 }

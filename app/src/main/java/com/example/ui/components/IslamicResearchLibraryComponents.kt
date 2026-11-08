@@ -57,7 +57,13 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import android.media.MediaPlayer
+import android.speech.tts.TextToSpeech
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -66,6 +72,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import java.util.Locale
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -108,6 +115,11 @@ fun IslamicResearchHubView(
   var selectedCategoryFilter by remember { mutableStateOf("ALL") } // "ALL", "PAPER_1", "PAPER_5A", "PAPER_7", "AZKAR"
   var initialSectionOrZikrIndex by remember { mutableIntStateOf(0) }
   var researchSearchQuery by remember { mutableStateOf("") }
+  var hubFontScaleStep by remember { mutableIntStateOf(0) }
+  val hubMuhasabahCheckedMap = remember { mutableStateMapOf<String, Boolean>() }
+  val hubTasbihCounts = remember { mutableStateMapOf<Int, Int>() }
+  val hubArabicBoost = hubFontScaleStep * 2
+  val hubUrduBoost = hubFontScaleStep * 2
 
   val searchHits = remember(researchSearchQuery, context) {
     IslamicResearchRepository.searchAcrossIslamicResearch(researchSearchQuery, context)
@@ -252,38 +264,78 @@ fun IslamicResearchHubView(
       )
     }
 
-    // 2b. Intelligent Quick Filter / Switcher Row across all 4 Research Compilations
+    // 2b. Intelligent Quick Filter / Switcher Row + Font Size (A- / A+) across all 4 Research Compilations
     item {
-      LazyRow(
-        modifier = Modifier
-          .fillMaxWidth()
-          .testTag("islamic_research_category_filter_row"),
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
       ) {
-        val filterTabs = listOf(
-          "ALL" to "All Research (4)",
-          "PAPER_1" to "Paper #1: آخری وصیّتیں",
-          "PAPER_7" to "Paper #7: 10 احکام و 12 صفات",
-          "PAPER_5A" to "Paper #5a: رافضیت و ناصبیت",
-          "AZKAR" to "Sunnah Azkar (19)"
-        )
-        itemsIndexed(filterTabs) { _, (filterKey, labelText) ->
-          FilterChip(
-            selected = selectedCategoryFilter == filterKey,
-            onClick = { selectedCategoryFilter = filterKey },
-            label = {
-              Text(
-                text = labelText,
-                fontFamily = UrduNastaliqFontFamily,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold
-              )
-            },
-            colors = FilterChipDefaults.filterChipColors(
-              selectedContainerColor = EmeraldPrimary,
-              selectedLabelColor = Color.White
-            ),
-            modifier = Modifier.testTag("islamic_research_filter_chip_$filterKey")
+        LazyRow(
+          modifier = Modifier
+            .weight(1f)
+            .testTag("islamic_research_category_filter_row"),
+          horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+          val filterTabs = listOf(
+            "ALL" to "All Research (Continuous Scroll • 4)",
+            "PAPER_1" to "Paper #1: آخری وصیّتیں",
+            "PAPER_5A" to "Paper #5a: رافضیت و ناصبیت",
+            "PAPER_7" to "Paper #7: 10 احکام و 12 صفات",
+            "AZKAR" to "Sunnah Azkar (19)"
+          )
+          itemsIndexed(filterTabs) { _, (filterKey, labelText) ->
+            FilterChip(
+              selected = selectedCategoryFilter == filterKey,
+              onClick = { selectedCategoryFilter = filterKey },
+              label = {
+                Text(
+                  text = labelText,
+                  fontFamily = UrduNastaliqFontFamily,
+                  fontSize = 12.sp,
+                  fontWeight = FontWeight.Bold
+                )
+              },
+              colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = EmeraldPrimary,
+                selectedLabelColor = Color.White
+              ),
+              modifier = Modifier.testTag("islamic_research_filter_chip_$filterKey")
+            )
+          }
+        }
+        Surface(
+          shape = RoundedCornerShape(6.dp),
+          color = MaterialTheme.colorScheme.surface,
+          border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.35f)),
+          modifier = Modifier.clickable {
+            hubFontScaleStep = (hubFontScaleStep - 1).coerceAtLeast(-1)
+          }
+        ) {
+          Text(
+            text = "A-",
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall.copy(
+              fontWeight = FontWeight.Bold,
+              color = EmeraldPrimary
+            )
+          )
+        }
+        Surface(
+          shape = RoundedCornerShape(6.dp),
+          color = MaterialTheme.colorScheme.surface,
+          border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.35f)),
+          modifier = Modifier.clickable {
+            hubFontScaleStep = (hubFontScaleStep + 1).coerceAtMost(3)
+          }
+        ) {
+          Text(
+            text = "A+",
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall.copy(
+              fontWeight = FontWeight.Bold,
+              color = EmeraldPrimary
+            )
           )
         }
       }
@@ -607,9 +659,227 @@ fun IslamicResearchHubView(
           }
         }
       }
+
+      // Continuous Inline Stream of All 12 Sections of Research Paper #1 (Direct Top-to-Bottom Reading with Headings & References)
+      itemsIndexed(
+        items = paper1Wasiyat.sections,
+        key = { _, sec -> "hub_paper1_sec_${sec.id}" }
+      ) { _, section ->
+        Paper1WasiyatSectionCard(
+          section = section,
+          arabicBoost = hubArabicBoost,
+          urduBoost = hubUrduBoost,
+          onCopy = { label, text -> copyExtraResearchText(context, label, text) },
+          onAddNote = { text ->
+            onAddStudyNote(text)
+            Toast.makeText(context, "Saved to Study Notes", Toast.LENGTH_SHORT).show()
+          }
+        )
+      }
     }
 
-    // 4b. Featured Card: Research Paper #7 — 10 Qur'anic Commandments & 12 Attributes of True Awliya
+    // 4b. Featured Card: Research Paper 5a — Rafziyat, Nasbiyat aur Yazeediyat ka Tahqeeqi Jaiza
+    if (selectedCategoryFilter == "ALL" || selectedCategoryFilter == "PAPER_5A") {
+      item {
+        ElevatedCard(
+          modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+              initialSectionOrZikrIndex = 0
+              activeDocumentId = "paper_5a"
+            }
+            .testTag("islamic_research_card_paper_5a"),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.elevatedCardColors(
+          containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+      ) {
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(14.dp),
+          verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Surface(
+              shape = RoundedCornerShape(8.dp),
+              color = EmeraldPrimary
+            ) {
+              Text(
+                text = "Research Paper #${paper5a.meta.researchPaper} • ${paper5a.meta.totalPages} Pages",
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.labelSmall.copy(
+                  color = Color.White,
+                  fontWeight = FontWeight.Bold
+                )
+              )
+            }
+            Text(
+              text = "${paper5a.meta.dateHijri} • ${paper5a.meta.dateGregorian}",
+              style = MaterialTheme.typography.labelSmall.copy(
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.SemiBold
+              )
+            )
+          }
+
+          // Urdu Title
+          Text(
+            text = paper5a.meta.title,
+            style = MaterialTheme.typography.headlineSmall.copy(
+              fontFamily = UrduNastaliqFontFamily,
+              fontSize = 22.sp,
+              lineHeight = 36.sp,
+              fontWeight = FontWeight.Bold,
+              color = EmeraldPrimary,
+              textAlign = TextAlign.Right
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+
+          Text(
+            text = "A Critical Research Review of Rafziyat, Nasbiyat & Yazeediyat in the Light of the Qur'an & Sahih Hadiths",
+            style = MaterialTheme.typography.titleSmall.copy(
+              fontWeight = FontWeight.Bold,
+              color = MaterialTheme.colorScheme.primary
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+
+          // 3 Core Definitions Box
+          Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = GoldPrimary.copy(alpha = 0.12f),
+            border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.4f)),
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            Column(
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+              verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+              paper5a.definitions.forEach { def ->
+                Text(
+                  text = "• ${def.term} : ${def.meaning}",
+                  style = MaterialTheme.typography.bodyMedium.copy(
+                    fontFamily = UrduNastaliqFontFamily,
+                    fontSize = 14.sp,
+                    lineHeight = 23.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Right
+                  ),
+                  modifier = Modifier.fillMaxWidth()
+                )
+              }
+            }
+          }
+
+          // Quick Section Jump Chips
+          Text(
+            text = "Jump to Section (${paper5a.sections.size} Sections):",
+            style = MaterialTheme.typography.labelSmall.copy(
+              fontWeight = FontWeight.Bold,
+              color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+          )
+          FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+          ) {
+            paper5a.sections.forEachIndexed { idx, section ->
+              Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = EmeraldPrimary.copy(alpha = 0.10f),
+                border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.30f)),
+                modifier = Modifier
+                  .clickable {
+                    initialSectionOrZikrIndex = idx
+                    activeDocumentId = "paper_5a"
+                  }
+                  .testTag("paper_5a_section_chip_${section.id}")
+              ) {
+                Text(
+                  text = "${idx + 1}. ${section.title.take(36)}${if (section.title.length > 36) "…" else ""}",
+                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontFamily = UrduNastaliqFontFamily,
+                    fontSize = 12.sp,
+                    color = EmeraldPrimary,
+                    fontWeight = FontWeight.Bold
+                  )
+                )
+              }
+            }
+          }
+
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = paper5a.meta.publisher,
+                style = MaterialTheme.typography.labelSmall.copy(
+                  fontFamily = UrduNastaliqFontFamily,
+                  fontSize = 12.sp,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+              )
+              Text(
+                text = paper5a.meta.website,
+                style = MaterialTheme.typography.labelSmall.copy(
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = EmeraldPrimary
+                )
+              )
+            }
+            Button(
+              onClick = {
+                initialSectionOrZikrIndex = 0
+                activeDocumentId = "paper_5a"
+              },
+              shape = RoundedCornerShape(10.dp),
+              colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+              modifier = Modifier.testTag("open_paper_5a_button")
+            ) {
+              Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(16.dp))
+              Spacer(modifier = Modifier.width(6.dp))
+              Text("Read Paper 5a", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+          }
+        }
+      }
+    }
+
+      // Continuous Inline Stream of All 12 Sections of Research Paper #5a (Rafziyat, Nasbiyat & Yazeediyat)
+      itemsIndexed(
+        items = paper5a.sections,
+        key = { _, sec -> "hub_paper_5a_sec_${sec.id}" }
+      ) { secIdx, section ->
+        Paper5aSectionCard(
+          sectionNumber = secIdx + 1,
+          section = section,
+          onCopyItem = { textToCopy ->
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText(section.title, textToCopy))
+            Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+          },
+          onAddNote = onAddStudyNote
+        )
+      }
+    }
+
+    // 4c. Featured Card: Research Paper #7 — 10 Qur'anic Commandments & 12 Attributes of True Awliya
     if (selectedCategoryFilter == "ALL" || selectedCategoryFilter == "PAPER_7") {
       item {
         ElevatedCard(
@@ -812,190 +1082,53 @@ fun IslamicResearchHubView(
           }
         }
       }
-    }
 
-    // 4c. Featured Card: Research Paper 5a — Rafziyat, Nasbiyat aur Yazeediyat ka Tahqeeqi Jaiza
-    if (selectedCategoryFilter == "ALL" || selectedCategoryFilter == "PAPER_5A") {
-      item {
-        ElevatedCard(
-          modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-              initialSectionOrZikrIndex = 0
-              activeDocumentId = "paper_5a"
-            }
-            .testTag("islamic_research_card_paper_5a"),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(
-          containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
-      ) {
-        Column(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(14.dp),
-          verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Surface(
-              shape = RoundedCornerShape(8.dp),
-              color = EmeraldPrimary
-            ) {
-              Text(
-                text = "Research Paper #${paper5a.meta.researchPaper} • ${paper5a.meta.totalPages} Pages",
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.labelSmall.copy(
-                  color = Color.White,
-                  fontWeight = FontWeight.Bold
-                )
-              )
-            }
-            Text(
-              text = "${paper5a.meta.dateHijri} • ${paper5a.meta.dateGregorian}",
-              style = MaterialTheme.typography.labelSmall.copy(
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.SemiBold
-              )
-            )
-          }
-
-          // Urdu Title
-          Text(
-            text = paper5a.meta.title,
-            style = MaterialTheme.typography.headlineSmall.copy(
-              fontFamily = UrduNastaliqFontFamily,
-              fontSize = 22.sp,
-              lineHeight = 36.sp,
-              fontWeight = FontWeight.Bold,
-              color = EmeraldPrimary,
-              textAlign = TextAlign.Right
-            ),
-            modifier = Modifier.fillMaxWidth()
+      // Continuous Inline Stream of Research Paper #7 (10 Qur'anic Commandments + 12 Attributes of True Awliya)
+      paper7Commandments.sections.forEach { section ->
+        item(key = "hub_paper7_sec_header_${section.sectionNumber}") {
+          Paper7SectionHeaderBanner(
+            section = section,
+            urduBoost = hubUrduBoost
           )
-
-          Text(
-            text = "A Critical Research Review of Rafziyat, Nasbiyat & Yazeediyat in the Light of the Qur'an & Sahih Hadiths",
-            style = MaterialTheme.typography.titleSmall.copy(
-              fontWeight = FontWeight.Bold,
-              color = MaterialTheme.colorScheme.primary
-            ),
-            modifier = Modifier.fillMaxWidth()
+        }
+        itemsIndexed(
+          items = section.items,
+          key = { _, item -> "hub_paper7_sec_${section.sectionNumber}_item_${item.number}" }
+        ) { _, item ->
+          val checkKey = "${section.sectionNumber}_${item.number}"
+          val isChecked = hubMuhasabahCheckedMap[checkKey] == true
+          Paper7CommandmentOrAttributeCard(
+            sectionNumber = section.sectionNumber,
+            sectionTitleUrdu = section.title,
+            item = item,
+            isChecked = isChecked,
+            onToggleChecked = { hubMuhasabahCheckedMap[checkKey] = !isChecked },
+            arabicBoost = hubArabicBoost,
+            urduBoost = hubUrduBoost,
+            onCopy = { label, text -> copyExtraResearchText(context, label, text) },
+            onAddNote = { text ->
+              onAddStudyNote(text)
+              Toast.makeText(context, "Saved to Study Notes", Toast.LENGTH_SHORT).show()
+            }
           )
-
-          // 3 Core Definitions Box
-          Surface(
-            shape = RoundedCornerShape(10.dp),
-            color = GoldPrimary.copy(alpha = 0.12f),
-            border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.4f)),
-            modifier = Modifier.fillMaxWidth()
-          ) {
-            Column(
-              modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
-              verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-              paper5a.definitions.forEach { def ->
-                Text(
-                  text = "• ${def.term} : ${def.meaning}",
-                  style = MaterialTheme.typography.bodyMedium.copy(
-                    fontFamily = UrduNastaliqFontFamily,
-                    fontSize = 14.sp,
-                    lineHeight = 23.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Right
-                  ),
-                  modifier = Modifier.fillMaxWidth()
-                )
+        }
+        val finalAdvice = section.finalAdvice
+        if (finalAdvice != null) {
+          item(key = "hub_paper7_sec_final_advice_${section.sectionNumber}") {
+            Paper7FinalAdviceCard(
+              sectionTitleUrdu = section.title,
+              finalAdvice = finalAdvice,
+              arabicBoost = hubArabicBoost,
+              urduBoost = hubUrduBoost,
+              onCopy = { label, text -> copyExtraResearchText(context, label, text) },
+              onAddNote = { text ->
+                onAddStudyNote(text)
+                Toast.makeText(context, "Saved to Study Notes", Toast.LENGTH_SHORT).show()
               }
-            }
-          }
-
-          // Quick Section Jump Chips
-          Text(
-            text = "Jump to Section (${paper5a.sections.size} Sections):",
-            style = MaterialTheme.typography.labelSmall.copy(
-              fontWeight = FontWeight.Bold,
-              color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-          )
-          FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-          ) {
-            paper5a.sections.forEachIndexed { idx, section ->
-              Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = EmeraldPrimary.copy(alpha = 0.10f),
-                border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.30f)),
-                modifier = Modifier
-                  .clickable {
-                    initialSectionOrZikrIndex = idx
-                    activeDocumentId = "paper_5a"
-                  }
-                  .testTag("paper_5a_section_chip_${section.id}")
-              ) {
-                Text(
-                  text = "${idx + 1}. ${section.title.take(36)}${if (section.title.length > 36) "…" else ""}",
-                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                  style = MaterialTheme.typography.labelSmall.copy(
-                    fontFamily = UrduNastaliqFontFamily,
-                    fontSize = 12.sp,
-                    color = EmeraldPrimary,
-                    fontWeight = FontWeight.Bold
-                  )
-                )
-              }
-            }
-          }
-
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Column(modifier = Modifier.weight(1f)) {
-              Text(
-                text = paper5a.meta.publisher,
-                style = MaterialTheme.typography.labelSmall.copy(
-                  fontFamily = UrduNastaliqFontFamily,
-                  fontSize = 12.sp,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-              )
-              Text(
-                text = paper5a.meta.website,
-                style = MaterialTheme.typography.labelSmall.copy(
-                  fontSize = 11.sp,
-                  fontWeight = FontWeight.Bold,
-                  color = EmeraldPrimary
-                )
-              )
-            }
-            Button(
-              onClick = {
-                initialSectionOrZikrIndex = 0
-                activeDocumentId = "paper_5a"
-              },
-              shape = RoundedCornerShape(10.dp),
-              colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
-              modifier = Modifier.testTag("open_paper_5a_button")
-            ) {
-              Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(16.dp))
-              Spacer(modifier = Modifier.width(6.dp))
-              Text("Read Paper 5a", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            }
           }
         }
       }
-    }
     }
 
     // 4d. Featured Card: Fard Namaz Ke Baad Sunnat Azkar
@@ -1151,6 +1284,120 @@ fun IslamicResearchHubView(
         }
       }
     }
+
+      // Continuous Inline Stream of All 5 Introductory Proofs, 19 Sunnah Azkar After Fard Namaz, and 4 Scholarly Notes
+      item(key = "hub_azkar_intro_card") {
+        ElevatedCard(
+          modifier = Modifier.fillMaxWidth(),
+          shape = RoundedCornerShape(14.dp),
+          colors = CardDefaults.elevatedCardColors(
+            containerColor = EmeraldPrimary.copy(alpha = 0.08f)
+          )
+        ) {
+          Column(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            Text(
+              text = "مقدمہ : ذکرِ الٰہی اور فرض نماز کے بعد اذکار کی فضیلت (${fardNamazAzkar.introduction.size} دلائل)",
+              style = MaterialTheme.typography.titleSmall.copy(
+                fontFamily = UrduNastaliqFontFamily,
+                fontSize = 16.sp,
+                lineHeight = 27.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Right
+              ),
+              modifier = Modifier.fillMaxWidth()
+            )
+            fardNamazAzkar.introduction.forEach { intro ->
+              AzkarIntroProofRow(intro = intro)
+            }
+          }
+        }
+      }
+
+      items(
+        items = fardNamazAzkar.azkar,
+        key = { "hub_fard_zikr_${it.number}" }
+      ) { zikr ->
+        val currentCount = hubTasbihCounts[zikr.number] ?: 0
+        FardNamazZikrCard(
+          zikr = zikr,
+          currentCount = currentCount,
+          onIncrementTasbih = { hubTasbihCounts[zikr.number] = currentCount + 1 },
+          onResetTasbih = { hubTasbihCounts[zikr.number] = 0 },
+          onCopy = {
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val text = buildString {
+              appendLine("ذکر نمبر ${zikr.number} — ${zikr.narrator}")
+              if (zikr.narration.isNotBlank()) appendLine(zikr.narration)
+              zikr.arabicLines.forEach { appendLine(it) }
+              if (zikr.urduTranslation.isNotBlank()) appendLine(zikr.urduTranslation)
+              zikr.parts.forEach { p ->
+                appendLine("[${p.repeat}]")
+                p.arabicLines.forEach { appendLine(it) }
+                if (p.urduTranslation.isNotBlank()) appendLine(p.urduTranslation)
+              }
+              val refs = (zikr.references + zikr.parts.flatMap { it.references }).joinToString(" ، ") { it.formatted }
+              if (refs.isNotBlank()) appendLine("[ $refs ]")
+            }
+            clipboard.setPrimaryClip(ClipData.newPlainText("Zikr #${zikr.number}", text))
+            Toast.makeText(context, "Zikr #${zikr.number} copied", Toast.LENGTH_SHORT).show()
+          },
+          onAddNote = {
+            onAddStudyNote("${fardNamazAzkar.title} — ذکر نمبر ${zikr.number}")
+          }
+        )
+      }
+
+      if (fardNamazAzkar.closingNotes.isNotEmpty()) {
+        item(key = "hub_azkar_closing_notes") {
+          ElevatedCard(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.elevatedCardColors(
+              containerColor = GoldPrimary.copy(alpha = 0.10f)
+            )
+          ) {
+            Column(
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+              verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+              Text(
+                text = "علمی فوائد و اہم نوٹس (${fardNamazAzkar.closingNotes.size})",
+                style = MaterialTheme.typography.titleMedium.copy(
+                  fontFamily = UrduNastaliqFontFamily,
+                  fontSize = 18.sp,
+                  lineHeight = 30.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = EmeraldPrimary,
+                  textAlign = TextAlign.Right
+                ),
+                modifier = Modifier.fillMaxWidth()
+              )
+              fardNamazAzkar.closingNotes.forEach { note ->
+                ClosingNoteRow(note = note)
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Bottom Report Footer Card for the continuous Islamic Research Hub
+    item(key = "hub_research_report_footer") {
+      ResearchPaperReportFooterCard(
+        paperTitle = "Islamic Research Library",
+        tagPrefix = "hub_research",
+        onReportSubmitted = { reportMsg ->
+          onAddStudyNote(reportMsg)
+        }
+      )
     }
   }
 }
@@ -1288,75 +1535,6 @@ fun Paper5aInteractiveReaderView(
             }
           }
         }
-
-        // In-Paper Search Bar
-        OutlinedTextField(
-          value = inPaperSearchQuery,
-          onValueChange = { inPaperSearchQuery = it },
-          modifier = Modifier
-            .fillMaxWidth()
-            .testTag("paper_5a_in_reader_search"),
-          placeholder = {
-            Text("Search inside Research Paper 5a (Hadith #, keyword, صحابہ، علی، حسین، یزید)...", fontSize = 11.sp)
-          },
-          leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
-          trailingIcon = {
-            if (inPaperSearchQuery.isNotEmpty()) {
-              IconButton(onClick = { inPaperSearchQuery = "" }) {
-                Icon(Icons.Default.Close, contentDescription = "Clear", modifier = Modifier.size(18.dp))
-              }
-            }
-          },
-          singleLine = true,
-          shape = RoundedCornerShape(10.dp)
-        )
-
-        // Section Selector Row
-        LazyRow(
-          horizontalArrangement = Arrangement.spacedBy(6.dp),
-          contentPadding = PaddingValues(vertical = 2.dp)
-        ) {
-          item {
-            FilterChip(
-              selected = selectedSectionFilter == -1,
-              onClick = {
-                selectedSectionFilter = -1
-                coroutineScope.launch { listState.animateScrollToItem(0) }
-              },
-              label = {
-                Text(
-                  text = "All Sections (${paper.sections.size})",
-                  fontSize = 11.sp,
-                  fontWeight = FontWeight.Bold
-                )
-              },
-              colors = FilterChipDefaults.filterChipColors(
-                selectedContainerColor = EmeraldPrimary,
-                selectedLabelColor = Color.White
-              )
-            )
-          }
-          itemsIndexed(paper.sections) { idx, sec ->
-            FilterChip(
-              selected = selectedSectionFilter == idx,
-              onClick = {
-                selectedSectionFilter = idx
-                coroutineScope.launch { listState.animateScrollToItem(0) }
-              },
-              label = {
-                Text(
-                  text = "${idx + 1}. ${sec.title.take(28)}${if (sec.title.length > 28) "…" else ""}",
-                  fontFamily = UrduNastaliqFontFamily,
-                  fontSize = 12.sp
-                )
-              },
-              colors = FilterChipDefaults.filterChipColors(
-                selectedContainerColor = EmeraldPrimary,
-                selectedLabelColor = Color.White
-              )
-            )
-          }
-        }
       }
     }
 
@@ -1366,6 +1544,81 @@ fun Paper5aInteractiveReaderView(
       contentPadding = PaddingValues(12.dp),
       verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+      // Scrolling Search & Section Selector Controls (scrolls naturally like Quran reader instead of covering half screen)
+      item {
+        Column(
+          modifier = Modifier.fillMaxWidth(),
+          verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+          OutlinedTextField(
+            value = inPaperSearchQuery,
+            onValueChange = { inPaperSearchQuery = it },
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("paper_5a_in_reader_search"),
+            placeholder = {
+              Text("Search inside Research Paper 5a (Hadith #, keyword, صحابہ، علی، حسین، یزید)...", fontSize = 11.sp)
+            },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
+            trailingIcon = {
+              if (inPaperSearchQuery.isNotEmpty()) {
+                IconButton(onClick = { inPaperSearchQuery = "" }) {
+                  Icon(Icons.Default.Close, contentDescription = "Clear", modifier = Modifier.size(18.dp))
+                }
+              }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(10.dp)
+          )
+
+          LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            contentPadding = PaddingValues(vertical = 2.dp)
+          ) {
+            item {
+              FilterChip(
+                selected = selectedSectionFilter == -1,
+                onClick = {
+                  selectedSectionFilter = -1
+                  coroutineScope.launch { listState.animateScrollToItem(0) }
+                },
+                label = {
+                  Text(
+                    text = "All Sections (${paper.sections.size})",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                  )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                  selectedContainerColor = EmeraldPrimary,
+                  selectedLabelColor = Color.White
+                )
+              )
+            }
+            itemsIndexed(paper.sections) { idx, sec ->
+              FilterChip(
+                selected = selectedSectionFilter == idx,
+                onClick = {
+                  selectedSectionFilter = idx
+                  coroutineScope.launch { listState.animateScrollToItem(0) }
+                },
+                label = {
+                  Text(
+                    text = "${idx + 1}. ${sec.title.take(28)}${if (sec.title.length > 28) "…" else ""}",
+                    fontFamily = UrduNastaliqFontFamily,
+                    fontSize = 12.sp
+                  )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                  selectedContainerColor = EmeraldPrimary,
+                  selectedLabelColor = Color.White
+                )
+              )
+            }
+          }
+        }
+      }
+
       // Top Metadata, Bismillah, Definitions & Call to Reader (when viewing All or First section)
       if (selectedSectionFilter == -1 || selectedSectionFilter == 0) {
         item {
@@ -1516,6 +1769,16 @@ fun Paper5aInteractiveReaderView(
             Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
           },
           onAddNote = onAddNote
+        )
+      }
+
+      item(key = "paper_5a_report_footer") {
+        ResearchPaperReportFooterCard(
+          paperTitle = "Research Paper #${paper.meta.researchPaper}: ${paper.meta.title}",
+          tagPrefix = "paper_5a",
+          onReportSubmitted = { reportMsg ->
+            onAddNote(reportMsg)
+          }
         )
       }
     }
@@ -2046,7 +2309,16 @@ fun FardNamazAzkarInteractiveReaderView(
             }
           }
         }
+      }
+    }
 
+    LazyColumn(
+      state = listState,
+      modifier = Modifier.fillMaxSize(),
+      contentPadding = PaddingValues(12.dp),
+      verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+      item {
         OutlinedTextField(
           value = azkarSearchQuery,
           onValueChange = { azkarSearchQuery = it },
@@ -2068,14 +2340,7 @@ fun FardNamazAzkarInteractiveReaderView(
           shape = RoundedCornerShape(10.dp)
         )
       }
-    }
 
-    LazyColumn(
-      state = listState,
-      modifier = Modifier.fillMaxSize(),
-      contentPadding = PaddingValues(12.dp),
-      verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
       // 1. Opening Header & International Hadith Numbering Notice
       if (azkarSearchQuery.isBlank()) {
         item {
@@ -2229,6 +2494,16 @@ fun FardNamazAzkarInteractiveReaderView(
           }
         }
       }
+
+      item(key = "fard_namaz_azkar_report_footer") {
+        ResearchPaperReportFooterCard(
+          paperTitle = pamphlet.title,
+          tagPrefix = "fard_namaz_azkar",
+          onReportSubmitted = { reportMsg ->
+            onAddNote(reportMsg)
+          }
+        )
+      }
     }
   }
 }
@@ -2315,8 +2590,31 @@ private fun FardNamazZikrCard(
   onCopy: () -> Unit,
   onAddNote: () -> Unit
 ) {
+  val context = LocalContext.current
   val targetCount = zikr.targetTasbihCount
   val isCompleted = currentCount >= targetCount
+  val verifiedAudio = remember(zikr.number) {
+    com.example.data.repository.IslamicDigitalLibraryRepository.getVerifiedAzkarAudioForZikr(context, zikr.number)
+  }
+  var isAudioPlaying by remember { mutableStateOf(false) }
+  var repeatMode by remember { mutableStateOf("1x") } // "1x", "3x", "Loop"
+  var activeMediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+  var activeTts by remember { mutableStateOf<TextToSpeech?>(null) }
+
+  DisposableEffect(zikr.number) {
+    onDispose {
+      runCatching {
+        activeMediaPlayer?.stop()
+        activeMediaPlayer?.release()
+      }
+      activeMediaPlayer = null
+      runCatching {
+        activeTts?.stop()
+        activeTts?.shutdown()
+      }
+      activeTts = null
+    }
+  }
 
   ElevatedCard(
     modifier = Modifier
@@ -2385,6 +2683,172 @@ private fun FardNamazZikrCard(
           }
           IconButton(onClick = onAddNote, modifier = Modifier.size(30.dp)) {
             Icon(Icons.Default.NoteAdd, contentDescription = "Add Note", tint = EmeraldPrimary, modifier = Modifier.size(16.dp))
+          }
+        }
+      }
+
+      // 1b. Verified 1:1 Azkar Audio Recitation Bar (Matches exact Arabic Azkar text)
+      if (verifiedAudio != null && verifiedAudio.verifiedMatch) {
+        Surface(
+          shape = RoundedCornerShape(10.dp),
+          color = EmeraldPrimary.copy(alpha = 0.08f),
+          border = BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.25f)),
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("zikr_verified_audio_bar_${zikr.number}")
+        ) {
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(horizontal = 10.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(6.dp),
+              modifier = Modifier.weight(1f)
+            ) {
+              Icon(
+                Icons.Default.VolumeUp,
+                contentDescription = "Verified Audio",
+                tint = EmeraldPrimary,
+                modifier = Modifier.size(16.dp)
+              )
+              Column {
+                Text(
+                  text = "${verifiedAudio.titleEn} • Verified Audio ✓",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = EmeraldPrimary
+                  ),
+                  maxLines = 1,
+                  overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                  text = "${verifiedAudio.reciter} • ${verifiedAudio.hadithReference}",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                  ),
+                  maxLines = 1,
+                  overflow = TextOverflow.Ellipsis
+                )
+              }
+            }
+
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+              Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = GoldPrimary.copy(alpha = 0.22f),
+                modifier = Modifier
+                  .clickable {
+                    repeatMode = when (repeatMode) {
+                      "1x" -> "3x"
+                      "3x" -> "Loop"
+                      else -> "1x"
+                    }
+                  }
+                  .testTag("zikr_audio_repeat_btn_${zikr.number}")
+              ) {
+                Text(
+                  text = "Repeat: $repeatMode",
+                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = EmeraldPrimary
+                  )
+                )
+              }
+
+              OutlinedButton(
+                onClick = {
+                  if (isAudioPlaying) {
+                    runCatching {
+                      activeMediaPlayer?.stop()
+                      activeMediaPlayer?.release()
+                    }
+                    activeMediaPlayer = null
+                    runCatching { activeTts?.stop() }
+                    isAudioPlaying = false
+                  } else {
+                    isAudioPlaying = true
+                    val targetLoops = when (repeatMode) {
+                      "3x" -> 3
+                      "Loop" -> 33
+                      else -> 1
+                    }
+                    try {
+                      val mp = MediaPlayer()
+                      activeMediaPlayer = mp
+                      mp.setDataSource(verifiedAudio.primaryAudioUrl)
+                      var remainingPlays = targetLoops
+                      mp.setOnPreparedListener { player ->
+                        player.start()
+                      }
+                      mp.setOnCompletionListener { player ->
+                        remainingPlays -= 1
+                        if (remainingPlays > 0 && isAudioPlaying) {
+                          player.seekTo(0)
+                          player.start()
+                        } else {
+                          isAudioPlaying = false
+                          runCatching { player.release() }
+                          activeMediaPlayer = null
+                        }
+                      }
+                      mp.setOnErrorListener { player, _, _ ->
+                        runCatching { player.release() }
+                        activeMediaPlayer = null
+                        // Offline fallback: speak exact verified Arabic Azkar text via Android TTS
+                        var ttsInstance: TextToSpeech? = null
+                        ttsInstance = TextToSpeech(context) { status ->
+                          if (status == TextToSpeech.SUCCESS) {
+                            ttsInstance?.language = Locale("ar")
+                            val textToSpeak = verifiedAudio.exactArabicText.ifBlank {
+                              zikr.arabicLines.joinToString(" ")
+                            }
+                            repeat(targetLoops.coerceAtMost(3)) { idx ->
+                              val queueMode = if (idx == 0) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
+                              ttsInstance?.speak(textToSpeak, queueMode, null, "zikr_${zikr.number}_$idx")
+                            }
+                          }
+                          isAudioPlaying = false
+                        }
+                        activeTts = ttsInstance
+                        true
+                      }
+                      mp.prepareAsync()
+                    } catch (_: Throwable) {
+                      isAudioPlaying = false
+                    }
+                  }
+                },
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                modifier = Modifier
+                  .height(30.dp)
+                  .testTag("zikr_audio_play_btn_${zikr.number}")
+              ) {
+                Icon(
+                  if (isAudioPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
+                  contentDescription = if (isAudioPlaying) "Stop Azkar Audio" else "Play Azkar Audio",
+                  tint = EmeraldPrimary,
+                  modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                  text = if (isAudioPlaying) "Stop" else "Listen",
+                  fontSize = 10.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = EmeraldPrimary
+                )
+              }
+            }
           }
         }
       }

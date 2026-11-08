@@ -50,7 +50,15 @@ data class AudioState(
   val currentPositionMs: Int = 0,
   val durationMs: Int = 0,
   val statusMessage: String = "",
-  val reciter: Reciter = availableReciters.first()
+  val reciter: Reciter = availableReciters.first(),
+  val playbackSpeed: Float = TajweedAudioSyncEngine.DEFAULT_PLAYBACK_SPEED,
+  val isRecitingBasmalaPrefix: Boolean = false,
+  val hasBasmalaInCurrentSurahStream: Boolean = true,
+  val basmalaOffsetMs: Long = 0L,
+  val timingStatus: TimingCalibrationStatus = TimingCalibrationStatus.DATASET,
+  val calibrationSource: BasmalaCalibrationSource = BasmalaCalibrationSource.VERIFIED_DATASET,
+  val isAudioAssistedRefinementEnabled: Boolean = true,
+  val audioSource: String = "online_stream"
 )
 
 val availableReciters = listOf(
@@ -164,6 +172,11 @@ val reciterAvailabilityNotes = listOf(
 
 class AudioPlayerManager(private val context: Context) {
   private var mediaPlayer: MediaPlayer? = null
+  private var nextMediaPlayer: MediaPlayer? = null
+  private var nextPreparedSurah: Int = -1
+  private var nextPreparedAyah: Int = -1
+  private var nextPreparedReciterId: String = ""
+  private var nextPlayerPrepJob: Job? = null
   private var offlineAudioTrack: AudioTrack? = null
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
   private var progressJob: Job? = null
@@ -175,10 +188,21 @@ class AudioPlayerManager(private val context: Context) {
     availableReciters.find { it.id == savedId } ?: availableReciters.first()
   }.getOrDefault(availableReciters.first())
 
-  private val _audioState = MutableStateFlow(AudioState(reciter = initialSavedReciter))
+  private val initialPlaybackSpeed: Float = TajweedAudioSyncEngine.loadGlobalPlaybackSpeed(context)
+  private val initialRefinementEnabled: Boolean = TajweedAudioSyncEngine.isAudioAssistedRefinementEnabled(context)
+
+  private val _audioState = MutableStateFlow(
+    AudioState(
+      reciter = initialSavedReciter,
+      playbackSpeed = initialPlaybackSpeed,
+      isAudioAssistedRefinementEnabled = initialRefinementEnabled,
+      hasBasmalaInCurrentSurahStream = initialSavedReciter.isSurahLevelReciter
+    )
+  )
   val audioState: StateFlow<AudioState> = _audioState.asStateFlow()
 
   private var preloadJob: Job? = null
+  private var preloadTargetKey: String = ""
   var autoAdvanceFullSurah: Boolean = true
   @Volatile
   var isSingleVersePlaybackMode: Boolean = false
@@ -372,10 +396,26 @@ class AudioPlayerManager(private val context: Context) {
     return List(totalAyahs) { 60 }
   }
 
+  private fun resolveSurahBasmalaOffsetMs(surah: Int, totalSurahDurationMs: Int): Int {
+    if (surah == 1 || surah == 9) return 0
+    val reciter = _audioState.value.reciter
+    if (!reciter.isSurahLevelReciter) return 0
+    val cal = TajweedAudioSyncEngine.resolveBasmalaCalibration(
+      context = context,
+      reciter = reciter,
+      surahNumber = surah,
+      audioSource = "surah_stream",
+      fileDurationMs = totalSurahDurationMs.toLong(),
+      fileChecksum = ""
+    )
+    return cal.basmalaOffsetMs.toInt().coerceIn(0, (totalSurahDurationMs / 3).coerceAtLeast(0))
+  }
+
   /**
    * Derives `(activeAyahNumber, withinAyahPositionMs, ayahWindowDurationMs)` from a surah-level audio position.
-   * Ensures `islam_sobhi` and `abdul_rehman_mossad` drive the green verse border and green word-by-word highlight
-   * in `QuranScreen` identically to ayah-level reciters.
+   * Accounts for the Basmala prefix (`0 until basmalaOffsetMs` on Surahs 2..114 except 9) so that
+   * during the Basmala prefix the Starting Bismillah Verse highlights in Green, and Ayah 1 Word 1
+   * starts highlighting at `basmalaOffsetMs` when Ayah 1 begins!
    */
   fun computeSurahAyahTimingForPosition(
     surah: Int,
@@ -386,21 +426,39 @@ class AudioPlayerManager(private val context: Context) {
     val totalAyahs = weights.size.coerceAtLeast(1)
     val safeTotalDuration = totalSurahDurationMs.coerceAtLeast(totalAyahs * 2500)
     val safePos = positionMs.coerceIn(0, safeTotalDuration)
-    val totalWeight = weights.sum().coerceAtLeast(1).toLong()
+    val basmalaOffsetMs = resolveSurahBasmalaOffsetMs(surah, safeTotalDuration)
 
+    // Subtract Basmala prefix so verse 1..N weights map strictly to `(basmalaOffsetMs .. safeTotalDuration)`
+    val versesTotalDuration = (safeTotalDuration - basmalaOffsetMs).coerceAtLeast(totalAyahs * 1500)
+    // Add a natural inter-ayah pause cushion (+12 weight units per verse) so word timing never outruns the reciter
+    val adjustedWeights = weights.map { it + 12 }
+    val totalWeight = adjustedWeights.sum().coerceAtLeast(1).toLong()
+
+    if (basmalaOffsetMs > 0 && safePos < basmalaOffsetMs) {
+      val firstAyahDur = ((adjustedWeights.first() * versesTotalDuration) / totalWeight).toInt().coerceAtLeast(1200)
+      return Triple(1, safePos, basmalaOffsetMs + firstAyahDur)
+    }
+
+    val posAfterBasmala = (safePos - basmalaOffsetMs).coerceAtLeast(0)
     var cumulativeWeight = 0L
-    for (idx in weights.indices) {
-      val startMs = ((cumulativeWeight * safeTotalDuration) / totalWeight).toInt()
-      cumulativeWeight += weights[idx]
-      val endMs = if (idx == weights.lastIndex) {
-        safeTotalDuration
+    for (idx in adjustedWeights.indices) {
+      val startMs = ((cumulativeWeight * versesTotalDuration) / totalWeight).toInt()
+      cumulativeWeight += adjustedWeights[idx]
+      val endMs = if (idx == adjustedWeights.lastIndex) {
+        versesTotalDuration
       } else {
-        ((cumulativeWeight * safeTotalDuration) / totalWeight).toInt()
+        ((cumulativeWeight * versesTotalDuration) / totalWeight).toInt()
       }
-      if (safePos < endMs || idx == weights.lastIndex) {
-        val windowDuration = (endMs - startMs).coerceAtLeast(600)
-        val withinAyahPos = (safePos - startMs).coerceIn(0, windowDuration)
-        return Triple(idx + 1, withinAyahPos, windowDuration)
+      if (posAfterBasmala < endMs || idx == adjustedWeights.lastIndex) {
+        val rawWindowDuration = (endMs - startMs).coerceAtLeast(600)
+        val rawWithinAyahPos = (posAfterBasmala - startMs).coerceIn(0, rawWindowDuration)
+        return if (idx == 0 && basmalaOffsetMs > 0) {
+          // Include basmalaOffsetMs in Ayah 1's window so TajweedAudioSyncEngine.computeSyncedWordIndex
+          // knows currentPositionMs >= basmalaOffsetMs!
+          Triple(1, basmalaOffsetMs + rawWithinAyahPos, basmalaOffsetMs + rawWindowDuration)
+        } else {
+          Triple(idx + 1, rawWithinAyahPos, rawWindowDuration)
+        }
       }
     }
     return Triple(1, 0, safeTotalDuration.coerceAtLeast(1000))
@@ -412,9 +470,45 @@ class AudioPlayerManager(private val context: Context) {
     val totalAyahs = weights.size.coerceAtLeast(1)
     val clampedAyah = targetAyah.coerceIn(1, totalAyahs)
     val safeTotalDuration = totalSurahDurationMs.coerceAtLeast(totalAyahs * 2500)
-    val totalWeight = weights.sum().coerceAtLeast(1).toLong()
-    val precedingWeight = weights.take(clampedAyah - 1).sum().toLong()
-    return ((precedingWeight * safeTotalDuration) / totalWeight).toInt().coerceIn(0, (safeTotalDuration - 500).coerceAtLeast(0))
+    val basmalaOffsetMs = resolveSurahBasmalaOffsetMs(surah, safeTotalDuration)
+    val versesTotalDuration = (safeTotalDuration - basmalaOffsetMs).coerceAtLeast(totalAyahs * 1500)
+    val adjustedWeights = weights.map { it + 12 }
+    val totalWeight = adjustedWeights.sum().coerceAtLeast(1).toLong()
+    val precedingWeight = adjustedWeights.take(clampedAyah - 1).sum().toLong()
+    val offsetAfterBasmala = ((precedingWeight * versesTotalDuration) / totalWeight).toInt()
+    return (basmalaOffsetMs + offsetAfterBasmala).coerceIn(0, (safeTotalDuration - 500).coerceAtLeast(0))
+  }
+
+  /**
+   * Explicitly applies the global user playback speed (`1.0f` default, clamped `0.5f..2.0f`)
+   * with `pitch = 1.0f` to the active MediaPlayer so no reciter or surah ever plays at a stale or fast rate.
+   */
+  private fun applyPlaybackSpeedToPlayer(mp: MediaPlayer?) {
+    if (mp == null) return
+    val speed = TajweedAudioSyncEngine.normalizePlaybackSpeed(_audioState.value.playbackSpeed)
+    if (speed != _audioState.value.playbackSpeed) {
+      _audioState.value = _audioState.value.copy(playbackSpeed = speed)
+    }
+    runCatching {
+      val params = mp.playbackParams
+      params.speed = speed
+      params.pitch = 1.0f
+      mp.playbackParams = params
+    }
+  }
+
+  fun setPlaybackSpeed(requestedSpeed: Float) {
+    val validSpeed = TajweedAudioSyncEngine.saveGlobalPlaybackSpeed(context, requestedSpeed)
+    _audioState.value = _audioState.value.copy(playbackSpeed = validSpeed)
+    val mp = mediaPlayer
+    if (mp != null && _audioState.value.isPlaying) {
+      applyPlaybackSpeedToPlayer(mp)
+    }
+  }
+
+  fun setAudioAssistedRefinement(enabled: Boolean) {
+    TajweedAudioSyncEngine.setAudioAssistedRefinementEnabled(context, enabled)
+    _audioState.value = _audioState.value.copy(isAudioAssistedRefinementEnabled = enabled)
   }
 
   private fun buildEveryAyahUrl(reciter: Reciter, surah: Int, ayah: Int): String {
@@ -661,12 +755,16 @@ class AudioPlayerManager(private val context: Context) {
     }
   }
 
-  private fun preloadUpcomingAyahs(reciter: Reciter, surah: Int, currentAyah: Int, count: Int = 4) {
+  private fun preloadUpcomingAyahs(reciter: Reciter, surah: Int, currentAyah: Int, count: Int = 8) {
     if (reciter.isSurahLevelReciter) return
     val totalAyahs = getSurahTotalAyahs(surah)
     if (currentAyah >= totalAyahs) return
 
-    preloadJob?.cancel()
+    val key = "${reciter.id}:$surah"
+    if (preloadTargetKey != key) {
+      preloadJob?.cancel()
+      preloadTargetKey = key
+    }
     preloadJob = scope.launch(Dispatchers.IO) {
       val endAyah = (currentAyah + count).coerceAtMost(totalAyahs)
       for (nextAyah in (currentAyah + 1)..endAyah) {
@@ -682,6 +780,106 @@ class AudioPlayerManager(private val context: Context) {
     }
   }
 
+  private fun releaseNextMediaPlayerOnly() {
+    nextPlayerPrepJob?.cancel()
+    nextPlayerPrepJob = null
+    try {
+      mediaPlayer?.setNextMediaPlayer(null)
+    } catch (_: Exception) {
+    }
+    try {
+      nextMediaPlayer?.release()
+    } catch (_: Exception) {
+    }
+    nextMediaPlayer = null
+    nextPreparedSurah = -1
+    nextPreparedAyah = -1
+    nextPreparedReciterId = ""
+  }
+
+  /**
+   * Pre-buffers and prepares the next Ayah's `MediaPlayer` in the background while the current Ayah
+   * is playing, attaching it via `setNextMediaPlayer` for zero-gap continuous Surah recitation.
+   */
+  private fun prepareNextAyahPlayerInBackground(
+    reciter: Reciter,
+    surah: Int,
+    currentAyah: Int,
+    surahName: String
+  ) {
+    if (isSingleVersePlaybackMode || !autoAdvanceFullSurah || reciter.isSurahLevelReciter) return
+    val totalAyahs = getSurahTotalAyahs(surah)
+    val nextAyah = currentAyah + 1
+    if (nextAyah > totalAyahs) return
+
+    releaseNextMediaPlayerOnly()
+    nextPlayerPrepJob = scope.launch(Dispatchers.IO) {
+      val offlineFile = runCatching {
+        com.example.data.download.DownloadManager.getInstance(context)
+          .findVerifiedOfflineAudioFile(reciter.id, surah, nextAyah)
+      }.getOrNull()
+
+      val cacheFile = getCachedAudioFile(reciter.id, surah, nextAyah)
+      if ((offlineFile == null || !offlineFile.exists() || offlineFile.length() <= 64L) &&
+        (!cacheFile.exists() || cacheFile.length() <= 4096L)
+      ) {
+        val nextUrl = buildEveryAyahUrl(reciter, surah, nextAyah)
+        if (SecurityIntegrityGuard.isUrlTrustedAndAllowed(nextUrl)) {
+          catchAudioForOffline(nextUrl, cacheFile)
+        }
+      }
+      if (!isActive) return@launch
+
+      val readyFile = when {
+        offlineFile != null && offlineFile.exists() && offlineFile.length() > 64L -> offlineFile
+        cacheFile.exists() && cacheFile.length() > 4096L -> cacheFile
+        else -> null
+      }
+      val nextUrl = buildEveryAyahUrl(reciter, surah, nextAyah)
+
+      launch(Dispatchers.Main) {
+        val activeState = _audioState.value
+        if (!activeState.isPlaying || activeState.surahNumber != surah || activeState.ayahNumber != currentAyah) {
+          return@launch
+        }
+        runCatching {
+          val candidateMp = MediaPlayer().apply {
+            setAudioAttributes(
+              AudioAttributes.Builder()
+                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .build()
+            )
+            if (readyFile != null) {
+              setDataSource(readyFile.absolutePath)
+              prepare()
+              nextMediaPlayer = this
+              nextPreparedSurah = surah
+              nextPreparedAyah = nextAyah
+              nextPreparedReciterId = reciter.id
+              runCatching { mediaPlayer?.setNextMediaPlayer(this) }
+            } else {
+              setDataSource(nextUrl)
+              setOnPreparedListener { preparedMp ->
+                val st = _audioState.value
+                if (st.isPlaying && st.surahNumber == surah && st.ayahNumber == currentAyah) {
+                  nextMediaPlayer = preparedMp
+                  nextPreparedSurah = surah
+                  nextPreparedAyah = nextAyah
+                  nextPreparedReciterId = reciter.id
+                  runCatching { mediaPlayer?.setNextMediaPlayer(preparedMp) }
+                } else {
+                  runCatching { preparedMp.release() }
+                }
+              }
+              prepareAsync()
+            }
+          }
+        }
+      }
+    }
+  }
+
   private fun handleAyahOrSurahCompletion(surah: Int, ayah: Int, surahName: String) {
     stopProgressTracking()
     val currentReciter = _audioState.value.reciter
@@ -690,7 +888,53 @@ class AudioPlayerManager(private val context: Context) {
     // Continuous playback is strictly restricted to the Quran/Surah section (!isSingleVersePlaybackMode)
     if (!isSingleVersePlaybackMode && autoAdvanceFullSurah && !currentReciter.isSurahLevelReciter && ayah < totalAyahs) {
       val nextAyah = ayah + 1
-      playAyah(surah, nextAyah, surahName, singleVerseOnly = false)
+      val prepped = nextMediaPlayer
+      if (prepped != null &&
+        nextPreparedSurah == surah &&
+        nextPreparedAyah == nextAyah &&
+        nextPreparedReciterId == currentReciter.id
+      ) {
+        val oldMp = mediaPlayer
+        mediaPlayer = prepped
+        nextMediaPlayer = null
+        nextPreparedSurah = -1
+        nextPreparedAyah = -1
+        nextPreparedReciterId = ""
+        runCatching { oldMp?.setNextMediaPlayer(null) }
+        runCatching { oldMp?.release() }
+
+        val startedOk = runCatching {
+          prepped.setOnCompletionListener {
+            handleAyahOrSurahCompletion(surah, nextAyah, surahName)
+          }
+          if (!prepped.isPlaying) {
+            prepped.start()
+          }
+          true
+        }.getOrDefault(false)
+
+        if (startedOk) {
+          val dur = runCatching { prepped.duration.coerceAtLeast(1000) }.getOrDefault(6000)
+          _audioState.value = _audioState.value.copy(
+            isVisible = true,
+            isBuffering = false,
+            isAudioUnavailable = false,
+            isPlaying = true,
+            surahNumber = surah,
+            ayahNumber = nextAyah,
+            surahName = surahName,
+            currentPositionMs = 0,
+            durationMs = dur,
+            statusMessage = "${currentReciter.name} • Ayah $nextAyah/$totalAyahs (Full Surah Auto-Play)"
+          )
+          startProgressTracking()
+          preloadUpcomingAyahs(currentReciter, surah, nextAyah, count = 8)
+          prepareNextAyahPlayerInBackground(currentReciter, surah, nextAyah, surahName)
+          return
+        }
+      }
+
+      playAyah(surah, nextAyah, surahName, singleVerseOnly = false, isAutoAdvance = true)
       return
     }
 
@@ -721,21 +965,138 @@ class AudioPlayerManager(private val context: Context) {
     )
   }
 
-  fun setReciter(reciter: Reciter) {
-    val previousReciterId = _audioState.value.reciter.id
+  fun setReciter(reciter: Reciter, autoResumeCurrentAyah: Boolean = true) {
+    val previousState = _audioState.value
+    val previousReciterId = previousState.reciter.id
+    val savedSpeed = TajweedAudioSyncEngine.loadGlobalPlaybackSpeed(context)
+    val activeSurah = previousState.surahNumber
+    val activeAyah = previousState.ayahNumber
+    val activeSurahName = previousState.surahName
+    val wasPlayingOrBuffering = previousState.isPlaying || previousState.isBuffering
+
     if (previousReciterId != reciter.id) {
       releasePlayersOnly()
-      _audioState.value = _audioState.value.copy(
+      val hasBasmala = TajweedAudioSyncEngine.doesReciterReciteBasmalaInSurah(
+        context = context,
         reciter = reciter,
+        surahNumber = activeSurah ?: 1,
+        activeAyahNumber = activeAyah ?: 1
+      )
+      _audioState.value = previousState.copy(
+        reciter = reciter,
+        playbackSpeed = savedSpeed,
         isAudioUnavailable = false,
         isPlaying = false,
         isBuffering = false,
-        ayahNumber = null,
+        isRecitingBasmalaPrefix = false,
+        hasBasmalaInCurrentSurahStream = hasBasmala,
+        basmalaOffsetMs = 0L,
+        ayahNumber = if (wasPlayingOrBuffering) activeAyah else null,
         currentPositionMs = 0,
         durationMs = 0
       )
+      TajweedAndAudioDiagnosticsLog.record(
+        "RECITER",
+        "Switched reciter $previousReciterId -> ${reciter.id} (speed=${savedSpeed}x, surah=${activeSurah ?: -1}, ayah=${activeAyah ?: -1})"
+      )
+      if (autoResumeCurrentAyah && wasPlayingOrBuffering && activeSurah != null && activeAyah != null) {
+        if (activeAyah == 0) {
+          playStartingBasmalaVerse(activeSurah, activeSurahName)
+        } else {
+          playAyah(activeSurah, activeAyah, activeSurahName, singleVerseOnly = isSingleVersePlaybackMode)
+        }
+      }
     } else {
-      _audioState.value = _audioState.value.copy(reciter = reciter, isAudioUnavailable = false)
+      _audioState.value = previousState.copy(
+        reciter = reciter,
+        playbackSpeed = savedSpeed,
+        isAudioUnavailable = false
+      )
+    }
+  }
+
+  /**
+   * Plays the standalone Starting Bismillah Verse (`بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ`) for any Surah 2..114 (except 9).
+   * - For surah-level reciters (`islam_sobhi`, `abdul_rehman_mossad`), starts at `0ms` of the Surah stream
+   *   where the Basmala prefix is recited.
+   * - For ayah-level EveryAyah reciters, streams the reciter's verified Bismillah (`001001.mp3`) as `ayahNumber = 0`
+   *   (highlighting Bismillah in Green with Tajweed) and then automatically transitions to `surah:1`!
+   */
+  fun playStartingBasmalaVerse(surah: Int, surahName: String = "") {
+    if (surah == 9) return
+    if (surah == 1) {
+      playAyah(1, 1, surahName)
+      return
+    }
+    val currentReciter = _audioState.value.reciter
+    if (currentReciter.isSurahLevelReciter) {
+      playAyah(surah, 1, surahName)
+      return
+    }
+    try {
+      releasePlayersOnly()
+      isSingleVersePlaybackMode = false
+      val savedSpeed = TajweedAudioSyncEngine.loadGlobalPlaybackSpeed(context)
+      val basmalaUrl = buildEveryAyahUrl(currentReciter, 1, 1)
+      val cacheFile = getCachedAudioFile(currentReciter.id, 1, 1)
+      _audioState.value = _audioState.value.copy(
+        isVisible = true,
+        isPlaying = false,
+        isBuffering = true,
+        isAudioUnavailable = false,
+        surahNumber = surah,
+        ayahNumber = 0,
+        surahName = surahName,
+        currentPositionMs = 0,
+        durationMs = 4500,
+        playbackSpeed = savedSpeed,
+        isRecitingBasmalaPrefix = true,
+        hasBasmalaInCurrentSurahStream = true,
+        statusMessage = "${currentReciter.name} • Reciting Bismillah ($surahName)..."
+      )
+      mediaPlayer = MediaPlayer().apply {
+        setAudioAttributes(
+          AudioAttributes.Builder()
+            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .build()
+        )
+        if (cacheFile.exists() && cacheFile.length() > 4096L) {
+          setDataSource(cacheFile.absolutePath)
+        } else {
+          setDataSource(basmalaUrl)
+        }
+        setOnPreparedListener { mp ->
+          val dur = mp.duration.coerceAtLeast(1500)
+          applyPlaybackSpeedToPlayer(mp)
+          mp.start()
+          _audioState.value = _audioState.value.copy(
+            isVisible = true,
+            isBuffering = false,
+            isPlaying = true,
+            surahNumber = surah,
+            ayahNumber = 0,
+            surahName = surahName,
+            currentPositionMs = 0,
+            durationMs = dur,
+            isRecitingBasmalaPrefix = true,
+            hasBasmalaInCurrentSurahStream = true,
+            statusMessage = "${currentReciter.name} • Bismillahir Rahmanir Rahim ($surahName)"
+          )
+          startProgressTracking()
+        }
+        setOnCompletionListener {
+          // After reciting the Starting Bismillah Verse, seamlessly continue into Ayah 1 of the Surah
+          playAyah(surah, 1, surahName, singleVerseOnly = false, isAutoAdvance = true)
+        }
+        setOnErrorListener { _, _, _ ->
+          playAyah(surah, 1, surahName)
+          true
+        }
+        prepareAsync()
+      }
+    } catch (_: Exception) {
+      playAyah(surah, 1, surahName)
     }
   }
 
@@ -748,7 +1109,13 @@ class AudioPlayerManager(private val context: Context) {
     playAyah(surah = surah, ayah = ayah, surahName = surahName, singleVerseOnly = true)
   }
 
-  fun playAyah(surah: Int, ayah: Int, surahName: String = "", singleVerseOnly: Boolean = false) {
+  fun playAyah(
+    surah: Int,
+    ayah: Int,
+    surahName: String = "",
+    singleVerseOnly: Boolean = false,
+    isAutoAdvance: Boolean = false
+  ) {
     try {
       releasePlayersOnly()
       isSingleVersePlaybackMode = singleVerseOnly
@@ -765,18 +1132,18 @@ class AudioPlayerManager(private val context: Context) {
       val totalAyahs = getSurahTotalAyahs(surah)
       val safeAyah = ayah.coerceIn(1, totalAyahs)
 
-      // Reset highlight state before starting the requested surah & ayah
+      // Update active surah & ayah without flickering isPlaying off during auto-advance
       _audioState.value = _audioState.value.copy(
         surahNumber = surah,
         ayahNumber = safeAyah,
         surahName = surahName,
         currentPositionMs = 0,
-        durationMs = 0
+        durationMs = if (isAutoAdvance) _audioState.value.durationMs.coerceAtLeast(1000) else 0
       )
 
       // Preload upcoming ayahs in background ONLY when in continuous Surah playback mode
       if (!singleVerseOnly) {
-        preloadUpcomingAyahs(currentReciter, surah, safeAyah, count = 4)
+        preloadUpcomingAyahs(currentReciter, surah, safeAyah, count = 8)
       }
 
       val offlineFile = runCatching {
@@ -806,19 +1173,38 @@ class AudioPlayerManager(private val context: Context) {
               val offsetMs = computeStartOffsetMsForAyah(surah, safeAyah, duration)
               if (offsetMs > 0) seekTo(offsetMs)
             }
+            applyPlaybackSpeedToPlayer(this)
             start()
           }
           startProgressTracking()
+        }
+        val rawOfflineDur = mediaPlayer?.duration ?: (totalAyahs * 4000)
+        scope.launch(Dispatchers.IO) {
+          TajweedAudioSyncEngine.calibrateFromLocalAudioFile(
+            context = context,
+            reciter = currentReciter,
+            surahNumber = surah,
+            ayahNumber = safeAyah,
+            audioFile = offlineFile,
+            fileDurationMs = rawOfflineDur.toLong()
+          )
         }
         val initialDur = if (currentReciter.isSurahLevelReciter) {
           computeSurahAyahTimingForPosition(
             surah,
             mediaPlayer?.currentPosition ?: 0,
-            mediaPlayer?.duration ?: (totalAyahs * 4000)
+            rawOfflineDur
           ).third
         } else {
           (mediaPlayer?.duration ?: 8000).coerceAtLeast(1000)
         }
+        val hasBasmala = TajweedAudioSyncEngine.doesReciterReciteBasmalaInSurah(
+          context = context,
+          reciter = currentReciter,
+          surahNumber = surah,
+          activeAyahNumber = safeAyah,
+          fileDurationMs = rawOfflineDur.toLong()
+        )
         _audioState.value = _audioState.value.copy(
           isVisible = true,
           isBuffering = false,
@@ -829,8 +1215,13 @@ class AudioPlayerManager(private val context: Context) {
           surahName = surahName,
           currentPositionMs = 0,
           durationMs = initialDur,
+          hasBasmalaInCurrentSurahStream = hasBasmala,
+          timingStatus = TimingCalibrationStatus.CALIBRATED,
           statusMessage = offlineStatusLabel
         )
+        if (!singleVerseOnly) {
+          prepareNextAyahPlayerInBackground(currentReciter, surah, safeAyah, surahName)
+        }
         return
       }
 
@@ -860,6 +1251,40 @@ class AudioPlayerManager(private val context: Context) {
         "Verifying ${currentReciter.name} audio for Surah $surah..."
       } else {
         "Loading ${currentReciter.name} (Ayah $safeAyah/$totalAyahs)..."
+      }
+
+      // Fast path for ayah-level EveryAyah reciters: start streaming directly on Main thread without
+      // an extra thread-hop pause or stopping isPlaying during continuous Surah auto-advance
+      if (!isSurahMode) {
+        val directUrl = buildEveryAyahUrl(currentReciter, surah, safeAyah)
+        confirmUrlMatchesRequestedSurah(currentReciter, surah, safeAyah, directUrl)
+        _audioState.value = _audioState.value.copy(
+          isVisible = true,
+          isPlaying = isAutoAdvance,
+          isBuffering = !isAutoAdvance,
+          isAudioUnavailable = false,
+          surahNumber = surah,
+          ayahNumber = safeAyah,
+          surahName = surahName,
+          currentPositionMs = 0,
+          durationMs = 3000,
+          statusMessage = if (isAutoAdvance) {
+            "${currentReciter.name} • Ayah $safeAyah/$totalAyahs (Full Surah Auto-Play)"
+          } else {
+            connectingStatus
+          }
+        )
+        streamVerifiedAudioUrl(
+          url = directUrl,
+          fallbackUrls = emptyList(),
+          surah = surah,
+          ayah = safeAyah,
+          surahName = surahName,
+          isSurahMode = false,
+          totalAyahs = totalAyahs,
+          cacheFile = cacheFile
+        )
+        return
       }
 
       val primaryCandidate = resolveCandidateUrlsForReciter(currentReciter, surah, safeAyah).firstOrNull()
@@ -953,14 +1378,15 @@ class AudioPlayerManager(private val context: Context) {
         setDataSource(url)
         setOnPreparedListener { mp ->
           preparedRef = true
-          val totalDur = mp.duration.coerceAtLeast(1000)
-          if (isSurahMode && ayah > 1) {
+          val rawDur = mp.duration
+          val totalDur = rawDur.coerceAtLeast(1000)
+          if (isSurahMode && ayah > 1 && rawDur > 1500) {
             val startOffset = computeStartOffsetMsForAyah(surah, ayah, totalDur)
             if (startOffset > 0) {
               runCatching { mp.seekTo(startOffset) }
             }
           }
-          val initialTiming = if (isSurahMode) {
+          val initialTiming = if (isSurahMode && rawDur > 1500) {
             val pos = runCatching { mp.currentPosition }.getOrDefault(0)
             computeSurahAyahTimingForPosition(surah, pos, totalDur)
           } else {
@@ -973,6 +1399,18 @@ class AudioPlayerManager(private val context: Context) {
           } else {
             "${currentReciter.name} • Ayah $ayah/$totalAyahs (Full Surah Auto-Play)"
           }
+          val hasBasmala = TajweedAudioSyncEngine.doesReciterReciteBasmalaInSurah(
+            context = context,
+            reciter = currentReciter,
+            surahNumber = surah,
+            activeAyahNumber = initialTiming.first,
+            fileDurationMs = totalDur.toLong()
+          )
+          val basmalaOffset = if (isSurahMode && surah != 1 && surah != 9) {
+            resolveSurahBasmalaOffsetMs(surah, totalDur).toLong()
+          } else {
+            0L
+          }
           _audioState.value = _audioState.value.copy(
             isVisible = true,
             isBuffering = false,
@@ -982,16 +1420,31 @@ class AudioPlayerManager(private val context: Context) {
             ayahNumber = initialTiming.first,
             currentPositionMs = initialTiming.second,
             durationMs = initialTiming.third,
+            hasBasmalaInCurrentSurahStream = hasBasmala,
+            basmalaOffsetMs = basmalaOffset,
+            isRecitingBasmalaPrefix = basmalaOffset > 0L && initialTiming.first == 1 && initialTiming.second < basmalaOffset,
             statusMessage = playingStatus
           )
+          applyPlaybackSpeedToPlayer(mp)
           mp.start()
           startProgressTracking()
 
           scope.launch(Dispatchers.IO) {
             catchAudioForOffline(url, cacheFile)
+            if (cacheFile.exists() && cacheFile.length() > 4096L) {
+              TajweedAudioSyncEngine.calibrateFromLocalAudioFile(
+                context = context,
+                reciter = currentReciter,
+                surahNumber = surah,
+                ayahNumber = ayah,
+                audioFile = cacheFile,
+                fileDurationMs = totalDur.toLong()
+              )
+            }
           }
           if (!isSingleVersePlaybackMode) {
-            preloadUpcomingAyahs(currentReciter, surah, ayah, count = 4)
+            preloadUpcomingAyahs(currentReciter, surah, ayah, count = 8)
+            prepareNextAyahPlayerInBackground(currentReciter, surah, ayah, surahName)
           }
         }
         setOnCompletionListener {
@@ -1104,6 +1557,7 @@ class AudioPlayerManager(private val context: Context) {
     val mp = mediaPlayer
     if (mp != null) {
       try {
+        applyPlaybackSpeedToPlayer(mp)
         mp.start()
         _audioState.value = current.copy(
           isVisible = true,
@@ -1145,6 +1599,7 @@ class AudioPlayerManager(private val context: Context) {
     autoDismissJob?.cancel()
     autoDismissJob = null
     stopProgressTracking()
+    releaseNextMediaPlayerOnly()
     try {
       mediaPlayer?.stop()
     } catch (_: Exception) {
@@ -1172,6 +1627,7 @@ class AudioPlayerManager(private val context: Context) {
   fun stop() {
     preloadJob?.cancel()
     preloadJob = null
+    preloadTargetKey = ""
     releasePlayersOnly()
     _audioState.value = AudioState(
       isVisible = false,
@@ -1183,7 +1639,10 @@ class AudioPlayerManager(private val context: Context) {
       currentPositionMs = 0,
       durationMs = 0,
       statusMessage = "",
-      reciter = _audioState.value.reciter
+      reciter = _audioState.value.reciter,
+      playbackSpeed = _audioState.value.playbackSpeed,
+      isAudioAssistedRefinementEnabled = _audioState.value.isAudioAssistedRefinementEnabled,
+      hasBasmalaInCurrentSurahStream = _audioState.value.reciter.isSurahLevelReciter
     )
   }
 
@@ -1196,11 +1655,16 @@ class AudioPlayerManager(private val context: Context) {
     val state = _audioState.value
     val reciter = state.reciter
     if (reciter.isSurahLevelReciter) {
+      if (totalDurationMs <= 1500) {
+        return
+      }
+      val basmalaOffset = resolveSurahBasmalaOffsetMs(surah, totalDurationMs)
       val (derivedAyah, withinAyahPos, ayahDur) = computeSurahAyahTimingForPosition(
         surah = surah,
         positionMs = positionMs,
         totalSurahDurationMs = totalDurationMs
       )
+      val isInBasmala = basmalaOffset > 0 && positionMs < basmalaOffset
       val totalAyahs = getSurahTotalAyahs(surah)
       _audioState.value = state.copy(
         isVisible = true,
@@ -1210,7 +1674,14 @@ class AudioPlayerManager(private val context: Context) {
         ayahNumber = derivedAyah,
         currentPositionMs = withinAyahPos,
         durationMs = ayahDur,
-        statusMessage = "${reciter.name} • Surah $surah • Ayah $derivedAyah/$totalAyahs"
+        isRecitingBasmalaPrefix = isInBasmala,
+        hasBasmalaInCurrentSurahStream = surah != 9,
+        basmalaOffsetMs = basmalaOffset.toLong(),
+        statusMessage = if (isInBasmala) {
+          "${reciter.name} • Surah $surah • Bismillahir Rahmanir Rahim"
+        } else {
+          "${reciter.name} • Surah $surah • Ayah $derivedAyah/$totalAyahs"
+        }
       )
     } else {
       _audioState.value = state.copy(
@@ -1237,7 +1708,9 @@ class AudioPlayerManager(private val context: Context) {
         val current = _audioState.value
         val sNum = current.surahNumber
         if (current.reciter.isSurahLevelReciter && sNum != null && sNum in 1..114) {
-          applySurahProgressSnapshot(sNum, pos, totalDur)
+          if (totalDur > 1500) {
+            applySurahProgressSnapshot(sNum, pos, totalDur)
+          }
         } else {
           _audioState.value = current.copy(currentPositionMs = pos)
         }
@@ -1280,13 +1753,36 @@ class AudioPlayerManager(private val context: Context) {
           val offsetMs = computeStartOffsetMsForAyah(surah, ayah, totalDur)
           if (offsetMs > 0) seekTo(offsetMs)
         }
+        applyPlaybackSpeedToPlayer(this)
         start()
+      }
+      scope.launch(Dispatchers.IO) {
+        TajweedAudioSyncEngine.calibrateFromLocalAudioFile(
+          context = context,
+          reciter = currentReciter,
+          surahNumber = surah,
+          ayahNumber = ayah,
+          audioFile = file,
+          fileDurationMs = totalDur.toLong()
+        )
       }
       val initialTiming = if (isSurahMode) {
         val pos = runCatching { mediaPlayer?.currentPosition ?: 0 }.getOrDefault(0)
         computeSurahAyahTimingForPosition(surah, pos, totalDur)
       } else {
         Triple(ayah, 0, totalDur)
+      }
+      val hasBasmala = TajweedAudioSyncEngine.doesReciterReciteBasmalaInSurah(
+        context = context,
+        reciter = currentReciter,
+        surahNumber = surah,
+        activeAyahNumber = initialTiming.first,
+        fileDurationMs = totalDur.toLong()
+      )
+      val basmalaOffset = if (isSurahMode && surah != 1 && surah != 9) {
+        resolveSurahBasmalaOffsetMs(surah, totalDur).toLong()
+      } else {
+        0L
       }
       _audioState.value = _audioState.value.copy(
         isVisible = true,
@@ -1297,11 +1793,16 @@ class AudioPlayerManager(private val context: Context) {
         surahName = surahName,
         currentPositionMs = initialTiming.second,
         durationMs = initialTiming.third,
+        hasBasmalaInCurrentSurahStream = hasBasmala,
+        basmalaOffsetMs = basmalaOffset,
+        isRecitingBasmalaPrefix = basmalaOffset > 0L && initialTiming.first == 1 && initialTiming.second < basmalaOffset,
+        timingStatus = TimingCalibrationStatus.CALIBRATED,
         statusMessage = status
       )
       startProgressTracking()
       if (!isSingleVersePlaybackMode) {
-        preloadUpcomingAyahs(_audioState.value.reciter, surah, ayah, count = 4)
+        preloadUpcomingAyahs(_audioState.value.reciter, surah, ayah, count = 8)
+        prepareNextAyahPlayerInBackground(_audioState.value.reciter, surah, ayah, surahName)
       }
       true
     }.getOrDefault(false)

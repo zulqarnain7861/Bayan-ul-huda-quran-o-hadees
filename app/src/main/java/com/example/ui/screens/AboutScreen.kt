@@ -524,8 +524,7 @@ fun AboutScreen(
                           Toast.LENGTH_SHORT
                         ).show()
                       }.onFailure { err ->
-                        signInStatusMessage = err.localizedMessage
-                          ?: "Could not complete Google Sign-In. Ensure a Google account is added in Device Settings."
+                        signInStatusMessage = com.example.data.auth.AuthManager.formatAuthErrorUserFriendly(err)
                       }
                     }
                   }

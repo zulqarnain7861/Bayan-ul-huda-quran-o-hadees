@@ -78,10 +78,10 @@ object IslamicRemoteService {
     "tirmidhi" -> "tirmidhi"
     "nasai" -> "nasai"
     "ibnmajah" -> "ibnmajah"
-    "malik" -> "malik"
-    "nawawi" -> "nawawi"
+    "malik", "muwatta" -> "malik"
+    "nawawi", "forty" -> "nawawi"
     "qudsi" -> "qudsi"
-    "dehlawi" -> "dehlawi"
+    "dehlawi", "shahwaliullah40" -> "dehlawi"
     else -> null
   }
 
@@ -909,15 +909,30 @@ object IslamicRemoteService {
     collectionName: String,
     hadithNumber: Int
   ): HadithEntity? {
-    val coord = MultiSourceHadithCatalog.ahmedBasetMappings[collectionKey.lowercase()] ?: return null
-    // Check chapter 1 first for forties or small collections, then full book if needed
+    val normKey = collectionKey.trim().lowercase()
+    val cacheKey = "${normKey}_$hadithNumber"
+    hadithMemoryCache[cacheKey]?.let { return it }
+
+    val coord = MultiSourceHadithCatalog.ahmedBasetMappings[normKey] ?: return null
+    // Check chapter 1 first for forties or small collections, then estimated chapter, then full book if needed
     val ch1Raw = httpGet(coord.byChapterUrl(1))
     if (!ch1Raw.isNullOrBlank()) {
       val parsed = parseAhmedBasetHadithJson(collectionKey, collectionName, ch1Raw, 1)
+      parsed.forEach { hadithMemoryCache["${normKey}_${it.hadithNumber}"] = it }
       parsed.firstOrNull { it.hadithNumber == hadithNumber }?.let { return it }
+    }
+    val estimatedCh = ((hadithNumber - 1) / 45 + 1).coerceAtLeast(1)
+    if (estimatedCh > 1) {
+      val chEstRaw = httpGet(coord.byChapterUrl(estimatedCh))
+      if (!chEstRaw.isNullOrBlank()) {
+        val parsedEst = parseAhmedBasetHadithJson(collectionKey, collectionName, chEstRaw, estimatedCh)
+        parsedEst.forEach { hadithMemoryCache["${normKey}_${it.hadithNumber}"] = it }
+        parsedEst.firstOrNull { it.hadithNumber == hadithNumber }?.let { return it }
+      }
     }
     val bookRaw = httpGet(coord.byBookUrl()) ?: return null
     val allParsed = parseAhmedBasetHadithJson(collectionKey, collectionName, bookRaw, 1)
+    allParsed.forEach { hadithMemoryCache["${normKey}_${it.hadithNumber}"] = it }
     return allParsed.firstOrNull { it.hadithNumber == hadithNumber }
   }
 

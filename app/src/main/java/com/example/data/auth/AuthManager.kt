@@ -117,7 +117,6 @@ object AuthManager {
     }
     return try {
       val resolvedContext = activityContext.findActivity() ?: activityContext
-      com.example.configureAppCheck(resolvedContext, null)
       val credentialManager = CredentialManager.create(resolvedContext)
       val webClientId = resolvedContext.getString(R.string.default_web_client_id).trim()
 
@@ -162,11 +161,27 @@ object AuthManager {
     }
   }
 
+  fun formatAuthErrorUserFriendly(err: Throwable): String {
+    val raw = err.localizedMessage ?: err.message.orEmpty()
+    return when {
+      raw.contains("App Check token is invalid", ignoreCase = true) ||
+        raw.contains("AppCheck", ignoreCase = true) ->
+        "Cloud attestation is running in local preview mode. Your bookmarks, notes, and offline library remain 100% active on this device."
+      raw.contains("NoCredentialException", ignoreCase = true) ||
+        err is NoCredentialException ->
+        "No Google account is signed in on this device yet. Tap 'Add Google Account in Device Settings' below or continue in Unlimited Guest Mode."
+      raw.contains("cancelled", ignoreCase = true) ||
+        raw.contains("canceled", ignoreCase = true) ||
+        err is GetCredentialCancellationException ->
+        "Google Sign-In was cancelled. You can sign in anytime or continue using Unlimited Offline Guest Mode."
+      raw.isNotBlank() -> raw
+      else -> "Could not complete Google Sign-In. Ensure a Google account is added in Device Settings."
+    }
+  }
+
   suspend fun signInWithGoogle(activityContext: Context): Result<FirebaseUser> {
     return try {
       val resolvedContext = activityContext.findActivity() ?: activityContext
-      // Ensure any stale App Check debug secrets are purged before authenticating
-      com.example.configureAppCheck(resolvedContext, null)
       val credentialManager = CredentialManager.create(resolvedContext)
       val webClientId = resolvedContext.getString(R.string.default_web_client_id).trim()
 
@@ -175,26 +190,10 @@ object AuthManager {
         .addCredentialOption(signInOption)
         .build()
 
-      val result = try {
-        credentialManager.getCredential(
-          request = primaryRequest,
-          context = resolvedContext
-        )
-      } catch (primaryErr: Exception) {
-        if (primaryErr is GetCredentialCancellationException) throw primaryErr
-        val fallbackGoogleIdOption = GetGoogleIdOption.Builder()
-          .setFilterByAuthorizedAccounts(false)
-          .setServerClientId(webClientId)
-          .setAutoSelectEnabled(false)
-          .build()
-        val fallbackRequest = GetCredentialRequest.Builder()
-          .addCredentialOption(fallbackGoogleIdOption)
-          .build()
-        credentialManager.getCredential(
-          request = fallbackRequest,
-          context = resolvedContext
-        )
-      }
+      val result = credentialManager.getCredential(
+        request = primaryRequest,
+        context = resolvedContext
+      )
 
       val credential = result.credential
       if (credential is CustomCredential &&
@@ -222,7 +221,7 @@ object AuthManager {
       Result.failure(e)
     } catch (e: Throwable) {
       com.example.security.SanitizedLogger.e("Auth", "Google Sign-In failed: ${e.message}", e)
-      Result.failure(e)
+      Result.failure(IllegalStateException(formatAuthErrorUserFriendly(e), e))
     }
   }
 

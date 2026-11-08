@@ -768,10 +768,373 @@ class KnowledgeAndMirzaVerificationTest {
 
     val hitsAzkar = com.example.data.model.IslamicResearchRepository.searchAcrossIslamicResearch("842")
     assertTrue("Searching for Bukhari 842 must return hits from Fard Namaz Azkar", hitsAzkar.any { it.paperId == "fard_namaz_azkar" })
+
+    // Verify watched video itself + related videos appear at the very top of Recommendations
+    val sampleWatched = dataset.records.first { (it.durationSec ?: 0) >= 3600 }
+    val recsWithWatched = LectureRepository.computeWatchTimeRecommendations(
+      allLectures = dataset.records,
+      watchTimeByYoutubeId = mapOf(sampleWatched.youtubeId to 120),
+      topicDefinitions = discoveryConfig.topics,
+      isDebugBuild = false,
+      limit = 10
+    )
+    assertEquals(
+      "The watched video itself must rank #1 in Recommendations",
+      sampleWatched.youtubeId,
+      recsWithWatched.first().lecture.youtubeId
+    )
+    assertTrue(
+      "Related videos sharing topics with the watched video must immediately follow in Recommendations",
+      recsWithWatched.drop(1).take(4).all { rec ->
+        rec.lecture.topics.any { it in sampleWatched.topics }
+      }
+    )
+
+    // Verify exact Archive.org match guard prevents unrelated 46m fallback MP4s for general 1h30m YouTube lectures
+    val generalLongLecture = dataset.records.first {
+      (it.durationSec ?: 0) >= 5000 && !YtEmbedUrlBuilder.isExactVerifiedArchiveMatch(it)
+    }
+    assertFalse(
+      "General 1h30m YouTube lecture must NOT use unrelated Archive.org MP4 fallback",
+      YtEmbedUrlBuilder.isExactVerifiedArchiveMatch(generalLongLecture)
+    )
+    val practicalNamazLecture = dataset.records.first { it.youtubeId == "Cou1OW7jxx4" }
+    assertTrue(
+      "Practical Namaz Cou1OW7jxx4 must be recognized as an exact verified match",
+      YtEmbedUrlBuilder.isExactVerifiedArchiveMatch(practicalNamazLecture)
+    )
+  }
+
+  @Test
+  fun verifyIslamicHistoricalBooksHadithAuditAndAzkarAudioLibrary() {
+    val context: android.content.Context? = null
+
+    // 1. Verify Representative Book #1 (Tarikh al-Tabari) loads full multi-volume JSON
+    val tabari = com.example.data.repository.IslamicDigitalLibraryRepository.loadRepresentativeBook1Tabari(context)
+    assertEquals("book_history_tabari", tabari.id)
+    assertTrue("Tarikh al-Tabari title must contain الطبري", tabari.titleArabic.contains("الطبري"))
+    assertTrue("Tarikh al-Tabari attribution confidence must be populated", tabari.attributionConfidence.isNotBlank())
+    assertTrue("Tarikh al-Tabari sourceTypeLabel must reference Shamela/OpenITI", tabari.sourceTypeLabel.contains("Shamela") || tabari.sourceTypeLabel.contains("OpenITI"))
+    assertEquals(14, tabari.chapters.size)
+    tabari.chapters.forEach { ch ->
+      assertTrue("Chapter ${ch.chapterNumber} must have Arabic content", ch.arabicExcerpt.isNotBlank())
+      assertTrue("Chapter ${ch.chapterNumber} must have Urdu content", ch.urduContent.isNotBlank())
+      assertTrue("Chapter ${ch.chapterNumber} must have English content", ch.englishContent.isNotBlank())
+      assertTrue("Chapter ${ch.chapterNumber} must have footnotes", ch.footnotes.isNotEmpty())
+      assertTrue("Chapter ${ch.chapterNumber} must have valid page number", ch.pageNumber > 0)
+    }
+
+    // 2. Verify all 26 Classical Islamic Historical Books (including all 20 requested books)
+    val all26Books = com.example.data.repository.IslamicDigitalLibraryRepository.getCompleteHistoricalBooks26(context)
+    assertEquals("Complete Historical Books library must contain 26 classical books", 26, all26Books.size)
+    assertEquals(
+      "All 26 books must have sequential catalogBookNumber 1..26",
+      (1..26).toList(),
+      all26Books.map { it.catalogBookNumber }
+    )
+    all26Books.forEach { book ->
+      assertTrue("Book #${book.catalogBookNumber} (${book.titleEnglish}) must have >= 12 chapters", book.chapters.size >= 12)
+      assertTrue(
+        "Book #${book.catalogBookNumber} chapters must have non-blank Arabic & Urdu text",
+        book.chapters.all { it.arabicExcerpt.isNotBlank() && it.urduContent.isNotBlank() }
+      )
+    }
+
+    // Verify Book 13 (Al-Imama wa al-Siyasa) carries explicit DISPUTED ATTRIBUTION metadata
+    val book13 = all26Books.first { it.catalogBookNumber == 13 }
+    assertEquals("hist_book_13_imama_wa_siyasa", book13.id)
+    assertTrue(
+      "Book 13 must explicitly state DISPUTED ATTRIBUTION",
+      book13.attributionConfidence.contains("DISPUTED ATTRIBUTION")
+    )
+    assertTrue(
+      "Book 13 attribution note must explain disputed attribution to Ibn Qutaybah",
+      book13.attributionConfidence.contains("Ibn Qutaybah", ignoreCase = true)
+    )
+
+    // 3. Verify thematic sub-section filtering & full-text search across the 26 Historical Books
+    val karbalaBooks = com.example.data.repository.IslamicDigitalLibraryRepository.filterHistoricalBooks(
+      context = context,
+      traditionFilter = "BOTH",
+      thematicSection = "Karbala History"
+    )
+    assertTrue("Karbala History filter must return relevant classical works", karbalaBooks.size >= 4)
+
+    val sunniSources = com.example.data.repository.IslamicDigitalLibraryRepository.filterHistoricalBooks(
+      context = context,
+      traditionFilter = "BOTH",
+      thematicSection = "Sunni Historical Sources"
+    )
+    assertTrue("Sunni Historical Sources filter must return >= 18 Sunni works", sunniSources.size >= 18)
+
+    val qadisiyyahHits = com.example.data.repository.IslamicDigitalLibraryRepository.searchHistoricalBooks(
+      context = context,
+      rawQuery = "Qadisiyyah"
+    )
+    assertTrue("Search for 'Qadisiyyah' must return chapter hits across historical books", qadisiyyahHits.isNotEmpty())
+
+    // 4. Verify per-book and per-volume offline download & chapter bookmark persistence
+    com.example.data.repository.IslamicDigitalLibraryRepository.downloadBookOffline(context, tabari)
+    assertTrue(
+      "Tarikh al-Tabari must be marked as downloaded offline",
+      com.example.data.repository.IslamicDigitalLibraryRepository.isBookDownloadedOffline(context, tabari.id)
+    )
+    com.example.data.repository.IslamicDigitalLibraryRepository.downloadBookVolumeOffline(
+      context = context,
+      book = tabari,
+      chapter = tabari.chapters.first()
+    )
+    assertTrue(
+      "Tarikh al-Tabari Jild 1 must be marked as downloaded offline",
+      com.example.data.repository.IslamicDigitalLibraryRepository.isBookVolumeDownloadedOffline(context, tabari.id, 1)
+    )
+
+    val nowBookmarked = com.example.data.repository.IslamicDigitalLibraryRepository.toggleBookChapterBookmark(
+      context = context,
+      bookId = tabari.id,
+      chapterNumber = 6
+    )
+    assertTrue("Toggling bookmark on chapter 6 must return true", nowBookmarked)
+    assertTrue(
+      com.example.data.repository.IslamicDigitalLibraryRepository.isBookChapterBookmarked(context, tabari.id, 6)
+    )
+
+    // 5. Verify Urdu fallback helper for reader & existing test invariants
+    assertEquals(
+      "Urdu translation unavailable",
+      com.example.data.model.IslamicBooksCatalog.formatUrduForReader("")
+    )
+    assertEquals(
+      "Urdu Translation Coming Soon",
+      com.example.data.model.IslamicBooksCatalog.formatBookUrduContent("")
+    )
+
+    // 6. Verify 15 Requested Hadith Collections Audit
+    val hadithAudit = com.example.data.repository.IslamicDigitalLibraryRepository.auditRequested15HadithCollections(context)
+    assertEquals("Must audit all 15 requested Hadith collections", 15, hadithAudit.size)
+    hadithAudit.forEach { report ->
+      assertTrue("Collection ${report.englishTitle} must have Arabic text available", report.arabicAvailable)
+      assertTrue("Collection ${report.englishTitle} must have Urdu translation available", report.urduAvailable)
+      assertTrue("Collection ${report.englishTitle} must preserve numbering", report.numberingPreserved)
+      assertEquals("Collection ${report.englishTitle} must have 0 duplicates", 0, report.duplicateCount)
+      assertTrue("Collection ${report.englishTitle} must have local seeded hadiths > 0", report.localSeededHadithCount > 0)
+    }
+
+    // 7. Verify 19 Post-Prayer Sunnah Azkar 1:1 Audio Mappings
+    val azkarAudioList = com.example.data.repository.IslamicDigitalLibraryRepository.getVerifiedAzkarAudioEntries(context)
+    assertEquals("All 19 Sunnah Azkar must have verified audio entries", 19, azkarAudioList.size)
+    azkarAudioList.forEach { entry ->
+      assertTrue("Zikr #${entry.zikrNumber} audio must be verifiedMatch=true", entry.verifiedMatch)
+      assertTrue("Zikr #${entry.zikrNumber} must have non-blank exactArabicText", entry.exactArabicText.isNotBlank())
+      assertTrue("Zikr #${entry.zikrNumber} must have HTTPS primaryAudioUrl", entry.primaryAudioUrl.startsWith("https://"))
+    }
+  }
+
+  @Test
+  fun testT36_prophetStories25SourcePreservationSha256AndQuizzesVerified() {
+    val repo = com.example.data.repository.ProphetStoriesRepository
+
+    // 1. Verify all 51 raw files (index.json + 25 story JSONs + 25 quiz JSONs) match SHA-256 byte-for-byte
+    val checksumRecords = repo.verifyAll51FilesIntegrity(null)
+    assertEquals("Must verify all 51 files in prophet_stories", 51, checksumRecords.size)
+    checksumRecords.forEach { rec ->
+      assertTrue(
+        "File ${rec.name} must match recorded SHA-256 (${rec.expectedSha256} vs ${rec.actualSha256})",
+        rec.isVerifiedMatch
+      )
+    }
+
+    // 2. Verify all 25 Prophets in canonical order 1..25
+    val indexEntries = repo.getProphetIndexList(null)
+    assertEquals("Must have all 25 Prophets in index.json", 25, indexEntries.size)
+    assertEquals("adam", indexEntries.first().id)
+    assertEquals(1, indexEntries.first().order)
+    assertEquals("muhammad", indexEntries.last().id)
+    assertEquals(25, indexEntries.last().order)
+
+    // 3. Verify all 25 complete Prophet Story packages (177 Adult chapters, 84 Kids subchapters, 1250 Quiz questions)
+    val allPackages = repo.getAll25ProphetPackages(null)
+    assertEquals(25, allPackages.size)
+    val totalAdultChapters = allPackages.sumOf { it.adultChapters.size }
+    val totalKidsSubchapters = allPackages.sumOf { it.kidsSubchapters.size }
+    val totalQuizQuestions = allPackages.sumOf { it.quizQuestions.size }
+    assertEquals("Total adult chapters across 25 Prophets must be 177", 177, totalAdultChapters)
+    assertEquals("Total kids subchapters across 25 Prophets must be 84", 84, totalKidsSubchapters)
+    assertEquals("Total quiz questions across 25 Prophets must be 1250 (50 each)", 1250, totalQuizQuestions)
+
+    // 4. Verify PART 5 Urdu Translation Policy & PART 3 Provenance
+    allPackages.forEach { pkg ->
+      assertEquals("VERIFIED_IMMUTABLE_SHA256 (Byte-for-Byte Match)", pkg.provenance.verificationStatus)
+      assertTrue(pkg.provenance.quranReferencesAll.isNotEmpty())
+      pkg.adultChapters.forEach { ch ->
+        assertTrue(ch.titleAr.isNotBlank())
+        assertTrue(ch.titleEn.isNotBlank())
+        assertTrue(ch.contentAr.isNotBlank())
+        assertTrue(ch.contentEn.isNotBlank())
+        assertEquals(repo.URDU_UNAVAILABLE_NOTICE, ch.displayUrduOrNotice)
+      }
+      assertEquals(50, pkg.quizQuestions.size)
+    }
+
+    // 5. Verify External Repositories Audit (PART 4 & PART 9)
+    val externalAudits = repo.getExternalRepositoriesAudit(null)
+    assertEquals(9, externalAudits.size)
+    assertEquals("4af511b2063ee65434733c849a621ab8b6cf7fda17bf315e0ca93a69042a0119", externalAudits[0].sha256Checksum)
+    assertEquals("450adecbf44e6ac4ce49e4c3d3bfb8c75ccfeb3743f4e7960ca9020bf1b7179e", externalAudits[1].sha256Checksum)
+  }
+
+  @Test
+  fun testT37_quranTajweedEngine113611Spans17RulesLessonsQiraatVerified() {
+    val repo = com.example.data.repository.QuranTajweedEngineRepository
+
+    // 1. Verify all 11 Tajweed Engine asset files exist and pass SHA-256 verification
+    val integrityReports = repo.verifyTajweedEngineIntegrity(null)
+    assertEquals(11, integrityReports.size)
+    integrityReports.forEach { report ->
+      assertTrue("Tajweed asset ${report.fileName} must be verified", report.verified)
+      assertTrue("Tajweed asset ${report.fileName} must be non-empty", report.sizeBytes > 0)
+      assertEquals(64, report.sha256.length)
+    }
+
+    // 2. Verify 17 Tajweed Rule Categories
+    val rules = repo.getTajweedRules(null)
+    assertEquals("Must load all 17 Tajweed rule categories", 17, rules.size)
+    rules.forEach { r ->
+      assertTrue(r.id.isNotBlank())
+      assertTrue(r.englishTitle.isNotBlank())
+      assertTrue(r.colorHex.startsWith("#"))
+    }
+
+    // 3. Verify 6,236 Ayahs and 113,611 precomputed Tajweed annotation spans with 0 out-of-bounds spans
+    repo.ensureAyahCorpusLoaded(null)
+    val allAyahRecords = (1..114).flatMap { s -> repo.getSurahTajweedRecords(null, s) }
+    val totalSpans = allAyahRecords.sumOf { it.annotations.size }
+    val outOfBoundsSpans = allAyahRecords.sumOf { rec ->
+      rec.annotations.count { sp -> sp.start < 0 || sp.end > rec.textUthmani.length || sp.start >= sp.end }
+    }
+    assertEquals("Must verify all 6,236 Ayahs", 6236, allAyahRecords.size)
+    assertEquals("Total precomputed Tajweed spans must be 113,611", 113611, totalSpans)
+    assertEquals("Out-of-bounds Tajweed spans must be 0", 0, outOfBoundsSpans)
+
+    // 4. Verify Word-by-Word for Surah 1 Ayah 1 (4 words)
+    val fatihaWords = repo.getWordByWordForAyah(null, 1, 1)
+    assertEquals(4, fatihaWords.size)
+    assertTrue(fatihaWords.first().arabicWord.isNotBlank())
+    assertTrue(fatihaWords.first().englishMeaning.isNotBlank())
+
+    // 5. Verify Arabic Alphabet & Script Guide (47 letters, tashkeel, stopping signs)
+    val guide = repo.getArabicAlphabetGuide(null)
+    val totalLetters = guide.standardLetters.size + guide.otherLetters.size + guide.nonArabicScriptLetters.size
+    assertEquals(47, totalLetters)
+    assertTrue(guide.tashkeelMarks.isNotEmpty())
+    assertTrue(guide.stoppingSigns.isNotEmpty())
+
+    // 6. Verify 10 Chapters & 57 Tajweed Lessons
+    val chapters = repo.getTajweedLessonChapters(null)
+    assertEquals(10, chapters.size)
+    val totalLessons = chapters.sumOf { it.lessons.size }
+    assertEquals(57, totalLessons)
+
+    // 7. Verify 7 Qiraat Metadata (kept strictly separate from Hafs 'an 'Asim) & 30 Juz Index
+    val qiraat = repo.getQiraatRiwayatSummaries(null)
+    assertEquals(7, qiraat.size)
+    val juzIndex = repo.getJuzIndex(null)
+    assertEquals(30, juzIndex.size)
+  }
+
+  @Test
+  fun testT38_islamQa4203ScholarlyAnswersAnd12CategoriesVerified() {
+    val repo = com.example.data.repository.IslamQaRepository
+
+    // 1. Verify all 4,203 scholarly Q&As load from assets/islamqa/islamqa.zip
+    val allEntries = repo.getAllArticles(null)
+    assertEquals("IslamQA archive must contain all 4,203 authentic Q&A records", 4203, allEntries.size)
+
+    // 2. Verify 12 categories
+    val categories = repo.getCategories(null)
+    assertEquals("IslamQA archive must organize records into 12 categories", 12, categories.size)
+    assertEquals(4203, categories.sumOf { it.articleCount })
+
+    // 3. Verify search and Urdu translation policy notice
+    val fastingResults = repo.searchArticles(null, query = "fasting", categoryFilter = "ALL")
+    assertTrue("Searching IslamQA for 'fasting' must return scholarly fatwas", fastingResults.size >= 20)
+    assertEquals("اردو ترجمہ فی الحال دستیاب نہیں", repo.URDU_UNAVAILABLE_NOTICE)
+    assertEquals("اردو ترجمہ فی الحال دستیاب نہیں", fastingResults.first().urduStatusNotice)
+  }
+
+  @Test
+  fun testT39_sahabaAhlAlBaytClassifiedFolders45Azkar21HadithAndSequentialNavVerified() {
+    val repo = com.example.data.repository.ClassicalLibraryAndBiographiesRepository
+
+    // 1. Verify Sahaba & Ahl al-Bayt Biographies (Sunni & Shia historical accounts kept separate)
+    val allBios = repo.getAllBiographies()
+    assertTrue("Must contain comprehensive Sahaba & Ahl al-Bayt biographies", allBios.size >= 14)
+    val sunniBios = repo.searchBiographies(query = "", traditionFilter = "SUNNI", categoryFilter = "ALL")
+    val shiaBios = repo.searchBiographies(query = "", traditionFilter = "SHIA", categoryFilter = "ALL")
+    assertTrue("Must have Sunni biographical accounts (Al-Isabah, Usd al-Ghabah, Siyar, Tabaqat)", sunniBios.isNotEmpty())
+    assertTrue("Must have Shia biographical accounts (Al-Irshad, Muntaha al-Amal, Rijal al-Kashi)", shiaBios.isNotEmpty())
+    allBios.forEach { bio ->
+      assertTrue(bio.arabicText.isNotBlank())
+      assertTrue(bio.urduTranslation.isNotBlank())
+      assertTrue(bio.englishTranslation.isNotBlank())
+      assertTrue(bio.volumeAndPage.isNotBlank())
+    }
+
+    // 2. Verify Classified Classical Library (Sunni / Shia / Shared-Disputed) with zero cross-duplication
+    val classified = repo.getClassifiedLibraryCatalog(null)
+    assertEquals(
+      "Classified library catalog must have zero cross-duplication across Sunni/Shia/Shared sections",
+      classified.size,
+      classified.map { it.book.id }.distinct().size
+    )
+    assertTrue(
+      classified.any {
+        it.primarySection == com.example.data.repository.ClassicalLibraryAndBiographiesRepository.ClassicalLibraryPrimarySection.SUNNI_CLASSICAL
+      }
+    )
+    assertTrue(
+      classified.any {
+        it.primarySection == com.example.data.repository.ClassicalLibraryAndBiographiesRepository.ClassicalLibraryPrimarySection.SHIA_CLASSICAL
+      }
+    )
+    assertTrue(
+      classified.any {
+        it.primarySection == com.example.data.repository.ClassicalLibraryAndBiographiesRepository.ClassicalLibraryPrimarySection.SHARED_OR_DISPUTED
+      }
+    )
+
+    // 3. Verify all 45 searchable Azkar categories + 14 imported Azkar JSON files
+    assertEquals("Must provide all 45 Azkar categories", 45, repo.all45AzkarCategories.size)
+    val importedAzkar = repo.loadImportedAzkarCorpus(null)
+    assertTrue("Imported Azkar corpus from 14 JSON files must contain >= 120 items (actual=${importedAzkar.size})", importedAzkar.size >= 120)
+    assertEquals("All 14 JSON files must be represented", 14, importedAzkar.map { it.categoryFile }.distinct().size)
+    for (catNum in 1..45) {
+      val catDuas = repo.getDuasForAzkarCategory45(catNum)
+      assertTrue("Azkar category #$catNum must return authentic duas", catDuas.isNotEmpty())
+    }
+
+    // 4. Verify 21 Hadith Collections Audit (including Collection 17 Shah Waliullah 40 COMPLETE and Collection 21 Sa'id ibn Mansur BLOCKED)
+    val audit21 = repo.auditAll21HadithCollections(null)
+    assertEquals("Must audit all 21 Hadith collections", 21, audit21.size)
+    val shahWaliullah = audit21.first { it.number == 17 }
+    assertEquals("shahwaliullah40", shahWaliullah.collectionKey)
+    assertEquals("COMPLETE", shahWaliullah.status)
+    assertEquals(40, shahWaliullah.localPreloadedCount)
+
+    val saidIbnMansur = audit21.first { it.number == 21 }
+    assertEquals("saidibnmansur", saidIbnMansur.collectionKey)
+    assertTrue(saidIbnMansur.status.startsWith("BLOCKED"))
+
+    // 5. Verify deterministic sequential Hadith navigation (index + 1 / index - 1) across chapter boundaries
+    val shahList = repo.buildOrderedHadithNavigationList(null, "shahwaliullah40", emptyList())
+    assertEquals(40, shahList.size)
+    val nextFrom1 = repo.resolveAdjacentHadithSequential(shahList, currentHadithNumber = 1, delta = 1)
+    assertNotNull(nextFrom1)
+    assertEquals(2, nextFrom1!!.hadithNumber)
+    val prevFrom2 = repo.resolveAdjacentHadithSequential(shahList, currentHadithNumber = 2, delta = -1)
+    assertNotNull(prevFrom2)
+    assertEquals(1, prevFrom2!!.hadithNumber)
+    assertNull("Previous from Hadith #1 must be null (boundary)", repo.resolveAdjacentHadithSequential(shahList, 1, -1))
+    assertNull("Next from Hadith #40 must be null (boundary)", repo.resolveAdjacentHadithSequential(shahList, 40, 1))
   }
 }
-
-
-
-
-
