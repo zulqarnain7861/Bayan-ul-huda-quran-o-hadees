@@ -15,6 +15,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Used only in Direct APK (GitHub Releases) distribution mode for user-approved PackageInstaller updates -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <queries>
         <intent>
@@ -37,6 +39,14 @@
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" android:host="drive.google.com" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" android:host="github.com" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" android:host="play.google.com" />
         </intent>
     </queries>
 
@@ -81,6 +91,16 @@
             android:name=".ui.prayer.PrayerAlarmReceiver"
             android:enabled="true"
             android:exported="false" />
+
+        <receiver
+            android:name=".data.updater.ApkInstallStatusReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.bayanulhuda.com.ACTION_APK_INSTALL_STATUS" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <receiver
             android:name=".ui.prayer.BootAndTimeChangeReceiver"

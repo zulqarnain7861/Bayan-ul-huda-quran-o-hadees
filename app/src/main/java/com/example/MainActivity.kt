@@ -74,6 +74,7 @@ import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodels.BayanViewModel
 import com.example.ui.viewmodels.MainNavigationTab
 import androidx.compose.material.icons.filled.VolunteerActivism
+import kotlinx.coroutines.launch
 
 object BayanNavRoutes {
   const val HOME = "home"
@@ -114,6 +115,13 @@ class MainActivity : ComponentActivity() {
       MyApplicationTheme(themeMode = uiState.prayerConfig.themeMode) {
         BayanApp(viewModel = bayanViewModel)
       }
+    }
+  }
+
+  override fun onResume() {
+    super.onResume()
+    runCatching {
+      com.example.data.updater.AppUpdateManager.getInstance(this).refreshEnvironmentAndVerifyPostInstall()
     }
   }
 
@@ -160,6 +168,15 @@ fun BayanApp(
   }
   val layoutDirection = remember(appLanguageCode) {
     AppLocalization.getLayoutDirection(appLanguageCode)
+  }
+
+  val appContext = androidx.compose.ui.platform.LocalContext.current
+  val updaterManager = remember(appContext) { com.example.data.updater.AppUpdateManager.getInstance(appContext) }
+  val updaterState by updaterManager.uiState.collectAsStateWithLifecycle()
+  val updaterCoroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+
+  androidx.compose.runtime.LaunchedEffect(Unit) {
+    updaterManager.checkForUpdatesOnStartOrResume(force = false)
   }
 
   var pendingNoteRef by remember { mutableStateOf<String?>(null) }
@@ -365,6 +382,27 @@ fun BayanApp(
       },
       bottomBar = {
         Column {
+          // In-App GitHub Update Available Banner (when a newer release is detected on startup/resume)
+          com.example.ui.components.InAppUpdateAvailableBanner(
+            updaterState = updaterState,
+            onDownloadUpdate = {
+              updaterCoroutineScope.launch {
+                updaterManager.downloadAndVerifyLatestUpdate(resumeIfPartial = true)
+              }
+            },
+            onInstallVerifiedUpdate = {
+              updaterManager.promptInstallVerifiedUpdate()
+            },
+            onRemindMeLater = {
+              updaterManager.remindMeLater()
+            },
+            onShowReleaseDetails = {
+              updaterManager.setShowReleaseDetailsDialog(true)
+            },
+            onNavigateToUpdaterSettings = {
+              safeNavigateToRoute(BayanNavRoutes.ABOUT)
+            }
+          )
           // Global Recoverable Error Boundary Banner (safe state recovery without crashing)
           uiState.lastRecoverableError?.let { errorMsg ->
             androidx.compose.material3.Surface(

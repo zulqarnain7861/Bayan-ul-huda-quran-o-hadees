@@ -56,6 +56,11 @@ object SecurityIntegrityGuard {
     "easyquran.ai",
     "raw.githubusercontent.com",
     "github.com",
+    "api.github.com",
+    "objects.githubusercontent.com",
+    "release-assets.githubusercontent.com",
+    "codeload.github.com",
+    "play.google.com",
     "download.quranicaudio.com",
     "quranicaudio.com",
     "islamcan.com",
@@ -140,7 +145,9 @@ object SecurityIntegrityGuard {
     ".sunnah.com",
     ".bayanulhuda.org",
     ".google.com",
-    ".android.com"
+    ".android.com",
+    ".github.com",
+    ".githubusercontent.com"
   )
 
   private val SENSITIVE_QUERY_PARAM_REGEX = Regex(

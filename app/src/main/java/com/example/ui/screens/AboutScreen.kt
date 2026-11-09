@@ -71,12 +71,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.local.SourceRegistry
 import com.example.data.local.VerificationStatus
 import com.example.data.prayer.AppThemeMode
 import com.example.data.repository.DiagnosticAuditReport
+import com.example.data.updater.AppUpdateManager
 import com.example.ui.audio.Reciter
 import com.example.ui.audio.availableReciters
+import com.example.ui.components.SettingsGitHubUpdaterCard
 import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.GoldPrimary
 import com.example.ui.theme.ScheherazadeFontFamily
@@ -130,6 +134,9 @@ fun AboutScreen(
   val activeLangMeta = remember(currentAppLanguageCode) {
     com.example.ui.localization.AppLocalization.findInterfaceLanguage(currentAppLanguageCode)
   }
+  val updaterManager = remember(context) { AppUpdateManager.getInstance(context) }
+  val updaterState by updaterManager.uiState.collectAsStateWithLifecycle()
+  val updaterScope = rememberCoroutineScope()
 
   LazyColumn(
     modifier = modifier
@@ -419,7 +426,7 @@ fun AboutScreen(
               }
           ) {
             Text(
-              text = "Version 1.1.0 (Production Release)",
+              text = "Version ${updaterState.installedVersionName} (Code ${updaterState.installedVersionCode} • Production Release)",
               modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
               style = MaterialTheme.typography.labelSmall.copy(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -428,6 +435,32 @@ fun AboutScreen(
           }
         }
       }
+    }
+
+    // In-App Updater & Verified GitHub Releases Card (Settings → About → Check for Updates)
+    item {
+      SettingsGitHubUpdaterCard(
+        updaterState = updaterState,
+        onCheckForUpdates = {
+          updaterScope.launch {
+            updaterManager.checkForUpdatesNow(isAutomaticCheck = false)
+          }
+        },
+        onDownloadAndVerifyUpdate = {
+          updaterScope.launch {
+            updaterManager.downloadAndVerifyLatestUpdate(resumeIfPartial = true)
+          }
+        },
+        onCancelDownload = {
+          updaterManager.cancelActiveDownload()
+        },
+        onInstallVerifiedUpdate = {
+          updaterManager.promptInstallVerifiedUpdate()
+        },
+        onRemindMeLater = {
+          updaterManager.remindMeLater()
+        }
+      )
     }
 
     // All 8 Persistent Appearance Themes Card

@@ -1,0 +1,333 @@
+name: Bayan al-Huda Automated Android Release & Signed In-App Updater CI/CD
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Stable version tag to build & publish (e.g. v1.1.0)'
+        required: true
+        default: 'v1.1.0'
+        type: string
+      minimum_version_code:
+        description: 'Minimum supported versionCode before update becomes critical (e.g. 8)'
+        required: false
+        default: '8'
+        type: string
+      force_update:
+        description: 'Mark this release as a Critical Update (force_update: true in update.json)'
+        required: false
+        default: false
+        type: boolean
+      dry_run_test_build:
+        description: 'Test build & manifest verification only (do not publish to GitHub Releases)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_PACKAGE_NAME: "com.bayanulhuda.com"
+  GITHUB_REPOSITORY_SLUG: "zulqarnain7861/Bayan-ul-huda-quran-o-hadees"
+
+jobs:
+  release-apk:
+    name: Build, Verify, Sign & Publish Bayan al-Huda Release
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: 1. Checkout latest source code and tag history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 2. Validate Release Tag, Reject Prereleases & Verify Signing Secrets
+        id: validate
+        env:
+          SECRET_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          SECRET_STORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          SECRET_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          SECRET_KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          INPUT_TAG: ${{ github.event.inputs.release_tag }}
+          DRY_RUN: ${{ github.event.inputs.dry_run_test_build }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # Determine target release tag
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            RAW_TAG="${INPUT_TAG}"
+          else
+            RAW_TAG="${GITHUB_REF_NAME}"
+          fi
+
+          echo "Validating release tag: ${RAW_TAG}"
+
+          # Reject draft/prerelease/unstable tags (-alpha, -beta, -rc, -dev)
+          if [[ ! "${RAW_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid or prerelease tag '${RAW_TAG}'. Production releases only build from authorized stable semantic tags matching vX.Y.Z (e.g., v1.1.0)."
+            exit 1
+          fi
+
+          VERSION_NAME="${RAW_TAG#v}"
+          echo "tag_name=${RAW_TAG}" >> "${GITHUB_OUTPUT}"
+          echo "version_name=${VERSION_NAME}" >> "${GITHUB_OUTPUT}"
+
+          # Prevent accidental duplicate published releases (unless dry_run)
+          if [[ "${DRY_RUN}" != "true" ]]; then
+            if gh release view "${RAW_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+              echo "::error::GitHub Release '${RAW_TAG}' already exists. Refusing to overwrite an existing published release. Create a new version tag (e.g., v1.1.1) instead."
+              exit 1
+            fi
+          fi
+
+          # Validate Signing Secrets
+          MISSING_SECRETS=()
+          [[ -z "${SECRET_KEYSTORE_B64}" ]] && MISSING_SECRETS+=("ANDROID_KEYSTORE_BASE64")
+          [[ -z "${SECRET_STORE_PASS}" ]] && MISSING_SECRETS+=("ANDROID_KEYSTORE_PASSWORD")
+          [[ -z "${SECRET_KEY_ALIAS}" ]] && MISSING_SECRETS+=("ANDROID_KEY_ALIAS")
+          [[ -z "${SECRET_KEY_PASS}" ]] && MISSING_SECRETS+=("ANDROID_KEY_PASSWORD")
+
+          if [[ ${#MISSING_SECRETS[@]} -gt 0 ]]; then
+            echo "::error::Missing required Android release signing secrets: ${MISSING_SECRETS[*]}"
+            cat << 'EOF'
+          ================================================================================
+          STOPPED SAFELY: MISSING ANDROID RELEASE SIGNING SECRETS
+          ================================================================================
+          Production releases NEVER publish unsigned or debug-signed APKs.
+          Please configure the following 4 secrets in your GitHub repository:
+          GitHub Repository -> Settings -> Secrets and variables -> Actions -> New repository secret
+
+          1. ANDROID_KEYSTORE_BASE64
+             Base64-encoded content of your release keystore (my-upload-key.jks).
+             Generate command: base64 -w 0 my-upload-key.jks
+
+          2. ANDROID_KEYSTORE_PASSWORD
+             Your keystore password (STORE_PASSWORD).
+
+          3. ANDROID_KEY_ALIAS
+             Your signing key alias (must be: upload).
+
+          4. ANDROID_KEY_PASSWORD
+             Your private key password (KEY_PASSWORD).
+
+          See docs/GITHUB_ACTIONS_RELEASE_SETUP_GUIDE.md for full step-by-step instructions.
+          ================================================================================
+          EOF
+            exit 1
+          fi
+
+      - name: 3. Set up JDK 17 & Gradle Cache
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: 4. Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 5. Restore dependencies & prepare clean-build configuration
+        run: |
+          chmod +x tools/signing/prepare-clean-build-signing.sh
+          chmod +x tools/release/generate_signed_update_manifest.sh
+          ./tools/signing/prepare-clean-build-signing.sh
+
+      - name: 6. Run Unit & Robolectric Verification Tests
+        run: |
+          if [ -x "./gradlew" ]; then
+            ./gradlew verifyCleanBuildConfig :app:testDebugUnitTest --stacktrace
+          else
+            gradle verifyCleanBuildConfig :app:testDebugUnitTest --stacktrace
+          fi
+
+      - name: 7. Materialize Release Keystore & Build Signed Release APK
+        id: build_apk
+        env:
+          SECRET_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYSTORE_FILE="${RUNNER_TEMP}/bayan-release-upload.jks"
+          echo "${SECRET_KEYSTORE_B64}" | tr -d '[:space:]' | base64 -d > "${KEYSTORE_FILE}"
+          chmod 600 "${KEYSTORE_FILE}"
+          export KEYSTORE_PATH="${KEYSTORE_FILE}"
+
+          if [ -x "./gradlew" ]; then
+            ./gradlew :app:assembleRelease --stacktrace
+          else
+            gradle :app:assembleRelease --stacktrace
+          fi
+
+          APK_PATH="$(find app/build/outputs/apk/release -name '*.apk' ! -name '*unsigned*' | head -n 1)"
+          if [[ -z "${APK_PATH}" || ! -f "${APK_PATH}" ]]; then
+            echo "::error::Signed release APK was not produced in app/build/outputs/apk/release/"
+            exit 1
+          fi
+          echo "apk_path=${APK_PATH}" >> "${GITHUB_OUTPUT}"
+          echo "keystore_file=${KEYSTORE_FILE}" >> "${GITHUB_OUTPUT}"
+
+      - name: 8. Verify APK Package Name, Version Code, Monotonic Increase & Signing Certificate
+        id: verify_apk
+        env:
+          APK_PATH: ${{ steps.build_apk.outputs.apk_path }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          BUILD_TOOLS_DIR="$(ls -d "${ANDROID_HOME}/build-tools/"* | sort -V | tail -n 1)"
+          AAPT2="${BUILD_TOOLS_DIR}/aapt2"
+          APKSIGNER="${BUILD_TOOLS_DIR}/apksigner"
+
+          BADGING="$("${AAPT2}" dump badging "${APK_PATH}")"
+          PKG_NAME="$(echo "${BADGING}" | sed -n "s/.*package: name='\([^']*\)'.*/\1/p" | head -n 1)"
+          VERSION_CODE="$(echo "${BADGING}" | sed -n "s/.*versionCode='\([^']*\)'.*/\1/p" | head -n 1)"
+          VERSION_NAME="$(echo "${BADGING}" | sed -n "s/.*versionName='\([^']*\)'.*/\1/p" | head -n 1)"
+
+          echo "Detected APK Package: ${PKG_NAME}, versionName: ${VERSION_NAME}, versionCode: ${VERSION_CODE}"
+
+          if [[ "${PKG_NAME}" != "${EXPECTED_PACKAGE_NAME}" ]]; then
+            echo "::error::APK packageName '${PKG_NAME}' does not match expected '${EXPECTED_PACKAGE_NAME}'!"
+            exit 1
+          fi
+
+          if [[ -z "${VERSION_CODE}" || "${VERSION_CODE}" -le 0 ]]; then
+            echo "::error::Invalid APK versionCode '${VERSION_CODE}'"
+            exit 1
+          fi
+
+          # Check previous published update.json (if any) to ensure versionCode is strictly increasing
+          PREV_MANIFEST_JSON="$(gh release download --repo "${GITHUB_REPOSITORY}" --pattern "update.json" -O - 2>/dev/null || true)"
+          if [[ -n "${PREV_MANIFEST_JSON}" ]]; then
+            PREV_CODE="$(echo "${PREV_MANIFEST_JSON}" | python3 -c "import sys, json; print(json.load(sys.stdin).get('version_code', 0))" 2>/dev/null || echo 0)"
+            if [[ "${VERSION_CODE}" -le "${PREV_CODE}" ]]; then
+              echo "::error::APK versionCode (${VERSION_CODE}) must be strictly greater than the previous published release versionCode (${PREV_CODE}). Increment versionCode in app/build.gradle.kts before tagging."
+              exit 1
+            fi
+          fi
+
+          # Verify APK cryptographic signature and extract certificate SHA-256 digest
+          CERT_OUTPUT="$("${APKSIGNER}" verify --verbose --print-certs "${APK_PATH}")"
+          CERT_SHA256="$(echo "${CERT_OUTPUT}" | awk '/Signer #1 certificate SHA-256 digest:/ {print $NF}' | head -n 1 | tr '[:upper:]' '[:lower:]')"
+          if [[ -z "${CERT_SHA256}" || ${#CERT_SHA256} -ne 64 ]]; then
+            echo "::error::Failed to verify APK signing certificate SHA-256 digest!"
+            exit 1
+          fi
+
+          echo "Verified Signing Certificate SHA-256: ${CERT_SHA256}"
+          echo "apk_version_code=${VERSION_CODE}" >> "${GITHUB_OUTPUT}"
+          echo "apk_version_name=${VERSION_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "cert_sha256=${CERT_SHA256}" >> "${GITHUB_OUTPUT}"
+
+      - name: 9. Calculate SHA-256 Checksum, Generate Release Notes & Sign update.json Manifest
+        id: metadata
+        env:
+          APK_PATH: ${{ steps.build_apk.outputs.apk_path }}
+          KEYSTORE_FILE: ${{ steps.build_apk.outputs.keystore_file }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          TAG_NAME: ${{ steps.validate.outputs.tag_name }}
+          APK_VERSION_NAME: ${{ steps.verify_apk.outputs.apk_version_name }}
+          APK_VERSION_CODE: ${{ steps.verify_apk.outputs.apk_version_code }}
+          CERT_SHA256: ${{ steps.verify_apk.outputs.cert_sha256 }}
+          MIN_VERSION_CODE: ${{ github.event.inputs.minimum_version_code || '8' }}
+          FORCE_UPDATE: ${{ github.event.inputs.force_update || 'false' }}
+        run: |
+          set -euo pipefail
+          DIST_DIR="build/release-assets"
+          mkdir -p "${DIST_DIR}"
+
+          VERSIONED_APK_NAME="Bayan-al-Huda-${TAG_NAME}.apk"
+          STABLE_APK_NAME="Bayan-al-Huda.apk"
+
+          cp "${APK_PATH}" "${DIST_DIR}/${VERSIONED_APK_NAME}"
+          cp "${APK_PATH}" "${DIST_DIR}/${STABLE_APK_NAME}"
+
+          APK_SHA256="$(sha256sum "${DIST_DIR}/${VERSIONED_APK_NAME}" | awk '{print $1}' | tr '[:upper:]' '[:lower:]')"
+          echo "${APK_SHA256}  ${VERSIONED_APK_NAME}" > "${DIST_DIR}/${VERSIONED_APK_NAME}.sha256"
+          echo "${APK_SHA256}  ${STABLE_APK_NAME}" > "${DIST_DIR}/SHA256SUMS.txt"
+
+          # Generate release notes automatically from commits since previous tag
+          PREV_TAG="$(git describe --tags --abbrev=0 "${TAG_NAME}^" 2>/dev/null || echo "")"
+          if [[ -n "${PREV_TAG}" ]]; then
+            COMMIT_LOG="$(git log "${PREV_TAG}..${TAG_NAME}" --pretty=format:"- %s (%h)" --no-merges | head -n 30)"
+          else
+            COMMIT_LOG="$(git log -n 15 --pretty=format:"- %s (%h)" --no-merges)"
+          fi
+          if [[ -z "${COMMIT_LOG}" ]]; then
+            COMMIT_LOG="- Verified release ${TAG_NAME} (Version Code ${APK_VERSION_CODE})"
+          fi
+
+          DOWNLOAD_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG_NAME}/${VERSIONED_APK_NAME}"
+
+          ./tools/release/generate_signed_update_manifest.sh \
+            --apk "${DIST_DIR}/${VERSIONED_APK_NAME}" \
+            --keystore "${KEYSTORE_FILE}" \
+            --store-pass "${STORE_PASSWORD}" \
+            --key-alias "${KEY_ALIAS}" \
+            --key-pass "${KEY_PASSWORD}" \
+            --package-name "${EXPECTED_PACKAGE_NAME}" \
+            --version-name "${APK_VERSION_NAME}" \
+            --version-code "${APK_VERSION_CODE}" \
+            --min-version-code "${MIN_VERSION_CODE}" \
+            --download-url "${DOWNLOAD_URL}" \
+            --release-notes "${COMMIT_LOG}" \
+            --force-update "${FORCE_UPDATE}" \
+            --cert-sha256 "${CERT_SHA256}" \
+            --output-dir "${DIST_DIR}"
+
+          cat > "${DIST_DIR}/RELEASE_NOTES.md" << EOF
+          ## Bayan al-Huda ${TAG_NAME} (Version ${APK_VERSION_NAME} • Code ${APK_VERSION_CODE})
+
+          ### What's Changed
+          ${COMMIT_LOG}
+
+          ### Security & Verification Metadata
+          - **Package ID:** \`${EXPECTED_PACKAGE_NAME}\`
+          - **Version Name:** \`${APK_VERSION_NAME}\`
+          - **Version Code:** \`${APK_VERSION_CODE}\`
+          - **APK SHA-256 Checksum:** \`${APK_SHA256}\`
+          - **Signing Certificate SHA-256:** \`${CERT_SHA256}\`
+          - **Signed In-App Updater Manifest:** \`update.json\` (RSA-SHA256 verified)
+          EOF
+
+          echo "dist_dir=${DIST_DIR}" >> "${GITHUB_OUTPUT}"
+
+      - name: 10. Publish GitHub Release & Upload Verified Assets
+        if: ${{ github.event.inputs.dry_run_test_build != 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.validate.outputs.tag_name }}
+          DIST_DIR: ${{ steps.metadata.outputs.dist_dir }}
+        run: |
+          set -euo pipefail
+          gh release create "${TAG_NAME}" \
+            "${DIST_DIR}/Bayan-al-Huda-${TAG_NAME}.apk" \
+            "${DIST_DIR}/Bayan-al-Huda.apk" \
+            "${DIST_DIR}/Bayan-al-Huda-${TAG_NAME}.apk.sha256" \
+            "${DIST_DIR}/SHA256SUMS.txt" \
+            "${DIST_DIR}/update.json" \
+            "${DIST_DIR}/update.json.sig" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "Bayan al-Huda ${TAG_NAME}" \
+            --notes-file "${DIST_DIR}/RELEASE_NOTES.md" \
+            --latest
+
+      - name: 11. Shred Temporary Keystore File (Always)
+        if: always()
+        run: |
+          if [[ -f "${RUNNER_TEMP}/bayan-release-upload.jks" ]]; then
+            rm -f "${RUNNER_TEMP}/bayan-release-upload.jks"
+          fi
