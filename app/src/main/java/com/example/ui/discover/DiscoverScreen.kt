@@ -63,6 +63,7 @@ fun DiscoverScreen(
   searchViewModel: SearchViewModel = viewModel(),
   modifier: Modifier = Modifier
 ) {
+  val context = androidx.compose.ui.platform.LocalContext.current
   val state by searchViewModel.uiState.collectAsStateWithLifecycle()
 
   // If a lecture is selected, render LectureDetailScreen with back navigation
@@ -86,6 +87,29 @@ fun DiscoverScreen(
       modifier = modifier
     )
     return
+  }
+
+  val mostRecentSavedResume = androidx.compose.runtime.remember(
+    state.watchTimeByVideo,
+    state.allLectures,
+    state.selectedLecture
+  ) {
+    com.example.player.VideoPlaybackResumeStore.getMostRecentSavedResumeState(context)
+  }
+
+  val resumeTargetLecture = androidx.compose.runtime.remember(
+    mostRecentSavedResume,
+    state.continueWatchingLectures,
+    state.allLectures,
+    state.visibleLectures
+  ) {
+    val fromSavedStore = mostRecentSavedResume?.let { saved ->
+      state.allLectures.firstOrNull { it.youtubeId == saved.youtubeId }
+    }
+    fromSavedStore
+      ?: state.continueWatchingLectures.firstOrNull()?.lecture
+      ?: state.visibleLectures.firstOrNull()
+      ?: state.allLectures.firstOrNull()
   }
 
   LazyColumn(
@@ -169,6 +193,109 @@ fun DiscoverScreen(
               ),
               modifier = Modifier.testTag("discover_sync_status_label")
             )
+          }
+        }
+      }
+    }
+
+    // Resume Video Lecture / Quick-Start Player Card (Always Visible on Video Library Screen)
+    resumeTargetLecture?.let { targetLecture ->
+      val savedStateForTarget = com.example.player.VideoPlaybackResumeStore.getSavedResumeState(context, targetLecture)
+      val watchedSecForTarget = state.watchTimeByVideo[targetLecture.youtubeId] ?: 0
+      val hasSavedProgress = savedStateForTarget != null || watchedSecForTarget > 0
+      val resumeTimeFormatted = savedStateForTarget?.formattedTime
+        ?: if (watchedSecForTarget > 0) formatSecondsShort(watchedSecForTarget) else "00:00"
+
+      item {
+        Card(
+          modifier = Modifier
+            .fillMaxWidth()
+            .clickable { searchViewModel.openLectureDetail(targetLecture) }
+            .testTag("discover_resume_video_card"),
+          shape = RoundedCornerShape(14.dp),
+          colors = CardDefaults.cardColors(
+            containerColor = GoldPrimary.copy(alpha = 0.16f)
+          ),
+          border = androidx.compose.foundation.BorderStroke(1.2.dp, GoldPrimary)
+        ) {
+          Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Column(modifier = Modifier.weight(1f)) {
+                Text(
+                  text = if (hasSavedProgress) {
+                    "▶ RESUME VIDEO LECTURE • SAVED AT $resumeTimeFormatted"
+                  } else {
+                    "▶ FEATURED VIDEO LECTURE • AUTO-RESUME ENABLED"
+                  },
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    color = EmeraldPrimary,
+                    fontWeight = FontWeight.ExtraBold
+                  )
+                )
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                  text = targetLecture.displayTitle,
+                  style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                  maxLines = 2,
+                  overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                  text = "${targetLecture.speaker} · ${targetLecture.channelDisplayName}",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                  ),
+                  maxLines = 1,
+                  overflow = TextOverflow.Ellipsis
+                )
+              }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            FlowRow(
+              horizontalArrangement = Arrangement.spacedBy(8.dp),
+              verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+              Button(
+                onClick = { searchViewModel.openLectureDetail(targetLecture) },
+                colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+                modifier = Modifier.testTag("discover_resume_video_button")
+              ) {
+                Icon(
+                  imageVector = Icons.Default.PlayArrow,
+                  contentDescription = "Resume Video Lecture"
+                )
+                Text(
+                  text = if (hasSavedProgress) {
+                    "  Resume Lecture ($resumeTimeFormatted)"
+                  } else {
+                    "  Watch Featured Lecture"
+                  },
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.Bold
+                )
+              }
+              if (hasSavedProgress) {
+                OutlinedButton(
+                  onClick = {
+                    com.example.player.VideoPlaybackResumeStore.clearResumePosition(
+                      context,
+                      targetLecture.youtubeId
+                    )
+                    searchViewModel.openLectureDetail(targetLecture)
+                  },
+                  modifier = Modifier.testTag("discover_restart_video_button")
+                ) {
+                  Text(
+                    text = "Start Over (00:00)",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold
+                  )
+                }
+              }
+            }
           }
         }
       }

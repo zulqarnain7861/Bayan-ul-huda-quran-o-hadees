@@ -100,6 +100,7 @@ import com.example.ui.theme.AmiriFontFamily
 import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.GoldPrimary
 import com.example.ui.theme.ScheherazadeFontFamily
+import com.example.ui.theme.UrduNastaliqFontFamily
 
 enum class DailyDuasSectionTab(val label: String, val testTag: String) {
   MASNOON_DUAS("Masnoon Duas", "duas_tab_masnoon"),
@@ -216,7 +217,7 @@ fun DailyDuasScreen(
     contentPadding = PaddingValues(vertical = 12.dp),
     verticalArrangement = Arrangement.spacedBy(12.dp)
   ) {
-    // 1. Header Banner with Arabic Calligraphy & Section Tabs
+    // 1. Symmetrical Illuminated Header Banner with Separate Arabic, Urdu, and English Lines & Section Tabs
     item {
       ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -225,51 +226,70 @@ fun DailyDuasScreen(
           containerColor = EmeraldPrimary
         )
       ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Column(modifier = Modifier.weight(1f)) {
-              Text(
-                text = "Daily Masnoon Duas & Sunnah Reminders",
-                style = MaterialTheme.typography.titleMedium.copy(
-                  color = Color.White,
-                  fontWeight = FontWeight.Bold
-                )
-              )
-              Spacer(modifier = Modifier.height(2.dp))
-              Text(
-                text = "Authentic Quranic & Prophetic Supplications • Special Occasions • Friday Ghusl & Daily Reminders",
-                style = MaterialTheme.typography.labelSmall.copy(
-                  color = Color.White.copy(alpha = 0.85f)
-                )
-              )
-            }
-            Text(
-              text = "الأَدْعِيَةُ المَسْنُونَة",
-              style = MaterialTheme.typography.titleLarge.copy(
-                fontFamily = ScheherazadeFontFamily,
-                color = GoldPrimary,
-                fontWeight = FontWeight.Bold,
-                fontSize = 22.sp
-              )
-            )
-          }
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(18.dp),
+          horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+          Text(
+            text = "الأَدْعِيَةُ المَسْنُونَةُ وَالأَذْكَارُ النَّبَوِيَّة",
+            style = MaterialTheme.typography.titleLarge.copy(
+              fontFamily = ScheherazadeFontFamily,
+              color = GoldPrimary,
+              fontWeight = FontWeight.Bold,
+              fontSize = 23.sp,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+          Spacer(modifier = Modifier.height(2.dp))
+          Text(
+            text = "مسنون دعائیں، اذکار اور سنت یاددہانی",
+            style = MaterialTheme.typography.bodyMedium.copy(
+              fontFamily = UrduNastaliqFontFamily,
+              color = GoldPrimary.copy(alpha = 0.95f),
+              fontWeight = FontWeight.Bold,
+              fontSize = 15.sp,
+              lineHeight = 25.sp,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+          Spacer(modifier = Modifier.height(2.dp))
+          Text(
+            text = "Daily Masnoon Duas & Sunnah Reminders",
+            style = MaterialTheme.typography.titleMedium.copy(
+              color = Color.White,
+              fontWeight = FontWeight.Bold,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+          Spacer(modifier = Modifier.height(2.dp))
+          Text(
+            text = "Authentic Quranic & Prophetic Supplications • Special Occasions • Friday Ghusl & Daily Reminders",
+            style = MaterialTheme.typography.labelSmall.copy(
+              color = Color.White.copy(alpha = 0.85f),
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
 
           Spacer(modifier = Modifier.height(12.dp))
 
-          // 3 Primary Section Sub-Tabs
+          // 3 Primary Section Sub-Tabs (Symmetrical Equal-Height Pills)
           Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
           ) {
             DailyDuasSectionTab.entries.forEach { tab ->
               val selected = activeTab == tab
               Surface(
                 modifier = Modifier
                   .weight(1f)
+                  .height(44.dp)
                   .clip(RoundedCornerShape(12.dp))
                   .clickable { activeTab = tab }
                   .testTag(tab.testTag),
@@ -277,7 +297,9 @@ fun DailyDuasScreen(
                 color = if (selected) GoldPrimary else Color.White.copy(alpha = 0.14f)
               ) {
                 Box(
-                  modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp),
+                  modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 6.dp),
                   contentAlignment = Alignment.Center
                 ) {
                   Text(
@@ -287,7 +309,8 @@ fun DailyDuasScreen(
                       fontWeight = FontWeight.Bold,
                       fontSize = 11.sp
                     ),
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    maxLines = 2
                   )
                 }
               }
@@ -407,17 +430,20 @@ fun DailyDuasScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Translation & Authentic Verse Audio Controls (No AI/Synthesized Voice)
+            // Translation & Authentic Verse Audio Controls
             Text(
-              text = "Translation Display & Authentic Human Reciter Audio (Exact Quranic Verse Only — No AI Voice):",
+              text = "Translation Display & Authentic Reciter Audio:",
               style = MaterialTheme.typography.labelSmall.copy(
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-              )
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+              ),
+              modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(6.dp))
             FlowRow(
-              horizontalArrangement = Arrangement.spacedBy(8.dp),
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
               verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
               FilterChip(

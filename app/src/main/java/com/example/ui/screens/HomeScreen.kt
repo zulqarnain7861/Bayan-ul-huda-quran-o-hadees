@@ -30,6 +30,8 @@ import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -125,6 +127,7 @@ fun HomeScreen(
   onNavigateToQuran: () -> Unit,
   onNavigateToHadith: () -> Unit,
   onNavigateToLibrary: () -> Unit = {},
+  onNavigateToLibraryTab: (Int) -> Unit = { onNavigateToLibrary() },
   onNavigateToDownloads: () -> Unit = {},
   onNavigateToEvidence: () -> Unit = {},
   onNavigateToQibla: () -> Unit = {},
@@ -140,6 +143,10 @@ fun HomeScreen(
   var reflectionSearchQuery by remember { mutableStateOf("") }
   var reflectionIndex by remember { mutableIntStateOf(0) }
 
+  val mostRecentVideoResume = remember(context) {
+    com.example.player.VideoPlaybackResumeStore.getMostRecentSavedResumeState(context)
+  }
+
   LazyColumn(
     modifier = modifier
       .fillMaxSize()
@@ -152,7 +159,7 @@ fun HomeScreen(
       Spacer(modifier = Modifier.height(12.dp))
     }
 
-    // 1. TOP ON HOME: Start Learning — Learn Quran & Noorani Qaida (above Sehri/Iftari & Resume)
+    // 1. TOP ON HOME (Right after Bismillah): Start Learning — Learn Quran & Noorani Qaida (Symmetrical Illuminated Card)
     item {
       Card(
         modifier = Modifier
@@ -165,52 +172,58 @@ fun HomeScreen(
         ),
         border = androidx.compose.foundation.BorderStroke(1.5.dp, GoldPrimary)
       ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+          horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+          Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = GoldPrimary.copy(alpha = 0.22f)
           ) {
-            Column(modifier = Modifier.weight(1f)) {
-              Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = GoldPrimary.copy(alpha = 0.22f)
-              ) {
-                Text(
-                  text = "START LEARNING • DARASGAH & MADRASAH CURRICULUM",
-                  style = MaterialTheme.typography.labelSmall.copy(
-                    color = GoldPrimary,
-                    fontWeight = FontWeight.ExtraBold
-                  ),
-                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                )
-              }
-              Spacer(modifier = Modifier.height(6.dp))
-              Text(
-                text = "Learn Quran & Noorani Qaida",
-                style = MaterialTheme.typography.titleMedium.copy(
-                  color = Color.White,
-                  fontWeight = FontWeight.ExtraBold
-                )
-              )
-              Text(
-                text = "نورانی قاعدہ، تجوید، ایمان و کلمات، نمازِ مترجم، وضو اور مسنون دعائیں",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                  fontFamily = com.example.ui.theme.UrduNastaliqFontFamily,
-                  color = GoldPrimary,
-                  fontSize = 15.sp,
-                  lineHeight = 26.sp
-                )
-              )
-            }
+            Text(
+              text = "START LEARNING • DARASGAH & MADRASAH CURRICULUM",
+              style = MaterialTheme.typography.labelSmall.copy(
+                color = GoldPrimary,
+                fontWeight = FontWeight.ExtraBold,
+                textAlign = TextAlign.Center
+              ),
+              modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+            )
           }
+          Spacer(modifier = Modifier.height(6.dp))
+          Text(
+            text = "نورانی قاعدہ، تجوید، ایمان و کلمات، نمازِ مترجم، وضو اور مسنون دعائیں",
+            style = MaterialTheme.typography.bodyMedium.copy(
+              fontFamily = com.example.ui.theme.UrduNastaliqFontFamily,
+              color = GoldPrimary,
+              fontSize = 15.sp,
+              lineHeight = 26.sp,
+              fontWeight = FontWeight.Bold,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+          Spacer(modifier = Modifier.height(2.dp))
+          Text(
+            text = "Learn Quran & Noorani Qaida",
+            style = MaterialTheme.typography.titleMedium.copy(
+              color = Color.White,
+              fontWeight = FontWeight.ExtraBold,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
           Spacer(modifier = Modifier.height(6.dp))
           Text(
             text = "17 Noorani Qaida lessons (Makharij, Harakat, Tanween, Madd & Tajweed with Voice), Six Kalimas, Iman-e-Mufassal/Mujmal, Complete Namaz & Wudu, and Daily Duas.",
             style = MaterialTheme.typography.bodySmall.copy(
               color = Color.White.copy(alpha = 0.9f),
-              lineHeight = 18.sp
-            )
+              lineHeight = 18.sp,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
           )
           Spacer(modifier = Modifier.height(10.dp))
           Button(
@@ -230,6 +243,316 @@ fun HomeScreen(
               text = "Start Learning — Noorani Qaida & Quran",
               style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold)
             )
+          }
+        }
+      }
+      Spacer(modifier = Modifier.height(14.dp))
+    }
+
+    // 1B. Video Lectures Library & Resume Video Lecture Card (Symmetrical Centered Layout)
+    item {
+      Card(
+        modifier = Modifier
+          .fillMaxWidth()
+          .clickable { onNavigateToLibraryTab(5) }
+          .testTag("home_video_library_and_resume_card"),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+          containerColor = EmeraldPrimary.copy(alpha = 0.14f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.4.dp, GoldPrimary)
+      ) {
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+          horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+          Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = EmeraldPrimary
+          ) {
+            Text(
+              text = if (mostRecentVideoResume != null) {
+                "▶ RESUME VIDEO LECTURE • SAVED AT ${mostRecentVideoResume.formattedTime}"
+              } else {
+                "🎬 VIDEO LECTURES LIBRARY • 480+ LECTURES & AUTO-RESUME"
+              },
+              style = MaterialTheme.typography.labelSmall.copy(
+                color = Color.White,
+                fontWeight = FontWeight.ExtraBold,
+                textAlign = TextAlign.Center
+              ),
+              modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+            )
+          }
+          Spacer(modifier = Modifier.height(6.dp))
+          Text(
+            text = "قرآن و سنت کی روشنی میں علمی و تحقیقی ویڈیو لیکچرز",
+            style = MaterialTheme.typography.bodyMedium.copy(
+              fontFamily = com.example.ui.theme.UrduNastaliqFontFamily,
+              fontSize = 15.sp,
+              lineHeight = 25.sp,
+              fontWeight = FontWeight.Bold,
+              color = GoldPrimary,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+          Text(
+            text = "Understand Islam · Video Lectures Library (EMAM)",
+            style = MaterialTheme.typography.titleMedium.copy(
+              fontWeight = FontWeight.ExtraBold,
+              color = MaterialTheme.colorScheme.onSurface,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+          Spacer(modifier = Modifier.height(4.dp))
+          Text(
+            text = if (mostRecentVideoResume != null) {
+              "Last watched lecture (${mostRecentVideoResume.youtubeId}) saved at ${mostRecentVideoResume.formattedTime}. Tap below to resume playback or browse all 480+ Quran Tafseer, Hadith, Fiqh & Seerah lectures."
+            } else {
+              "Engineer Muhammad Ali Mirza · 480+ Verified Quran Tafseer, Sahih Hadith, Aqeedah, Fiqh & Seerah Video Lectures with 144p–1080p quality & automatic resume."
+            },
+            style = MaterialTheme.typography.bodySmall.copy(
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              lineHeight = 18.sp,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+          Spacer(modifier = Modifier.height(10.dp))
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            Button(
+              onClick = { onNavigateToLibraryTab(5) },
+              shape = RoundedCornerShape(10.dp),
+              colors = ButtonDefaults.buttonColors(
+                containerColor = EmeraldPrimary,
+                contentColor = Color.White
+              ),
+              modifier = Modifier
+                .weight(1f)
+                .testTag("home_resume_video_lecture_btn")
+            ) {
+              Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+              Spacer(modifier = Modifier.width(6.dp))
+              Text(
+                text = if (mostRecentVideoResume != null) {
+                  "Resume Video (${mostRecentVideoResume.formattedTime})"
+                } else {
+                  "Resume / Watch Video"
+                },
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+              )
+            }
+            OutlinedButton(
+              onClick = { onNavigateToLibraryTab(5) },
+              shape = RoundedCornerShape(10.dp),
+              modifier = Modifier
+                .weight(1f)
+                .testTag("home_open_video_library_btn")
+            ) {
+              Text(
+                text = "Open Video Library",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+              )
+            }
+          }
+        }
+      }
+      Spacer(modifier = Modifier.height(14.dp))
+    }
+
+    // 1C. All Features & Scholarly Modules Quick Hub Card (Symmetrical Centered Grid)
+    item {
+      Card(
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("home_all_features_hub_card"),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+          containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.35f))
+      ) {
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(14.dp),
+          horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+          Text(
+            text = "تمام علمی، تحقیقی اور عبادتی شعبے — ایک نظر میں",
+            style = MaterialTheme.typography.bodyMedium.copy(
+              fontFamily = com.example.ui.theme.UrduNastaliqFontFamily,
+              fontSize = 14.sp,
+              lineHeight = 24.sp,
+              fontWeight = FontWeight.Bold,
+              color = GoldPrimary,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+          Text(
+            text = "All Features & Scholarly Libraries (1-Tap Access)",
+            style = MaterialTheme.typography.titleSmall.copy(
+              fontWeight = FontWeight.ExtraBold,
+              color = EmeraldPrimary,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+          Spacer(modifier = Modifier.height(8.dp))
+          val hubItems = listOf(
+            Triple("▶ Video Lectures (480+)", "home_hub_video_lectures_btn") { onNavigateToLibraryTab(5) },
+            Triple("📚 152 Classical Books", "home_hub_152_books_btn") { onNavigateToLibraryTab(1) },
+            Triple("🏛 Islamic History (26)", "home_hub_history_btn") { onNavigateToLibraryTab(0) },
+            Triple("📖 Fikr-e-Maududi", "home_hub_maududi_btn") { onNavigateToLibraryTab(6) },
+            Triple("🌟 25 Prophet Stories", "home_hub_prophets_btn") { onNavigateToLibraryTab(8) },
+            Triple("🕌 Sahaba & Ahl al-Bayt", "home_hub_sahaba_btn") { onNavigateToLibraryTab(10) },
+            Triple("⚖️ IslamQA (4,203)", "home_hub_islamqa_btn") { onNavigateToLibraryTab(11) },
+            Triple("🔬 Islamic Research (4)", "home_hub_research_btn") { onNavigateToLibraryTab(7) },
+            Triple("🗂 Classified Folders", "home_hub_folders_btn") { onNavigateToLibraryTab(9) },
+            Triple("🎓 Noorani Qaida & Namaz", "home_hub_learn_islam_btn") { onNavigateToLearnIslam() },
+            Triple("✔ Islam with Evidence", "home_hub_evidence_btn") { onNavigateToEvidence() },
+            Triple("🌙 Sehri & Iftar Timetable", "home_hub_sehri_iftar_btn") { onNavigateToSehriIftar() },
+            Triple("🧭 Qibla Compass", "home_hub_qibla_btn") { onNavigateToQibla() },
+            Triple("🤲 Daily Duas & Sunnah", "home_hub_duas_btn") { onNavigateToDailyDuas() },
+            Triple("⬇️ Offline Downloads", "home_hub_downloads_btn") { onNavigateToDownloads() },
+            Triple("📲 Share App (APK + Link)", "home_hub_share_app_btn") {
+              com.example.ui.components.shareAppApkWithDriveLink(context)
+            },
+            Triple("📥 Latest Updates (Drive)", "home_hub_drive_updates_btn") {
+              com.example.ui.components.openAppUpdatesDriveFolder(context)
+            }
+          )
+          FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+          ) {
+            hubItems.forEach { (label, tag, action) ->
+              Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.45f)),
+                modifier = Modifier
+                  .clickable { action() }
+                  .testTag(tag)
+              ) {
+                Text(
+                  text = label,
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
+                  ),
+                  modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                )
+              }
+            }
+          }
+        }
+      }
+      Spacer(modifier = Modifier.height(14.dp))
+    }
+
+    // 1D. Share App (APK File + Official Google Drive Updates Folder Link) Card (Symmetrical Centered Layout)
+    item {
+      Card(
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("home_share_app_apk_card"),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+          containerColor = EmeraldPrimary.copy(alpha = 0.1f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.7f))
+      ) {
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(14.dp),
+          horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+          Text(
+            text = "بیان الہدیٰ ایپ (APK) اور تازہ ترین اپڈیٹس لنک شیئر کریں",
+            style = MaterialTheme.typography.bodyMedium.copy(
+              fontFamily = com.example.ui.theme.UrduNastaliqFontFamily,
+              fontSize = 14.sp,
+              lineHeight = 24.sp,
+              fontWeight = FontWeight.Bold,
+              color = GoldPrimary,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+          Text(
+            text = "Share Bayan al-Huda (APK File + Official Updates Link)",
+            style = MaterialTheme.typography.titleSmall.copy(
+              fontWeight = FontWeight.ExtraBold,
+              color = EmeraldPrimary,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+          Spacer(modifier = Modifier.height(4.dp))
+          Text(
+            text = "Shares the installed APK file directly along with the official Google Drive folder link for downloading the latest updates.",
+            style = MaterialTheme.typography.labelSmall.copy(
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+          Spacer(modifier = Modifier.height(8.dp))
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            Button(
+              onClick = { com.example.ui.components.shareAppApkWithDriveLink(context) },
+              shape = RoundedCornerShape(10.dp),
+              colors = ButtonDefaults.buttonColors(
+                containerColor = EmeraldPrimary,
+                contentColor = Color.White
+              ),
+              modifier = Modifier
+                .weight(1f)
+                .testTag("home_share_app_apk_button")
+            ) {
+              Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+              Spacer(modifier = Modifier.width(6.dp))
+              Text(
+                text = "Share APK + Link",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+              )
+            }
+            OutlinedButton(
+              onClick = { com.example.ui.components.openAppUpdatesDriveFolder(context) },
+              shape = RoundedCornerShape(10.dp),
+              modifier = Modifier
+                .weight(1f)
+                .testTag("home_open_drive_updates_button")
+            ) {
+              Text(
+                text = "Updates Drive Folder",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+              )
+            }
           }
         }
       }

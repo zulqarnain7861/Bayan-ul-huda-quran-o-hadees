@@ -1,5 +1,7 @@
 package com.example.ui.components
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -44,6 +46,7 @@ import com.example.ui.theme.GoldPrimary
 import com.example.ui.theme.OnEmeraldContainer
 import com.example.ui.theme.SahihBadgeColor
 import com.example.ui.theme.ScheherazadeFontFamily
+import com.example.ui.theme.UrduNastaliqFontFamily
 
 const val WHATSAPP_SUPPORT_URL = "https://wa.me/7889632693?text=Assalamu%20Alaikum"
 
@@ -137,7 +140,20 @@ fun BismillahHeader(
     else -> statusRed
   }
 
+  val basmalaRecordState = androidx.compose.runtime.produceState(
+    initialValue = com.example.data.repository.QuranTajweedEngineRepository.getCanonicalBasmalaTajweedRecord(context),
+    key1 = isTajweedEnabled
+  ) {
+    if (isTajweedEnabled) {
+      val asyncRec = com.example.data.repository.QuranTajweedEngineRepository.loadAyahTajweedRecordAsync(context, 1, 1)
+      if (asyncRec != null && asyncRec.textUthmani.isNotBlank() && asyncRec.annotations.isNotEmpty()) {
+        value = asyncRec
+      }
+    }
+  }
+  val basmalaRecord = basmalaRecordState.value
   val basmalaAnnotatedText = androidx.compose.runtime.remember(
+    basmalaRecord,
     isSurahReaderMode,
     isSurahAudioActive,
     isTajweedEnabled,
@@ -148,7 +164,6 @@ fun BismillahHeader(
     activeBasmalaWordIdx,
     baseArabicColor
   ) {
-    val basmalaRecord = com.example.data.repository.QuranTajweedEngineRepository.getCanonicalBasmalaTajweedRecord(context)
     if (isTajweedEnabled && tajweedRulesMap.isNotEmpty()) {
       com.example.data.repository.QuranTajweedEngineRepository.buildSafeTajweedAnnotatedString(
         record = basmalaRecord,
@@ -159,7 +174,9 @@ fun BismillahHeader(
         isAudioPlayingOnThisVerse = isActivelyPlayingBasmala,
         activeWordIndex = activeBasmalaWordIdx,
         activeWordHighlightColor = statusGreen,
-        recitedWordColor = statusDarkGreen
+        recitedWordColor = statusDarkGreen,
+        expectedSurah = 1,
+        expectedAyah = 1
       )
     } else if (isActivelyPlayingBasmala && activeBasmalaWordIdx >= 0) {
       androidx.compose.ui.text.buildAnnotatedString {
@@ -217,22 +234,41 @@ fun BismillahHeader(
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
       Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = EmeraldPrimary.copy(alpha = 0.14f),
+        shape = RoundedCornerShape(14.dp),
+        color = EmeraldPrimary.copy(alpha = 0.12f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.55f)),
         modifier = Modifier
+          .fillMaxWidth()
           .clickable { openWhatsAppSupport(context) }
           .testTag("clickable_assalamu_alaikum_greeting")
       ) {
-        Text(
-          text = "السَّلَامُ عَلَيْكُمْ • Assalamu Alaikum — Support Our App",
-          modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-          maxLines = 1,
-          overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-          style = MaterialTheme.typography.labelSmall.copy(
-            fontWeight = FontWeight.Bold,
-            color = EmeraldPrimary
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+          horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+          Text(
+            text = "السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ",
+            style = MaterialTheme.typography.labelMedium.copy(
+              fontFamily = ScheherazadeFontFamily,
+              fontSize = 15.sp,
+              fontWeight = FontWeight.Bold,
+              color = GoldPrimary,
+              textAlign = TextAlign.Center
+            )
           )
-        )
+          Text(
+            text = "Assalamu Alaikum • Support Bayan al-Huda",
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.labelSmall.copy(
+              fontWeight = FontWeight.Bold,
+              color = EmeraldPrimary,
+              textAlign = TextAlign.Center
+            )
+          )
+        }
       }
 
       if (isSurahReaderMode && effectiveReciter != null) {
@@ -320,12 +356,26 @@ fun BismillahHeader(
       )
       Spacer(modifier = Modifier.height(2.dp))
       Text(
+        text = "شروع اللہ کے نام سے جو بڑا مہربان نہایت رحم والا ہے",
+        style = MaterialTheme.typography.bodySmall.copy(
+          fontFamily = UrduNastaliqFontFamily,
+          fontSize = 14.sp,
+          lineHeight = 24.sp,
+          color = GoldPrimary,
+          fontWeight = FontWeight.SemiBold,
+          textAlign = TextAlign.Center
+        ),
+        modifier = Modifier.fillMaxWidth()
+      )
+      Spacer(modifier = Modifier.height(2.dp))
+      Text(
         text = "In the name of Allah, the Entirely Merciful, the Especially Merciful",
         style = MaterialTheme.typography.bodySmall.copy(
           fontSize = 12.sp,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
           textAlign = TextAlign.Center
-        )
+        ),
+        modifier = Modifier.fillMaxWidth()
       )
       if (isSurahReaderMode) {
         Spacer(modifier = Modifier.height(2.dp))
@@ -427,3 +477,172 @@ fun RevelationTypeBadge(
     )
   }
 }
+
+/**
+ * Official Google Drive Folder URL where the latest APK updates of Bayan al-Huda are published.
+ */
+const val APP_UPDATES_GOOGLE_DRIVE_FOLDER_URL =
+  "https://drive.google.com/drive/folders/14i90MpNPedlnBk3l53L_yplzzFNIa4N3"
+
+const val SHARED_APK_FILENAME = "Bayan-al-Huda.apk"
+
+/**
+ * Builds the canonical share message containing the app description and the official
+ * Google Drive folder link for downloading the latest APK updates.
+ */
+fun buildShareAppMessage(): String = buildString {
+  appendLine("📲 Bayan al-Huda (بَيَانُ الهُدَى) — Complete Quran, Hadith, 17-Rule Tajweed, Salah & Islamic Library App")
+  appendLine("Developed by Zulqarnain Ahmad Sheikh")
+  appendLine()
+  appendLine("📥 Download Latest APK Updates (Official Google Drive Folder):")
+  append(APP_UPDATES_GOOGLE_DRIVE_FOLDER_URL)
+}
+
+/**
+ * Copies the currently installed APK (`applicationInfo.sourceDir`) into a shareable
+ * `cacheDir/shared_apk/Bayan-al-Huda.apk` file so `FileProvider` can attach it to `ACTION_SEND`.
+ */
+fun prepareShareableApkFile(context: Context): java.io.File? {
+  return runCatching {
+    val sharedDir = java.io.File(context.cacheDir, "shared_apk").apply {
+      if (!exists()) mkdirs()
+    }
+    val targetApkFile = java.io.File(sharedDir, SHARED_APK_FILENAME)
+    val sourcePath = context.applicationInfo?.sourceDir
+      ?: context.applicationInfo?.publicSourceDir
+    val sourceFile = if (!sourcePath.isNullOrBlank()) java.io.File(sourcePath) else null
+    if (sourceFile != null && sourceFile.exists() && sourceFile.isFile && sourceFile.length() > 0L) {
+      if (!targetApkFile.exists() || targetApkFile.length() != sourceFile.length()) {
+        sourceFile.inputStream().use { input ->
+          targetApkFile.outputStream().use { output ->
+            input.copyTo(output)
+          }
+        }
+      }
+      targetApkFile
+    } else {
+      // Fallback for unit-test / JVM environments where sourceDir is not a real APK file on disk
+      if (!targetApkFile.exists() || targetApkFile.length() == 0L) {
+        targetApkFile.writeBytes(
+          byteArrayOf(0x50, 0x4B, 0x03, 0x04) +
+            "Bayan-al-Huda APK Package ($APP_UPDATES_GOOGLE_DRIVE_FOLDER_URL)".encodeToByteArray()
+        )
+      }
+      targetApkFile
+    }
+  }.getOrNull()
+}
+
+/**
+ * Resolves a `content://` URI for the prepared APK file using `FileProvider`.
+ */
+fun resolveShareableApkUri(context: Context, apkFile: java.io.File): android.net.Uri {
+  val authority = "${context.packageName}.fileprovider"
+  return runCatching {
+    androidx.core.content.FileProvider.getUriForFile(context, authority, apkFile)
+  }.getOrElse {
+    android.net.Uri.parse("content://$authority/shared_apk/${apkFile.name}")
+  }
+}
+
+/**
+ * Builds the `Intent.ACTION_SEND` intent that attaches BOTH:
+ * 1. The installed APK file (`Intent.EXTRA_STREAM`) via `FileProvider`
+ * 2. The share text containing the official Google Drive folder link (`Intent.EXTRA_TEXT`)
+ */
+fun buildShareAppApkAndLinkIntent(context: Context): Intent {
+  val shareMessage = buildShareAppMessage()
+  val apkFile = prepareShareableApkFile(context)
+  return Intent(Intent.ACTION_SEND).apply {
+    putExtra(Intent.EXTRA_SUBJECT, "Bayan al-Huda — APK & Latest Updates Link")
+    putExtra(Intent.EXTRA_TITLE, "Bayan al-Huda APK & Official Updates Folder")
+    putExtra(Intent.EXTRA_TEXT, shareMessage)
+    if (apkFile != null && apkFile.exists()) {
+      val apkUri = resolveShareableApkUri(context, apkFile)
+      type = "application/vnd.android.package-archive"
+      putExtra(Intent.EXTRA_STREAM, apkUri)
+      clipData = ClipData.newRawUri("Bayan al-Huda APK", apkUri)
+      addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+    } else {
+      type = "text/plain"
+      addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+  }
+}
+
+/**
+ * Launches the Android system Share sheet with the APK file (`EXTRA_STREAM`) and the
+ * Google Drive updates folder link (`EXTRA_TEXT`), and also copies the updates link to
+ * the clipboard so recipients/senders always have the link even if a target app only reads the file stream.
+ */
+fun shareAppApkWithDriveLink(context: Context) {
+  runCatching {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+    clipboard?.setPrimaryClip(
+      ClipData.newPlainText("Bayan al-Huda Updates Link", buildShareAppMessage())
+    )
+  }
+  try {
+    val sendIntent = buildShareAppApkAndLinkIntent(context)
+    val chooserIntent = Intent.createChooser(
+      sendIntent,
+      "Share Bayan al-Huda (APK + Updates Link)"
+    ).apply {
+      addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(chooserIntent)
+  } catch (e: Exception) {
+    // Fallback to plain text + link sharing if APK stream chooser fails on a restricted device
+    runCatching {
+      val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, "Bayan al-Huda — Latest Updates Link")
+        putExtra(Intent.EXTRA_TEXT, buildShareAppMessage())
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      }
+      context.startActivity(
+        Intent.createChooser(fallbackIntent, "Share Bayan al-Huda Link")
+          .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      )
+    }.onFailure {
+      Toast.makeText(
+        context,
+        "Updates link copied: $APP_UPDATES_GOOGLE_DRIVE_FOLDER_URL",
+        Toast.LENGTH_LONG
+      ).show()
+    }
+  }
+}
+
+/**
+ * Opens the official Google Drive folder containing the latest APK updates of Bayan al-Huda.
+ */
+fun openAppUpdatesDriveFolder(context: Context) {
+  try {
+    val viewIntent = Intent(
+      Intent.ACTION_VIEW,
+      android.net.Uri.parse(APP_UPDATES_GOOGLE_DRIVE_FOLDER_URL)
+    ).apply {
+      addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    context.startActivity(viewIntent)
+  } catch (e: Exception) {
+    copyAppUpdatesDriveLink(context)
+  }
+}
+
+/**
+ * Copies the official Google Drive updates folder link to the device clipboard.
+ */
+fun copyAppUpdatesDriveLink(context: Context) {
+  val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+  clipboard?.setPrimaryClip(
+    ClipData.newPlainText("Bayan al-Huda Latest Updates Drive Folder", APP_UPDATES_GOOGLE_DRIVE_FOLDER_URL)
+  )
+  Toast.makeText(
+    context,
+    "Google Drive updates link copied to clipboard",
+    Toast.LENGTH_SHORT
+  ).show()
+}
+

@@ -84,7 +84,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
@@ -163,6 +167,7 @@ fun LibraryScreen(
   onSelectThemeMode: (com.example.data.prayer.AppThemeMode) -> Unit = {},
   onPlayDownloadedAudio: (Int, Int, String) -> Unit = { _, _, _ -> },
   initialSelectedTab: Int = 0,
+  selectionNonce: Long = 0L,
   modifier: Modifier = Modifier
 ) {
   val context = LocalContext.current
@@ -177,8 +182,8 @@ fun LibraryScreen(
   // 3 = Notes
   // 4 = Offline Library
   // 5 = Video Lectures (EMAM)
-  var selectedTab by remember(initialSelectedTab) { mutableIntStateOf(initialSelectedTab) }
-  LaunchedEffect(initialSelectedTab) {
+  var selectedTab by remember(initialSelectedTab, selectionNonce) { mutableIntStateOf(initialSelectedTab) }
+  LaunchedEffect(initialSelectedTab, selectionNonce) {
     selectedTab = initialSelectedTab
   }
   var showAddNoteDialog by remember { mutableStateOf(false) }
@@ -438,25 +443,190 @@ fun LibraryScreen(
 
   val safeSelectedTab = selectedTab.coerceIn(0, 11)
 
-  Box(modifier = modifier.fillMaxSize()) {
+  val quickModules = remember(bookmarks.size, notes.size) {
+    listOf(
+      Triple(5, "▶ Video Lectures", "library_quick_chip_video_lectures"),
+      Triple(1, "📚 All Books (${IslamicBooksCatalog.allSunniAndShiaBooks.size})", "library_quick_chip_all_books"),
+      Triple(0, "🏛 History (${IslamicBooksCatalog.historyBooks.size})", "library_quick_chip_history"),
+      Triple(6, "📖 Fikr-e-Maududi", "library_quick_chip_maududi"),
+      Triple(8, "🌟 Prophet Stories (25)", "library_quick_chip_prophets"),
+      Triple(10, "🕌 Sahaba & Ahl al-Bayt", "library_quick_chip_sahaba"),
+      Triple(7, "🔬 Research (4)", "library_quick_chip_research"),
+      Triple(11, "⚖️ IslamQA (4,203)", "library_quick_chip_islamqa"),
+      Triple(9, "🗂 Folders", "library_quick_chip_folders"),
+      Triple(2, "🔖 Bookmarks (${bookmarks.size})", "library_quick_chip_bookmarks"),
+      Triple(3, "📝 Notes (${notes.size})", "library_quick_chip_notes"),
+      Triple(4, "⬇️ Offline", "library_quick_chip_offline")
+    )
+  }
+
+  var isFullScreenReadingMode by remember { mutableStateOf(false) }
+  var isHeaderCollapsedByScroll by remember { mutableStateOf(false) }
+  val isHeaderCompact = isFullScreenReadingMode || isHeaderCollapsedByScroll
+
+  val libraryNestedScrollConnection = remember {
+    object : NestedScrollConnection {
+      override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+        if (available.y < -18f && !isHeaderCollapsedByScroll) {
+          isHeaderCollapsedByScroll = true
+        } else if (available.y > 22f && isHeaderCollapsedByScroll && !isFullScreenReadingMode) {
+          isHeaderCollapsedByScroll = false
+        }
+        return Offset.Zero
+      }
+    }
+  }
+
+  val activeSectionTitle = remember(safeSelectedTab, bookmarks.size, notes.size) {
+    quickModules.firstOrNull { it.first == safeSelectedTab }?.second ?: "Scholarly Library"
+  }
+
+  Box(
+    modifier = modifier
+      .fillMaxSize()
+      .nestedScroll(libraryNestedScrollConnection)
+  ) {
     Column(modifier = Modifier.fillMaxSize()) {
-      // Non-clipped top section bar: History of Islam is the very first top-level item,
-      // fully visible without scrolling or opening any submenu.
-      ScrollableTabRow(
-        selectedTabIndex = safeSelectedTab,
-        containerColor = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.primary,
-        edgePadding = 8.dp,
-        indicator = { tabPositions ->
-          if (safeSelectedTab in tabPositions.indices) {
-            androidx.compose.material3.TabRowDefaults.SecondaryIndicator(
-              modifier = with(androidx.compose.material3.TabRowDefaults) {
-                Modifier.tabIndicatorOffset(tabPositions[safeSelectedTab])
-              },
-              color = EmeraldPrimary
-            )
+      // Illuminated Scholarly Library Masthead:
+      // Automatically collapses upward when scrolling down to read Research Papers or Books on full screen,
+      // and includes a 1-tap Full Screen toggle button.
+      Surface(
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("library_all_features_quick_grid"),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp
+      ) {
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = if (isHeaderCompact) 4.dp else 8.dp),
+          horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Column(
+              modifier = Modifier.weight(1f),
+              horizontalAlignment = if (isHeaderCompact) Alignment.Start else Alignment.CenterHorizontally
+            ) {
+              if (!isHeaderCompact) {
+                Text(
+                  text = "خَزَانَةُ العِلْمِ • اسلامی تحقیقی و علمی کتب خانہ",
+                  style = MaterialTheme.typography.labelMedium.copy(
+                    fontFamily = UrduNastaliqFontFamily,
+                    fontSize = 14.sp,
+                    lineHeight = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = GoldPrimary,
+                    textAlign = TextAlign.Center
+                  ),
+                  modifier = Modifier.fillMaxWidth()
+                )
+              }
+              Text(
+                text = if (isHeaderCompact) {
+                  "✦ $activeSectionTitle (Full-Screen Reading)"
+                } else {
+                  "Bayan al-Huda Scholarly Library & Research Archive"
+                },
+                style = MaterialTheme.typography.labelSmall.copy(
+                  fontWeight = FontWeight.ExtraBold,
+                  fontSize = 11.sp,
+                  color = EmeraldPrimary,
+                  textAlign = if (isHeaderCompact) TextAlign.Start else TextAlign.Center
+                ),
+                modifier = Modifier.fillMaxWidth()
+              )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Surface(
+              shape = RoundedCornerShape(8.dp),
+              color = if (isHeaderCompact) EmeraldPrimary else EmeraldPrimary.copy(alpha = 0.12f),
+              border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.7f)),
+              modifier = Modifier
+                .clickable {
+                  if (isHeaderCompact) {
+                    isFullScreenReadingMode = false
+                    isHeaderCollapsedByScroll = false
+                  } else {
+                    isFullScreenReadingMode = true
+                  }
+                }
+                .testTag("library_fullscreen_reader_toggle")
+            ) {
+              Text(
+                text = if (isHeaderCompact) "⤡ Show Sections" else "⤢ Full Screen",
+                style = MaterialTheme.typography.labelSmall.copy(
+                  fontWeight = FontWeight.Bold,
+                  fontSize = 10.sp,
+                  color = if (isHeaderCompact) Color.White else EmeraldPrimary
+                ),
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+              )
+            }
+          }
+
+          if (!isHeaderCompact) {
+            Spacer(modifier = Modifier.height(6.dp))
+            FlowRow(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+              verticalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+              quickModules.forEach { (tabIdx, label, chipTag) ->
+                val isSelected = safeSelectedTab == tabIdx
+                Surface(
+                  shape = RoundedCornerShape(10.dp),
+                  color = if (isSelected) EmeraldPrimary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                  border = androidx.compose.foundation.BorderStroke(
+                    width = if (isSelected) 1.5.dp else 1.dp,
+                    color = if (isSelected) GoldPrimary else EmeraldPrimary.copy(alpha = 0.35f)
+                  ),
+                  modifier = Modifier
+                    .clickable {
+                      selectedTab = tabIdx
+                      isHeaderCollapsedByScroll = false
+                    }
+                    .testTag(chipTag)
+                ) {
+                  Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      fontWeight = FontWeight.Bold,
+                      fontSize = 10.sp,
+                      color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
+                      textAlign = TextAlign.Center
+                    ),
+                    maxLines = 1,
+                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                  )
+                }
+              }
+            }
           }
         }
+      }
+
+      // Symmetrical Top Section Bar (collapses smoothly in full-screen reading mode)
+      if (!isHeaderCompact) {
+        ScrollableTabRow(
+          selectedTabIndex = safeSelectedTab,
+          containerColor = MaterialTheme.colorScheme.surface,
+          contentColor = MaterialTheme.colorScheme.primary,
+          edgePadding = 8.dp,
+          indicator = { tabPositions ->
+            if (safeSelectedTab in tabPositions.indices) {
+              androidx.compose.material3.TabRowDefaults.SecondaryIndicator(
+                modifier = with(androidx.compose.material3.TabRowDefaults) {
+                  Modifier.tabIndicatorOffset(tabPositions[safeSelectedTab])
+                },
+                color = EmeraldPrimary
+              )
+            }
+          }
       ) {
         Tab(
           selected = safeSelectedTab == 0,
@@ -625,30 +795,27 @@ fun LibraryScreen(
             )
           }
         )
+        }
       }
 
       when (safeSelectedTab) {
         0 -> {
           // =========================================================================
           // TAB 0: HISTORY OF ISLAM (Top-level in Library)
-          // Shows prominent header card, Sunni/Shia/All tradition chips, historical
-          // event sub-filters (Qadisiyyah, Waqia Hurrah, Battle of Yarmouk, Badr, etc.),
-          // one unified search bar (by book number, keyword, or full/partial sentence
-          // in Urdu, English, and Arabic), highlighted line-level search results, and
-          // the numbered list of all important History books.
+          // Symmetrical Illuminated Masthead + Full-Page Scrollable History Books
           // =========================================================================
           LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
           ) {
-            // Top-level History Banner Card
+            // Top-level Symmetrical History Banner Card (Arabic, Urdu, and English on separate lines)
             item {
               ElevatedCard(
                 modifier = Modifier
                   .fillMaxWidth()
                   .testTag("library_history_top_banner_card"),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.elevatedCardColors(
                   containerColor = EmeraldPrimary.copy(alpha = 0.10f)
                 )
@@ -656,39 +823,51 @@ fun LibraryScreen(
                 Column(
                   modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
-                  verticalArrangement = Arrangement.spacedBy(6.dp)
+                    .padding(14.dp),
+                  horizontalAlignment = Alignment.CenterHorizontally,
+                  verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                  Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                  ) {
-                    Icon(
-                      Icons.Default.HistoryEdu,
-                      contentDescription = null,
-                      tint = EmeraldPrimary,
-                      modifier = Modifier.size(22.dp)
-                    )
-                    Column(modifier = Modifier.weight(1f)) {
-                      Text(
-                        text = "History of Islam — تاریخِ اسلام — التاريخ الإسلامي",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                          fontWeight = FontWeight.Bold,
-                          color = MaterialTheme.colorScheme.primary
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                      )
-                      Text(
-                        text = "${all26HistoryBooks.size} Classical Historical Books & ${hadithAuditReports.size} Audited Hadith Collections • Arabic, Urdu & English",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                          fontSize = 11.sp,
-                          color = MaterialTheme.colorScheme.onSurfaceVariant
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                      )
-                    }
-                  }
+                  Text(
+                    text = "التَّارِيخُ الإِسْلَامِيُّ وَالسِّيرَةُ النَّبَوِيَّة",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                      fontFamily = ScheherazadeFontFamily,
+                      fontSize = 20.sp,
+                      fontWeight = FontWeight.Bold,
+                      color = GoldPrimary,
+                      textAlign = TextAlign.Center
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                  )
+                  Text(
+                    text = "تاریخِ اسلام، سیرت النبی ﷺ اور مستند تاریخی کتب",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                      fontFamily = UrduNastaliqFontFamily,
+                      fontSize = 15.sp,
+                      lineHeight = 25.sp,
+                      fontWeight = FontWeight.Bold,
+                      color = EmeraldPrimary,
+                      textAlign = TextAlign.Center
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                  )
+                  Text(
+                    text = "History of Islam — ${all26HistoryBooks.size} Classical Historical Books & ${hadithAuditReports.size} Audited Hadith Collections",
+                    style = MaterialTheme.typography.titleSmall.copy(
+                      fontWeight = FontWeight.Bold,
+                      color = MaterialTheme.colorScheme.primary,
+                      textAlign = TextAlign.Center
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                  )
+                  Text(
+                    text = "Complete Arabic, Urdu & English Editions • Scroll up for full-screen reading",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                      fontSize = 11.sp,
+                      color = MaterialTheme.colorScheme.onSurfaceVariant,
+                      textAlign = TextAlign.Center
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                  )
 
                   // Resume Last Read History Book button if available
                   val lastBook = remember(lastReadHistoryBookId, all26HistoryBooks) {
@@ -1748,25 +1927,77 @@ fun LibraryScreen(
         }
 
         2 -> {
-          // Bookmarks Tab
-          if (bookmarks.isEmpty()) {
-            EmptyStateView(
-              icon = Icons.Default.Bookmark,
-              title = "No Bookmarks Yet",
-              subtitle = "Save inspiring verses, authentic hadiths, and historical chapters while reading to easily revisit them here."
-            )
-          } else {
-            LazyColumn(
-              modifier = Modifier.fillMaxSize(),
-              contentPadding = PaddingValues(12.dp),
-              verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
+          // Bookmarks Tab (Scrollable & Symmetrical Illuminated Layout)
+          LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+          ) {
+            item(key = "bookmarks_decorated_header_card") {
+              ElevatedCard(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .testTag("bookmarks_decorated_header_card"),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.elevatedCardColors(
+                  containerColor = EmeraldPrimary.copy(alpha = 0.10f)
+                )
+              ) {
+                Column(
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                  horizontalAlignment = Alignment.CenterHorizontally,
+                  verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                  Text(
+                    text = "المَحْفُوظَاتُ وَالعَلَامَاتُ المَرْجِعِيَّة",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                      fontFamily = ScheherazadeFontFamily,
+                      fontSize = 19.sp,
+                      fontWeight = FontWeight.Bold,
+                      color = GoldPrimary,
+                      textAlign = TextAlign.Center
+                    )
+                  )
+                  Text(
+                    text = "محفوظ آیات، احادیث اور تاریخی ابواب (${bookmarks.size})",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                      fontFamily = UrduNastaliqFontFamily,
+                      fontSize = 14.sp,
+                      lineHeight = 24.sp,
+                      fontWeight = FontWeight.Bold,
+                      color = EmeraldPrimary,
+                      textAlign = TextAlign.Center
+                    )
+                  )
+                  Text(
+                    text = "Saved Bookmarks (${bookmarks.size}) • Quran, Hadith & Classical Library",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                      fontWeight = FontWeight.Bold,
+                      color = MaterialTheme.colorScheme.primary,
+                      textAlign = TextAlign.Center
+                    )
+                  )
+                }
+              }
+            }
+            if (bookmarks.isEmpty()) {
+              item(key = "bookmarks_empty_state") {
+                EmptyStateView(
+                  icon = Icons.Default.Bookmark,
+                  title = "No Bookmarks Yet",
+                  subtitle = "Save inspiring verses, authentic hadiths, and historical chapters while reading to easily revisit them here."
+                )
+              }
+            } else {
               items(bookmarks, key = { it.itemKey }) { bookmark ->
                 Card(
                   modifier = Modifier
                     .fillMaxWidth()
                     .testTag("bookmark_item_${bookmark.itemKey}"),
                   shape = RoundedCornerShape(14.dp),
+                  border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.45f)),
                   colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                   Column(
@@ -1824,16 +2055,24 @@ fun LibraryScreen(
 
                     if (bookmark.arabicSnippet.isNotEmpty()) {
                       Spacer(modifier = Modifier.height(6.dp))
-                      Text(
-                        text = bookmark.arabicSnippet,
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                          fontFamily = AmiriFontFamily,
-                          fontSize = 19.sp,
-                          lineHeight = 32.sp,
-                          textAlign = TextAlign.Right
-                        ),
+                      Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                         modifier = Modifier.fillMaxWidth()
-                      )
+                      ) {
+                        Text(
+                          text = bookmark.arabicSnippet,
+                          style = MaterialTheme.typography.bodyLarge.copy(
+                            fontFamily = AmiriFontFamily,
+                            fontSize = 19.sp,
+                            lineHeight = 32.sp,
+                            textAlign = TextAlign.Right
+                          ),
+                          modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(10.dp)
+                        )
+                      }
                     }
 
                     Spacer(modifier = Modifier.height(6.dp))
@@ -1854,19 +2093,70 @@ fun LibraryScreen(
         }
 
         3 -> {
-          // Study Notes Tab
-          if (notes.isEmpty()) {
-            EmptyStateView(
-              icon = Icons.Default.Note,
-              title = "No Personal Notes",
-              subtitle = "Record personal reflections, tafsir notes, and lessons from verses, hadiths, and historical works."
-            )
-          } else {
-            LazyColumn(
-              modifier = Modifier.fillMaxSize(),
-              contentPadding = PaddingValues(top = 12.dp, start = 12.dp, end = 12.dp, bottom = 80.dp),
-              verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
+          // Study Notes Tab (Scrollable & Symmetrical Illuminated Layout)
+          LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(top = 12.dp, start = 12.dp, end = 12.dp, bottom = 80.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+          ) {
+            item(key = "notes_decorated_header_card") {
+              ElevatedCard(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .testTag("notes_decorated_header_card"),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.elevatedCardColors(
+                  containerColor = EmeraldPrimary.copy(alpha = 0.10f)
+                )
+              ) {
+                Column(
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                  horizontalAlignment = Alignment.CenterHorizontally,
+                  verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                  Text(
+                    text = "المُذَكِّرَاتُ العِلْمِيَّةُ وَالتَّدَبُّر",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                      fontFamily = ScheherazadeFontFamily,
+                      fontSize = 19.sp,
+                      fontWeight = FontWeight.Bold,
+                      color = GoldPrimary,
+                      textAlign = TextAlign.Center
+                    )
+                  )
+                  Text(
+                    text = "تفسیر، حدیث اور تحقیقی مطالعہ کے ذاتی نوٹس (${notes.size})",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                      fontFamily = UrduNastaliqFontFamily,
+                      fontSize = 14.sp,
+                      lineHeight = 24.sp,
+                      fontWeight = FontWeight.Bold,
+                      color = EmeraldPrimary,
+                      textAlign = TextAlign.Center
+                    )
+                  )
+                  Text(
+                    text = "Personal Study Notes & Reflections (${notes.size})",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                      fontWeight = FontWeight.Bold,
+                      color = MaterialTheme.colorScheme.primary,
+                      textAlign = TextAlign.Center
+                    )
+                  )
+                }
+              }
+            }
+            if (notes.isEmpty()) {
+              item(key = "notes_empty_state") {
+                EmptyStateView(
+                  icon = Icons.Default.Note,
+                  title = "No Personal Notes",
+                  subtitle = "Record personal reflections, tafsir notes, and lessons from verses, hadiths, and historical works."
+                )
+              }
+            } else {
               items(notes, key = { it.id }) { note ->
                 val dateStr = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(note.updatedAt))
 
@@ -1875,6 +2165,7 @@ fun LibraryScreen(
                     .fillMaxWidth()
                     .testTag("note_item_${note.id}"),
                   shape = RoundedCornerShape(14.dp),
+                  border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.45f)),
                   colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                   Column(
@@ -2081,33 +2372,91 @@ private fun FullWidthIslamicBookCard(
         .padding(12.dp),
       verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-      // 1. Serial Number Badge + Full-Width English Title & Author
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+      // 1. Symmetrical Illuminated Header: Book # Badge + Tradition Pill + Separate Arabic, Urdu, and English Title Lines
+      Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = if (isShiaBook) GoldPrimary.copy(alpha = 0.10f) else EmeraldPrimary.copy(alpha = 0.08f),
+        border = BorderStroke(
+          1.dp,
+          if (isShiaBook) GoldPrimary.copy(alpha = 0.55f) else EmeraldPrimary.copy(alpha = 0.35f)
+        ),
+        modifier = Modifier.fillMaxWidth()
       ) {
-        Box(
+        Column(
           modifier = Modifier
-            .size(34.dp)
-            .clip(CircleShape)
-            .background(if (isShiaBook) GoldPrimary else EmeraldPrimary),
-          contentAlignment = Alignment.Center
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-          Text(
-            text = "$serialNumber",
-            style = MaterialTheme.typography.labelLarge.copy(
-              color = if (isShiaBook) Color.Black else Color.White,
-              fontWeight = FontWeight.Bold
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Box(
+              modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(if (isShiaBook) GoldPrimary else EmeraldPrimary),
+              contentAlignment = Alignment.Center
+            ) {
+              Text(
+                text = "$serialNumber",
+                style = MaterialTheme.typography.labelLarge.copy(
+                  color = if (isShiaBook) Color.Black else Color.White,
+                  fontWeight = FontWeight.Bold
+                )
+              )
+            }
+            Surface(
+              shape = RoundedCornerShape(8.dp),
+              color = if (isShiaBook) GoldPrimary.copy(alpha = 0.22f) else EmeraldPrimary.copy(alpha = 0.16f)
+            ) {
+              Text(
+                text = "${book.tradition} • ${book.category}",
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+                style = MaterialTheme.typography.labelSmall.copy(
+                  fontWeight = FontWeight.Bold,
+                  color = if (isShiaBook) GoldPrimary else EmeraldPrimary
+                )
+              )
+            }
+          }
+
+          if (book.titleArabic.isNotBlank()) {
+            Text(
+              text = book.titleArabic,
+              style = MaterialTheme.typography.titleMedium.copy(
+                fontFamily = ScheherazadeFontFamily,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = GoldPrimary,
+                textAlign = TextAlign.Center
+              ),
+              modifier = Modifier.fillMaxWidth()
             )
-          )
-        }
-        Column(modifier = Modifier.weight(1f)) {
+          }
+          if (book.titleUrdu.isNotBlank()) {
+            Text(
+              text = book.titleUrdu,
+              style = MaterialTheme.typography.bodyMedium.copy(
+                fontFamily = UrduNastaliqFontFamily,
+                fontSize = 14.sp,
+                lineHeight = 24.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+              ),
+              modifier = Modifier.fillMaxWidth()
+            )
+          }
           Text(
             text = buildHighlightedAnnotatedText(book.titleEnglish, activeSearchQuery),
             style = MaterialTheme.typography.titleMedium.copy(
               fontWeight = FontWeight.Bold,
-              color = MaterialTheme.colorScheme.primary
+              color = MaterialTheme.colorScheme.primary,
+              textAlign = TextAlign.Center
             ),
             modifier = Modifier.fillMaxWidth()
           )
@@ -2115,52 +2464,11 @@ private fun FullWidthIslamicBookCard(
             text = "Author: ${book.author} (${book.eraHijri})",
             style = MaterialTheme.typography.labelMedium.copy(
               color = MaterialTheme.colorScheme.secondary,
-              fontWeight = FontWeight.SemiBold
+              fontWeight = FontWeight.SemiBold,
+              textAlign = TextAlign.Center
             ),
             modifier = Modifier.fillMaxWidth()
           )
-        }
-      }
-
-      // 2. Full-Width Arabic & Urdu Titles (Right-aligned RTL with 100% card width so neither clips nor squeezes)
-      if (book.titleArabic.isNotBlank() || book.titleUrdu.isNotBlank()) {
-        Surface(
-          shape = RoundedCornerShape(8.dp),
-          color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-          modifier = Modifier.fillMaxWidth()
-        ) {
-          Column(
-            modifier = Modifier
-              .fillMaxWidth()
-              .padding(horizontal = 10.dp, vertical = 6.dp),
-            horizontalAlignment = Alignment.End
-          ) {
-            if (book.titleArabic.isNotBlank()) {
-              Text(
-                text = book.titleArabic,
-                style = MaterialTheme.typography.titleMedium.copy(
-                  fontFamily = ScheherazadeFontFamily,
-                  fontSize = 18.sp,
-                  fontWeight = FontWeight.Bold,
-                  color = GoldPrimary,
-                  textAlign = TextAlign.Right
-                ),
-                modifier = Modifier.fillMaxWidth()
-              )
-            }
-            if (book.titleUrdu.isNotBlank()) {
-              Text(
-                text = book.titleUrdu,
-                style = MaterialTheme.typography.bodySmall.copy(
-                  fontFamily = UrduNastaliqFontFamily,
-                  fontSize = 13.sp,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant,
-                  textAlign = TextAlign.Right
-                ),
-                modifier = Modifier.fillMaxWidth()
-              )
-            }
-          }
         }
       }
 

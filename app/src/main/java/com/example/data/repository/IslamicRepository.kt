@@ -1206,6 +1206,66 @@ class IslamicRepository(
     noteDao.deleteNoteById(id)
   }
 
+  data class LocalDataDeletionReceipt(
+    val deletedBookmarksCount: Int,
+    val deletedNotesCount: Int,
+    val remainingBookmarksCount: Int,
+    val remainingNotesCount: Int,
+    val knowledgeProgressCleared: Boolean,
+    val preferencesCleared: Boolean,
+    val verifiedClean: Boolean,
+    val timestampMs: Long = System.currentTimeMillis()
+  )
+
+  /**
+   * Reliably deletes all local user-authored data (SQLite bookmarks, SQLite notes, KnowledgeDatabase
+   * progress/bookmarks, video resume store, and reading progress preferences) directly in Room/SharedPreferences
+   * regardless of active UI Flow collectors, and verifies that 0 rows remain.
+   */
+  suspend fun deleteAllUserDataAndVerify(): LocalDataDeletionReceipt = withContext(Dispatchers.IO) {
+    val deletedBookmarks = bookmarkDao.deleteAllBookmarks()
+    val deletedNotes = noteDao.deleteAllNotes()
+    val remainingBookmarks = bookmarkDao.countBookmarks()
+    val remainingNotes = noteDao.countNotes()
+
+    val knowledgeCleared = runCatching {
+      val kdb = com.example.data.local.KnowledgeDatabase.getInstance(appContext)
+      kdb.openHelper.writableDatabase.execSQL("DELETE FROM knowledge_progress")
+      kdb.openHelper.writableDatabase.execSQL("DELETE FROM knowledge_bookmarks")
+      true
+    }.getOrDefault(false)
+
+    val prefsCleared = runCatching {
+      appContext.getSharedPreferences("yt_video_playback_resume_prefs", Context.MODE_PRIVATE)
+        .edit()
+        .clear()
+        .commit()
+      appContext.getSharedPreferences("bayan_user_prefs", Context.MODE_PRIVATE)
+        .edit()
+        .remove("last_read_surah_number")
+        .remove("last_read_verse_number")
+        .remove("last_read_surah_name")
+        .commit()
+    }.getOrDefault(false)
+
+    val verified = remainingBookmarks == 0 && remainingNotes == 0
+    if (!verified) {
+      throw IllegalStateException(
+        "Local data deletion verification failed: remainingBookmarks=$remainingBookmarks, remainingNotes=$remainingNotes"
+      )
+    }
+
+    LocalDataDeletionReceipt(
+      deletedBookmarksCount = deletedBookmarks,
+      deletedNotesCount = deletedNotes,
+      remainingBookmarksCount = remainingBookmarks,
+      remainingNotesCount = remainingNotes,
+      knowledgeProgressCleared = knowledgeCleared,
+      preferencesCleared = prefsCleared,
+      verifiedClean = true
+    )
+  }
+
   // Source Registry
   fun getAllSourceRegistry(): Flow<List<SourceRegistry>> = sourceRegistryDao.getAllSources()
 

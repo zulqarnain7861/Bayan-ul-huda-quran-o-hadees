@@ -1,6 +1,7 @@
 package com.example.data.repository
 
 import android.content.Context
+import android.os.Looper
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -10,7 +11,15 @@ import java.io.BufferedInputStream
 import java.io.File
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.GZIPInputStream
+import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Complete offline integration of TheAbubakrAbu/Quran-Tajweed-Engine (MIT License).
@@ -72,6 +81,30 @@ object QuranTajweedEngineRepository {
     val letterCount: Int,
     val annotations: List<TajweedSpanAnnotation>
   )
+
+  /**
+   * Immutable, integrity-verified per-surah Tajweed cache entry.
+   * Ensures that rapid navigation between surahs or fast LazyColumn scrolling never mixes
+   * records across surahs or serves corrupted/partial entries.
+   */
+  data class SurahTajweedCacheEntry(
+    val surah: Int,
+    val editionId: String,
+    val records: List<AyahTajweedRecord>,
+    val recordsByAyah: Map<Int, AyahTajweedRecord>,
+    val sha256IntegrityHash: String,
+    val rulesById: Map<String, TajweedRuleCategory> = emptyMap(),
+    val createdAtEpochMs: Long = System.currentTimeMillis()
+  ) {
+    val integrityHash: String
+      get() = sha256IntegrityHash
+
+    fun verifyIntegrity(): Boolean {
+      if (surah !in 1..114 || editionId.isBlank() || records.isEmpty()) return false
+      if (records.any { it.surah != surah || it.ayah <= 0 }) return false
+      return computeSurahIntegrityHash(surah, editionId, records) == sha256IntegrityHash
+    }
+  }
 
   data class WordByWordItem(
     val wordIndex: Int,
@@ -194,8 +227,12 @@ object QuranTajweedEngineRepository {
   private var cachedJuzIndex: List<JuzBoundaryEntry>? = null
 
   private val ayahTajweedMap = ConcurrentHashMap<String, AyahTajweedRecord>(6400)
+  private val ayahRecordsBySurah = ConcurrentHashMap<Int, List<AyahTajweedRecord>>(128)
   @Volatile
   private var isAyahCorpusLoaded = false
+
+  private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+  private val isPrewarmingCorpus = AtomicBoolean(false)
 
   private val wbwEnglishBySurah = ConcurrentHashMap<Int, List<List<String>>>()
   private val wbwTranslitBySurah = ConcurrentHashMap<Int, List<List<String>>>()
@@ -509,6 +546,11 @@ object QuranTajweedEngineRepository {
       }
 
       // Stream quran.json.gz
+      val bySurahTemp = HashMap<Int, ArrayList<AyahTajweedRecord>>(114)
+      val validRulesSet = cachedRulesById?.keys ?: runCatching {
+        getTajweedRules(context).map { it.id }.toSet()
+      }.getOrDefault(emptySet())
+
       openAssetReader(context, "quran.json.gz").use { r ->
         if (nextNonWs(r) == '['.code) {
           while (true) {
@@ -567,9 +609,6 @@ object QuranTajweedEngineRepository {
                                 }
                               }
                               val mapKey = "$surahNum:$ayahNum"
-                              val validRulesSet = cachedRulesById?.keys ?: runCatching {
-                                getTajweedRules(context).map { it.id }.toSet()
-                              }.getOrDefault(emptySet())
                               val spans = validateAndFilterAnnotations(
                                 surah = surahNum,
                                 ayah = ayahNum,
@@ -577,7 +616,7 @@ object QuranTajweedEngineRepository {
                                 rawAnnotations = spansByKey[mapKey].orEmpty(),
                                 validRuleIds = validRulesSet
                               )
-                              ayahTajweedMap[mapKey] = AyahTajweedRecord(
+                              val record = AyahTajweedRecord(
                                 surah = surahNum,
                                 ayah = ayahNum,
                                 textUthmani = textArabic,
@@ -590,6 +629,10 @@ object QuranTajweedEngineRepository {
                                 letterCount = letterCount,
                                 annotations = spans
                               )
+                              ayahTajweedMap[mapKey] = record
+                              if (surahNum in 1..114) {
+                                bySurahTemp.getOrPut(surahNum) { ArrayList() }.add(record)
+                              }
                             } else {
                               skipStreamValue(r, ayTok, sb)
                             }
@@ -609,17 +652,111 @@ object QuranTajweedEngineRepository {
           }
         }
       }
+      for ((sNum, list) in bySurahTemp) {
+        ayahRecordsBySurah[sNum] = list.sortedBy { it.ayah }
+      }
       isAyahCorpusLoaded = true
     }
   }
 
   const val CANONICAL_TAJWEED_EDITION_ID = "quran-uthmani-tajweed-cpfair-v1"
+  private const val MAX_CACHED_SURAHS = 24
+  private val surahCacheLock = Any()
+  private val surahBundleLruCache = object : LinkedHashMap<String, SurahTajweedCacheEntry>(32, 0.75f, true) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, SurahTajweedCacheEntry>?): Boolean {
+      return size > MAX_CACHED_SURAHS
+    }
+  }
   private val surahEditionCache = ConcurrentHashMap<String, List<AyahTajweedRecord>>(128)
+
+  fun computeSurahIntegrityHash(
+    surah: Int,
+    editionId: String,
+    records: List<AyahTajweedRecord>
+  ): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+    digest.update("$surah|$editionId|${records.size}|".toByteArray(Charsets.UTF_8))
+    for (rec in records) {
+      digest.update("${rec.surah}:${rec.ayah}:${rec.textUthmani.length}:${rec.annotations.size};".toByteArray(Charsets.UTF_8))
+    }
+    return digest.digest().joinToString("") { "%02x".format(it) }
+  }
+
+  fun getCachedSurahTajweedEntry(
+    surah: Int,
+    editionId: String = CANONICAL_TAJWEED_EDITION_ID
+  ): SurahTajweedCacheEntry? {
+    if (surah !in 1..114) return null
+    val cacheKey = "$surah:$editionId"
+    return synchronized(surahCacheLock) {
+      val entry = surahBundleLruCache[cacheKey]
+      if (entry != null && entry.verifyIntegrity()) {
+        entry
+      } else {
+        if (entry != null) {
+          surahBundleLruCache.remove(cacheKey)
+          surahEditionCache.remove(cacheKey)
+          com.example.ui.audio.TajweedAndAudioDiagnosticsLog.record(
+            "TAJWEED_CACHE_INTEGRITY",
+            "Evicted corrupted Tajweed cache entry for surah=$surah edition=$editionId"
+          )
+        }
+        null
+      }
+    }
+  }
+
+  fun clearSurahTajweedCache() {
+    synchronized(surahCacheLock) {
+      surahBundleLruCache.clear()
+      surahEditionCache.clear()
+    }
+  }
+
+  fun prewarmCorpusInBackground(context: Context?) {
+    if (isAyahCorpusLoaded && ayahTajweedMap.size >= 6236) return
+    if (isPrewarmingCorpus.compareAndSet(false, true)) {
+      val appCtx = context?.applicationContext ?: context
+      backgroundScope.launch {
+        try {
+          getTajweedRules(appCtx)
+          ensureAyahCorpusLoaded(appCtx)
+        } catch (e: Exception) {
+          com.example.ui.audio.TajweedAndAudioDiagnosticsLog.record(
+            "TAJWEED_PREWARM_ERROR",
+            "Background Tajweed prewarm failed gracefully: ${e.message}"
+          )
+        } finally {
+          isPrewarmingCorpus.set(false)
+        }
+      }
+    }
+  }
+
+  private fun isRunningOnAndroidMainThread(): Boolean {
+    return try {
+      val mainLooper = Looper.getMainLooper()
+      mainLooper != null && mainLooper.thread === Thread.currentThread()
+    } catch (_: Throwable) {
+      false
+    }
+  }
+
+  private fun isSurrogateBoundarySplit(text: String, start: Int, end: Int): Boolean {
+    if (start > 0 && start < text.length && Character.isLowSurrogate(text[start]) && Character.isHighSurrogate(text[start - 1])) {
+      return true
+    }
+    if (end > 0 && end < text.length && Character.isLowSurrogate(text[end]) && Character.isHighSurrogate(text[end - 1])) {
+      return true
+    }
+    return false
+  }
 
   /**
    * Validates every Tajweed annotation on load (Part 1):
    * - Surah (1..114) and ayah (> 0) exist.
    * - Character `start` and `end` offsets are within the exact length of that ayah's Uthmani string (`0 <= start < end <= textUthmani.length`).
+   * - Never splits a UTF-16 surrogate pair boundary (`!isSurrogateBoundarySplit`).
    * - The Tajweed rule code is recognized (`ruleId in validRuleIds` when `validRuleIds` is non-empty).
    * Drops ONLY invalid entries and logs them to TajweedAndAudioDiagnosticsLog; never fails the whole surah.
    */
@@ -640,7 +777,8 @@ object QuranTajweedEngineRepository {
     val textLen = textUthmani.length
     val validated = ArrayList<TajweedSpanAnnotation>(rawAnnotations.size)
     for (span in rawAnnotations) {
-      val boundsOk = span.start >= 0 && span.end <= textLen && span.start < span.end
+      val boundsOk = span.start >= 0 && span.end <= textLen && span.start < span.end &&
+        !isSurrogateBoundarySplit(textUthmani, span.start, span.end)
       val ruleOk = span.ruleId.isNotBlank() && (validRuleIds.isEmpty() || span.ruleId in validRuleIds)
       if (boundsOk && ruleOk) {
         validated.add(span)
@@ -678,6 +816,9 @@ object QuranTajweedEngineRepository {
 
   fun getAyahTajweedRecord(context: Context?, surah: Int, ayah: Int): AyahTajweedRecord? {
     if (surah !in 1..114 || ayah <= 0) return null
+    getCachedSurahTajweedEntry(surah, CANONICAL_TAJWEED_EDITION_ID)?.let { entry ->
+      entry.recordsByAyah[ayah]?.let { return it }
+    }
     val cachedSurah = surahEditionCache["$surah:$CANONICAL_TAJWEED_EDITION_ID"]
     if (cachedSurah != null) {
       cachedSurah.firstOrNull { it.ayah == ayah }?.let { return it }
@@ -693,6 +834,87 @@ object QuranTajweedEngineRepository {
     }.getOrNull()
   }
 
+  suspend fun loadAyahTajweedRecordAsync(
+    context: Context?,
+    surah: Int,
+    ayah: Int
+  ): AyahTajweedRecord? {
+    if (surah !in 1..114 || ayah <= 0) return null
+    getCachedSurahTajweedEntry(surah, CANONICAL_TAJWEED_EDITION_ID)?.recordsByAyah?.get(ayah)?.let {
+      return it
+    }
+    return withContext(Dispatchers.IO) {
+      val bundle = loadSurahTajweedBundle(context, surah, CANONICAL_TAJWEED_EDITION_ID)
+      bundle?.recordsByAyah?.get(ayah) ?: getAyahTajweedRecord(context, surah, ayah)
+    }
+  }
+
+  private fun loadSurahTajweedBundle(
+    context: Context?,
+    surah: Int,
+    editionId: String = CANONICAL_TAJWEED_EDITION_ID
+  ): SurahTajweedCacheEntry? {
+    if (surah !in 1..114) return null
+    getCachedSurahTajweedEntry(surah, editionId)?.let { return it }
+
+    return try {
+      val rulesMap = runCatching { getTajweedRules(context).associateBy { it.id } }.getOrDefault(emptyMap())
+      val validRules = rulesMap.keys
+      ensureAyahCorpusLoaded(context)
+      val sourceList = ayahRecordsBySurah[surah]
+        ?: ayahTajweedMap.values.filter { it.surah == surah }.sortedBy { it.ayah }
+      val records = sourceList.map { validateAndFilterRecord(it, validRules) }
+      if (records.isEmpty()) return null
+
+      val byAyah = records.associateBy { it.ayah }
+      val hash = computeSurahIntegrityHash(surah, editionId, records)
+      val entry = SurahTajweedCacheEntry(
+        surah = surah,
+        editionId = editionId,
+        records = records,
+        recordsByAyah = byAyah,
+        sha256IntegrityHash = hash,
+        rulesById = rulesMap
+      )
+      val cacheKey = "$surah:$editionId"
+      synchronized(surahCacheLock) {
+        surahBundleLruCache[cacheKey] = entry
+        surahEditionCache[cacheKey] = records
+      }
+      entry
+    } catch (e: Exception) {
+      com.example.ui.audio.TajweedAndAudioDiagnosticsLog.record(
+        "TAJWEED_LOAD_ERROR",
+        "Graceful fallback loading surah=$surah edition=$editionId: ${e.message}"
+      )
+      null
+    }
+  }
+
+  /**
+   * Suspends on Dispatchers.IO to load and verify the Tajweed bundle for a single surah off the main thread,
+   * storing the result in a SHA-256 verified LRU per-surah cache.
+   */
+  suspend fun loadSurahTajweedBundleAsync(
+    context: Context?,
+    surah: Int,
+    editionId: String = CANONICAL_TAJWEED_EDITION_ID
+  ): SurahTajweedCacheEntry? {
+    if (surah !in 1..114) return null
+    getCachedSurahTajweedEntry(surah, editionId)?.let { return it }
+    return withContext(Dispatchers.IO) {
+      loadSurahTajweedBundle(context, surah, editionId)
+    }
+  }
+
+  suspend fun loadSurahTajweedRecordsAsync(
+    context: Context?,
+    surah: Int,
+    editionId: String = CANONICAL_TAJWEED_EDITION_ID
+  ): List<AyahTajweedRecord> {
+    return loadSurahTajweedBundleAsync(context, surah, editionId)?.records ?: emptyList()
+  }
+
   /**
    * Returns validated Tajweed records for a single surah, cached by `(surah, editionId)`.
    * Never throws on missing or corrupt assets; returns emptyList() and logs diagnostics on failure.
@@ -703,40 +925,32 @@ object QuranTajweedEngineRepository {
     editionId: String = CANONICAL_TAJWEED_EDITION_ID
   ): List<AyahTajweedRecord> {
     if (surah !in 1..114) return emptyList()
-    val cacheKey = "$surah:$editionId"
-    surahEditionCache[cacheKey]?.let { return it }
-
-    return try {
-      val validRules = runCatching { getTajweedRules(context).map { it.id }.toSet() }.getOrDefault(emptySet())
-      ensureAyahCorpusLoaded(context)
-      val records = ayahTajweedMap.values
-        .asSequence()
-        .filter { it.surah == surah }
-        .sortedBy { it.ayah }
-        .map { validateAndFilterRecord(it, validRules) }
-        .toList()
-      if (records.isNotEmpty()) {
-        surahEditionCache[cacheKey] = records
-      }
-      records
-    } catch (e: Exception) {
-      com.example.ui.audio.TajweedAndAudioDiagnosticsLog.record(
-        "TAJWEED_LOAD_ERROR",
-        "Graceful fallback loading surah=$surah edition=$editionId: ${e.message}"
-      )
-      emptyList()
-    }
+    getCachedSurahTajweedEntry(surah, editionId)?.let { return it.records }
+    return loadSurahTajweedBundle(context, surah, editionId)?.records ?: emptyList()
   }
 
   /**
    * Returns the verified Uthmani Basmala (`بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ` — Surah 1 Ayah 1)
    * with its canonical Tajweed spans so the separate Starting Bismillah Verse in all Surahs
    * (except Surah 9 At-Tawbah) renders with authentic Tajweed rules and word-by-word sync!
+   *
+   * Off-Main-Thread Guard: If called on the Android Main UI thread before the 6,236-ayah gzipped
+   * corpus is loaded, this method triggers `prewarmCorpusInBackground(context)` and immediately
+   * returns the verified 4-word Uthmani Basmala record without blocking UI rendering.
    */
   fun getCanonicalBasmalaTajweedRecord(context: Context? = null): AyahTajweedRecord {
-    val fromCorpus = runCatching { getAyahTajweedRecord(context, 1, 1) }.getOrNull()
-    if (fromCorpus != null && fromCorpus.textUthmani.isNotBlank() && fromCorpus.annotations.isNotEmpty()) {
-      return fromCorpus
+    val fastCached = getCachedSurahTajweedEntry(1, CANONICAL_TAJWEED_EDITION_ID)?.recordsByAyah?.get(1)
+      ?: ayahTajweedMap["1:1"]
+    if (fastCached != null && fastCached.textUthmani.isNotBlank() && fastCached.annotations.isNotEmpty()) {
+      return fastCached
+    }
+    if (!isAyahCorpusLoaded && isRunningOnAndroidMainThread()) {
+      prewarmCorpusInBackground(context)
+    } else {
+      val fromCorpus = runCatching { getAyahTajweedRecord(context, 1, 1) }.getOrNull()
+      if (fromCorpus != null && fromCorpus.textUthmani.isNotBlank() && fromCorpus.annotations.isNotEmpty()) {
+        return fromCorpus
+      }
     }
     val basmalaUthmani = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
     val fallbackSpans = listOf(
@@ -766,7 +980,8 @@ object QuranTajweedEngineRepository {
   /**
    * Crash-proof Tajweed AnnotatedString builder (Part 1):
    * - Wraps span construction in `try/catch`.
-   * - Validates every span against `text.length` and `rulesMap` before calling `addStyle`.
+   * - Validates that `record` matches `expectedSurah` and `expectedAyah` when provided (preventing stale cross-surah spans during rapid navigation).
+   * - Validates every span against `text.length`, UTF-16 surrogate boundaries, and `rulesMap` before calling `addStyle`.
    * - Supports simultaneous Tajweed rule colors + active word highlight during audio playback.
    * - On any exception or corrupted input, falls back immediately to plain Uthmani text and invokes `onFallbackNotice`.
    */
@@ -780,6 +995,8 @@ object QuranTajweedEngineRepository {
     activeWordIndex: Int = -1,
     activeWordHighlightColor: Color = Color(0xFF00E676),
     recitedWordColor: Color = Color(0xFF4CAF50),
+    expectedSurah: Int? = null,
+    expectedAyah: Int? = null,
     onFallbackNotice: ((String) -> Unit)? = null
   ): AnnotatedString {
     val safeFallbackText = if (fallbackArabicText.isNotBlank()) {
@@ -788,6 +1005,15 @@ object QuranTajweedEngineRepository {
       record?.textUthmani.orEmpty()
     }
     if (record == null || record.textUthmani.isBlank()) {
+      return AnnotatedString(safeFallbackText)
+    }
+    if ((expectedSurah != null && record.surah != expectedSurah) ||
+      (expectedAyah != null && record.ayah != expectedAyah)
+    ) {
+      com.example.ui.audio.TajweedAndAudioDiagnosticsLog.record(
+        "TAJWEED_NAVIGATION_GUARD",
+        "Rejected stale Tajweed record (${record.surah}:${record.ayah}) for target (${expectedSurah}:${expectedAyah}) during rapid navigation"
+      )
       return AnnotatedString(safeFallbackText)
     }
 
@@ -810,7 +1036,10 @@ object QuranTajweedEngineRepository {
         // 1. Apply validated character-exact Tajweed rule spans
         for (span in validSpans) {
           if (selectedRuleFilter != null && span.ruleId != selectedRuleFilter) continue
-          if (span.start in 0 until text.length && span.end in (span.start + 1)..text.length) {
+          if (span.start in 0 until text.length &&
+            span.end in (span.start + 1)..text.length &&
+            !isSurrogateBoundarySplit(text, span.start, span.end)
+          ) {
             val ruleCat = rulesMap[span.ruleId] ?: continue
             addStyle(
               style = SpanStyle(
@@ -831,21 +1060,26 @@ object QuranTajweedEngineRepository {
             val clampedIdx = activeWordIndex.coerceIn(0, wordRanges.lastIndex)
             for (wIdx in wordRanges.indices) {
               val range = wordRanges[wIdx]
-              if (range.first in 0 until text.length && range.last in range.first until text.length) {
+              val startIdx = range.first
+              val endIdx = (range.last + 1).coerceAtMost(text.length)
+              if (startIdx in 0 until text.length &&
+                endIdx in (startIdx + 1)..text.length &&
+                !isSurrogateBoundarySplit(text, startIdx, endIdx)
+              ) {
                 if (wIdx == clampedIdx) {
                   addStyle(
                     style = SpanStyle(
                       background = activeWordHighlightColor.copy(alpha = 0.26f),
                       fontWeight = FontWeight.Bold
                     ),
-                    start = range.first,
-                    end = (range.last + 1).coerceAtMost(text.length)
+                    start = startIdx,
+                    end = endIdx
                   )
                 } else if (wIdx < clampedIdx && validSpans.isEmpty()) {
                   addStyle(
                     style = SpanStyle(color = recitedWordColor),
-                    start = range.first,
-                    end = (range.last + 1).coerceAtMost(text.length)
+                    start = startIdx,
+                    end = endIdx
                   )
                 }
               }

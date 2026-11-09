@@ -512,9 +512,14 @@ object IslamicRemoteService {
     collectionName: String,
     hadithNumber: Int
   ): HadithEntity? {
-    val apiKey = MultiSourceHadithCatalog.getConfiguredSunnahApiKey() ?: return null
-    val url = MultiSourceHadithCatalog.sunnahSingleHadithUrl(collectionKey, hadithNumber.toString()) ?: return null
-    val raw = httpGetWithHeaders(url, mapOf("X-API-Key" to apiKey)) ?: return null
+    val apiKey = MultiSourceHadithCatalog.getConfiguredSunnahApiKey()
+    val raw = if (!apiKey.isNullOrBlank()) {
+      val url = MultiSourceHadithCatalog.sunnahSingleHadithUrl(collectionKey, hadithNumber.toString()) ?: return null
+      httpGetWithHeaders(url, mapOf("X-API-Key" to apiKey))
+    } else {
+      val proxyUrl = MultiSourceHadithCatalog.sunnahProxySingleHadithUrl(collectionKey, hadithNumber.toString()) ?: return null
+      httpGet(proxyUrl)
+    } ?: return null
     return try {
       val obj = JSONObject(raw)
       val hadithArr = obj.optJSONArray("hadith") ?: return null
@@ -577,7 +582,8 @@ object IslamicRemoteService {
         )
       ) ?: httpGet(url)
     } else {
-      httpGet(url)
+      val proxyUrl = MultiSourceHadithCatalog.ummahProxyUrl(url)
+      httpGet(proxyUrl) ?: httpGet(url)
     }
   }
 

@@ -784,12 +784,18 @@ fun SurahReaderView(
   var showTajweedEngineDialog by remember { mutableStateOf(false) }
   var tajweedEngineInspectAyah by remember(surah.number) { mutableIntStateOf(1) }
   var surahTajweedRecords by remember(surah.number) {
-    mutableStateOf<Map<Int, QuranTajweedEngineRepository.AyahTajweedRecord>>(emptyMap())
+    mutableStateOf(
+      QuranTajweedEngineRepository.getCachedSurahTajweedEntry(surah.number)?.recordsByAyah ?: emptyMap()
+    )
   }
   var tajweedRulesMap by remember {
     mutableStateOf<Map<String, QuranTajweedEngineRepository.TajweedRuleCategory>>(emptyMap())
   }
   var tajweedFallbackNotice by remember(surah.number) { mutableStateOf<String?>(null) }
+
+  LaunchedEffect(Unit) {
+    QuranTajweedEngineRepository.prewarmCorpusInBackground(context)
+  }
 
   LaunchedEffect(surah.number, isTajweedColoringEnabled) {
     if (isTajweedColoringEnabled) {
@@ -797,11 +803,12 @@ fun SurahReaderView(
       val loadedPair = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         runCatching {
           val rules = QuranTajweedEngineRepository.getTajweedRules(context).associateBy { it.id }
-          val records = QuranTajweedEngineRepository.getSurahTajweedRecords(
+          val bundle = QuranTajweedEngineRepository.loadSurahTajweedBundleAsync(
             context = context,
             surah = requestedSurah,
             editionId = QuranTajweedEngineRepository.CANONICAL_TAJWEED_EDITION_ID
-          ).associateBy { it.ayah }
+          )
+          val records = bundle?.recordsByAyah ?: emptyMap()
           rules to records
         }.getOrNull()
       }
@@ -1591,7 +1598,9 @@ fun SurahReaderView(
             selectedTradition = selectedTradition,
             isTajweedColoringEnabled = isTajweedColoringEnabled,
             selectedTajweedRuleFilter = selectedTajweedRuleFilter,
-            ayahTajweedRecord = surahTajweedRecords[ayah.verseNumber],
+            ayahTajweedRecord = surahTajweedRecords[ayah.verseNumber]?.takeIf {
+              it.surah == ayah.surahNumber && it.ayah == ayah.verseNumber
+            },
             tajweedRulesMap = tajweedRulesMap
           )
         }
@@ -2951,7 +2960,9 @@ fun AyahCardItem(
             isAudioPlayingOnThisVerse = isThisAyahPlaying && activeWordIndex >= 0,
             activeWordIndex = activeWordIndex,
             activeWordHighlightColor = Color(0xFF00E676),
-            recitedWordColor = Color(0xFF4CAF50)
+            recitedWordColor = Color(0xFF4CAF50),
+            expectedSurah = ayah.surahNumber,
+            expectedAyah = ayah.verseNumber
           )
         } else if (!isThisAyahPlaying || activeWordIndex < 0 || arabicWords.isEmpty()) {
           buildAnnotatedString {

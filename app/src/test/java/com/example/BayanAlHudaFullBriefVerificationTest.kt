@@ -446,7 +446,7 @@ class BayanAlHudaFullBriefVerificationTest {
       VideoPlaybackResumeStore.getSavedResumeState(context, lectureA)
     )
 
-    // Re-save and verify manual Restart clear
+    // Re-save and verify most recent resume lookup + manual Restart clear
     VideoPlaybackResumeStore.saveResumePosition(
       context = context,
       lecture = lectureA,
@@ -454,7 +454,47 @@ class BayanAlHudaFullBriefVerificationTest {
       durationMs = 1_800_000L
     )
     assertNotNull(VideoPlaybackResumeStore.getSavedResumeState(context, lectureA))
+    val mostRecent = VideoPlaybackResumeStore.getMostRecentSavedResumeState(context)
+    assertNotNull("Expected most recent saved resume state for HomeScreen & DiscoverScreen Resume Video cards", mostRecent)
+    assertEquals(lectureA.youtubeId, mostRecent!!.youtubeId)
+    assertEquals("02:00", mostRecent.formattedTime)
+    assertEquals(1, VideoPlaybackResumeStore.getAllSavedResumeStates(context).size)
+
     VideoPlaybackResumeStore.clearResumePosition(context, lectureA.youtubeId)
     assertNull(VideoPlaybackResumeStore.getSavedResumeState(context, lectureA))
+    assertNull(VideoPlaybackResumeStore.getMostRecentSavedResumeState(context))
+  }
+
+  @Test
+  fun shareAppApkWithDriveLink_attachesApkStreamAndOfficialGoogleDriveUpdatesLink() {
+    val expectedDriveFolderUrl = "https://drive.google.com/drive/folders/14i90MpNPedlnBk3l53L_yplzzFNIa4N3"
+    assertEquals(expectedDriveFolderUrl, com.example.ui.components.APP_UPDATES_GOOGLE_DRIVE_FOLDER_URL)
+
+    val apkFile = com.example.ui.components.prepareShareableApkFile(context)
+    assertNotNull("Expected shareable APK file to be prepared in cacheDir/shared_apk", apkFile)
+    assertTrue("Prepared APK file must exist and be non-empty", apkFile!!.exists() && apkFile.length() > 0L)
+
+    val shareIntent = com.example.ui.components.buildShareAppApkAndLinkIntent(context)
+    assertEquals(android.content.Intent.ACTION_SEND, shareIntent.action)
+    assertEquals("application/vnd.android.package-archive", shareIntent.type)
+
+    val shareText = shareIntent.getStringExtra(android.content.Intent.EXTRA_TEXT).orEmpty()
+    assertTrue(
+      "Share message must include the official Google Drive folder link ($expectedDriveFolderUrl)",
+      shareText.contains(expectedDriveFolderUrl)
+    )
+
+    @Suppress("DEPRECATION")
+    val streamUri = shareIntent.getParcelableExtra<android.net.Uri>(android.content.Intent.EXTRA_STREAM)
+    assertNotNull("Share intent must attach APK file URI via EXTRA_STREAM", streamUri)
+    assertTrue(
+      "APK stream URI must use FileProvider content:// scheme and reference Bayan-al-Huda.apk",
+      streamUri.toString().startsWith("content://") && streamUri.toString().endsWith("Bayan-al-Huda.apk")
+    )
+    assertTrue(
+      "Share intent must grant read URI permission for the attached APK file",
+      (shareIntent.flags and android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) != 0
+    )
   }
 }
+

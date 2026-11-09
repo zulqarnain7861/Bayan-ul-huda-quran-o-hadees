@@ -105,6 +105,7 @@ data class BayanUiState(
   val isSearchingRemote: Boolean = false,
   // Navigation shortcut targets
   val initialLibraryTab: Int = 0,
+  val libraryTabSelectionNonce: Long = 0L,
   val initialLearnIslamTab: com.example.ui.screens.LearnIslamTab = com.example.ui.screens.LearnIslamTab.NOORANI_QAIDA,
   // Daily insights
   val dailyAyah: AyahEntity? = null,
@@ -678,23 +679,27 @@ class BayanViewModel(application: Application) : AndroidViewModel(application) {
   ) {
     viewModelScope.launch {
       val app = getApplication<Application>()
-      if (deleteLocalBookmarksAndNotes) {
-        runCatching {
-          val currentBookmarks = bookmarks.value.toList()
-          for (bm in currentBookmarks) {
-            repository.removeBookmark(bm.itemKey)
-          }
-          val currentNotes = notes.value.toList()
-          for (note in currentNotes) {
-            repository.deleteNote(note.id)
-          }
-        }
-      }
-
       val result = AuthManager.deleteCurrentAccount(
         activityContext = activityContext,
         onDeleteCloudData = { uid ->
-          cloudRepository?.deleteAllUserData(uid) ?: 0
+          val cloudRepo = cloudRepository ?: CloudSyncRepository.getInstance(app)
+          val cloudReceipt = cloudRepo.deleteAllUserDataAndVerify(uid)
+          cloudReceipt.deletedBookmarksCount + cloudReceipt.deletedNotesCount
+        },
+        onDeleteAndVerifyLocalData = {
+          if (deleteLocalBookmarksAndNotes) {
+            repository.deleteAllUserDataAndVerify()
+          } else {
+            IslamicRepository.LocalDataDeletionReceipt(
+              deletedBookmarksCount = 0,
+              deletedNotesCount = 0,
+              remainingBookmarksCount = 0,
+              remainingNotesCount = 0,
+              knowledgeProgressCleared = true,
+              preferencesCleared = true,
+              verifiedClean = true
+            )
+          }
         }
       )
 
@@ -1285,7 +1290,10 @@ class BayanViewModel(application: Application) : AndroidViewModel(application) {
   }
 
   fun setInitialLibraryTab(tabIndex: Int) {
-    _uiState.value = _uiState.value.copy(initialLibraryTab = tabIndex.coerceAtLeast(0))
+    _uiState.value = _uiState.value.copy(
+      initialLibraryTab = tabIndex.coerceAtLeast(0),
+      libraryTabSelectionNonce = _uiState.value.libraryTabSelectionNonce + 1L
+    )
   }
 
   fun setInitialLearnIslamTab(tab: com.example.ui.screens.LearnIslamTab) {

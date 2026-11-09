@@ -150,38 +150,88 @@ class CloudSyncRepository(
     }
   }
 
+  data class CloudDeletionReceipt(
+    val userId: String,
+    val deletedBookmarksCount: Int,
+    val deletedNotesCount: Int,
+    val remainingBookmarksCount: Int,
+    val remainingNotesCount: Int,
+    val verifiedClean: Boolean,
+    val timestampMs: Long = System.currentTimeMillis()
+  )
+
   /**
    * Permanently deletes all cloud-synced bookmarks and study notes for the authenticated user
-   * under `/users/{userId}/bookmarks` and `/users/{userId}/notes`.
+   * under `/users/{userId}/bookmarks` and `/users/{userId}/notes`, then re-queries both
+   * collections to verify that 0 documents remain before allowing Firebase Auth account deletion.
+   * Throws an exception if any document deletion or post-deletion verification fails.
+   */
+  suspend fun deleteAllUserDataAndVerify(userId: String): CloudDeletionReceipt {
+    require(userId.isNotBlank()) { "userId must not be blank for cloud data deletion" }
+    val bookmarksPath = "users/$userId/bookmarks"
+    val notesPath = "users/$userId/notes"
+    var deletedBookmarks = 0
+    var deletedNotes = 0
+
+    try {
+      val bookmarkSnap = db.collection(bookmarksPath).get().await()
+      for (doc in bookmarkSnap.documents) {
+        doc.reference.delete().await()
+        deletedBookmarks++
+      }
+    } catch (e: Exception) {
+      handleFirestoreError(e, OperationType.DELETE, bookmarksPath)
+    }
+
+    try {
+      val notesSnap = db.collection(notesPath).get().await()
+      for (doc in notesSnap.documents) {
+        doc.reference.delete().await()
+        deletedNotes++
+      }
+    } catch (e: Exception) {
+      handleFirestoreError(e, OperationType.DELETE, notesPath)
+    }
+
+    val remainingBookmarks: Int = try {
+      db.collection(bookmarksPath).get().await().size()
+    } catch (e: Exception) {
+      handleFirestoreError(e, OperationType.LIST, bookmarksPath)
+      throw e
+    }
+    val remainingNotes: Int = try {
+      db.collection(notesPath).get().await().size()
+    } catch (e: Exception) {
+      handleFirestoreError(e, OperationType.LIST, notesPath)
+      throw e
+    }
+
+    val verifiedClean = remainingBookmarks == 0 && remainingNotes == 0
+    if (!verifiedClean) {
+      throw IllegalStateException(
+        "Cloud data deletion verification failed for user $userId: remainingBookmarks=$remainingBookmarks, remainingNotes=$remainingNotes"
+      )
+    }
+
+    return CloudDeletionReceipt(
+      userId = userId,
+      deletedBookmarksCount = deletedBookmarks,
+      deletedNotesCount = deletedNotes,
+      remainingBookmarksCount = remainingBookmarks,
+      remainingNotesCount = remainingNotes,
+      verifiedClean = true
+    )
+  }
+
+  /**
+   * Permanently deletes all cloud-synced bookmarks and study notes for the authenticated user
+   * under `/users/{userId}/bookmarks` and `/users/{userId}/notes` and verifies zero remaining records.
    * Required for Google Play User Data & Account Deletion policy compliance.
    */
   suspend fun deleteAllUserData(userId: String): Int {
     if (userId.isBlank()) return 0
-    var deletedCount = 0
-    val bookmarksPath = "users/$userId/bookmarks"
-    val notesPath = "users/$userId/notes"
-
-    runCatching {
-      val bookmarkSnap = db.collection(bookmarksPath).get().await()
-      for (doc in bookmarkSnap.documents) {
-        runCatching {
-          doc.reference.delete().await()
-          deletedCount++
-        }
-      }
-    }
-
-    runCatching {
-      val notesSnap = db.collection(notesPath).get().await()
-      for (doc in notesSnap.documents) {
-        runCatching {
-          doc.reference.delete().await()
-          deletedCount++
-        }
-      }
-    }
-
-    return deletedCount
+    val receipt = deleteAllUserDataAndVerify(userId)
+    return receipt.deletedBookmarksCount + receipt.deletedNotesCount
   }
 
   companion object {

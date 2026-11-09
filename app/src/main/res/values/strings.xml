@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Bayan al-Huda</string>
+    <string name="recaptcha_site_key" translatable="false">YOUR_RECAPTCHA_ENTERPRISE_SITE_KEY</string>
 </resources>

@@ -12,6 +12,9 @@ interface BookmarkDao {
   @Query("SELECT * FROM bookmarks ORDER BY timestamp DESC")
   fun getAllBookmarks(): Flow<List<BookmarkEntity>>
 
+  @Query("SELECT * FROM bookmarks ORDER BY timestamp DESC")
+  suspend fun getAllBookmarksSnapshot(): List<BookmarkEntity>
+
   @Query("SELECT * FROM bookmarks WHERE itemType = :type ORDER BY timestamp DESC")
   fun getBookmarksByType(type: String): Flow<List<BookmarkEntity>>
 
@@ -23,4 +26,10 @@ interface BookmarkDao {
 
   @Query("DELETE FROM bookmarks WHERE itemKey = :itemKey")
   suspend fun deleteBookmarkByKey(itemKey: String)
+
+  @Query("DELETE FROM bookmarks")
+  suspend fun deleteAllBookmarks(): Int
+
+  @Query("SELECT COUNT(*) FROM bookmarks")
+  suspend fun countBookmarks(): Int
 }

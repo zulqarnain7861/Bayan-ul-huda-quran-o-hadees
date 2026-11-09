@@ -314,10 +314,89 @@ object AdShieldConfig {
     return BLOCKED_URL_PATH_KEYWORDS.any { kw -> lower.contains(kw) }
   }
 
+  val DEFAULT_STRICT_WEBVIEW_HOSTS: Set<String> = setOf(
+    "youtube-nocookie.com",
+    "www.youtube-nocookie.com",
+    "youtube.com",
+    "www.youtube.com",
+    "m.youtube.com",
+    "music.youtube.com",
+    "youtu.be",
+    "ytimg.com",
+    "i.ytimg.com",
+    "s.ytimg.com",
+    "googlevideo.com",
+    "ggpht.com",
+    "yt3.ggpht.com",
+    "www.gstatic.com",
+    "fonts.gstatic.com",
+    "youtubei.googleapis.com",
+    "jnn-pa.googleapis.com",
+    "bayanulhuda.com",
+    "bayanulhuda.org"
+  )
+
+  val YOUTUBE_SIGN_IN_ALLOWED_HOSTS: Set<String> = DEFAULT_STRICT_WEBVIEW_HOSTS + setOf(
+    "accounts.google.com",
+    "accounts.youtube.com",
+    "myaccount.google.com",
+    "ssl.gstatic.com"
+  )
+
+  private val STRICT_SUBDOMAIN_MEDIA_ROOTS: Set<String> = setOf(
+    "youtube-nocookie.com",
+    "youtube.com",
+    "ytimg.com",
+    "googlevideo.com",
+    "ggpht.com"
+  )
+
   fun isSchemeAllowedInWebView(url: String?): Boolean {
     if (url.isNullOrBlank()) return false
     val lower = url.trim().lowercase(Locale.ROOT)
-    return lower.startsWith("https://") || lower.startsWith("about:blank")
+    return lower.startsWith("https://") || lower == "about:blank"
+  }
+
+  fun isSafeInlineDataOrBlobUrl(url: String?): Boolean {
+    if (url.isNullOrBlank()) return false
+    val lower = url.trim().lowercase(Locale.ROOT)
+    if (lower.startsWith("blob:https://")) return true
+    if (lower.startsWith("data:image/") || lower.startsWith("data:font/") || lower.startsWith("data:audio/")) {
+      return !lower.contains("text/html") && !lower.contains("javascript") && !lower.contains("<script")
+    }
+    return false
+  }
+
+  fun isWebViewHostAllowed(
+    rawUrl: String?,
+    allowedHosts: Set<String> = DEFAULT_STRICT_WEBVIEW_HOSTS
+  ): Boolean {
+    if (rawUrl.isNullOrBlank()) return false
+    val trimmed = rawUrl.trim()
+    if (trimmed.equals("about:blank", ignoreCase = true)) return true
+    return try {
+      val jUri = java.net.URI(trimmed)
+      val scheme = jUri.scheme?.lowercase(Locale.ROOT) ?: return false
+      if (scheme != "https") return false
+      // Block credential/userinfo host spoofing e.g. https://www.youtube.com@evil.example.com
+      if (!jUri.rawUserInfo.isNullOrEmpty() || !jUri.userInfo.isNullOrEmpty()) return false
+      val host = jUri.host?.lowercase(Locale.ROOT)?.trimEnd('.') ?: return false
+      if (host.isEmpty()) return false
+      if (isBlockedAdOrTrackerUrl(trimmed)) return false
+
+      allowedHosts.any { allowed ->
+        val norm = allowed.lowercase(Locale.ROOT).trimStart('.')
+        if (host == norm) {
+          true
+        } else if (norm in STRICT_SUBDOMAIN_MEDIA_ROOTS) {
+          host.endsWith(".$norm")
+        } else {
+          false
+        }
+      }
+    } catch (_: Exception) {
+      false
+    }
   }
 
   fun createEmpty204Response(): WebResourceResponse {
@@ -328,9 +407,7 @@ object AdShieldConfig {
       "No Content",
       mapOf(
         "Cache-Control" to "no-store",
-        "Access-Control-Allow-Origin" to "*",
-        "Access-Control-Allow-Methods" to "GET, POST, OPTIONS, HEAD",
-        "Access-Control-Allow-Headers" to "*"
+        "Access-Control-Allow-Origin" to "null"
       ),
       ByteArrayInputStream(ByteArray(0))
     )
@@ -359,37 +436,28 @@ object AdShieldConfig {
 }
 
 open class AdShieldWebViewClient(
-  private val allowedHostsSuffix: Set<String> = setOf(
-    "youtube-nocookie.com",
-    "youtube.com",
-    "youtu.be",
-    "ytimg.com",
-    "googlevideo.com",
-    "ggpht.com",
-    "gstatic.com",
-    "googleapis.com",
-    "google.com",
-    "googleusercontent.com",
-    "archive.org",
-    "bayanulhuda.com"
-  ),
+  private val allowedHostsSuffix: Set<String> = AdShieldConfig.DEFAULT_STRICT_WEBVIEW_HOSTS,
   private val onBlockedExternalNavigation: ((String) -> Unit)? = null,
   private val onRenderProcessCrashed: ((WebView?) -> Unit)? = null
 ) : WebViewClient() {
+
+  fun isUrlPermittedByHostPolicy(url: String?): Boolean {
+    if (url.isNullOrBlank()) return false
+    if (AdShieldConfig.isSafeInlineDataOrBlobUrl(url)) return true
+    if (!AdShieldConfig.isSchemeAllowedInWebView(url)) return false
+    if (AdShieldConfig.isBlockedAdOrTrackerUrl(url)) return false
+    return AdShieldConfig.isWebViewHostAllowed(url, allowedHostsSuffix)
+  }
 
   override fun shouldInterceptRequest(
     view: WebView?,
     request: WebResourceRequest?
   ): WebResourceResponse? {
     val reqUrl = request?.url?.toString() ?: return AdShieldConfig.createEmpty204Response()
-    val lower = reqUrl.trim().lowercase(Locale.ROOT)
-    if (lower.startsWith("blob:") || lower.startsWith("data:")) {
+    if (AdShieldConfig.isSafeInlineDataOrBlobUrl(reqUrl)) {
       return super.shouldInterceptRequest(view, request)
     }
-    if (!AdShieldConfig.isSchemeAllowedInWebView(reqUrl)) {
-      return AdShieldConfig.createEmpty204Response()
-    }
-    if (AdShieldConfig.isBlockedAdOrTrackerUrl(reqUrl)) {
+    if (!isUrlPermittedByHostPolicy(reqUrl)) {
       return AdShieldConfig.createEmpty204Response()
     }
     return super.shouldInterceptRequest(view, request)
@@ -400,18 +468,17 @@ open class AdShieldWebViewClient(
     request: WebResourceRequest?
   ): Boolean {
     val reqUrl = request?.url?.toString() ?: return true
-    if (!AdShieldConfig.isSchemeAllowedInWebView(reqUrl)) {
-      return true
-    }
-    if (AdShieldConfig.isBlockedAdOrTrackerUrl(reqUrl)) {
-      return true
-    }
-    val host = request.url?.host?.lowercase(Locale.ROOT) ?: return true
-    val isAllowedHost = allowedHostsSuffix.any { suffix ->
-      host == suffix || host.endsWith(".$suffix")
-    }
-    if (!isAllowedHost) {
+    if (!isUrlPermittedByHostPolicy(reqUrl)) {
       onBlockedExternalNavigation?.invoke(reqUrl)
+      return true
+    }
+    return false
+  }
+
+  @Deprecated("Deprecated in Java")
+  override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+    if (!isUrlPermittedByHostPolicy(url)) {
+      if (!url.isNullOrBlank()) onBlockedExternalNavigation?.invoke(url)
       return true
     }
     return false

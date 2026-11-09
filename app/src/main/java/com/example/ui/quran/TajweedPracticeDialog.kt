@@ -102,15 +102,20 @@ fun TajweedPracticeDialog(
     cleanArabicText.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
   }
 
-  // Live pacing index while user is actively recording so words light up in green from left to right as they recite
+  // Live pacing index while user is actively recording and genuine voice activity is detected
   var activeRecordingWordIndex by remember { mutableIntStateOf(-1) }
-  LaunchedEffect(recordingState.isListening, canonicalWords.size) {
+  LaunchedEffect(recordingState.isListening, recordingState.voiceLevelFraction >= 0.25f, recordingState.recognizedArabic, canonicalWords.size) {
     if (recordingState.isListening && canonicalWords.isNotEmpty()) {
-      activeRecordingWordIndex = 0
-      for (i in canonicalWords.indices) {
-        activeRecordingWordIndex = i
-        val charWeightMs = (canonicalWords[i].length * 160L).coerceIn(550L, 1400L)
-        delay(charWeightMs)
+      if (recordingState.recognizedArabic.isNotBlank()) {
+        val spokenCount = recordingState.recognizedArabic.trim().split(Regex("\\s+")).count { it.isNotBlank() }
+        activeRecordingWordIndex = (spokenCount - 1).coerceIn(0, canonicalWords.lastIndex)
+      } else if (recordingState.voiceLevelFraction >= 0.25f) {
+        val startIdx = activeRecordingWordIndex.coerceAtLeast(0)
+        for (i in startIdx..canonicalWords.lastIndex) {
+          activeRecordingWordIndex = i
+          val charWeightMs = (canonicalWords[i].length * 160L).coerceIn(550L, 1400L)
+          delay(charWeightMs)
+        }
       }
     } else {
       activeRecordingWordIndex = -1

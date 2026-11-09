@@ -2311,6 +2311,7 @@ private fun YMusicYoutubeSignInDialog(
               if (!VideoStreamExtractor.hasHardwareRenderNode) {
                 setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
               }
+              AdShieldConfig.hardenWebViewSettings(this)
               settings.javaScriptEnabled = true
               settings.domStorageEnabled = true
               settings.userAgentString = DEFAULT_MOBILE_UA
@@ -2319,7 +2320,9 @@ private fun YMusicYoutubeSignInDialog(
                 cm.setAcceptCookie(true)
                 cm.setAcceptThirdPartyCookies(this, true)
               }
-              webViewClient = object : android.webkit.WebViewClient() {
+              webViewClient = object : AdShieldWebViewClient(
+                allowedHostsSuffix = AdShieldConfig.YOUTUBE_SIGN_IN_ALLOWED_HOSTS
+              ) {
                 override fun onPageFinished(view: WebView?, url: String?) {
                   super.onPageFinished(view, url)
                   runCatching { android.webkit.CookieManager.getInstance().flush() }

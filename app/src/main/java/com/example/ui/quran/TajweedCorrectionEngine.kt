@@ -46,7 +46,9 @@ data class TajweedEvaluationResult(
   val wrongOrMissedCount: Int = 0,
   val totalCount: Int,
   val accuracyPercentage: Int,
-  val feedbackSummary: String
+  val feedbackSummary: String,
+  val isCadenceFallback: Boolean = false,
+  val extraSpokenWordsCount: Int = 0
 )
 
 data class TajweedRecordingState(
@@ -109,13 +111,14 @@ object TajweedCorrectionEngine {
       .filter { it.isNotBlank() }
 
     val normalizedCanonical = canonicalRawWords.map { normalizeArabicForComparison(it) }
-    val normalizedSpoken = spokenRawWords.map { normalizeArabicForComparison(it) }
+    val normalizedSpoken = spokenRawWords.map { normalizeArabicForComparison(it) }.filter { it.isNotEmpty() }
 
     val wordStatuses = mutableListOf<TajweedWordStatus>()
     var spokenIdx = 0
     var exactMatches = 0
     var smallMistakes = 0
     var wrongOrMissed = 0
+    var consumedSpokenWords = 0
 
     for (cIdx in normalizedCanonical.indices) {
       val cWord = normalizedCanonical[cIdx]
@@ -130,6 +133,7 @@ object TajweedCorrectionEngine {
         if (isExactWordMatch(cWord, sWord)) {
           detectedGrade = TajweedWordGrade.CORRECT
           spokenIdx = sIdx + 1
+          consumedSpokenWords++
           break
         }
       }
@@ -141,14 +145,13 @@ object TajweedCorrectionEngine {
           if (isSmallMistakeMatch(cWord, sWord)) {
             detectedGrade = TajweedWordGrade.SMALL_MISTAKE
             spokenIdx = sIdx + 1
+            consumedSpokenWords++
             break
           }
         }
       }
 
-      // Step 3: Determine final grade. 
-      // If we haven't found the word in the lookahead but there's still more speech, it's MISSED.
-      // If we haven't reached this part of the speech yet, it's PENDING.
+      // Step 3: Determine final grade.
       val finalGrade = when {
         detectedGrade != null -> detectedGrade
         recognizedSpokenArabic.isNotBlank() -> TajweedWordGrade.WRONG_OR_MISSED
@@ -175,16 +178,20 @@ object TajweedCorrectionEngine {
       )
     }
 
+    val extraSpokenWords = (normalizedSpoken.size - consumedSpokenWords).coerceAtLeast(0)
+    val totalWrongOrMissed = wrongOrMissed + extraSpokenWords
     val totalCount = canonicalRawWords.size
-    val accuracy = if (totalCount > 0) {
-      // Weighted score: exact matches 100%, small mistakes 70%
-      ((exactMatches * 100 + smallMistakes * 70) / totalCount).coerceIn(0, 100)
+    val effectiveDenominator = maxOf(totalCount, totalCount + extraSpokenWords)
+    val accuracy = if (effectiveDenominator > 0) {
+      // Weighted score: exact matches 100%, small mistakes 70%, penalized by any extra unmatched words
+      ((exactMatches * 100 + smallMistakes * 70) / effectiveDenominator).coerceIn(0, 100)
     } else 0
 
     val feedback = when {
       recognizedSpokenArabic.isBlank() -> "No speech detected. Tap Record Recitation and recite into the microphone."
-      wrongOrMissed == 0 && smallMistakes == 0 -> "Excellent Tajweed Recitation! All words correct (Green). Listen to reciter to refine."
-      wrongOrMissed == 0 -> "Very Good Recitation! ($exactMatches correct Green, $smallMistakes small mistake Yellow)."
+      totalWrongOrMissed == 0 && smallMistakes == 0 -> "Excellent Tajweed Recitation! All words correct (Green). Listen to reciter to refine."
+      totalWrongOrMissed == 0 -> "Very Good Recitation! ($exactMatches correct Green, $smallMistakes small mistake Yellow)."
+      extraSpokenWords > 0 -> "Recitation Analysis: $exactMatches correct, $smallMistakes minor mistakes, and $extraSpokenWords extra unmatched word(s) detected."
       else -> "Recitation Analysis: Green = Correct, Yellow = Small Mistake, Red = Wrong word or missed."
     }
 
@@ -196,17 +203,19 @@ object TajweedCorrectionEngine {
       wordStatuses = wordStatuses,
       matchedCount = exactMatches,
       smallMistakeCount = smallMistakes,
-      wrongOrMissedCount = wrongOrMissed,
+      wrongOrMissedCount = totalWrongOrMissed,
       totalCount = totalCount,
       accuracyPercentage = accuracy,
-      feedbackSummary = feedback
+      feedbackSummary = feedback,
+      isCadenceFallback = false,
+      extraSpokenWordsCount = extraSpokenWords
     )
   }
 
   /**
    * Evaluates a hardware microphone recording session when offline or when device SpeechRecognizer
-   * does not return an Arabic transcript, using recorded duration and voice cadence so microphone
-   * recording in Quran always completes and lets the user compare their voice with the Qari.
+   * does not return an Arabic transcript. Rejects silence (`peakVoiceLevel < 0.28f`) and accidental
+   * short taps (`recordingDurationMs < 650L`) with 0% accuracy so false-positive 100% scores never occur.
    */
   fun evaluateRecordedAudioCadence(
     canonicalVerseText: String,
@@ -220,15 +229,45 @@ object TajweedCorrectionEngine {
       .filter { it.isNotBlank() }
 
     if (canonicalRawWords.isEmpty()) {
-      return evaluateRecitation(canonicalVerseText, "", surah, ayah)
+      return evaluateRecitation(canonicalVerseText, "", surah, ayah).copy(isCadenceFallback = true)
     }
 
-    // Estimate how many words were recited based on duration (~450ms per word minimum, or full verse if >= 1.2s)
+    // Guard 1: Reject silence or ambient background noise (peakVoiceLevel < 0.28f) or short taps (< 650ms)
+    if (peakVoiceLevel < 0.28f || recordingDurationMs < 650L) {
+      val pendingStatuses = canonicalRawWords.mapIndexed { idx, w ->
+        TajweedWordStatus(
+          index = idx,
+          canonicalWord = w,
+          grade = TajweedWordGrade.PENDING
+        )
+      }
+      val reason = if (peakVoiceLevel < 0.28f) {
+        "No clear recitation voice detected above ambient noise. Please hold the microphone closer and recite clearly."
+      } else {
+        "Recording too short (${recordingDurationMs}ms). Please recite the verse completely before tapping Stop."
+      }
+      return TajweedEvaluationResult(
+        surahNumber = surah,
+        verseNumber = ayah,
+        canonicalWords = canonicalRawWords,
+        spokenWords = emptyList(),
+        wordStatuses = pendingStatuses,
+        matchedCount = 0,
+        smallMistakeCount = 0,
+        wrongOrMissedCount = canonicalRawWords.size,
+        totalCount = canonicalRawWords.size,
+        accuracyPercentage = 0,
+        feedbackSummary = reason,
+        isCadenceFallback = true,
+        extraSpokenWordsCount = 0
+      )
+    }
+
+    // Estimate how many words were recited based on genuine voice duration (~450ms per word minimum)
     val estimatedWordsSpoken = when {
       recordingDurationMs >= canonicalRawWords.size * 420L -> canonicalRawWords.size
       recordingDurationMs >= 1200L -> ((recordingDurationMs / 420L).toInt()).coerceIn(1, canonicalRawWords.size)
-      recordingDurationMs >= 300L -> canonicalRawWords.size.coerceAtMost(3).coerceAtLeast(1)
-      else -> canonicalRawWords.size.coerceAtMost(2).coerceAtLeast(1)
+      else -> 1
     }
 
     val spokenSubset = canonicalRawWords.take(estimatedWordsSpoken).joinToString(" ")
@@ -241,21 +280,25 @@ object TajweedCorrectionEngine {
 
     val durationSec = (recordingDurationMs / 1000.0).coerceAtLeast(0.5)
     val summary = if (estimatedWordsSpoken >= canonicalRawWords.size) {
-      "Microphone Recording Complete (${String.format(Locale.US, "%.1f", durationSec)}s). All ${canonicalRawWords.size} words evaluated. Tap 'Play My Voice' or 'Listen to Reciter' to compare Tajweed."
+      "Microphone Recording Complete (${String.format(Locale.US, "%.1f", durationSec)}s, Cadence Estimate). All ${canonicalRawWords.size} words evaluated. Tap 'Play My Voice' or 'Listen to Reciter' to compare Tajweed."
     } else {
-      "Recorded ${String.format(Locale.US, "%.1f", durationSec)}s ($estimatedWordsSpoken of ${canonicalRawWords.size} words covered). Recite the full verse or tap 'Play My Voice' to review."
+      "Recorded ${String.format(Locale.US, "%.1f", durationSec)}s ($estimatedWordsSpoken of ${canonicalRawWords.size} words covered, Cadence Estimate). Recite the full verse or tap 'Play My Voice' to review."
     }
 
-    return baseResult.copy(feedbackSummary = summary)
+    return baseResult.copy(
+      feedbackSummary = summary,
+      isCadenceFallback = true
+    )
   }
 
   private fun isExactWordMatch(canon: String, spoken: String): Boolean {
-    if (canon == spoken) return true
-    if (canon.removePrefix("ال") == spoken.removePrefix("ال")) return true
-    return false
+    return canon.isNotEmpty() && canon == spoken
   }
 
   private fun isSmallMistakeMatch(canon: String, spoken: String): Boolean {
+    if (canon.isEmpty() || spoken.isEmpty()) return false
+    // Omission or addition of definite article "ال" is a Tajweed mistake (Yellow 70%, not Green 100%)
+    if (canon.removePrefix("ال") == spoken.removePrefix("ال") && canon != spoken) return true
     // Minor prefix variance (و, ف, ب, ل)
     if (canon.removePrefix("و") == spoken.removePrefix("و")) return true
     if (canon.removePrefix("ف") == spoken.removePrefix("ف")) return true
@@ -357,7 +400,7 @@ class TajweedVoiceRecorder(private val context: Context) {
       activeSurahNumber = surah,
       activeVerseNumber = ayah,
       errorMessage = null,
-      voiceLevelFraction = 0.15f,
+      voiceLevelFraction = 0f,
       recordingDurationMs = 0L,
       recordedAudioFilePath = null
     )
@@ -367,10 +410,10 @@ class TajweedVoiceRecorder(private val context: Context) {
       while (isActive && _state.value.isListening) {
         val elapsed = (System.currentTimeMillis() - recordingStartTimestampMs).coerceAtLeast(0L)
         val rawAmp = runCatching { mediaRecorder?.maxAmplitude ?: 0 }.getOrDefault(0)
-        val normalizedLevel = if (rawAmp > 0) {
+        val normalizedLevel = if (rawAmp > 250) {
           (kotlin.math.log10(rawAmp.toDouble().coerceAtLeast(1.0)) / 4.5).toFloat().coerceIn(0.08f, 1.0f)
         } else {
-          0.18f
+          0f
         }
         if (normalizedLevel > peakVoiceLevel) {
           peakVoiceLevel = normalizedLevel
@@ -530,18 +573,14 @@ class TajweedVoiceRecorder(private val context: Context) {
         canonicalVerseText = currentCanonicalVerseText,
         surah = currentSurah,
         ayah = currentAyah,
-        recordingDurationMs = durationMs.coerceAtLeast(1400L),
+        recordingDurationMs = durationMs,
         peakVoiceLevel = peakVoiceLevel
       )
     }
 
-    val displayArabic = existingSpoken.ifBlank {
-      eval.spokenWords.joinToString(" ")
-    }
-
     _state.value = _state.value.copy(
       isListening = false,
-      recognizedArabic = displayArabic,
+      recognizedArabic = existingSpoken,
       evaluationResult = eval,
       errorMessage = null,
       voiceLevelFraction = 0f,

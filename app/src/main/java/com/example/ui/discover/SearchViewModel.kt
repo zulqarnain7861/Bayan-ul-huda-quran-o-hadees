@@ -100,7 +100,13 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
       runCatching {
         val dataset = repository.lectureRepository.loadSeedDataset()
         val config = repository.lectureRepository.loadDiscoveryConfig()
-        val watchVideoMap = repository.lectureRepository.getWatchTimeMap()
+        val rawWatchVideoMap = repository.lectureRepository.getWatchTimeMap()
+        val savedResumeMap = com.example.player.VideoPlaybackResumeStore
+          .getAllSavedResumeStates(getApplication())
+          .associate { it.youtubeId to it.positionSec.coerceAtLeast(1) }
+        val watchVideoMap = (rawWatchVideoMap.keys + savedResumeMap.keys).associateWith { yid ->
+          maxOf(rawWatchVideoMap[yid] ?: 0, savedResumeMap[yid] ?: 0)
+        }
         val watchTopicMap = repository.lectureRepository.getTopicWatchTimeMap()
         val bookmarkedIds = repository.lectureRepository.getBookmarkedYoutubeIds()
         val profile = repository.lectureRepository.getPlaybackDataProfile()

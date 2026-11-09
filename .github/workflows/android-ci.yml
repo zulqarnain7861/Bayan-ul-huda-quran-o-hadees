@@ -1,0 +1,64 @@
+name: Bayan al-Huda Android CI & Security Verification
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: build-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Prepare clean-build signing & verify .env.example
+        run: |
+          chmod +x tools/signing/prepare-clean-build-signing.sh
+          ./tools/signing/prepare-clean-build-signing.sh
+
+      - name: Run Clean-Build Config Check & Unit/Robolectric Verification Suite
+        run: |
+          if [ -x "./gradlew" ]; then
+            ./gradlew verifyCleanBuildConfig :app:testDebugUnitTest :app:assembleDebug --stacktrace
+          else
+            gradle verifyCleanBuildConfig :app:testDebugUnitTest :app:assembleDebug --stacktrace
+          fi
+
+  firestore-rules-test:
+    name: firestore-rules-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Java for Firebase Emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install dependencies & run Firestore Rules tests
+        run: |
+          npm install
+          npx firebase-tools emulators:exec --only firestore "npm run test:rules"

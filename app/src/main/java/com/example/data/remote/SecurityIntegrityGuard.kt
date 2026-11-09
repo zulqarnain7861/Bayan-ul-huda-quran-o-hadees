@@ -41,6 +41,7 @@ object SecurityIntegrityGuard {
     "www.hadithapi.com",
     "ummahapi.com",
     "www.ummahapi.com",
+    "hadith-proxy.bayanulhuda.org",
     "thaqalayn-api.net",
     "thaqalayn-api.ieron.dev",
     "thaqalayn.net",
@@ -137,9 +138,23 @@ object SecurityIntegrityGuard {
     ".hadithapi.com",
     ".ummahapi.com",
     ".sunnah.com",
+    ".bayanulhuda.org",
     ".google.com",
     ".android.com"
   )
+
+  private val SENSITIVE_QUERY_PARAM_REGEX = Regex(
+    """([?&](?:apiKey|api_key|key|token|access_token|secret)=)([^&#\s]+)""",
+    RegexOption.IGNORE_CASE
+  )
+
+  /**
+   * Returns true if a URL embeds a raw private API key in its query string.
+   */
+  fun containsExposedPrivateApiKeyInUrl(rawUrl: String): Boolean {
+    if (rawUrl.isBlank()) return false
+    return SENSITIVE_QUERY_PARAM_REGEX.containsMatchIn(rawUrl)
+  }
 
   private val BLOCKED_AD_AND_TRACKER_KEYWORDS = listOf(
     "doubleclick",

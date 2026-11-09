@@ -404,7 +404,7 @@ private fun LearnIslamAudioControlBar(
                         } else if (isPlaying && activeStageLabel.isNotBlank()) {
                             activeStageLabel
                         } else {
-                            "Offline Authentic Noorani Qaida, Quran & Sunnah Audio (No AI Voice)"
+                            "Offline Authentic Noorani Qaida, Quran & Sunnah Audio"
                         },
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold,

@@ -68,6 +68,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.SourceRegistry
@@ -79,6 +80,7 @@ import com.example.ui.audio.availableReciters
 import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.GoldPrimary
 import com.example.ui.theme.ScheherazadeFontFamily
+import com.example.ui.theme.UrduNastaliqFontFamily
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -136,7 +138,7 @@ fun AboutScreen(
     contentPadding = PaddingValues(vertical = 16.dp),
     verticalArrangement = Arrangement.spacedBy(16.dp)
   ) {
-    // Top "Support Play Store Publication" & Clickable "Assalamu Alaikum" WhatsApp Card (Single instance at top)
+    // Top "Support Play Store Publication" & Clickable "Assalamu Alaikum" WhatsApp Card (Symmetrical Centered Layout)
     item {
       ElevatedCard(
         modifier = Modifier
@@ -152,51 +154,85 @@ fun AboutScreen(
           modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp),
-          verticalArrangement = Arrangement.spacedBy(10.dp)
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+          Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = GoldPrimary.copy(alpha = 0.16f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.65f)),
+            modifier = Modifier
+              .fillMaxWidth()
+              .clickable { com.example.ui.components.openWhatsAppSupport(context) }
+              .testTag("about_assalamu_alaikum_greeting_btn")
           ) {
-            Column(modifier = Modifier.weight(1f)) {
-              Text(
-                text = "Support Bayan al-Huda • Google Play Store Publication",
-                style = MaterialTheme.typography.titleMedium.copy(
-                  fontWeight = FontWeight.Bold,
-                  color = MaterialTheme.colorScheme.primary
-                )
-              )
-              Text(
-                text = "We need US$25 for publication: One-time Google Play Console registration fee",
-                style = MaterialTheme.typography.labelSmall.copy(
-                  fontWeight = FontWeight.SemiBold,
-                  color = GoldPrimary
-                )
-              )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Surface(
-              shape = RoundedCornerShape(16.dp),
-              color = GoldPrimary.copy(alpha = 0.18f),
+            Column(
               modifier = Modifier
-                .clickable { com.example.ui.components.openWhatsAppSupport(context) }
-                .testTag("about_assalamu_alaikum_greeting_btn")
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+              horizontalAlignment = Alignment.CenterHorizontally
             ) {
               Text(
-                text = "السَّلَامُ عَلَيْكُمْ • Assalamu Alaikum",
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                text = "السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ",
+                style = MaterialTheme.typography.titleSmall.copy(
+                  fontFamily = ScheherazadeFontFamily,
+                  fontSize = 17.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = GoldPrimary,
+                  textAlign = TextAlign.Center
+                )
+              )
+              Text(
+                text = "Assalamu Alaikum",
                 style = MaterialTheme.typography.labelSmall.copy(
                   fontWeight = FontWeight.Bold,
-                  color = EmeraldPrimary
+                  color = EmeraldPrimary,
+                  textAlign = TextAlign.Center
                 )
               )
             }
           }
 
           Text(
+            text = "بیان الہدیٰ کی اشاعت اور تعاون",
+            style = MaterialTheme.typography.bodyMedium.copy(
+              fontFamily = UrduNastaliqFontFamily,
+              fontSize = 15.sp,
+              lineHeight = 25.sp,
+              fontWeight = FontWeight.Bold,
+              color = GoldPrimary,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+
+          Text(
+            text = "Support Bayan al-Huda • Google Play Store Publication",
+            style = MaterialTheme.typography.titleMedium.copy(
+              fontWeight = FontWeight.Bold,
+              color = MaterialTheme.colorScheme.primary,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+
+          Text(
+            text = "We need US$25 for publication: One-time Google Play Console registration fee",
+            style = MaterialTheme.typography.labelSmall.copy(
+              fontWeight = FontWeight.SemiBold,
+              color = GoldPrimary,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+
+          Text(
             text = "Community support helps cover the one-time US$25 Google Play Console registration fee so we can publish Bayan al-Huda on the Google Play Store and enable more people worldwide to benefit from verified Quran, Hadith, and Salah tools.",
-            style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp)
+            style = MaterialTheme.typography.bodySmall.copy(
+              lineHeight = 18.sp,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
           )
 
           Text(
@@ -204,8 +240,10 @@ fun AboutScreen(
             style = MaterialTheme.typography.labelSmall.copy(
               fontWeight = FontWeight.SemiBold,
               color = EmeraldPrimary,
-              lineHeight = 16.sp
-            )
+              lineHeight = 16.sp,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
           )
 
           Button(
@@ -220,16 +258,17 @@ fun AboutScreen(
               .testTag("support_our_app_whatsapp_button")
           ) {
             Text(
-              text = "Assalamu Alaikum — Support $25 Play Store Publication on WhatsApp",
+              text = "Assalamu Alaikum — Support $25 Play Store Publication",
               fontWeight = FontWeight.Bold,
-              fontSize = 13.sp
+              fontSize = 12.sp,
+              textAlign = TextAlign.Center
             )
           }
         }
       }
     }
 
-    // App Header Card (with 7-tap Android Developer Options unlock on Version badge)
+    // App Header & Scholarly Provenance Card (with 7-tap Android Developer Options unlock on Version badge)
     item {
       ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -259,24 +298,92 @@ fun AboutScreen(
             )
           }
 
-          Spacer(modifier = Modifier.height(12.dp))
+          Spacer(modifier = Modifier.height(10.dp))
+
+          Text(
+            text = "بَيَانُ الهُدَى",
+            style = MaterialTheme.typography.headlineSmall.copy(
+              fontFamily = ScheherazadeFontFamily,
+              fontSize = 24.sp,
+              color = GoldPrimary,
+              fontWeight = FontWeight.Bold,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+
+          Text(
+            text = "بیان الہدیٰ — مستند قرآن، حدیث، نماز اور اسلامی کتب خانہ",
+            style = MaterialTheme.typography.bodyMedium.copy(
+              fontFamily = UrduNastaliqFontFamily,
+              fontSize = 15.sp,
+              lineHeight = 25.sp,
+              color = EmeraldPrimary,
+              fontWeight = FontWeight.Bold,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+
+          Spacer(modifier = Modifier.height(2.dp))
 
           Text(
             text = "Bayan al-Huda",
             style = MaterialTheme.typography.headlineMedium.copy(
               fontWeight = FontWeight.Bold,
-              color = MaterialTheme.colorScheme.primary
-            )
+              color = MaterialTheme.colorScheme.primary,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
           )
+
           Text(
-            text = "بَيَانُ الهُدَى • Quran, Hadith & Salah Library",
-            style = MaterialTheme.typography.titleSmall.copy(
-              fontFamily = ScheherazadeFontFamily,
-              fontSize = 18.sp,
-              color = GoldPrimary,
-              fontWeight = FontWeight.Bold
-            )
+            text = "Authentic Quran, Hadith, Salah & Classical Islamic Library",
+            style = MaterialTheme.typography.bodySmall.copy(
+              fontWeight = FontWeight.SemiBold,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
           )
+
+          Spacer(modifier = Modifier.height(6.dp))
+
+          Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = EmeraldPrimary.copy(alpha = 0.08f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.55f)),
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            Column(
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+              horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+              Text(
+                text = "مآخذ و اسناد کی تحقیق و تصدیق",
+                style = MaterialTheme.typography.labelMedium.copy(
+                  fontFamily = UrduNastaliqFontFamily,
+                  fontSize = 13.sp,
+                  lineHeight = 22.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = GoldPrimary,
+                  textAlign = TextAlign.Center
+                ),
+                modifier = Modifier.fillMaxWidth()
+              )
+              Text(
+                text = "Verified Scholarly Provenance • Canonical Uthmani & Hadith Editions",
+                style = MaterialTheme.typography.labelSmall.copy(
+                  fontWeight = FontWeight.Bold,
+                  color = EmeraldPrimary,
+                  textAlign = TextAlign.Center
+                ),
+                modifier = Modifier.fillMaxWidth()
+              )
+            }
+          }
 
           Spacer(modifier = Modifier.height(6.dp))
 
@@ -793,7 +900,7 @@ fun AboutScreen(
       }
     }
 
-    // Actions: Share App & Report Content Error
+    // Actions: Share App (APK + Google Drive Updates Link) & Report Content Error
     item {
       Card(
         modifier = Modifier
@@ -804,29 +911,71 @@ fun AboutScreen(
       ) {
         Column(modifier = Modifier.padding(16.dp)) {
           Text(
-            text = "Actions & Integrity",
+            text = "Share App (APK + Updates Link) & Integrity",
             style = MaterialTheme.typography.titleMedium.copy(
               fontWeight = FontWeight.Bold,
               color = MaterialTheme.colorScheme.primary
             )
           )
 
+          Spacer(modifier = Modifier.height(6.dp))
+
+          Text(
+            text = "Share the Bayan al-Huda APK file directly along with the official Google Drive folder link where the latest app updates are published.",
+            style = MaterialTheme.typography.bodySmall.copy(
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              lineHeight = 17.sp
+            )
+          )
+
           Spacer(modifier = Modifier.height(10.dp))
 
-          // Share App
+          // Share App (APK File + Google Drive Updates Folder Link)
           Surface(
             modifier = Modifier
               .fillMaxWidth()
+              .testTag("about_share_app_apk_button")
               .clickable {
-                val shareIntent = Intent().apply {
-                  action = Intent.ACTION_SEND
-                  putExtra(
-                    Intent.EXTRA_TEXT,
-                    "Experience Bayan al-Huda — Complete Quran, Hadith & Five Daily Salah App with verified Uthmani script and Sahih International translations by Zulqarnain Ahmad Sheikh."
+                com.example.ui.components.shareAppApkWithDriveLink(context)
+              },
+            shape = RoundedCornerShape(10.dp),
+            color = EmeraldPrimary
+          ) {
+            Row(
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Icon(Icons.Default.Share, contentDescription = "Share Bayan al-Huda APK and Link", tint = Color.White)
+              Spacer(modifier = Modifier.width(10.dp))
+              Column(modifier = Modifier.weight(1f)) {
+                Text(
+                  text = "Share Bayan al-Huda App (APK + Drive Link)",
+                  style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
                   )
-                  type = "text/plain"
-                }
-                context.startActivity(Intent.createChooser(shareIntent, "Share Bayan al-Huda"))
+                )
+                Text(
+                  text = "Attaches APK file + Official Updates Folder Link",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    color = Color.White.copy(alpha = 0.9f)
+                  )
+                )
+              }
+            }
+          }
+
+          Spacer(modifier = Modifier.height(8.dp))
+
+          // Official Google Drive Updates Folder Card / Row
+          Surface(
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("about_open_drive_updates_button")
+              .clickable {
+                com.example.ui.components.openAppUpdatesDriveFolder(context)
               },
             shape = RoundedCornerShape(10.dp),
             color = MaterialTheme.colorScheme.surfaceVariant
@@ -835,11 +984,39 @@ fun AboutScreen(
               modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
+              horizontalArrangement = Arrangement.SpaceBetween,
               verticalAlignment = Alignment.CenterVertically
             ) {
-              Icon(Icons.Default.Share, contentDescription = null, tint = EmeraldPrimary)
-              Spacer(modifier = Modifier.width(10.dp))
-              Text(text = "Share Bayan al-Huda App", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
+              Column(modifier = Modifier.weight(1f)) {
+                Text(
+                  text = "Latest App Updates Folder (Google Drive)",
+                  style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    color = EmeraldPrimary
+                  )
+                )
+                Text(
+                  text = com.example.ui.components.APP_UPDATES_GOOGLE_DRIVE_FOLDER_URL,
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                  )
+                )
+              }
+              IconButton(
+                onClick = {
+                  com.example.ui.components.copyAppUpdatesDriveLink(context)
+                },
+                modifier = Modifier
+                  .size(36.dp)
+                  .testTag("about_copy_drive_updates_link_button")
+              ) {
+                Icon(
+                  Icons.Default.ContentCopy,
+                  contentDescription = "Copy Updates Drive Link",
+                  tint = EmeraldPrimary,
+                  modifier = Modifier.size(18.dp)
+                )
+              }
             }
           }
 

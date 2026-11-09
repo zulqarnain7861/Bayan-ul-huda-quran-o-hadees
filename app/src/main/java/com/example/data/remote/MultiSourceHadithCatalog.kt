@@ -289,8 +289,31 @@ object MultiSourceHadithCatalog {
         ahmedBasetMappings[collectionKey]?.byBookUrl()
 
     // =========================================================================
-    // 3. HADITHAPI.COM ENDPOINT BUILDERS (WITH BUILDCONFIG SECRET MANAGEMENT)
+    // 3. SERVER-SIDE PROXY & HADITHAPI.COM ENDPOINT BUILDERS
+    //    Private API keys (HADITH_API_KEY, SUNNAH_API_KEY, UMMAH_API_KEY) are held
+    //    on the server-side proxy (`HADITH_API_PROXY_BASE_URL`) so client URLs never
+    //    embed raw `?apiKey=` secrets in production traffic.
     // =========================================================================
+
+    const val DEFAULT_HADITH_PROXY_BASE = "https://hadith-proxy.bayanulhuda.org"
+
+    fun getConfiguredHadithProxyBaseUrl(): String {
+        val raw = runCatching {
+            val field = BuildConfig::class.java.getDeclaredField("HADITH_API_PROXY_BASE_URL")
+            field.isAccessible = true
+            (field.get(null) as? String)?.trim()
+        }.getOrNull().orEmpty()
+        return if (raw.startsWith("https://", ignoreCase = true) &&
+            !raw.contains("DEFAULT_VALUE") &&
+            !raw.startsWith("YOUR_", ignoreCase = true)
+        ) {
+            raw.trimEnd('/')
+        } else {
+            DEFAULT_HADITH_PROXY_BASE
+        }
+    }
+
+    fun isServerSideProxyEnabled(): Boolean = getConfiguredHadithProxyBaseUrl().startsWith("https://")
 
     fun getConfiguredHadithApiKey(): String? {
         val raw = runCatching { BuildConfig.HADITH_API_KEY }.getOrNull()?.trim().orEmpty()
@@ -301,42 +324,58 @@ object MultiSourceHadithCatalog {
         }
     }
 
-    fun isHadithApiKeyConfigured(): Boolean = getConfiguredHadithApiKey() != null
+    fun isHadithApiKeyConfigured(): Boolean = isServerSideProxyEnabled() || getConfiguredHadithApiKey() != null
 
-    fun hadithApiBooksUrl(apiKey: String? = getConfiguredHadithApiKey()): String? {
-        val key = apiKey?.takeIf { it.isNotBlank() } ?: return null
-        return "$HADITH_API_BASE/api/books?apiKey=$key"
+    fun hadithApiBooksUrl(apiKey: String? = null): String? {
+        val explicitKey = apiKey?.takeIf { it.isNotBlank() }
+        return if (explicitKey != null) {
+            "$HADITH_API_BASE/api/books?apiKey=$explicitKey"
+        } else {
+            "${getConfiguredHadithProxyBaseUrl()}/v1/hadithapi/books"
+        }
     }
 
-    fun hadithApiChaptersUrl(collectionKey: String, apiKey: String? = getConfiguredHadithApiKey()): String? {
-        val key = apiKey?.takeIf { it.isNotBlank() } ?: return null
+    fun hadithApiChaptersUrl(collectionKey: String, apiKey: String? = null): String? {
         val slug = hadithApiSlugs[collectionKey] ?: return null
-        return "$HADITH_API_BASE/api/$slug/chapters?apiKey=$key"
+        val explicitKey = apiKey?.takeIf { it.isNotBlank() }
+        return if (explicitKey != null) {
+            "$HADITH_API_BASE/api/$slug/chapters?apiKey=$explicitKey"
+        } else {
+            "${getConfiguredHadithProxyBaseUrl()}/v1/hadithapi/$slug/chapters"
+        }
     }
 
     fun hadithApiChapterHadithsUrl(
         collectionKey: String,
         chapterNo: Int,
         paginate: Int = 100,
-        apiKey: String? = getConfiguredHadithApiKey()
+        apiKey: String? = null
     ): String? {
-        val key = apiKey?.takeIf { it.isNotBlank() } ?: return null
         val slug = hadithApiSlugs[collectionKey] ?: return null
-        return "$HADITH_API_BASE/public/api/hadiths?apiKey=$key&book=$slug&chapter=$chapterNo&paginate=$paginate"
+        val explicitKey = apiKey?.takeIf { it.isNotBlank() }
+        return if (explicitKey != null) {
+            "$HADITH_API_BASE/public/api/hadiths?apiKey=$explicitKey&book=$slug&chapter=$chapterNo&paginate=$paginate"
+        } else {
+            "${getConfiguredHadithProxyBaseUrl()}/v1/hadithapi/hadiths?book=$slug&chapter=$chapterNo&paginate=$paginate"
+        }
     }
 
     fun hadithApiSingleHadithUrl(
         collectionKey: String,
         hadithNo: String,
-        apiKey: String? = getConfiguredHadithApiKey()
+        apiKey: String? = null
     ): String? {
-        val key = apiKey?.takeIf { it.isNotBlank() } ?: return null
         val slug = hadithApiSlugs[collectionKey] ?: return null
-        return "$HADITH_API_BASE/public/api/hadiths?apiKey=$key&book=$slug&hadithNumber=$hadithNo"
+        val explicitKey = apiKey?.takeIf { it.isNotBlank() }
+        return if (explicitKey != null) {
+            "$HADITH_API_BASE/public/api/hadiths?apiKey=$explicitKey&book=$slug&hadithNumber=$hadithNo"
+        } else {
+            "${getConfiguredHadithProxyBaseUrl()}/v1/hadithapi/hadiths?book=$slug&hadithNumber=$hadithNo"
+        }
     }
 
     // =========================================================================
-    // 4. SUNNAH.COM API v1 ENDPOINT BUILDERS
+    // 4. SUNNAH.COM API v1 ENDPOINT BUILDERS (SERVER-SIDE PROXY SUPPORTED)
     // =========================================================================
 
     fun getConfiguredSunnahApiKey(): String? {
@@ -348,7 +387,7 @@ object MultiSourceHadithCatalog {
         }
     }
 
-    fun isSunnahApiKeyConfigured(): Boolean = getConfiguredSunnahApiKey() != null
+    fun isSunnahApiKeyConfigured(): Boolean = isServerSideProxyEnabled() || getConfiguredSunnahApiKey() != null
 
     fun sunnahCollectionsUrl(): String = "$SUNNAH_API_BASE/collections"
 
@@ -367,8 +406,13 @@ object MultiSourceHadithCatalog {
         return "$SUNNAH_API_BASE/collections/$slug/hadiths/$hadithNumber"
     }
 
+    fun sunnahProxySingleHadithUrl(collectionKey: String, hadithNumber: String): String? {
+        val slug = sunnahComSlugs[collectionKey] ?: return null
+        return "${getConfiguredHadithProxyBaseUrl()}/v1/sunnah/collections/$slug/hadiths/$hadithNumber"
+    }
+
     // =========================================================================
-    // 4B. UMMAHAPI.COM ENDPOINT BUILDERS (https://ummahapi.com)
+    // 4B. UMMAHAPI.COM ENDPOINT BUILDERS (https://ummahapi.com + SERVER-SIDE PROXY)
     // =========================================================================
 
     fun getConfiguredUmmahApiKey(): String? {
@@ -380,7 +424,7 @@ object MultiSourceHadithCatalog {
         }
     }
 
-    fun isUmmahApiKeyConfigured(): Boolean = getConfiguredUmmahApiKey() != null
+    fun isUmmahApiKeyConfigured(): Boolean = isServerSideProxyEnabled() || getConfiguredUmmahApiKey() != null
 
     fun ummahCollectionsUrl(): String = "$UMMAH_API_BASE/api/hadith/collections"
 
@@ -392,6 +436,11 @@ object MultiSourceHadithCatalog {
     fun ummahSingleHadithUrl(collectionKey: String, hadithNumber: Int): String? {
         val slug = ummahApiSlugs[collectionKey] ?: return null
         return "$UMMAH_API_BASE/api/hadith/$slug/$hadithNumber"
+    }
+
+    fun ummahProxyUrl(upstreamUrl: String): String {
+        val pathAndQuery = upstreamUrl.removePrefix(UMMAH_API_BASE).trimStart('/')
+        return "${getConfiguredHadithProxyBaseUrl()}/v1/ummah/$pathAndQuery"
     }
 
     fun ummahSearchHadithsUrl(query: String, collectionKey: String? = null): String {

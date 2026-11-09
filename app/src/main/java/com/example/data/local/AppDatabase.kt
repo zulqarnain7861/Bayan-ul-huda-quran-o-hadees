@@ -87,7 +87,20 @@ abstract class AppDatabase : RoomDatabase() {
     private const val CREATE_INCORRECT_REF_REPORTS_SQL =
       "CREATE TABLE IF NOT EXISTS `incorrect_reference_reports` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `claimOrQuery` TEXT NOT NULL, `referenceIdentifier` TEXT NOT NULL, `sourceCollection` TEXT NOT NULL, `issueCategory` TEXT NOT NULL, `userNotes` TEXT NOT NULL, `status` TEXT NOT NULL, `createdAt` INTEGER NOT NULL)"
 
+    private const val CREATE_BOOKMARKS_SQL =
+      "CREATE TABLE IF NOT EXISTS `bookmarks` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `itemType` TEXT NOT NULL, `itemKey` TEXT NOT NULL, `title` TEXT NOT NULL, `subtitle` TEXT NOT NULL, `arabicSnippet` TEXT NOT NULL, `timestamp` INTEGER NOT NULL)"
+
+    private const val CREATE_NOTES_SQL =
+      "CREATE TABLE IF NOT EXISTS `notes` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `referenceKey` TEXT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)"
+
+    private fun ensureUserTablesProtected(db: SupportSQLiteDatabase) {
+      db.execSQL(CREATE_BOOKMARKS_SQL)
+      db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_bookmarks_itemKey` ON `bookmarks` (`itemKey`)")
+      db.execSQL(CREATE_NOTES_SQL)
+    }
+
     private fun applyV6Tables(db: SupportSQLiteDatabase) {
+      ensureUserTablesProtected(db)
       db.execSQL(CREATE_SOURCE_REGISTRY_SQL)
       db.execSQL(CREATE_PACKAGE_MANIFESTS_SQL)
       db.execSQL("CREATE INDEX IF NOT EXISTS `index_download_package_manifests_category` ON `download_package_manifests` (`category`)")
@@ -117,6 +130,36 @@ abstract class AppDatabase : RoomDatabase() {
       }
     }
 
+    val MIGRATION_1_2 = object : Migration(1, 2) {
+      override fun migrate(db: SupportSQLiteDatabase) {
+        ensureUserTablesProtected(db)
+      }
+    }
+
+    val MIGRATION_2_3 = object : Migration(2, 3) {
+      override fun migrate(db: SupportSQLiteDatabase) {
+        ensureUserTablesProtected(db)
+      }
+    }
+
+    val MIGRATION_1_3 = object : Migration(1, 3) {
+      override fun migrate(db: SupportSQLiteDatabase) {
+        ensureUserTablesProtected(db)
+      }
+    }
+
+    val MIGRATION_3_4 = object : Migration(3, 4) {
+      override fun migrate(db: SupportSQLiteDatabase) {
+        ensureUserTablesProtected(db)
+      }
+    }
+
+    val MIGRATION_4_5 = object : Migration(4, 5) {
+      override fun migrate(db: SupportSQLiteDatabase) {
+        ensureUserTablesProtected(db)
+      }
+    }
+
     val MIGRATION_3_6 = object : Migration(3, 6) {
       override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("DROP TABLE IF EXISTS `source_registry`")
@@ -137,6 +180,12 @@ abstract class AppDatabase : RoomDatabase() {
       }
     }
 
+    val MIGRATION_6_7 = object : Migration(6, 7) {
+      override fun migrate(db: SupportSQLiteDatabase) {
+        applyV6Tables(db)
+      }
+    }
+
     val MIGRATION_6_8 = object : Migration(6, 8) {
       override fun migrate(db: SupportSQLiteDatabase) {
         applyV6Tables(db)
@@ -146,9 +195,26 @@ abstract class AppDatabase : RoomDatabase() {
 
     val MIGRATION_7_8 = object : Migration(7, 8) {
       override fun migrate(db: SupportSQLiteDatabase) {
+        ensureUserTablesProtected(db)
         applyV8HadithProvenanceColumns(db)
       }
     }
+
+    val ALL_MIGRATIONS: Array<Migration> = arrayOf(
+      MIGRATION_1_2,
+      MIGRATION_2_3,
+      MIGRATION_1_3,
+      MIGRATION_3_4,
+      MIGRATION_4_5,
+      MIGRATION_3_6,
+      MIGRATION_4_6,
+      MIGRATION_5_6,
+      MIGRATION_6_7,
+      MIGRATION_6_8,
+      MIGRATION_7_8
+    )
+
+    const val IS_DESTRUCTIVE_FALLBACK_ENABLED: Boolean = false
 
     fun getDatabase(context: Context): AppDatabase {
       return INSTANCE ?: synchronized(this) {
@@ -157,8 +223,7 @@ abstract class AppDatabase : RoomDatabase() {
           AppDatabase::class.java,
           "bayan_al_huda.db"
         )
-        .addMigrations(MIGRATION_3_6, MIGRATION_4_6, MIGRATION_5_6, MIGRATION_6_8, MIGRATION_7_8)
-        .fallbackToDestructiveMigration(true)
+        .addMigrations(*ALL_MIGRATIONS)
         .build()
         INSTANCE = instance
         instance

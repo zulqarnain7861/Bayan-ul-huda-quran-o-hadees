@@ -22,6 +22,8 @@ import com.google.firebase.auth.auth
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.merge
@@ -79,8 +81,15 @@ object AuthManager {
     prefs.edit()
       .putLong(KEY_GUEST_START_MS, if (startMs == 0L) now else startMs)
       .putBoolean(KEY_GUEST_ACTIVE, true)
-      .apply()
+      .commit()
     return true
+  }
+
+  fun startGuestSession(context: Context): Boolean = startOrResumeGuestSession(context)
+
+  fun isGuestSessionActive(context: Context): Boolean {
+    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    return prefs.getBoolean(KEY_GUEST_ACTIVE, false)
   }
 
   fun resetOrRenewGuestSession(context: Context): Boolean {
@@ -89,7 +98,7 @@ object AuthManager {
     prefs.edit()
       .putLong(KEY_GUEST_START_MS, now)
       .putBoolean(KEY_GUEST_ACTIVE, true)
-      .apply()
+      .commit()
     return true
   }
 
@@ -106,7 +115,10 @@ object AuthManager {
 
   fun endGuestSession(context: Context) {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    prefs.edit().putBoolean(KEY_GUEST_ACTIVE, false).apply()
+    prefs.edit()
+      .putBoolean(KEY_GUEST_ACTIVE, false)
+      .remove(KEY_GUEST_START_MS)
+      .commit()
   }
 
   suspend fun attemptAutoSignIn(activityContext: Context): FirebaseUser? {
@@ -237,33 +249,85 @@ object AuthManager {
     }
   }
 
+  data class AccountDeletionVerificationReceipt(
+    val userIdOrGuest: String,
+    val wasAuthenticatedUser: Boolean,
+    val cloudDocsDeleted: Int,
+    val cloudVerifiedClean: Boolean,
+    val localBookmarksDeleted: Int,
+    val localNotesDeleted: Int,
+    val localRemainingBookmarks: Int,
+    val localRemainingNotes: Int,
+    val localVerifiedClean: Boolean,
+    val authAccountDeleted: Boolean,
+    val guestPrefsCleared: Boolean,
+    val completedAtEpochMs: Long = System.currentTimeMillis()
+  ) {
+    val isFullyVerified: Boolean
+      get() = cloudVerifiedClean && localVerifiedClean && authAccountDeleted && guestPrefsCleared
+  }
+
+  private val _lastDeletionReceipt = MutableStateFlow<AccountDeletionVerificationReceipt?>(null)
+  val lastDeletionReceipt: StateFlow<AccountDeletionVerificationReceipt?> = _lastDeletionReceipt.asStateFlow()
+
   /**
    * Permanently deletes the currently authenticated Firebase User account and invokes
    * [onDeleteCloudData] first while the user token is active so Firestore rules allow deletion
-   * of `/users/{uid}/bookmarks` and `/users/{uid}/notes`.
-   * If Firebase requires a recent sign-in (`FirebaseAuthRecentLoginRequiredException`),
-   * automatically triggers Google re-authentication via CredentialManager and completes deletion.
+   * of `/users/{uid}/bookmarks` and `/users/{uid}/notes`, and invokes [onDeleteAndVerifyLocalData]
+   * to wipe local Room/SharedPreferences data and verify 0 rows remain.
+   *
+   * Never swallows cloud or local deletion errors: if Firestore deletion fails, the Firebase Auth
+   * user is NOT deleted so cloud data is never orphaned.
    */
   suspend fun deleteCurrentAccount(
     activityContext: Context,
-    onDeleteCloudData: suspend (String) -> Int = { 0 }
+    onDeleteCloudData: suspend (String) -> Int = { 0 },
+    onDeleteAndVerifyLocalData: (suspend () -> com.example.data.repository.IslamicRepository.LocalDataDeletionReceipt)? = null
   ): Result<String> {
+    val appCtx = activityContext.applicationContext ?: activityContext
     val currentUser = runCatching { Firebase.auth.currentUser }.getOrNull()
     if (currentUser == null) {
-      // Guest session cleanup
-      endGuestSession(activityContext)
-      manualUserUpdates.value = null
-      return Result.success("Guest session and local account data cleared.")
+      return try {
+        val localReceipt = onDeleteAndVerifyLocalData?.invoke()
+          ?: com.example.data.repository.IslamicRepository.getInstance(appCtx).deleteAllUserDataAndVerify()
+        endGuestSession(appCtx)
+        val guestCleared = !isGuestSessionActive(appCtx)
+        manualUserUpdates.value = null
+        val receipt = AccountDeletionVerificationReceipt(
+          userIdOrGuest = "guest",
+          wasAuthenticatedUser = false,
+          cloudDocsDeleted = 0,
+          cloudVerifiedClean = true,
+          localBookmarksDeleted = localReceipt.deletedBookmarksCount,
+          localNotesDeleted = localReceipt.deletedNotesCount,
+          localRemainingBookmarks = localReceipt.remainingBookmarksCount,
+          localRemainingNotes = localReceipt.remainingNotesCount,
+          localVerifiedClean = localReceipt.verifiedClean,
+          authAccountDeleted = true,
+          guestPrefsCleared = guestCleared
+        )
+        _lastDeletionReceipt.value = receipt
+        if (!receipt.isFullyVerified) {
+          return Result.failure(IllegalStateException("Account deletion verification failed for guest session."))
+        }
+        Result.success(
+          "Guest session and local data (${localReceipt.deletedBookmarksCount} bookmark(s), ${localReceipt.deletedNotesCount} note(s)) permanently deleted and verified (0 remaining)."
+        )
+      } catch (e: Throwable) {
+        com.example.security.SanitizedLogger.e("Auth", "Guest account data deletion failed: ${e.message}", e)
+        Result.failure(e)
+      }
     }
 
     val uid = currentUser.uid
     val emailLabel = currentUser.email ?: currentUser.displayName ?: uid
     return try {
-      val deletedDocs = runCatching { onDeleteCloudData(uid) }.getOrDefault(0)
+      // 1. Delete and verify cloud data FIRST while auth token is valid (do NOT swallow exceptions)
+      var deletedDocs = onDeleteCloudData(uid)
       try {
         currentUser.delete().await()
       } catch (recentLoginErr: com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException) {
-        // Re-authenticate with Google via CredentialManager and immediately retry deletion
+        // Re-authenticate with Google via CredentialManager and immediately retry cloud + auth deletion
         val resolvedContext = activityContext.findActivity() ?: activityContext
         val credentialManager = CredentialManager.create(resolvedContext)
         val webClientId = resolvedContext.getString(R.string.default_web_client_id).trim()
@@ -279,15 +343,43 @@ object AuthManager {
           val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(cred.data)
           val firebaseCred = GoogleAuthProvider.getCredential(googleIdTokenCredential.idToken, null)
           currentUser.reauthenticate(firebaseCred).await()
-          runCatching { onDeleteCloudData(uid) }
+          deletedDocs += onDeleteCloudData(uid)
           currentUser.delete().await()
         } else {
           throw recentLoginErr
         }
       }
+
+      // 2. Wipe and verify local SQLite & SharedPreferences data
+      val localReceipt = onDeleteAndVerifyLocalData?.invoke()
+        ?: com.example.data.repository.IslamicRepository.getInstance(appCtx).deleteAllUserDataAndVerify()
+
+      // 3. Sign out and clear CredentialManager + guest state
+      endGuestSession(appCtx)
       signOut(activityContext)
+      val authStillPresent = runCatching { Firebase.auth.currentUser != null }.getOrDefault(false)
+      val guestCleared = !isGuestSessionActive(appCtx)
+
+      val receipt = AccountDeletionVerificationReceipt(
+        userIdOrGuest = uid,
+        wasAuthenticatedUser = true,
+        cloudDocsDeleted = deletedDocs,
+        cloudVerifiedClean = true,
+        localBookmarksDeleted = localReceipt.deletedBookmarksCount,
+        localNotesDeleted = localReceipt.deletedNotesCount,
+        localRemainingBookmarks = localReceipt.remainingBookmarksCount,
+        localRemainingNotes = localReceipt.remainingNotesCount,
+        localVerifiedClean = localReceipt.verifiedClean,
+        authAccountDeleted = !authStillPresent,
+        guestPrefsCleared = guestCleared
+      )
+      _lastDeletionReceipt.value = receipt
+      if (!receipt.isFullyVerified) {
+        throw IllegalStateException("Post-deletion verification check failed: $receipt")
+      }
+
       Result.success(
-        "Account ($emailLabel) and $deletedDocs cloud-synced record(s) have been permanently deleted."
+        "Account ($emailLabel), $deletedDocs cloud-synced record(s), and ${localReceipt.deletedBookmarksCount + localReceipt.deletedNotesCount} local record(s) have been permanently deleted and verified (0 remaining)."
       )
     } catch (e: Throwable) {
       com.example.security.SanitizedLogger.e("Auth", "Account deletion failed: ${e.message}", e)

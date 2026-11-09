@@ -13,6 +13,9 @@ interface NoteDao {
   @Query("SELECT * FROM notes ORDER BY updatedAt DESC")
   fun getAllNotes(): Flow<List<NoteEntity>>
 
+  @Query("SELECT * FROM notes ORDER BY updatedAt DESC")
+  suspend fun getAllNotesSnapshot(): List<NoteEntity>
+
   @Query("SELECT * FROM notes WHERE referenceKey = :refKey ORDER BY updatedAt DESC")
   fun getNotesForReference(refKey: String): Flow<List<NoteEntity>>
 
@@ -24,4 +27,10 @@ interface NoteDao {
 
   @Query("DELETE FROM notes WHERE id = :id")
   suspend fun deleteNoteById(id: Long)
+
+  @Query("DELETE FROM notes")
+  suspend fun deleteAllNotes(): Int
+
+  @Query("SELECT COUNT(*) FROM notes")
+  suspend fun countNotes(): Int
 }

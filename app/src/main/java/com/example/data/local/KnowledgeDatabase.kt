@@ -236,6 +236,24 @@ abstract class KnowledgeDatabase : RoomDatabase() {
 
   companion object {
     const val DATABASE_NAME = "knowledge.db"
+    const val IS_DESTRUCTIVE_FALLBACK_ENABLED: Boolean = false
+
+    val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
+      override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+        db.execSQL(
+          "CREATE TABLE IF NOT EXISTS `knowledge_progress` (`key` TEXT NOT NULL, `itemType` TEXT NOT NULL, `itemId` TEXT NOT NULL, `positionSec` INTEGER NOT NULL, `totalWatchedSec` INTEGER NOT NULL, `updatedAtEpochMs` INTEGER NOT NULL, PRIMARY KEY(`key`))"
+        )
+        db.execSQL(
+          "CREATE UNIQUE INDEX IF NOT EXISTS `index_knowledge_progress_itemType_itemId` ON `knowledge_progress` (`itemType`, `itemId`)"
+        )
+        db.execSQL(
+          "CREATE TABLE IF NOT EXISTS `knowledge_bookmarks` (`key` TEXT NOT NULL, `itemType` TEXT NOT NULL, `itemId` TEXT NOT NULL, `title` TEXT NOT NULL, `subtitle` TEXT NOT NULL, `createdAtEpochMs` INTEGER NOT NULL, PRIMARY KEY(`key`))"
+        )
+        db.execSQL(
+          "CREATE INDEX IF NOT EXISTS `index_knowledge_bookmarks_createdAtEpochMs` ON `knowledge_bookmarks` (`createdAtEpochMs`)"
+        )
+      }
+    }
 
     @Volatile
     private var INSTANCE: KnowledgeDatabase? = null
@@ -247,7 +265,7 @@ abstract class KnowledgeDatabase : RoomDatabase() {
           KnowledgeDatabase::class.java,
           DATABASE_NAME
         )
-          .fallbackToDestructiveMigration(dropAllTables = true)
+          .addMigrations(MIGRATION_1_2)
           .build()
         INSTANCE = instance
         instance

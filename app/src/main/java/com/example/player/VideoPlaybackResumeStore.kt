@@ -289,6 +289,40 @@ object VideoPlaybackResumeStore {
     }
   }
 
+  fun getAllSavedResumeStates(context: Context?): List<SavedVideoResumeState> {
+    if (context != null) {
+      runCatching {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val allEntries = prefs.all
+        for ((key, value) in allEntries) {
+          if (key.startsWith(KEY_POS_MS_PREFIX)) {
+            val ytId = key.removePrefix(KEY_POS_MS_PREFIX)
+            val posMs = (value as? Number)?.toLong() ?: 0L
+            if (ytId.isNotBlank() && posMs >= 1_000L) {
+              val durMs = prefs.getLong(KEY_DUR_MS_PREFIX + ytId, 0L)
+              val stableId = prefs.getString(KEY_STABLE_ID_PREFIX + ytId, "yt:$ytId") ?: "yt:$ytId"
+              val updatedAt = prefs.getLong(KEY_UPDATED_AT_PREFIX + ytId, 0L)
+              memoryResumeMap[ytId] = SavedVideoResumeState(
+                youtubeId = ytId,
+                stableVideoId = stableId,
+                positionMs = posMs,
+                durationMs = durMs,
+                updatedAtEpochMs = updatedAt
+              )
+            }
+          }
+        }
+      }
+    }
+    return memoryResumeMap.values
+      .filter { it.positionMs >= 1_000L }
+      .sortedByDescending { it.updatedAtEpochMs }
+  }
+
+  fun getMostRecentSavedResumeState(context: Context?): SavedVideoResumeState? {
+    return getAllSavedResumeStates(context).firstOrNull()
+  }
+
   fun onVideoCompleted(context: Context?, youtubeId: String) {
     clearResumePosition(context, youtubeId)
   }

@@ -101,12 +101,12 @@ data class BottomNavDestination(
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    // STEP 1: Configure App Check with launch intent FIRST before intent sanitization, UI, ViewModels, or Firebase calls
+    configureAppCheck(this, intent)
     installGlobalExceptionBoundary()
     com.example.security.TapjackingGuard.enableOverlayProtection(this)
     com.example.security.PathTraversalAndIntentGuard.sanitizeIncomingIntent(intent)
     com.example.security.RuntimeIntegrityGuard.performStartupCheck(this)
-    // STEP 1: Configure App Check with launch intent before any UI, ViewModels, or Firebase operations
-    configureAppCheck(this, intent)
     enableEdgeToEdge()
     setContent {
       val bayanViewModel: BayanViewModel = viewModel()
@@ -330,6 +330,21 @@ fun BayanApp(
             onToggleOfflineMode = {
               viewModel.downloadManager.setOfflineModeEnabled(!syncBadgeState.isOfflineMode)
             },
+            onOpenVideoLibraryClick = {
+              viewModel.setInitialLibraryTab(5)
+              navigateToTab(BayanNavRoutes.LIBRARY, MainNavigationTab.LIBRARY)
+            },
+            onOpenLibraryTabClick = { tabIdx ->
+              viewModel.setInitialLibraryTab(tabIdx)
+              navigateToTab(BayanNavRoutes.LIBRARY, MainNavigationTab.LIBRARY)
+            },
+            onOpenLearnIslamClick = {
+              safeNavigateToRoute(BayanNavRoutes.LEARN_ISLAM)
+            },
+            onOpenSehriIftarClick = {
+              viewModel.refreshSehriIftarTimetable(forceRemote = false)
+              safeNavigateToRoute(BayanNavRoutes.SEHRI_IFTAR)
+            },
             onOpenQiblaClick = {
               safeNavigateToRoute(BayanNavRoutes.QIBLA)
             },
@@ -529,6 +544,10 @@ fun BayanApp(
             onNavigateToQuran = { navigateToTab(BayanNavRoutes.QURAN, MainNavigationTab.QURAN) },
             onNavigateToHadith = { navigateToTab(BayanNavRoutes.HADITH, MainNavigationTab.HADITH) },
             onNavigateToLibrary = { navigateToTab(BayanNavRoutes.LIBRARY, MainNavigationTab.LIBRARY) },
+            onNavigateToLibraryTab = { tabIdx ->
+              viewModel.setInitialLibraryTab(tabIdx)
+              navigateToTab(BayanNavRoutes.LIBRARY, MainNavigationTab.LIBRARY)
+            },
             onNavigateToDownloads = {
               safeNavigateToRoute(BayanNavRoutes.DOWNLOADS)
             },
@@ -737,7 +756,8 @@ fun BayanApp(
             currentThemeMode = uiState.prayerConfig.themeMode,
             onSelectThemeMode = { viewModel.setThemeMode(it) },
             onPlayDownloadedAudio = { s, v, name -> viewModel.audioPlayerManager.playAyah(s, v, name) },
-            initialSelectedTab = uiState.initialLibraryTab
+            initialSelectedTab = uiState.initialLibraryTab,
+            selectionNonce = uiState.libraryTabSelectionNonce
           )
         }
 

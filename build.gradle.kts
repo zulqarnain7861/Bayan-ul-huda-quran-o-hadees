@@ -11,4 +11,14 @@ val syncQuranApk = tasks.register("syncQuranApk") {
   description = "No-op legacy APK sync task preserved for build script compatibility."
 }
 
+val verifyCleanBuildConfig = tasks.register("verifyCleanBuildConfig") {
+  description = "Verifies clean-build configuration, .env.example defaults, and signing prerequisites."
+  check(file("${rootDir}/.env.example").exists()) {
+    "Missing .env.example in project root for Secrets Gradle Plugin."
+  }
+  check(file("${rootDir}/app/google-services.json").exists()) {
+    "Missing app/google-services.json for Firebase integration."
+  }
+}
+
 

@@ -176,13 +176,13 @@ fun IslamicResearchHubView(
     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
     verticalArrangement = Arrangement.spacedBy(12.dp)
   ) {
-    // 1. Header Banner Card
+    // 1. Header Banner Card (Symmetrical with separate Urdu & English lines)
     item {
       ElevatedCard(
         modifier = Modifier
           .fillMaxWidth()
           .testTag("islamic_research_header_banner"),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.elevatedCardColors(
           containerColor = EmeraldPrimary.copy(alpha = 0.10f)
         )
@@ -191,36 +191,50 @@ fun IslamicResearchHubView(
           modifier = Modifier
             .fillMaxWidth()
             .padding(14.dp),
-          verticalArrangement = Arrangement.spacedBy(6.dp)
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-          ) {
-            Icon(
-              Icons.Default.FactCheck,
-              contentDescription = null,
-              tint = EmeraldPrimary,
-              modifier = Modifier.size(24.dp)
-            )
-            Column(modifier = Modifier.weight(1f)) {
-              Text(
-                text = "Islamic Research — تحقیقی مقالات و مسنون اذکار (4)",
-                style = MaterialTheme.typography.titleMedium.copy(
-                  fontWeight = FontWeight.Bold,
-                  color = MaterialTheme.colorScheme.primary
-                )
-              )
-              Text(
-                text = "4 Verified Research Papers & Sunnah Compilations • Qur'an & Sahih Hadiths (International Numbering)",
-                style = MaterialTheme.typography.bodySmall.copy(
-                  fontSize = 11.sp,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-              )
-            }
-          }
+          Text(
+            text = "البُحُوثُ الإِسْلَامِيَّةُ وَالأَذْكَارُ المَسْنُونَة",
+            style = MaterialTheme.typography.titleMedium.copy(
+              fontFamily = ScheherazadeFontFamily,
+              fontSize = 19.sp,
+              fontWeight = FontWeight.Bold,
+              color = GoldPrimary,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+          Text(
+            text = "تحقیقی مقالات و مسنون اذکار (4)",
+            style = MaterialTheme.typography.titleMedium.copy(
+              fontFamily = UrduNastaliqFontFamily,
+              fontSize = 17.sp,
+              lineHeight = 28.sp,
+              fontWeight = FontWeight.Bold,
+              color = EmeraldPrimary,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+          Text(
+            text = "Islamic Research — 4 Verified Research Papers & Sunnah Compilations",
+            style = MaterialTheme.typography.titleSmall.copy(
+              fontWeight = FontWeight.Bold,
+              color = MaterialTheme.colorScheme.primary,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+          Text(
+            text = "Qur'an & Sahih Hadiths (International Numbering) • Scroll up for full-screen reading",
+            style = MaterialTheme.typography.bodySmall.copy(
+              fontSize = 11.sp,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
           Text(
             text = "﴿فرقہ واریت سے بچ کر، صِرف قرآن اور صحیح الاسناد اَحادیث کو حجت و دلیل ماننے والوں کیلئے﴾",
             style = MaterialTheme.typography.bodyMedium.copy(
@@ -229,7 +243,7 @@ fun IslamicResearchHubView(
               lineHeight = 24.sp,
               color = EmeraldPrimary,
               fontWeight = FontWeight.Bold,
-              textAlign = TextAlign.Right
+              textAlign = TextAlign.Center
             ),
             modifier = Modifier.fillMaxWidth()
           )
