@@ -120,8 +120,12 @@ class AppUpdateManager(private val appContext: Context) {
     when (outcome) {
       is GitHubReleaseClient.ReleaseCheckOutcome.Success -> {
         val release = outcome.release
-        val urgency = release.computeUrgency(installed.versionCode)
-        val hasNewerVersion = release.versionCode > installed.versionCode
+        val effectiveInstalledCode = installed.versionCode.coerceAtLeast(com.example.BuildConfig.VERSION_CODE.toLong())
+        val urgency = release.computeUrgency(effectiveInstalledCode)
+        val hasNewerVersion = InAppUpdateService.isNewerVersionCode(
+          remoteVersionCode = release.versionCode,
+          currentVersionCode = effectiveInstalledCode
+        )
         val isSnoozed = isAutomaticCheck &&
           urgency != UpdateUrgency.CRITICAL &&
           nowMs < _uiState.value.remindMeLaterUntilMs
@@ -131,22 +135,26 @@ class AppUpdateManager(private val appContext: Context) {
             targetVersionName = release.versionName,
             targetVersionCode = release.versionCode,
             status = "UPDATE_AVAILABLE",
-            details = "New release v${release.versionName} (Code ${release.versionCode}) detected [${urgency.badgeLabel}]."
+            details = "New release v${release.versionName} (Code ${release.versionCode} > BuildConfig.VERSION_CODE ${com.example.BuildConfig.VERSION_CODE}) detected [${urgency.badgeLabel}]."
           )
           if (!isSnoozed) {
             ApkUpdateDownloadManager.postUpdaterNotification(
               context = appContext,
               title = "BAYAN AL-HUDA UPDATE AVAILABLE",
-              message = "Version ${release.versionName} is available (Installed: ${installed.versionName})."
+              message = "Version ${release.versionName} (Code ${release.versionCode}) is available (Installed: ${installed.versionName} / Code $effectiveInstalledCode)."
             )
           }
           _uiState.update {
             it.copy(
+              installedVersionCode = effectiveInstalledCode,
+              currentBuildConfigVersionCode = com.example.BuildConfig.VERSION_CODE,
               status = UpdaterStatus.UPDATE_AVAILABLE,
               urgency = urgency,
               latestRelease = release,
               lastCheckedTimestampMs = nowMs,
               showUpdateNotificationBanner = !isSnoozed,
+              showUpdateDialog = !isSnoozed,
+              isFreshTestSimulation = false,
               errorMessage = null
             )
           }
@@ -155,15 +163,19 @@ class AppUpdateManager(private val appContext: Context) {
             targetVersionName = release.versionName,
             targetVersionCode = release.versionCode,
             status = "CHECKED_UP_TO_DATE",
-            details = "Installed v${installed.versionName} (${installed.versionCode}) is up to date."
+            details = "Installed v${installed.versionName} (BuildConfig.VERSION_CODE $effectiveInstalledCode) is up to date."
           )
           _uiState.update {
             it.copy(
+              installedVersionCode = effectiveInstalledCode,
+              currentBuildConfigVersionCode = com.example.BuildConfig.VERSION_CODE,
               status = UpdaterStatus.UP_TO_DATE,
               urgency = UpdateUrgency.NONE,
               latestRelease = release,
               lastCheckedTimestampMs = nowMs,
               showUpdateNotificationBanner = false,
+              showUpdateDialog = false,
+              isFreshTestSimulation = false,
               errorMessage = null
             )
           }
@@ -183,6 +195,7 @@ class AppUpdateManager(private val appContext: Context) {
             urgency = UpdateUrgency.NONE,
             lastCheckedTimestampMs = nowMs,
             showUpdateNotificationBanner = false,
+            showUpdateDialog = false,
             errorMessage = null
           )
         }
@@ -233,9 +246,14 @@ class AppUpdateManager(private val appContext: Context) {
     _uiState.update {
       it.copy(
         remindMeLaterUntilMs = untilMs,
-        showUpdateNotificationBanner = false
+        showUpdateNotificationBanner = false,
+        showUpdateDialog = false
       )
     }
+  }
+
+  fun setShowUpdateDialog(visible: Boolean) {
+    _uiState.update { it.copy(showUpdateDialog = visible) }
   }
 
   fun setShowReleaseDetailsDialog(visible: Boolean) {
@@ -244,6 +262,49 @@ class AppUpdateManager(private val appContext: Context) {
 
   fun dismissUpdateBanner() {
     _uiState.update { it.copy(showUpdateNotificationBanner = false) }
+  }
+
+  /**
+   * Stages a fresh update release (`versionCode > BuildConfig.VERSION_CODE`) and immediately
+   * triggers the In-App Update Dialog so the user can test the complete update dialog, download,
+   * 7-step SHA-256 & X.509 certificate verification, and Android PackageInstaller flow.
+   */
+  fun stageFreshUpdateReleaseForTesting(
+    release: GitHubReleaseInfo,
+    nowMs: Long = System.currentTimeMillis()
+  ): UpdaterUiState {
+    val installed = ApkSecurityVerifier.getInstalledAppIdentity(appContext)
+    val effectiveInstalledCode = installed.versionCode.coerceAtLeast(com.example.BuildConfig.VERSION_CODE.toLong())
+    val urgency = release.computeUrgency(effectiveInstalledCode)
+    recordHistoryEntry(
+      targetVersionName = release.versionName,
+      targetVersionCode = release.versionCode,
+      status = "FRESH_UPDATE_TEST_STAGED",
+      details = "Staged fresh update v${release.versionName} (Code ${release.versionCode} > BuildConfig.VERSION_CODE ${com.example.BuildConfig.VERSION_CODE}) for live verification."
+    )
+    ApkUpdateDownloadManager.postUpdaterNotification(
+      context = appContext,
+      title = "BAYAN AL-HUDA UPDATE AVAILABLE (v${release.versionName})",
+      message = "Fresh update v${release.versionName} (Code ${release.versionCode}) is ready to download and verify."
+    )
+    _uiState.update {
+      it.copy(
+        installedVersionName = installed.versionName,
+        installedVersionCode = effectiveInstalledCode,
+        currentBuildConfigVersionCode = com.example.BuildConfig.VERSION_CODE,
+        status = UpdaterStatus.UPDATE_AVAILABLE,
+        urgency = urgency,
+        latestRelease = release,
+        lastCheckedTimestampMs = nowMs,
+        showUpdateNotificationBanner = true,
+        showUpdateDialog = true,
+        isFreshTestSimulation = true,
+        verifiedApkFilePath = null,
+        verificationResult = null,
+        errorMessage = null
+      )
+    }
+    return _uiState.value
   }
 
   /**

@@ -175,8 +175,13 @@ fun BayanApp(
   val updaterState by updaterManager.uiState.collectAsStateWithLifecycle()
   val updaterCoroutineScope = androidx.compose.runtime.rememberCoroutineScope()
 
-  androidx.compose.runtime.LaunchedEffect(Unit) {
-    updaterManager.checkForUpdatesOnStartOrResume(force = false)
+  androidx.compose.runtime.LaunchedEffect(uiState.isOpeningScreenVisible, currentUser, uiState.isGuestModeActive) {
+    if (!uiState.isOpeningScreenVisible && (currentUser != null || uiState.isGuestModeActive)) {
+      com.example.data.updater.InAppUpdateService.checkForUpdatesAndTriggerDialog(
+        context = appContext,
+        enableFreshTestFallbackWhenNoRemoteRelease = true
+      )
+    }
   }
 
   var pendingNoteRef by remember { mutableStateOf<String?>(null) }
@@ -932,4 +937,26 @@ fun BayanApp(
       }
     )
   }
+
+  // In-App Update Dialog triggered when GitHub Releases API detects a versionCode > BuildConfig.VERSION_CODE
+  com.example.ui.components.InAppUpdateAlertDialog(
+    updaterState = updaterState,
+    onDownloadAndVerifyUpdate = {
+      updaterCoroutineScope.launch {
+        updaterManager.downloadAndVerifyLatestUpdate(resumeIfPartial = true)
+      }
+    },
+    onInstallVerifiedUpdate = {
+      updaterManager.promptInstallVerifiedUpdate()
+    },
+    onRemindMeLater = {
+      updaterManager.remindMeLater()
+    },
+    onDismissDialog = {
+      updaterManager.setShowUpdateDialog(false)
+    },
+    onOpenUpdaterSettings = {
+      safeNavigateToRoute(BayanNavRoutes.ABOUT)
+    }
+  )
 }

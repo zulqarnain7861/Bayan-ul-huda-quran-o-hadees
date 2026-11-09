@@ -443,7 +443,10 @@ fun AboutScreen(
         updaterState = updaterState,
         onCheckForUpdates = {
           updaterScope.launch {
-            updaterManager.checkForUpdatesNow(isAutomaticCheck = false)
+            com.example.data.updater.InAppUpdateService.checkForUpdatesAndTriggerDialog(
+              context = context,
+              enableFreshTestFallbackWhenNoRemoteRelease = false
+            )
           }
         },
         onDownloadAndVerifyUpdate = {
@@ -459,6 +462,11 @@ fun AboutScreen(
         },
         onRemindMeLater = {
           updaterManager.remindMeLater()
+        },
+        onTriggerFreshUpdateTest = {
+          updaterScope.launch {
+            com.example.data.updater.InAppUpdateService.triggerFreshUpdateTestRelease(context)
+          }
         }
       )
     }

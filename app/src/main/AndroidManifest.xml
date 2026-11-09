@@ -121,6 +121,11 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+
+        <service
+            android:name=".data.updater.InAppUpdateService"
+            android:enabled="true"
+            android:exported="false" />
     </application>
 
 </manifest>

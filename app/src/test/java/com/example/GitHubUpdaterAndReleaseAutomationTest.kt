@@ -644,4 +644,63 @@ class GitHubUpdaterAndReleaseAutomationTest {
       workDir.deleteRecursively()
     }
   }
+
+  @Test
+  fun test21_inAppUpdateService_buildConfigVersionCodeComparison_updateDialogTrigger_and_freshUpdateEndToEnd() = runBlocking {
+    // 1. Verify InAppUpdateService compares versionCode against BuildConfig.VERSION_CODE (8)
+    assertEquals(8, BuildConfig.VERSION_CODE)
+    assertFalse(
+      "Same versionCode as BuildConfig.VERSION_CODE must not trigger update",
+      com.example.data.updater.InAppUpdateService.isNewerVersionCode(BuildConfig.VERSION_CODE.toLong())
+    )
+    assertFalse(
+      "Lower versionCode than BuildConfig.VERSION_CODE must not trigger update",
+      com.example.data.updater.InAppUpdateService.isNewerVersionCode(BuildConfig.VERSION_CODE.toLong() - 1L)
+    )
+    assertTrue(
+      "Higher versionCode than BuildConfig.VERSION_CODE must trigger update",
+      com.example.data.updater.InAppUpdateService.isNewerVersionCode(BuildConfig.VERSION_CODE.toLong() + 1L)
+    )
+
+    // 2. Verify InAppUpdateService.checkForUpdatesAndTriggerDialog queries GitHub Releases API and sets showUpdateDialog = true
+    val (newVersionJson, newManifest) = buildSignedReleaseApiPayloads(
+      versionName = "1.1.0",
+      versionCode = BuildConfig.VERSION_CODE.toLong() + 1L
+    )
+    GitHubReleaseClient.customTransportForTesting = object : GitHubReleaseClient.HttpTransport {
+      override fun get(url: String, headers: Map<String, String>): GitHubReleaseClient.TransportResponse {
+        return if (url.endsWith("update.json")) {
+          GitHubReleaseClient.TransportResponse(200, newManifest.toJsonObject().toString())
+        } else {
+          GitHubReleaseClient.TransportResponse(200, newVersionJson)
+        }
+      }
+    }
+
+    val dialogTriggeredState = com.example.data.updater.InAppUpdateService.checkForUpdatesAndTriggerDialog(
+      context = context,
+      enableFreshTestFallbackWhenNoRemoteRelease = false
+    )
+    assertEquals(UpdaterStatus.UPDATE_AVAILABLE, dialogTriggeredState.status)
+    assertTrue("Update dialog must be triggered when remote versionCode > BuildConfig.VERSION_CODE", dialogTriggeredState.showUpdateDialog)
+    assertEquals(BuildConfig.VERSION_CODE, dialogTriggeredState.currentBuildConfigVersionCode)
+    assertEquals(BuildConfig.VERSION_CODE.toLong() + 1L, dialogTriggeredState.latestRelease?.versionCode)
+
+    // 3. Verify fresh update test flow stages v1.1.0 (versionCode = 9), opens the dialog, downloads, and passes all 7 verification steps
+    val freshStagedState = com.example.data.updater.InAppUpdateService.triggerFreshUpdateTestRelease(context)
+    assertEquals(UpdaterStatus.UPDATE_AVAILABLE, freshStagedState.status)
+    assertTrue("Fresh update test must open the In-App Update Dialog", freshStagedState.showUpdateDialog)
+    assertTrue("Fresh update test flag must be active", freshStagedState.isFreshTestSimulation)
+    assertEquals("1.1.0", freshStagedState.latestRelease?.versionName)
+    assertEquals(BuildConfig.VERSION_CODE.toLong() + 1L, freshStagedState.latestRelease?.versionCode)
+
+    val manager = AppUpdateManager.getInstance(context)
+    val verifiedFreshState = manager.downloadAndVerifyLatestUpdate(resumeIfPartial = false)
+    assertEquals(UpdaterStatus.READY_TO_INSTALL, verifiedFreshState.status)
+    assertEquals(100, verifiedFreshState.downloadProgressPercent)
+    assertNotNull(verifiedFreshState.verificationResult)
+    assertTrue("Fresh update APK must pass all 7 security verification checks", verifiedFreshState.verificationResult!!.isValid)
+    Unit
+  }
 }
+

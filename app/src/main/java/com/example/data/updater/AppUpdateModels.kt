@@ -268,8 +268,9 @@ data class UpdateHistoryEntry(
 }
 
 data class UpdaterUiState(
-  val installedVersionName: String = "1.0.2",
-  val installedVersionCode: Long = 8L,
+  val installedVersionName: String = com.example.BuildConfig.VERSION_NAME,
+  val installedVersionCode: Long = com.example.BuildConfig.VERSION_CODE.toLong(),
+  val currentBuildConfigVersionCode: Int = com.example.BuildConfig.VERSION_CODE,
   val distributionChannel: DistributionChannel = DistributionChannel.DIRECT_APK_GITHUB,
   val status: UpdaterStatus = UpdaterStatus.IDLE,
   val urgency: UpdateUrgency = UpdateUrgency.NONE,
@@ -280,7 +281,9 @@ data class UpdaterUiState(
   val verifiedApkFilePath: String? = null,
   val lastCheckedTimestampMs: Long = 0L,
   val showUpdateNotificationBanner: Boolean = false,
+  val showUpdateDialog: Boolean = false,
   val showReleaseDetailsDialog: Boolean = false,
+  val isFreshTestSimulation: Boolean = false,
   val remindMeLaterUntilMs: Long = 0L,
   val verificationResult: ApkVerificationResult? = null,
   val errorMessage: String? = null,
