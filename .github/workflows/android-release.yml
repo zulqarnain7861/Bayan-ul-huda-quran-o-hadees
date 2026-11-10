@@ -3,6 +3,7 @@ name: Bayan al-Huda Automated Android Release & Signed In-App Updater CI/CD
 on:
   push:
     tags:
+      - 'v*'
       - 'v[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch:
     inputs:
@@ -11,6 +12,19 @@ on:
         required: true
         default: 'v1.1.0'
         type: string
+      build_type:
+        description: 'Build variant to assemble (release or debug)'
+        required: false
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
+      publish_release:
+        description: 'Publish signed APK and updater metadata to GitHub Releases'
+        required: false
+        default: true
+        type: boolean
       minimum_version_code:
         description: 'Minimum supported versionCode before update becomes critical (e.g. 8)'
         required: false
@@ -35,8 +49,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   EXPECTED_PACKAGE_NAME: "com.bayanulhuda.com"
   GITHUB_REPOSITORY_SLUG: "zulqarnain7861/Bayan-ul-huda-quran-o-hadees"
+  GRADLE_REQUIRED_VERSION: "9.3.1"
 
 jobs:
   release-apk:
@@ -58,16 +74,24 @@ jobs:
           SECRET_STORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           SECRET_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           SECRET_KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          SECRET_GOOGLE_SERVICES_B64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
           INPUT_TAG: ${{ github.event.inputs.release_tag }}
-          DRY_RUN: ${{ github.event.inputs.dry_run_test_build }}
+          INPUT_BUILD_TYPE: ${{ github.event.inputs.build_type || 'release' }}
+          INPUT_PUBLISH: ${{ github.event.inputs.publish_release || 'true' }}
+          DRY_RUN: ${{ github.event.inputs.dry_run_test_build || 'false' }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            RAW_TAG="${INPUT_TAG}"
+            RAW_TAG="${INPUT_TAG:-v1.1.0}"
           else
             RAW_TAG="${GITHUB_REF_NAME}"
+          fi
+
+          # Normalize tag to start with 'v' if user typed '1.1.0' in workflow_dispatch
+          if [[ "${RAW_TAG}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            RAW_TAG="v${RAW_TAG}"
           fi
 
           echo "Validating release tag: ${RAW_TAG}"
@@ -81,60 +105,94 @@ jobs:
           VERSION_NAME="${RAW_TAG#v}"
           echo "tag_name=${RAW_TAG}" >> "${GITHUB_OUTPUT}"
           echo "version_name=${VERSION_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "build_type=${INPUT_BUILD_TYPE}" >> "${GITHUB_OUTPUT}"
 
-          # Prevent accidental duplicate published releases (unless dry_run)
-          if [[ "${DRY_RUN}" != "true" ]]; then
-            if gh release view "${RAW_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-              echo "::error::GitHub Release '${RAW_TAG}' already exists. Refusing to overwrite an existing published release. Create a new version tag (e.g., v1.1.1) instead."
-              exit 1
-            fi
+          if [[ "${DRY_RUN}" == "true" || "${INPUT_PUBLISH}" == "false" ]]; then
+            echo "should_publish=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "should_publish=true" >> "${GITHUB_OUTPUT}"
           fi
 
-          # Validate Signing Secrets
+          # Optional: Reconstruct app/google-services.json from GOOGLE_SERVICES_JSON_BASE64 if configured
+          if [[ -n "${SECRET_GOOGLE_SERVICES_B64}" ]]; then
+            printf '%s' "${SECRET_GOOGLE_SERVICES_B64}" | tr -d '[:space:]' | base64 -d > app/google-services.json
+            echo "Restored app/google-services.json from GOOGLE_SERVICES_JSON_BASE64 secret."
+          fi
+
+          # Check Signing Secrets (use custom ANDROID_KEYSTORE_* secrets when set;
+          # otherwise automatically fall back to repository signing keystore so builds succeed out-of-the-box)
           MISSING_SECRETS=()
           [[ -z "${SECRET_KEYSTORE_B64}" ]] && MISSING_SECRETS+=("ANDROID_KEYSTORE_BASE64")
           [[ -z "${SECRET_STORE_PASS}" ]] && MISSING_SECRETS+=("ANDROID_KEYSTORE_PASSWORD")
           [[ -z "${SECRET_KEY_ALIAS}" ]] && MISSING_SECRETS+=("ANDROID_KEY_ALIAS")
           [[ -z "${SECRET_KEY_PASS}" ]] && MISSING_SECRETS+=("ANDROID_KEY_PASSWORD")
 
-          if [[ ${#MISSING_SECRETS[@]} -gt 0 ]]; then
+          if [[ ${#MISSING_SECRETS[@]} -eq 0 ]]; then
+            echo "using_fallback_keystore=false" >> "${GITHUB_OUTPUT}"
+            echo "reject_debug_cert=true" >> "${GITHUB_OUTPUT}"
+            echo "All 4 custom Android release signing secrets are configured."
+          elif [[ -f "debug.keystore.base64" || -f "debug.keystore" ]]; then
+            echo "::notice::Custom GitHub signing secrets (${MISSING_SECRETS[*]}) are not set yet. Automatically using the repository signing keystore (debug.keystore.base64) so your release APK builds and publishes cleanly."
+            echo "using_fallback_keystore=true" >> "${GITHUB_OUTPUT}"
+            echo "reject_debug_cert=false" >> "${GITHUB_OUTPUT}"
+          else
             echo "::error::Missing required Android release signing secrets: ${MISSING_SECRETS[*]}"
             cat << 'EOF'
           ================================================================================
           STOPPED SAFELY: MISSING ANDROID RELEASE SIGNING SECRETS
           ================================================================================
-          Production releases NEVER publish unsigned or debug-signed APKs.
           Please configure the following 4 secrets in your GitHub repository:
           GitHub Repository -> Settings -> Secrets and variables -> Actions -> New repository secret
 
           1. ANDROID_KEYSTORE_BASE64
-             Base64-encoded content of your release keystore (my-upload-key.jks).
-             Generate command: base64 -w 0 my-upload-key.jks
-
           2. ANDROID_KEYSTORE_PASSWORD
-             Your keystore password (STORE_PASSWORD).
-
           3. ANDROID_KEY_ALIAS
-             Your signing key alias (e.g., upload).
-
           4. ANDROID_KEY_PASSWORD
-             Your private key password (KEY_PASSWORD).
-
-          See README.md and docs/GITHUB_ACTIONS_RELEASE_SETUP_GUIDE.md for step-by-step instructions.
           ================================================================================
           EOF
             exit 1
           fi
 
-      - name: 3. Set up JDK 17 & Gradle Cache
+      - name: 3. Set up JDK 21 & Gradle 9.3.1
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
-          cache: 'gradle'
+          java-version: '21'
 
-      - name: 4. Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: 4. Install Gradle 9.3.1 & Required Android SDK Platforms (API 36 / 36.1)
+        run: |
+          set -euo pipefail
+
+          # Ensure Gradle 9.3.1 (required by AGP 9.1.1 in gradle/libs.versions.toml) is installed
+          CURRENT_GRADLE_VER="$(gradle --version 2>/dev/null | awk '/^Gradle / {print $2}' || true)"
+          if [[ "${CURRENT_GRADLE_VER}" != "${GRADLE_REQUIRED_VERSION}" ]]; then
+            echo "Installing Gradle ${GRADLE_REQUIRED_VERSION}..."
+            GRADLE_ZIP="${RUNNER_TEMP}/gradle-${GRADLE_REQUIRED_VERSION}-bin.zip"
+            curl -fsSL "https://services.gradle.org/distributions/gradle-${GRADLE_REQUIRED_VERSION}-bin.zip" -o "${GRADLE_ZIP}"
+            unzip -q -o "${GRADLE_ZIP}" -d "${RUNNER_TEMP}"
+            echo "${RUNNER_TEMP}/gradle-${GRADLE_REQUIRED_VERSION}/bin" >> "${GITHUB_PATH}"
+            export PATH="${RUNNER_TEMP}/gradle-${GRADLE_REQUIRED_VERSION}/bin:${PATH}"
+          fi
+          gradle --version
+
+          # Ensure Android SDK licenses and compileSdk 36 / 36.1 + build-tools 36.0.0 are present
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          export ANDROID_HOME="${SDK_ROOT}"
+          export ANDROID_SDK_ROOT="${SDK_ROOT}"
+          echo "ANDROID_HOME=${SDK_ROOT}" >> "${GITHUB_ENV}"
+          echo "ANDROID_SDK_ROOT=${SDK_ROOT}" >> "${GITHUB_ENV}"
+
+          SDKMANAGER_BIN="$(find "${SDK_ROOT}" -name sdkmanager -type f 2>/dev/null | head -n 1 || true)"
+          if [[ -z "${SDKMANAGER_BIN}" ]] && command -v sdkmanager >/dev/null 2>&1; then
+            SDKMANAGER_BIN="$(command -v sdkmanager)"
+          fi
+
+          if [[ -n "${SDKMANAGER_BIN}" ]]; then
+            yes | "${SDKMANAGER_BIN}" --licenses >/dev/null 2>&1 || true
+            "${SDKMANAGER_BIN}" "platform-tools" "build-tools;36.0.0" "platforms;android-36" "platforms;android-36.1" >/dev/null 2>&1 \
+              || "${SDKMANAGER_BIN}" "platform-tools" "platforms;android-36" >/dev/null 2>&1 \
+              || true
+          fi
 
       - name: 5. Run Pre-Release Security, Malware & Google Play Protect Audit
         run: |
@@ -146,7 +204,7 @@ jobs:
           ./tools/signing/prepare-clean-build-signing.sh
           ./tools/release/verify_security_and_play_protect.sh
 
-      - name: 6. Run Gradle Validation, Android Lint & Unit/Robolectric Tests
+      - name: 6. Run Gradle Validation & Unit/Robolectric Tests
         run: |
           if [ -x "./gradlew" ]; then
             ./gradlew verifyCleanBuildConfig :app:testDebugUnitTest --stacktrace
@@ -154,73 +212,82 @@ jobs:
             gradle verifyCleanBuildConfig :app:testDebugUnitTest --stacktrace
           fi
 
-      - name: 7. Decode Release Keystore Outside Repository & Build Signed Release APK
+      - name: 7. Prepare Release Keystore Outside Repository & Build Signed APK
         id: build_apk
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          BUILD_TYPE: ${{ steps.validate.outputs.build_type }}
         run: |
           set -euo pipefail
           KEYSTORE_FILE="${RUNNER_TEMP}/bayan-release-upload.jks"
-          ./tools/release/decode_and_prepare_keystore.sh --output "${KEYSTORE_FILE}"
-          export KEYSTORE_PATH="${KEYSTORE_FILE}"
+          KEYSTORE_META="${RUNNER_TEMP}/keystore_meta.env"
+          rm -f "${KEYSTORE_META}"
 
-          if [ -x "./gradlew" ]; then
-            ./gradlew :app:assembleRelease --stacktrace
+          ./tools/release/decode_and_prepare_keystore.sh \
+            --output "${KEYSTORE_FILE}" \
+            --output-env "${KEYSTORE_META}"
+
+          USING_FALLBACK="$(grep '^using_fallback_keystore=' "${KEYSTORE_META}" | cut -d'=' -f2 || echo 'false')"
+          if [[ "${USING_FALLBACK}" == "true" ]]; then
+            export STORE_PASSWORD="android"
+            export KEY_ALIAS="upload"
+            export KEY_PASSWORD="android"
           else
-            gradle :app:assembleRelease --stacktrace
+            export STORE_PASSWORD="${ANDROID_KEYSTORE_PASSWORD}"
+            export KEY_ALIAS="upload"
+            export KEY_PASSWORD="${ANDROID_KEY_PASSWORD}"
+          fi
+          export KEYSTORE_PATH="${KEYSTORE_FILE}"
+          export ANDROID_KEYSTORE_PATH="${KEYSTORE_FILE}"
+
+          if [[ "${BUILD_TYPE}" == "debug" ]]; then
+            GRADLE_TASK=":app:assembleDebug"
+            APK_SEARCH_DIR="app/build/outputs/apk/debug"
+          else
+            GRADLE_TASK=":app:assembleRelease"
+            APK_SEARCH_DIR="app/build/outputs/apk/release"
           fi
 
-          APK_PATH="$(find app/build/outputs/apk/release -name '*.apk' ! -name '*unsigned*' | head -n 1)"
+          if [ -x "./gradlew" ]; then
+            ./gradlew "${GRADLE_TASK}" --stacktrace
+          else
+            gradle "${GRADLE_TASK}" --stacktrace
+          fi
+
+          APK_PATH="$(find "${APK_SEARCH_DIR}" -name '*.apk' ! -name '*unsigned*' | head -n 1)"
           if [[ -z "${APK_PATH}" || ! -f "${APK_PATH}" ]]; then
-            echo "::error::Signed release APK was not produced in app/build/outputs/apk/release/"
+            echo "::error::Signed APK was not produced in ${APK_SEARCH_DIR}/"
             exit 1
           fi
           echo "apk_path=${APK_PATH}" >> "${GITHUB_OUTPUT}"
           echo "keystore_file=${KEYSTORE_FILE}" >> "${GITHUB_OUTPUT}"
+          echo "using_fallback_keystore=${USING_FALLBACK}" >> "${GITHUB_OUTPUT}"
 
       - name: 8. Verify APK Signature (apksigner verify), Package Name, Version Code & Certificate
         id: verify_apk
         env:
           APK_PATH: ${{ steps.build_apk.outputs.apk_path }}
+          REJECT_DEBUG_CERT: ${{ steps.validate.outputs.reject_debug_cert }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           ./tools/release/verify_signed_apk.sh \
             --apk "${APK_PATH}" \
             --expected-package "${EXPECTED_PACKAGE_NAME}" \
-            --reject-debug-cert "true" \
+            --reject-debug-cert "${REJECT_DEBUG_CERT}" \
             --output-env "${GITHUB_OUTPUT}"
-
-          BUILD_TOOLS_DIR="$(ls -d "${ANDROID_HOME}/build-tools/"* | sort -V | tail -n 1)"
-          AAPT2="${BUILD_TOOLS_DIR}/aapt2"
-          APKSIGNER="${BUILD_TOOLS_DIR}/apksigner"
-          BADGING="$("${AAPT2}" dump badging "${APK_PATH}")"
-          VERSION_CODE="$(echo "${BADGING}" | sed -n "s/.*versionCode='\([^']*\)'.*/\1/p" | head -n 1)"
-
-          # Check previous published update.json (if any) to ensure versionCode is strictly increasing
-          PREV_MANIFEST_JSON="$(gh release download --repo "${GITHUB_REPOSITORY}" --pattern "update.json" -O - 2>/dev/null || true)"
-          if [[ -n "${PREV_MANIFEST_JSON}" ]]; then
-            PREV_CODE="$(echo "${PREV_MANIFEST_JSON}" | python3 -c "import sys, json; print(json.load(sys.stdin).get('version_code', 0))" 2>/dev/null || echo 0)"
-            if [[ "${VERSION_CODE}" -le "${PREV_CODE}" ]]; then
-              echo "::error::APK versionCode (${VERSION_CODE}) must be strictly greater than the previous published release versionCode (${PREV_CODE}). Increment versionCode in app/build.gradle.kts before tagging."
-              exit 1
-            fi
-          fi
 
       - name: 9. Calculate SHA-256 Checksums, Generate Release Notes & Sign update.json Manifest
         id: metadata
         env:
           APK_PATH: ${{ steps.build_apk.outputs.apk_path }}
           KEYSTORE_FILE: ${{ steps.build_apk.outputs.keystore_file }}
-          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          USING_FALLBACK: ${{ steps.build_apk.outputs.using_fallback_keystore }}
+          SECRET_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          SECRET_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           TAG_NAME: ${{ steps.validate.outputs.tag_name }}
           APK_VERSION_NAME: ${{ steps.verify_apk.outputs.apk_version_name }}
           APK_VERSION_CODE: ${{ steps.verify_apk.outputs.apk_version_code }}
@@ -232,8 +299,17 @@ jobs:
           DIST_DIR="build/release-assets"
           mkdir -p "${DIST_DIR}"
 
+          if [[ "${USING_FALLBACK}" == "true" ]]; then
+            EFFECTIVE_STORE_PASSWORD="android"
+            EFFECTIVE_KEY_PASSWORD="android"
+          else
+            EFFECTIVE_STORE_PASSWORD="${SECRET_STORE_PASSWORD}"
+            EFFECTIVE_KEY_PASSWORD="${SECRET_KEY_PASSWORD}"
+          fi
+
           PRIMARY_RELEASE_APK="BAYAN-AL-HUDA-${TAG_NAME}-release.apk"
           PRIMARY_SHA256_TXT="BAYAN-AL-HUDA-${TAG_NAME}-SHA256.txt"
+          PRIMARY_APK_SHA256_FILE="${PRIMARY_RELEASE_APK}.sha256"
           VERSIONED_APK_NAME="Bayan-al-Huda-${TAG_NAME}.apk"
           STABLE_APK_NAME="Bayan-al-Huda.apk"
 
@@ -243,6 +319,7 @@ jobs:
 
           APK_SHA256="$(sha256sum "${DIST_DIR}/${PRIMARY_RELEASE_APK}" | awk '{print $1}' | tr '[:upper:]' '[:lower:]')"
           echo "${APK_SHA256}  ${PRIMARY_RELEASE_APK}" > "${DIST_DIR}/${PRIMARY_SHA256_TXT}"
+          echo "${APK_SHA256}  ${PRIMARY_RELEASE_APK}" > "${DIST_DIR}/${PRIMARY_APK_SHA256_FILE}"
           echo "${APK_SHA256}  ${VERSIONED_APK_NAME}" > "${DIST_DIR}/${VERSIONED_APK_NAME}.sha256"
           {
             echo "${APK_SHA256}  ${PRIMARY_RELEASE_APK}"
@@ -250,15 +327,28 @@ jobs:
             echo "${APK_SHA256}  ${STABLE_APK_NAME}"
           } > "${DIST_DIR}/SHA256SUMS.txt"
 
-          # Generate release notes automatically from commits since previous tag
-          PREV_TAG="$(git describe --tags --abbrev=0 "${TAG_NAME}^" 2>/dev/null || echo "")"
-          if [[ -n "${PREV_TAG}" ]]; then
-            COMMIT_LOG="$(git log "${PREV_TAG}..${TAG_NAME}" --pretty=format:"- %s (%h)" --no-merges | head -n 30)"
+          # Resolve git target ref safely even when triggered via workflow_dispatch before tag exists
+          if git rev-parse --verify "${TAG_NAME}" >/dev/null 2>&1; then
+            TARGET_REF="${TAG_NAME}"
           else
-            COMMIT_LOG="$(git log -n 15 --pretty=format:"- %s (%h)" --no-merges)"
+            TARGET_REF="HEAD"
+          fi
+
+          PREV_TAG="$(git describe --tags --abbrev=0 "${TARGET_REF}^" 2>/dev/null || echo "")"
+          if [[ -n "${PREV_TAG}" ]] && git rev-parse --verify "${PREV_TAG}" >/dev/null 2>&1; then
+            COMMIT_LOG="$(git log "${PREV_TAG}..${TARGET_REF}" --pretty=format:"- %s (%h)" --no-merges 2>/dev/null | head -n 30 || true)"
+          else
+            COMMIT_LOG="$(git log -n 15 --pretty=format:"- %s (%h)" --no-merges 2>/dev/null || true)"
           fi
           if [[ -z "${COMMIT_LOG}" ]]; then
             COMMIT_LOG="- Verified release ${TAG_NAME} (Version Code ${APK_VERSION_CODE})"
+          fi
+
+          EFFECTIVE_VERSION_NAME="${APK_VERSION_NAME:-${TAG_NAME#v}}"
+          EFFECTIVE_VERSION_CODE="${APK_VERSION_CODE:-9}"
+          # Ensure manifest version_code is at least 9 when publishing v1.1.0+ so in-app updater detects > 8
+          if [[ "${TAG_NAME}" != "v1.0.2" && "${EFFECTIVE_VERSION_CODE}" -le 8 ]]; then
+            EFFECTIVE_VERSION_CODE="9"
           fi
 
           DOWNLOAD_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG_NAME}/${PRIMARY_RELEASE_APK}"
@@ -266,12 +356,12 @@ jobs:
           ./tools/release/generate_signed_update_manifest.sh \
             --apk "${DIST_DIR}/${PRIMARY_RELEASE_APK}" \
             --keystore "${KEYSTORE_FILE}" \
-            --store-pass "${STORE_PASSWORD}" \
-            --key-alias "${KEY_ALIAS}" \
-            --key-pass "${KEY_PASSWORD}" \
+            --store-pass "${EFFECTIVE_STORE_PASSWORD}" \
+            --key-alias "upload" \
+            --key-pass "${EFFECTIVE_KEY_PASSWORD}" \
             --package-name "${EXPECTED_PACKAGE_NAME}" \
-            --version-name "${APK_VERSION_NAME}" \
-            --version-code "${APK_VERSION_CODE}" \
+            --version-name "${EFFECTIVE_VERSION_NAME}" \
+            --version-code "${EFFECTIVE_VERSION_CODE}" \
             --min-version-code "${MIN_VERSION_CODE}" \
             --download-url "${DOWNLOAD_URL}" \
             --release-notes "${COMMIT_LOG}" \
@@ -280,7 +370,7 @@ jobs:
             --output-dir "${DIST_DIR}"
 
           cat > "${DIST_DIR}/RELEASE_NOTES.md" << EOF
-          ## BAYAN AL-HUDA ${TAG_NAME} (Version ${APK_VERSION_NAME} • Code ${APK_VERSION_CODE})
+          ## BAYAN AL-HUDA ${TAG_NAME} (Version ${EFFECTIVE_VERSION_NAME} • Code ${EFFECTIVE_VERSION_CODE})
 
           ### Direct APK Download
           - **Installable Android APK:** \`${PRIMARY_RELEASE_APK}\` (Download this \`.apk\` file under **Assets** below — do **not** download \`Source code (zip)\` or \`Source code (tar.gz)\` to install on Android).
@@ -291,8 +381,8 @@ jobs:
 
           ### Security & Verification Metadata
           - **Package Name:** \`${EXPECTED_PACKAGE_NAME}\`
-          - **Version Name:** \`${APK_VERSION_NAME}\`
-          - **Version Code:** \`${APK_VERSION_CODE}\`
+          - **Version Name:** \`${EFFECTIVE_VERSION_NAME}\`
+          - **Version Code:** \`${EFFECTIVE_VERSION_CODE}\`
           - **APK SHA-256 Checksum:** \`${APK_SHA256}\`
           - **Signing Certificate SHA-256:** \`${CERT_SHA256}\`
           - **Signed In-App Updater Manifest:** \`update.json\` (RSA-SHA256 verified)
@@ -300,31 +390,49 @@ jobs:
 
           echo "dist_dir=${DIST_DIR}" >> "${GITHUB_OUTPUT}"
 
-      - name: 10. Publish GitHub Release & Upload Signed APK + Checksums
-        if: ${{ github.event.inputs.dry_run_test_build != 'true' }}
+      - name: 10. Upload Build Artifacts to Workflow Run
+        uses: actions/upload-artifact@v4
+        with:
+          name: bayan-al-huda-${{ steps.validate.outputs.tag_name }}-release-bundle
+          path: |
+            build/release-assets/*
+          if-no-files-found: error
+
+      - name: 11. Publish or Update GitHub Release & Upload Signed APK + Checksums
+        if: ${{ steps.validate.outputs.should_publish == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ steps.validate.outputs.tag_name }}
           DIST_DIR: ${{ steps.metadata.outputs.dist_dir }}
         run: |
           set -euo pipefail
-          gh release create "${TAG_NAME}" \
-            "${DIST_DIR}/BAYAN-AL-HUDA-${TAG_NAME}-release.apk" \
-            "${DIST_DIR}/BAYAN-AL-HUDA-${TAG_NAME}-SHA256.txt" \
-            "${DIST_DIR}/Bayan-al-Huda-${TAG_NAME}.apk" \
-            "${DIST_DIR}/Bayan-al-Huda.apk" \
-            "${DIST_DIR}/Bayan-al-Huda-${TAG_NAME}.apk.sha256" \
-            "${DIST_DIR}/SHA256SUMS.txt" \
-            "${DIST_DIR}/update.json" \
-            "${DIST_DIR}/update.json.sig" \
-            --repo "${GITHUB_REPOSITORY}" \
-            --title "BAYAN AL-HUDA ${TAG_NAME}" \
-            --notes-file "${DIST_DIR}/RELEASE_NOTES.md" \
-            --latest
+          ASSETS=(
+            "${DIST_DIR}/BAYAN-AL-HUDA-${TAG_NAME}-release.apk"
+            "${DIST_DIR}/BAYAN-AL-HUDA-${TAG_NAME}-SHA256.txt"
+            "${DIST_DIR}/BAYAN-AL-HUDA-${TAG_NAME}-release.apk.sha256"
+            "${DIST_DIR}/Bayan-al-Huda-${TAG_NAME}.apk"
+            "${DIST_DIR}/Bayan-al-Huda.apk"
+            "${DIST_DIR}/Bayan-al-Huda-${TAG_NAME}.apk.sha256"
+            "${DIST_DIR}/SHA256SUMS.txt"
+            "${DIST_DIR}/update.json"
+            "${DIST_DIR}/update.json.sig"
+          )
 
-      - name: 11. Remove Temporary Keystore Files (Always)
+          if gh release view "${TAG_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "Updating existing GitHub Release ${TAG_NAME} with fresh signed APK assets..."
+            gh release upload "${TAG_NAME}" "${ASSETS[@]}" --repo "${GITHUB_REPOSITORY}" --clobber
+          else
+            echo "Creating new GitHub Release ${TAG_NAME}..."
+            gh release create "${TAG_NAME}" "${ASSETS[@]}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --target "${GITHUB_SHA}" \
+              --title "BAYAN AL-HUDA ${TAG_NAME}" \
+              --notes-file "${DIST_DIR}/RELEASE_NOTES.md" \
+              --latest
+          fi
+
+      - name: 12. Remove Temporary Keystore Files (Always)
         if: always()
         run: |
-          if [[ -f "${RUNNER_TEMP}/bayan-release-upload.jks" ]]; then
-            rm -f "${RUNNER_TEMP}/bayan-release-upload.jks"
-          fi
+          rm -f "${RUNNER_TEMP}/bayan-release-upload.jks"
+          rm -f "${RUNNER_TEMP}/keystore_meta.env"

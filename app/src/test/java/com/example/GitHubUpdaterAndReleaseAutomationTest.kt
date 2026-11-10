@@ -58,6 +58,12 @@ class GitHubUpdaterAndReleaseAutomationTest {
   private lateinit var untrustedCertSha256: String
 
   private fun resolveRepoRootFile(relativePath: String): File {
+    val rootCandidates = listOf(File("."), File(".."), File("../.."))
+    val repoRoot = rootCandidates.firstOrNull { File(it, "settings.gradle.kts").exists() }
+    if (repoRoot != null) {
+      val fromRoot = File(repoRoot, relativePath)
+      if (fromRoot.exists()) return fromRoot
+    }
     val candidates = listOf(
       File(relativePath),
       File("..", relativePath),
