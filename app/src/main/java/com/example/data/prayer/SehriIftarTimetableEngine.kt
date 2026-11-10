@@ -263,6 +263,7 @@ object SehriIftarTimetableEngine {
    */
   val worldwideCityCatalog: List<PrayerLocationPreset> = listOf(
     // India (Kashmir & Major Cities)
+    PrayerLocationPreset("Beerwah", "Beerwah, Budgam, Kashmir", "India", 34.0128, 74.5951, "Asia/Kolkata", 1, 1),
     PrayerLocationPreset("Srinagar", "Srinagar District, Kashmir", "India", 34.0837, 74.7973, "Asia/Kolkata", 1, 1),
     PrayerLocationPreset("Anantnag", "Anantnag District, Kashmir", "India", 33.7311, 75.1487, "Asia/Kolkata", 1, 1),
     PrayerLocationPreset("Baramulla", "Baramulla District, Kashmir", "India", 34.2021, 74.3483, "Asia/Kolkata", 1, 1),

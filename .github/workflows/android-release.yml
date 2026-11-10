@@ -2,6 +2,9 @@ name: Bayan al-Huda Automated Android Release & Signed In-App Updater CI/CD
 
 on:
   push:
+    branches:
+      - main
+      - master
     tags:
       - 'v*'
       - 'v[0-9]+.[0-9]+.[0-9]+'
@@ -67,14 +70,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 2. Validate Release Tag, Reject Prereleases & Verify Signing Secrets
+      - name: 2. Validate Release Tag, Bootstrap Clean-Build Files & Verify Signing Secrets
         id: validate
         env:
           SECRET_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           SECRET_STORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           SECRET_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           SECRET_KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          SECRET_GOOGLE_SERVICES_B64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
           INPUT_TAG: ${{ github.event.inputs.release_tag }}
           INPUT_BUILD_TYPE: ${{ github.event.inputs.build_type || 'release' }}
           INPUT_PUBLISH: ${{ github.event.inputs.publish_release || 'true' }}
@@ -83,13 +86,20 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Materialize app/google-services.json and debug.keystore.base64 if stripped by AI Studio GitHub exporter
+          chmod +x tools/signing/prepare-clean-build-signing.sh
+          ./tools/signing/prepare-clean-build-signing.sh
+
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             RAW_TAG="${INPUT_TAG:-v1.1.0}"
-          else
+          elif [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
             RAW_TAG="${GITHUB_REF_NAME}"
+          else
+            # Automatic release on push to main/master
+            RAW_TAG="v1.1.0"
           fi
 
-          # Normalize tag to start with 'v' if user typed '1.1.0' in workflow_dispatch
+          # Normalize tag to start with 'v' if user typed '1.1.0'
           if [[ "${RAW_TAG}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             RAW_TAG="v${RAW_TAG}"
           fi
@@ -111,12 +121,6 @@ jobs:
             echo "should_publish=false" >> "${GITHUB_OUTPUT}"
           else
             echo "should_publish=true" >> "${GITHUB_OUTPUT}"
-          fi
-
-          # Optional: Reconstruct app/google-services.json from GOOGLE_SERVICES_JSON_BASE64 if configured
-          if [[ -n "${SECRET_GOOGLE_SERVICES_B64}" ]]; then
-            printf '%s' "${SECRET_GOOGLE_SERVICES_B64}" | tr -d '[:space:]' | base64 -d > app/google-services.json
-            echo "Restored app/google-services.json from GOOGLE_SERVICES_JSON_BASE64 secret."
           fi
 
           # Check Signing Secrets (use custom ANDROID_KEYSTORE_* secrets when set;
@@ -163,7 +167,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Ensure Gradle 9.3.1 (required by AGP 9.1.1 in gradle/libs.versions.toml) is installed
           CURRENT_GRADLE_VER="$(gradle --version 2>/dev/null | awk '/^Gradle / {print $2}' || true)"
           if [[ "${CURRENT_GRADLE_VER}" != "${GRADLE_REQUIRED_VERSION}" ]]; then
             echo "Installing Gradle ${GRADLE_REQUIRED_VERSION}..."
@@ -175,7 +178,6 @@ jobs:
           fi
           gradle --version
 
-          # Ensure Android SDK licenses and compileSdk 36 / 36.1 + build-tools 36.0.0 are present
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
           export ANDROID_HOME="${SDK_ROOT}"
           export ANDROID_SDK_ROOT="${SDK_ROOT}"
@@ -247,8 +249,6 @@ jobs:
           export KEYSTORE_PATH="${KEYSTORE_FILE}"
           export ANDROID_KEYSTORE_PATH="${KEYSTORE_FILE}"
 
-          # Synchronize versionName and monotonic versionCode in app/build.gradle.kts on the CI runner
-          # so the compiled APK's binary AndroidManifest.xml versionCode matches the release tag (e.g. v1.1.0 -> 9 > 8)
           PREV_MANIFEST_JSON="$(gh release download --repo "${GITHUB_REPOSITORY}" --pattern "update.json" -O - 2>/dev/null || true)"
           PREV_CODE="0"
           if [[ -n "${PREV_MANIFEST_JSON}" ]]; then
@@ -371,7 +371,6 @@ jobs:
             echo "${APK_SHA256}  ${STABLE_APK_NAME}"
           } > "${DIST_DIR}/SHA256SUMS.txt"
 
-          # Resolve git target ref safely even when triggered via workflow_dispatch before tag exists
           if git rev-parse --verify "${TAG_NAME}" >/dev/null 2>&1; then
             TARGET_REF="${TAG_NAME}"
           else
@@ -464,6 +463,13 @@ jobs:
           if gh release view "${TAG_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
             echo "Updating existing GitHub Release ${TAG_NAME} with fresh signed APK assets..."
             gh release upload "${TAG_NAME}" "${ASSETS[@]}" --repo "${GITHUB_REPOSITORY}" --clobber
+            gh release edit "${TAG_NAME}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --draft=false \
+              --prerelease=false \
+              --latest \
+              --title "BAYAN AL-HUDA ${TAG_NAME}" \
+              --notes-file "${DIST_DIR}/RELEASE_NOTES.md"
           else
             echo "Creating new GitHub Release ${TAG_NAME}..."
             gh release create "${TAG_NAME}" "${ASSETS[@]}" \

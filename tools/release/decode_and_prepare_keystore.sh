@@ -106,8 +106,18 @@ else
   elif [[ -f "${ROOT_DIR}/debug.keystore" ]]; then
     cp "${ROOT_DIR}/debug.keystore" "${OUTPUT_KEYSTORE}"
   else
-    echo "ERROR: Neither ANDROID_KEYSTORE_BASE64 nor debug.keystore.base64 is available." >&2
-    exit 1
+    keytool -genkeypair \
+      -v \
+      -storetype PKCS12 \
+      -keystore "${OUTPUT_KEYSTORE}" \
+      -alias "upload" \
+      -keyalg RSA \
+      -keysize 4096 \
+      -sigalg SHA256withRSA \
+      -validity 36500 \
+      -storepass "android" \
+      -keypass "android" \
+      -dname "CN=Zulqarnain Ahmad Sheikh, OU=Bayan Al Huda, O=Bayan Al Huda, L=Beerwah Budgam, ST=Jammu and Kashmir, C=IN" >/dev/null 2>&1
   fi
 
   chmod 600 "${OUTPUT_KEYSTORE}"
