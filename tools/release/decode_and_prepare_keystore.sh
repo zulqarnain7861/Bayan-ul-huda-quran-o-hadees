@@ -20,6 +20,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 OUTPUT_KEYSTORE=""
 OUTPUT_ENV_FILE=""
+SYNC_GRADLE_DEFAULT_PATH="false"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -30,6 +31,10 @@ while [[ $# -gt 0 ]]; do
     --output-env)
       OUTPUT_ENV_FILE="$2"
       shift 2
+      ;;
+    --sync-gradle-default)
+      SYNC_GRADLE_DEFAULT_PATH="true"
+      shift 1
       ;;
     *)
       echo "ERROR: Unknown argument: $1" >&2
@@ -122,6 +127,13 @@ else
   EFFECTIVE_KEY_PASS="android"
   USING_FALLBACK="true"
   echo "Prepared fallback release signing keystore at ${OUTPUT_KEYSTORE} (alias 'upload', permissions 0600)."
+fi
+
+# When running in CI (--sync-gradle-default), also place a 0600 copy at ${ROOT_DIR}/my-upload-key.jks
+# so app/build.gradle.kts resolves the keystore whether KEYSTORE_PATH is read or default path is used.
+if [[ "${SYNC_GRADLE_DEFAULT_PATH}" == "true" ]]; then
+  cp "${OUTPUT_KEYSTORE}" "${ROOT_DIR}/my-upload-key.jks"
+  chmod 600 "${ROOT_DIR}/my-upload-key.jks"
 fi
 
 if [[ -n "${OUTPUT_ENV_FILE}" ]]; then

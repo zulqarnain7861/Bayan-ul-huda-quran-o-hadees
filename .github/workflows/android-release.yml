@@ -212,14 +212,17 @@ jobs:
             gradle verifyCleanBuildConfig :app:testDebugUnitTest --stacktrace
           fi
 
-      - name: 7. Prepare Release Keystore Outside Repository & Build Signed APK
+      - name: 7. Decode Release Keystore, Inject Gradle Secrets & Build Signed APK
         id: build_apk
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          TAG_NAME: ${{ steps.validate.outputs.tag_name }}
+          VERSION_NAME: ${{ steps.validate.outputs.version_name }}
           BUILD_TYPE: ${{ steps.validate.outputs.build_type }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           KEYSTORE_FILE="${RUNNER_TEMP}/bayan-release-upload.jks"
@@ -228,7 +231,8 @@ jobs:
 
           ./tools/release/decode_and_prepare_keystore.sh \
             --output "${KEYSTORE_FILE}" \
-            --output-env "${KEYSTORE_META}"
+            --output-env "${KEYSTORE_META}" \
+            --sync-gradle-default
 
           USING_FALLBACK="$(grep '^using_fallback_keystore=' "${KEYSTORE_META}" | cut -d'=' -f2 || echo 'false')"
           if [[ "${USING_FALLBACK}" == "true" ]]; then
@@ -242,6 +246,46 @@ jobs:
           fi
           export KEYSTORE_PATH="${KEYSTORE_FILE}"
           export ANDROID_KEYSTORE_PATH="${KEYSTORE_FILE}"
+
+          # Synchronize versionName and monotonic versionCode in app/build.gradle.kts on the CI runner
+          # so the compiled APK's binary AndroidManifest.xml versionCode matches the release tag (e.g. v1.1.0 -> 9 > 8)
+          PREV_MANIFEST_JSON="$(gh release download --repo "${GITHUB_REPOSITORY}" --pattern "update.json" -O - 2>/dev/null || true)"
+          PREV_CODE="0"
+          if [[ -n "${PREV_MANIFEST_JSON}" ]]; then
+            PREV_CODE="$(echo "${PREV_MANIFEST_JSON}" | python3 -c "import sys, json; print(json.load(sys.stdin).get('version_code', 0))" 2>/dev/null || echo 0)"
+          fi
+
+          python3 - "${VERSION_NAME}" "${PREV_CODE}" << 'PYEOF'
+          import re, sys
+
+          ver_name = sys.argv[1].strip().lstrip("vV")
+          prev_code = int(sys.argv[2]) if sys.argv[2].isdigit() else 0
+
+          parts = [int(re.sub(r"\D", "", p) or "0") for p in (ver_name.split(".") + ["0", "0", "0"])[:3]]
+          major, minor, patch = parts[0], parts[1], parts[2]
+          if major == 1 and minor == 0:
+              derived_code = 6 + patch
+          elif major == 1 and minor == 1:
+              derived_code = 9 + patch
+          else:
+              derived_code = max(1, (major - 1) * 1000 + minor * 10 + patch)
+
+          with open("app/build.gradle.kts", "r", encoding="utf-8") as f:
+              content = f.read()
+
+          m = re.search(r"versionCode\s*=\s*(\d+)", content)
+          current_gradle_code = int(m.group(1)) if m else 8
+          target_code = max(current_gradle_code, derived_code, prev_code)
+          if ver_name != "1.0.2" and target_code <= 8:
+              target_code = 9
+
+          content = re.sub(r"versionCode\s*=\s*\d+", f"versionCode = {target_code}", content, count=1)
+          content = re.sub(r'versionName\s*=\s*"[^"]*"', f'versionName = "{ver_name}"', content, count=1)
+
+          with open("app/build.gradle.kts", "w", encoding="utf-8") as f:
+              f.write(content)
+          print(f"Configured CI release APK versionName={ver_name}, versionCode={target_code}")
+          PYEOF
 
           if [[ "${BUILD_TYPE}" == "debug" ]]; then
             GRADLE_TASK=":app:assembleDebug"
@@ -346,7 +390,6 @@ jobs:
 
           EFFECTIVE_VERSION_NAME="${APK_VERSION_NAME:-${TAG_NAME#v}}"
           EFFECTIVE_VERSION_CODE="${APK_VERSION_CODE:-9}"
-          # Ensure manifest version_code is at least 9 when publishing v1.1.0+ so in-app updater detects > 8
           if [[ "${TAG_NAME}" != "v1.0.2" && "${EFFECTIVE_VERSION_CODE}" -le 8 ]]; then
             EFFECTIVE_VERSION_CODE="9"
           fi
@@ -436,3 +479,4 @@ jobs:
         run: |
           rm -f "${RUNNER_TEMP}/bayan-release-upload.jks"
           rm -f "${RUNNER_TEMP}/keystore_meta.env"
+          rm -f "my-upload-key.jks"
