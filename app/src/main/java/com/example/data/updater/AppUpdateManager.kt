@@ -111,6 +111,10 @@ class AppUpdateManager(private val appContext: Context) {
     isAutomaticCheck: Boolean = false,
     nowMs: Long = System.currentTimeMillis()
   ): UpdaterUiState {
+    if (GitHubReleaseClient.customTransportForTesting == null) {
+      ApkSecurityVerifier.clearTestingOverrides()
+      ApkUpdateDownloadManager.customStreamDownloaderForTesting = null
+    }
     val installed = ApkSecurityVerifier.getInstalledAppIdentity(appContext)
     val channel = DistributionChannelDetector.detectDistributionChannel(appContext)
     val canInstall = AndroidPackageInstallerCoordinator.canRequestPackageInstalls(appContext)

@@ -43,6 +43,12 @@ class SecurityAndQualityTicketVerificationTest {
   private val context: Context = ApplicationProvider.getApplicationContext()
 
   private fun resolveRepoRootFile(relativePath: String): File {
+    val roots = listOf(File("."), File(".."), File("../.."))
+    val repoRoot = roots.firstOrNull { File(it, "settings.gradle.kts").exists() }
+    if (repoRoot != null) {
+      val fromRoot = File(repoRoot, relativePath)
+      if (fromRoot.exists()) return fromRoot
+    }
     val candidates = listOf(
       File(relativePath),
       File("..", relativePath),

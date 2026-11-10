@@ -524,7 +524,10 @@ fun BayanApp(
                   icon = { Icon(dest.icon, contentDescription = dest.label) },
                   label = { Text(dest.label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
                   colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = EmeraldPrimary,
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     indicatorColor = GoldPrimary.copy(alpha = 0.25f)
                   ),
                   modifier = Modifier.testTag(dest.testTag)

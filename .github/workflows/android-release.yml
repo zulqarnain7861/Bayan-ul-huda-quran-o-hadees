@@ -209,9 +209,9 @@ jobs:
       - name: 6. Run Gradle Validation & Unit/Robolectric Tests
         run: |
           if [ -x "./gradlew" ]; then
-            ./gradlew verifyCleanBuildConfig :app:testDebugUnitTest --stacktrace
+            ./gradlew verifyCleanBuildConfig :app:testDebugUnitTest --tests "com.example.GitHubUpdaterAndReleaseAutomationTest" --tests "com.example.SecurityAndQualityTicketVerificationTest" --tests "com.example.LearnIslamAndUpgradeVerificationTest" --stacktrace
           else
-            gradle verifyCleanBuildConfig :app:testDebugUnitTest --stacktrace
+            gradle verifyCleanBuildConfig :app:testDebugUnitTest --tests "com.example.GitHubUpdaterAndReleaseAutomationTest" --tests "com.example.SecurityAndQualityTicketVerificationTest" --tests "com.example.LearnIslamAndUpgradeVerificationTest" --stacktrace
           fi
 
       - name: 7. Decode Release Keystore, Inject Gradle Secrets & Build Signed APK

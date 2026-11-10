@@ -274,9 +274,12 @@ object GitHubReleaseClient {
       }
     }
 
-    val apkAsset = parsedAssets.firstOrNull {
-      it.name.endsWith(".apk", ignoreCase = true) && !it.name.contains("unsigned", ignoreCase = true)
-    } ?: return null
+    val apkAsset = parsedAssets
+      .filter {
+        it.name.endsWith(".apk", ignoreCase = true) && !it.name.contains("unsigned", ignoreCase = true)
+      }
+      .maxByOrNull { it.sizeBytes }
+      ?: return null
 
     val manifestAsset = parsedAssets.firstOrNull {
       it.name.equals("update.json", ignoreCase = true) ||

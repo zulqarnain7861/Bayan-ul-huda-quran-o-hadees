@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -154,100 +155,108 @@ fun TopIslamicBar(
         }
       },
       actions = {
-        IconButton(
-          onClick = onOpenVideoLibraryClick,
-          modifier = Modifier.size(30.dp).testTag("top_bar_video_library_action")
+        Row(
+          modifier = Modifier
+            .widthIn(max = 176.dp)
+            .padding(end = 2.dp)
+            .horizontalScroll(rememberScrollState()),
+          verticalAlignment = Alignment.CenterVertically
         ) {
-          Icon(
-            imageVector = Icons.Default.PlayArrow,
-            contentDescription = "Video Lectures Library",
-            tint = EmeraldPrimary,
-            modifier = Modifier.size(18.dp)
-          )
-        }
-        IconButton(
-          onClick = { shareAppApkWithDriveLink(context) },
-          modifier = Modifier.size(30.dp).testTag("top_bar_share_app_action")
-        ) {
-          Icon(
-            imageVector = Icons.Default.Share,
-            contentDescription = "Share Bayan al-Huda APK & Drive Updates Link",
-            tint = EmeraldPrimary,
-            modifier = Modifier.size(18.dp)
-          )
-        }
-        IconButton(
-          onClick = onOpenQiblaClick,
-          modifier = Modifier.size(30.dp).testTag("top_bar_qibla_action")
-        ) {
-          Icon(
-            imageVector = Icons.Default.Explore,
-            contentDescription = "Qibla Direction Compass",
-            tint = GoldPrimary,
-            modifier = Modifier.size(18.dp)
-          )
-        }
-        IconButton(
-          onClick = onOpenEvidenceClick,
-          modifier = Modifier.size(30.dp).testTag("top_bar_evidence_action")
-        ) {
-          Icon(
-            imageVector = Icons.Default.FactCheck,
-            contentDescription = "Islam with Evidence",
-            tint = EmeraldPrimary,
-            modifier = Modifier.size(18.dp)
-          )
-        }
-        IconButton(
-          onClick = onOpenDownloadsClick,
-          modifier = Modifier.size(30.dp).testTag("top_bar_downloads_action")
-        ) {
-          Icon(
-            imageVector = if (isOfflineMode) Icons.Default.CloudOff else Icons.Default.CloudDownload,
-            contentDescription = "Offline Downloads",
-            tint = if (isOfflineMode) Color(0xFFB71C1C) else EmeraldPrimary,
-            modifier = Modifier.size(18.dp)
-          )
-        }
-        IconButton(
-          onClick = onCycleThemeMode,
-          modifier = Modifier.size(30.dp).testTag("top_bar_theme_action")
-        ) {
-          val icon = when (themeMode) {
-            AppThemeMode.LIGHT -> Icons.Default.LightMode
-            AppThemeMode.EYE_COMFORT -> Icons.Default.RemoveRedEye
-            AppThemeMode.DARK, AppThemeMode.PURE_BLACK -> Icons.Default.DarkMode
-            AppThemeMode.ROYAL_EMERALD, AppThemeMode.MADINAH_PARCHMENT, AppThemeMode.SAPPHIRE_BLUE -> Icons.Default.Palette
-            AppThemeMode.AUTO -> Icons.Default.BrightnessAuto
+          IconButton(
+            onClick = onOpenVideoLibraryClick,
+            modifier = Modifier.size(30.dp).testTag("top_bar_video_library_action")
+          ) {
+            Icon(
+              imageVector = Icons.Default.PlayArrow,
+              contentDescription = "Video Lectures Library",
+              tint = MaterialTheme.colorScheme.primary,
+              modifier = Modifier.size(18.dp)
+            )
           }
-          Icon(
-            imageVector = icon,
-            contentDescription = "Appearance: ${themeMode.label}",
-            tint = GoldPrimary,
-            modifier = Modifier.size(18.dp)
-          )
-        }
-        IconButton(
-          onClick = onSearchClick,
-          modifier = Modifier.size(30.dp).testTag("top_bar_search_action")
-        ) {
-          Icon(
-            imageVector = Icons.Default.Search,
-            contentDescription = "Search",
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(18.dp)
-          )
-        }
-        IconButton(
-          onClick = onAboutClick,
-          modifier = Modifier.size(30.dp).testTag("top_bar_about_action")
-        ) {
-          Icon(
-            imageVector = Icons.Default.Info,
-            contentDescription = "About & Diagnostics",
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(18.dp)
-          )
+          IconButton(
+            onClick = { shareAppApkWithDriveLink(context) },
+            modifier = Modifier.size(30.dp).testTag("top_bar_share_app_action")
+          ) {
+            Icon(
+              imageVector = Icons.Default.Share,
+              contentDescription = "Share Bayan al-Huda APK & Drive Updates Link",
+              tint = MaterialTheme.colorScheme.primary,
+              modifier = Modifier.size(18.dp)
+            )
+          }
+          IconButton(
+            onClick = onOpenQiblaClick,
+            modifier = Modifier.size(30.dp).testTag("top_bar_qibla_action")
+          ) {
+            Icon(
+              imageVector = Icons.Default.Explore,
+              contentDescription = "Qibla Direction Compass",
+              tint = GoldPrimary,
+              modifier = Modifier.size(18.dp)
+            )
+          }
+          IconButton(
+            onClick = onOpenEvidenceClick,
+            modifier = Modifier.size(30.dp).testTag("top_bar_evidence_action")
+          ) {
+            Icon(
+              imageVector = Icons.Default.FactCheck,
+              contentDescription = "Islam with Evidence",
+              tint = MaterialTheme.colorScheme.primary,
+              modifier = Modifier.size(18.dp)
+            )
+          }
+          IconButton(
+            onClick = onOpenDownloadsClick,
+            modifier = Modifier.size(30.dp).testTag("top_bar_downloads_action")
+          ) {
+            Icon(
+              imageVector = if (isOfflineMode) Icons.Default.CloudOff else Icons.Default.CloudDownload,
+              contentDescription = "Offline Downloads",
+              tint = if (isOfflineMode) Color(0xFFB71C1C) else MaterialTheme.colorScheme.primary,
+              modifier = Modifier.size(18.dp)
+            )
+          }
+          IconButton(
+            onClick = onCycleThemeMode,
+            modifier = Modifier.size(30.dp).testTag("top_bar_theme_action")
+          ) {
+            val icon = when (themeMode) {
+              AppThemeMode.LIGHT -> Icons.Default.LightMode
+              AppThemeMode.EYE_COMFORT -> Icons.Default.RemoveRedEye
+              AppThemeMode.DARK, AppThemeMode.PURE_BLACK -> Icons.Default.DarkMode
+              AppThemeMode.ROYAL_EMERALD, AppThemeMode.MADINAH_PARCHMENT, AppThemeMode.SAPPHIRE_BLUE -> Icons.Default.Palette
+              AppThemeMode.AUTO -> Icons.Default.BrightnessAuto
+            }
+            Icon(
+              imageVector = icon,
+              contentDescription = "Appearance: ${themeMode.label}",
+              tint = GoldPrimary,
+              modifier = Modifier.size(18.dp)
+            )
+          }
+          IconButton(
+            onClick = onSearchClick,
+            modifier = Modifier.size(30.dp).testTag("top_bar_search_action")
+          ) {
+            Icon(
+              imageVector = Icons.Default.Search,
+              contentDescription = "Search",
+              tint = MaterialTheme.colorScheme.onSurface,
+              modifier = Modifier.size(18.dp)
+            )
+          }
+          IconButton(
+            onClick = onAboutClick,
+            modifier = Modifier.size(30.dp).testTag("top_bar_about_action")
+          ) {
+            Icon(
+              imageVector = Icons.Default.Info,
+              contentDescription = "About & Diagnostics",
+              tint = MaterialTheme.colorScheme.onSurface,
+              modifier = Modifier.size(18.dp)
+            )
+          }
         }
       },
       colors = TopAppBarDefaults.topAppBarColors(

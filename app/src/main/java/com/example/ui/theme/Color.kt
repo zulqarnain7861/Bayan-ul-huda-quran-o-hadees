@@ -3,10 +3,10 @@ package com.example.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // Islamic Deep Emerald & Heritage Green Palette
-val EmeraldPrimary = Color(0xFF0E4434)
+val EmeraldPrimary = Color(0xFF136F52)
 val EmeraldDark = Color(0xFF09291F)
-val EmeraldPrimaryVariant = Color(0xFF092E23)
-val EmeraldLight = Color(0xFF1B634E)
+val EmeraldPrimaryVariant = Color(0xFF0B3D2E)
+val EmeraldLight = Color(0xFF218767)
 val EmeraldContainer = Color(0xFFD1EADF)
 val OnEmeraldContainer = Color(0xFF03251B)
 

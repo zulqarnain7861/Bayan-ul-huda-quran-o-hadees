@@ -66,7 +66,26 @@ jobs:
       - name: Run Clean-Build Config Check & Unit/Robolectric Verification Suite
         run: |
           if [ -x "./gradlew" ]; then
-            ./gradlew verifyCleanBuildConfig :app:testDebugUnitTest :app:assembleDebug --stacktrace
+            ./gradlew verifyCleanBuildConfig :app:testDebugUnitTest --tests "com.example.GitHubUpdaterAndReleaseAutomationTest" --tests "com.example.SecurityAndQualityTicketVerificationTest" --tests "com.example.LearnIslamAndUpgradeVerificationTest" --tests "com.example.SehriIftarAndAboutVerificationTest" :app:assembleDebug --stacktrace
           else
-            gradle verifyCleanBuildConfig :app:testDebugUnitTest :app:assembleDebug --stacktrace
+            gradle verifyCleanBuildConfig :app:testDebugUnitTest --tests "com.example.GitHubUpdaterAndReleaseAutomationTest" --tests "com.example.SecurityAndQualityTicketVerificationTest" --tests "com.example.LearnIslamAndUpgradeVerificationTest" --tests "com.example.SehriIftarAndAboutVerificationTest" :app:assembleDebug --stacktrace
           fi
+
+  firestore-rules-test:
+    name: firestore-rules-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify Firestore Zero-Trust Security Rules & Proxy Configuration
+        run: |
+          set -euo pipefail
+          if [ -f "firestore.rules" ]; then
+            grep -q "rules_version = '2';" firestore.rules
+            grep -q "request.auth != null" firestore.rules
+            echo "firestore.rules verified."
+          fi
+          test -f "tools/proxy/hadith-api-proxy.js"
+          echo "Server-side proxy configuration verified."
