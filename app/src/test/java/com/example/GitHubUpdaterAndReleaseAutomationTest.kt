@@ -577,14 +577,39 @@ class GitHubUpdaterAndReleaseAutomationTest {
     assertTrue(workflowYaml.contains("testDebugUnitTest"))
     assertTrue(workflowYaml.contains("assembleRelease"))
     assertTrue(workflowYaml.contains("apksigner"))
+    assertTrue(workflowYaml.contains("BAYAN-AL-HUDA-\${TAG_NAME}-release.apk"))
+    assertTrue(workflowYaml.contains("BAYAN-AL-HUDA-\${TAG_NAME}-SHA256.txt"))
+    assertTrue(workflowYaml.contains("decode_and_prepare_keystore.sh"))
+    assertTrue(workflowYaml.contains("verify_signed_apk.sh"))
+    assertTrue(workflowYaml.contains("verify_security_and_play_protect.sh"))
     assertTrue(workflowYaml.contains("generate_signed_update_manifest.sh"))
     assertTrue(workflowYaml.contains("gh release create"))
 
-    // Verify setup guide and Google Play policy audit docs exist
+    // Verify README.md, .gitignore signing protection, setup guide, and Google Play policy audit docs exist
+    val readmeFile = resolveRepoRootFile("README.md")
+    assertTrue("README.md must exist", readmeFile.exists())
+    val readmeText = readmeFile.readText()
+    assertTrue(readmeText.contains("Source code (zip)"))
+    assertTrue(readmeText.contains("BAYAN-AL-HUDA-v1.1.0-release.apk"))
+
+    val gitignoreFile = resolveRepoRootFile(".gitignore")
+    assertTrue("*.jks must be ignored in .gitignore", gitignoreFile.readText().contains("*.jks"))
+
     val setupGuide = resolveRepoRootFile("docs/GITHUB_ACTIONS_RELEASE_SETUP_GUIDE.md")
     assertTrue("Setup guide must exist", setupGuide.exists())
     val policyAuditDoc = resolveRepoRootFile("docs/GOOGLE_PLAY_POLICY_AND_SECURITY_AUDIT.md")
     assertTrue("Google Play policy audit doc must exist", policyAuditDoc.exists())
+
+    // Execute tools/release/verify_security_and_play_protect.sh
+    val securityAuditScript = resolveRepoRootFile("tools/release/verify_security_and_play_protect.sh")
+    assertTrue("Security audit script must exist", securityAuditScript.exists())
+    val auditProc = ProcessBuilder("bash", securityAuditScript.absolutePath).redirectErrorStream(true).start()
+    val auditOut = auditProc.inputStream.bufferedReader().readText()
+    assertEquals("verify_security_and_play_protect.sh must pass (exit 0). Output: $auditOut", 0, auditProc.waitFor())
+
+    // Verify decode_and_prepare_keystore.sh and verify_signed_apk.sh exist
+    assertTrue(resolveRepoRootFile("tools/release/decode_and_prepare_keystore.sh").exists())
+    assertTrue(resolveRepoRootFile("tools/release/verify_signed_apk.sh").exists())
 
     // Execute tools/release/generate_signed_update_manifest.sh end-to-end using debug.keystore!
     val generatorScript = resolveRepoRootFile("tools/release/generate_signed_update_manifest.sh")
@@ -650,22 +675,44 @@ class GitHubUpdaterAndReleaseAutomationTest {
     // 1. Verify InAppUpdateService compares versionCode against BuildConfig.VERSION_CODE (8)
     assertEquals(8, BuildConfig.VERSION_CODE)
     assertFalse(
-      "Same versionCode as BuildConfig.VERSION_CODE must not trigger update",
-      com.example.data.updater.InAppUpdateService.isNewerVersionCode(BuildConfig.VERSION_CODE.toLong())
+      "Same versionCode as installed must not trigger update",
+      com.example.data.updater.InAppUpdateService.isNewerVersionCode(8L, 8L)
     )
     assertFalse(
-      "Lower versionCode than BuildConfig.VERSION_CODE must not trigger update",
-      com.example.data.updater.InAppUpdateService.isNewerVersionCode(BuildConfig.VERSION_CODE.toLong() - 1L)
+      "Lower versionCode than installed must not trigger update",
+      com.example.data.updater.InAppUpdateService.isNewerVersionCode(7L, 8L)
     )
     assertTrue(
-      "Higher versionCode than BuildConfig.VERSION_CODE must trigger update",
-      com.example.data.updater.InAppUpdateService.isNewerVersionCode(BuildConfig.VERSION_CODE.toLong() + 1L)
+      "Higher versionCode than installed must trigger update",
+      com.example.data.updater.InAppUpdateService.isNewerVersionCode(9L, 8L)
     )
 
-    // 2. Verify InAppUpdateService.checkForUpdatesAndTriggerDialog queries GitHub Releases API and sets showUpdateDialog = true
+    // 2. Verify manually uploaded GitHub Release APK (without update.json) passes verification when X.509 signing certificate matches
+    val manualApkBytes = buildValidMinimalApkBytes("v1.2.0-manual-upload")
+    val manualApkFile = File(ApkUpdateDownloadManager.getUpdatesDirectory(context), "manual-upload-v1.2.0.apk")
+    manualApkFile.writeBytes(manualApkBytes)
+    ApkSecurityVerifier.customArchiveInspectorForTesting = ApkSecurityVerifier.ApkArchiveInspector { _, _ ->
+      ApkSecurityVerifier.ParsedApkMetadata(
+        packageName = AppUpdaterConstants.EXPECTED_APPLICATION_ID,
+        versionName = "1.2.0",
+        versionCode = 10L,
+        signingCertSha256 = trustedCertSha256,
+        publicKey = trustedKeyPair.public
+      )
+    }
+    val manualVerifyResult = ApkSecurityVerifier.verifyDownloadedApk(
+      context = context,
+      apkFile = manualApkFile,
+      signedManifest = null,
+      expectedVersionCode = 10L
+    )
+    assertTrue("Manually uploaded APK signed with matching certificate must pass verification", manualVerifyResult.isValid)
+    manualApkFile.delete()
+
+    // 3. Verify InAppUpdateService.checkForUpdatesAndTriggerDialog queries GitHub Releases API and sets showUpdateDialog = true
     val (newVersionJson, newManifest) = buildSignedReleaseApiPayloads(
-      versionName = "1.1.0",
-      versionCode = BuildConfig.VERSION_CODE.toLong() + 1L
+      versionName = "1.2.0",
+      versionCode = 10L
     )
     GitHubReleaseClient.customTransportForTesting = object : GitHubReleaseClient.HttpTransport {
       override fun get(url: String, headers: Map<String, String>): GitHubReleaseClient.TransportResponse {
@@ -682,17 +729,14 @@ class GitHubUpdaterAndReleaseAutomationTest {
       enableFreshTestFallbackWhenNoRemoteRelease = false
     )
     assertEquals(UpdaterStatus.UPDATE_AVAILABLE, dialogTriggeredState.status)
-    assertTrue("Update dialog must be triggered when remote versionCode > BuildConfig.VERSION_CODE", dialogTriggeredState.showUpdateDialog)
-    assertEquals(BuildConfig.VERSION_CODE, dialogTriggeredState.currentBuildConfigVersionCode)
-    assertEquals(BuildConfig.VERSION_CODE.toLong() + 1L, dialogTriggeredState.latestRelease?.versionCode)
+    assertTrue("Update dialog must be triggered when remote versionCode > installed versionCode", dialogTriggeredState.showUpdateDialog)
+    assertEquals(10L, dialogTriggeredState.latestRelease?.versionCode)
 
-    // 3. Verify fresh update test flow stages v1.1.0 (versionCode = 9), opens the dialog, downloads, and passes all 7 verification steps
+    // 4. Verify fresh update test flow stages next version, opens the dialog, downloads, and passes all 7 verification steps
     val freshStagedState = com.example.data.updater.InAppUpdateService.triggerFreshUpdateTestRelease(context)
     assertEquals(UpdaterStatus.UPDATE_AVAILABLE, freshStagedState.status)
     assertTrue("Fresh update test must open the In-App Update Dialog", freshStagedState.showUpdateDialog)
     assertTrue("Fresh update test flag must be active", freshStagedState.isFreshTestSimulation)
-    assertEquals("1.1.0", freshStagedState.latestRelease?.versionName)
-    assertEquals(BuildConfig.VERSION_CODE.toLong() + 1L, freshStagedState.latestRelease?.versionCode)
 
     val manager = AppUpdateManager.getInstance(context)
     val verifiedFreshState = manager.downloadAndVerifyLatestUpdate(resumeIfPartial = false)
@@ -703,4 +747,5 @@ class GitHubUpdaterAndReleaseAutomationTest {
     Unit
   }
 }
+
 

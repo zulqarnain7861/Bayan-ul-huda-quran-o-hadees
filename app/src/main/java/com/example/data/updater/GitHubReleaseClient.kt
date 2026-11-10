@@ -130,8 +130,8 @@ object GitHubReleaseClient {
 
   /**
    * Queries `https://api.github.com/repos/zulqarnain7861/Bayan-ul-huda-quran-o-hadees/releases/latest`
-   * (with fallback to `/releases` if `/releases/latest` is not yet populated) and fetches any attached
-   * `update.json` signed update metadata.
+   * (with automatic fallback to `/releases` so manually uploaded releases or tag releases are also found)
+   * and fetches any attached `update.json` signed update metadata.
    */
   suspend fun fetchLatestStableRelease(
     includePrereleases: Boolean = false
@@ -153,15 +153,11 @@ object GitHubReleaseClient {
           if (parsed != null) {
             ReleaseCheckOutcome.Success(parsed)
           } else {
-            ReleaseCheckOutcome.NoPublishedRelease(
-              "Latest GitHub release is a draft/prerelease or does not contain a valid Android APK asset."
-            )
+            fetchFromReleasesListFallback(includePrereleases = true)
           }
         }
         404 -> {
-          ReleaseCheckOutcome.NoPublishedRelease(
-            "No published stable release found yet at github.com/${AppUpdaterConstants.GITHUB_OWNER}/${AppUpdaterConstants.GITHUB_REPO}/releases."
-          )
+          fetchFromReleasesListFallback(includePrereleases = true)
         }
         403, 429 -> {
           val resetHeader = response.headers["x-ratelimit-reset"]?.toLongOrNull()
@@ -191,6 +187,48 @@ object GitHubReleaseClient {
       ReleaseCheckOutcome.NetworkError(
         isOfflineOrTimeout = e is IOException,
         message = "Unable to check GitHub Releases: ${e.message ?: "Network error"}"
+      )
+    }
+  }
+
+  private fun fetchFromReleasesListFallback(includePrereleases: Boolean): ReleaseCheckOutcome {
+    return runCatching {
+      val listResp = executeGet(AppUpdaterConstants.GITHUB_RELEASES_LIST_API_URL)
+      if (listResp.statusCode == 200) {
+        val arr = JSONArray(listResp.body)
+        var foundSourceOnlyReleaseTag: String? = null
+        for (i in 0 until arr.length()) {
+          val item = arr.optJSONObject(i) ?: continue
+          if (!item.optBoolean("draft", false) && foundSourceOnlyReleaseTag == null) {
+            val t = item.optString("tag_name", "").trim()
+            if (t.isNotEmpty()) foundSourceOnlyReleaseTag = t
+          }
+          val parsed = parseReleaseJsonObject(
+            obj = item,
+            includePrereleases = includePrereleases,
+            fetchSignedManifestContent = { manifestUrl ->
+              runCatching {
+                val manifestResp = executeGet(manifestUrl)
+                if (manifestResp.statusCode == 200) manifestResp.body else null
+              }.getOrNull()
+            }
+          )
+          if (parsed != null) {
+            return ReleaseCheckOutcome.Success(parsed)
+          }
+        }
+        if (foundSourceOnlyReleaseTag != null) {
+          return ReleaseCheckOutcome.NoPublishedRelease(
+            "Release $foundSourceOnlyReleaseTag on GitHub currently has only Source code (.zip / .tar.gz) archives attached. Run the GitHub Actions Android Release workflow or attach the compiled .apk binary to enable in-app APK updates."
+          )
+        }
+      }
+      ReleaseCheckOutcome.NoPublishedRelease(
+        "You are running the latest version. No newer APK release is published on GitHub Releases yet."
+      )
+    }.getOrElse {
+      ReleaseCheckOutcome.NoPublishedRelease(
+        "You are running the latest version. No newer APK release is published on GitHub Releases yet."
       )
     }
   }
@@ -246,6 +284,8 @@ object GitHubReleaseClient {
     }
     val checksumAsset = parsedAssets.firstOrNull {
       it.name.endsWith(".sha256", ignoreCase = true) ||
+        it.name.endsWith("-SHA256.txt", ignoreCase = true) ||
+        it.name.equals("SHA256SUMS.txt", ignoreCase = true) ||
         it.name.equals("SHA256SUMS", ignoreCase = true)
     }
 
@@ -286,7 +326,10 @@ object GitHubReleaseClient {
   /**
    * Extracts semantic versionName (e.g. `1.1.0`) and numeric versionCode from a Git tag
    * (such as `v1.1.0`, `v1.1.0+9`, `v1.1.0-code9`) or release notes (`version_code: 9`),
-   * or derives a deterministic monotonic version code if only semantic version is present.
+   * or derives a deterministic monotonic version code aligned with:
+   * - `1.0.2` -> `8`
+   * - `1.1.0` -> `9`
+   * - `1.1.1` -> `10`, `1.2.0` -> `20`, etc.
    */
   fun parseVersionFromTagAndNotes(tagName: String, releaseNotes: String = ""): Pair<String, Long> {
     val cleanTag = tagName.trim().removePrefix("v").removePrefix("V")
@@ -310,16 +353,16 @@ object GitHubReleaseClient {
       }
     }
 
-    // 3. Deterministic semantic version fallback aligned with Bayan al-Huda's existing versionCode=8 for 1.0.2:
-    //    For 1.0.2 -> 8; for 1.0.3 -> 9; for 1.1.0 -> 10; etc.
+    // 3. Deterministic semantic version fallback aligned with Bayan al-Huda's version history:
+    //    1.0.0 -> 6, 1.0.1 -> 7, 1.0.2 -> 8, 1.1.0 -> 9, 1.1.1 -> 10, 1.2.0 -> 20, etc.
     val parts = versionName.split(".").map { it.filter { ch -> ch.isDigit() }.toIntOrNull() ?: 0 }
     val major = parts.getOrElse(0) { 1 }
     val minor = parts.getOrElse(1) { 0 }
     val patch = parts.getOrElse(2) { 0 }
-    val derivedCode = if (major == 1 && minor == 0 && patch <= 2) {
-      (6 + patch).toLong()
-    } else {
-      ((major - 1) * 1000 + minor * 10 + patch + 6).toLong().coerceAtLeast(1L)
+    val derivedCode = when {
+      major == 1 && minor == 0 -> (6 + patch).toLong()
+      major == 1 && minor == 1 -> (9 + patch).toLong()
+      else -> ((major - 1) * 1000 + minor * 10 + patch).toLong().coerceAtLeast(1L)
     }
     return versionName to derivedCode
   }

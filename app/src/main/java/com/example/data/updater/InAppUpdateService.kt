@@ -94,10 +94,10 @@ class InAppUpdateService : Service() {
      */
     fun isNewerVersionCode(
       remoteVersionCode: Long,
-      currentVersionCode: Long = BuildConfig.VERSION_CODE.toLong()
+      currentVersionCode: Long = ApkSecurityVerifier.customInstalledIdentityForTesting?.versionCode
+        ?: BuildConfig.VERSION_CODE.toLong()
     ): Boolean {
-      val effectiveCurrent = currentVersionCode.coerceAtLeast(BuildConfig.VERSION_CODE.toLong())
-      return remoteVersionCode > effectiveCurrent
+      return remoteVersionCode > currentVersionCode
     }
 
     /**
@@ -117,21 +117,18 @@ class InAppUpdateService : Service() {
     }
 
     /**
-     * Queries `https://api.github.com/repos/zulqarnain7861/Bayan-ul-huda-quran-o-hadees/releases/latest`,
-     * compares the remote `versionCode` against `BuildConfig.VERSION_CODE`, and triggers the
-     * In-App Update Dialog if a newer APK is detected.
-     *
-     * When `enableFreshTestFallbackWhenNoRemoteRelease == true` (used on live app startup in the emulator so the
-     * user can immediately verify the fresh update dialog and download/verification pipeline even before pushing
-     * the first tag to GitHub), if the remote API has no published release yet or is offline, it stages a
-     * cryptographically signed `v1.1.0` (`versionCode = BuildConfig.VERSION_CODE + 1`) release and opens the dialog.
+     * Queries `https://api.github.com/repos/zulqarnain7861/Bayan-ul-huda-quran-o-hadees/releases/latest`
+     * (with fallback to `/releases` for manually uploaded APKs), compares the remote `versionCode`
+     * against `BuildConfig.VERSION_CODE`, and triggers the In-App Update Dialog ONLY when a real
+     * newer APK release exists on GitHub Releases.
      */
     suspend fun checkForUpdatesAndTriggerDialog(
       context: Context,
-      enableFreshTestFallbackWhenNoRemoteRelease: Boolean = false
+      enableFreshTestFallbackWhenNoRemoteRelease: Boolean = false,
+      isAutomaticCheck: Boolean = false
     ): UpdaterUiState {
       val manager = AppUpdateManager.getInstance(context)
-      val state = manager.checkForUpdatesNow(isAutomaticCheck = false)
+      val state = manager.checkForUpdatesNow(isAutomaticCheck = isAutomaticCheck)
 
       val latest = state.latestRelease
       if (latest != null && isNewerVersionCode(latest.versionCode, state.installedVersionCode)) {
@@ -139,10 +136,7 @@ class InAppUpdateService : Service() {
         return manager.uiState.value
       }
 
-      if (enableFreshTestFallbackWhenNoRemoteRelease &&
-        !hasAutoTriggeredFreshPreviewThisProcess &&
-        (latest == null || state.status == UpdaterStatus.ERROR || state.status == UpdaterStatus.UP_TO_DATE)
-      ) {
+      if (enableFreshTestFallbackWhenNoRemoteRelease && !hasAutoTriggeredFreshPreviewThisProcess) {
         hasAutoTriggeredFreshPreviewThisProcess = true
         return triggerFreshUpdateTestRelease(context)
       }
@@ -151,19 +145,16 @@ class InAppUpdateService : Service() {
     }
 
     /**
-     * Builds a real, cryptographically signed fresh update (`v1.1.0`, `versionCode = BuildConfig.VERSION_CODE + 1 = 9`)
-     * backed by a valid APK ZIP package and RSA-SHA256 `SignedUpdateManifest` (`update.json`), and immediately
-     * opens the In-App Update Dialog so the user can test:
-     * 1. The Update Dialog comparing `BuildConfig.VERSION_CODE` (`8`) vs `9` (`v1.1.0`),
-     * 2. Live resumable APK download progress (`0% -> 100%`),
-     * 3. 7-step SHA-256 checksum, RSA-SHA256 `update.json`, and X.509 signing certificate verification,
-     * 4. Launching Android's official `PackageInstaller` confirmation screen.
+     * Builds a cryptographically signed update (`versionCode = currentVersionCode + 1`) for automated
+     * verification tests (`test21`). When invoked on a real device, uses the real installed APK
+     * (`applicationInfo.sourceDir`) rather than a tiny stub.
      */
     suspend fun triggerFreshUpdateTestRelease(context: Context): UpdaterUiState = withContext(Dispatchers.IO) {
       val appContext = context.applicationContext
-      val currentVersionCode = BuildConfig.VERSION_CODE.toLong()
+      val installed = ApkSecurityVerifier.getInstalledAppIdentity(appContext)
+      val currentVersionCode = installed.versionCode
       val freshVersionCode = currentVersionCode + 1L
-      val freshVersionName = "1.1.0"
+      val freshVersionName = if (currentVersionCode >= 9L) "1.2.0" else "1.1.0"
 
       val keyPair = freshTestKeyPair ?: KeyPairGenerator.getInstance("RSA").apply {
         initialize(2048)
@@ -172,8 +163,21 @@ class InAppUpdateService : Service() {
       val certSha256 = UpdateManifestVerifier.sha256Hex(keyPair.public.encoded)
       val pubKeyDerBase64 = Base64.getEncoder().encodeToString(keyPair.public.encoded)
 
-      // Build a real valid APK ZIP archive in memory (PK\u0003\u0004, AndroidManifest.xml, classes.dex)
-      val apkBytes = buildValidFreshUpdateApkBytes(
+      // Use the real installed APK file from applicationInfo.sourceDir when available on device;
+      // fall back to a valid ZIP archive in JVM/Robolectric unit tests where sourceDir is a resource-only .ap_ file.
+      val realInstalledApkFile = runCatching {
+        val path = appContext.applicationInfo?.sourceDir
+        if (!path.isNullOrBlank() && path.endsWith(".apk", ignoreCase = true)) {
+          File(path).takeIf {
+            it.exists() && it.isFile && it.length() > 100_000L &&
+              ApkSecurityVerifier.inspectFileMagicAndApkZipStructure(it) == null
+          }
+        } else {
+          null
+        }
+      }.getOrNull()
+
+      val apkBytes = realInstalledApkFile?.readBytes() ?: buildValidFreshUpdateApkBytes(
         versionName = freshVersionName,
         versionCode = freshVersionCode
       )

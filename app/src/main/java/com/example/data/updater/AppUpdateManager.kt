@@ -22,6 +22,16 @@ class AppUpdateManager(private val appContext: Context) {
   val uiState: StateFlow<UpdaterUiState> = _uiState.asStateFlow()
 
   init {
+    if (ApkSecurityVerifier.customInstalledIdentityForTesting == null) {
+      runCatching {
+        val dir = ApkUpdateDownloadManager.getUpdatesDirectory(appContext)
+        dir.listFiles()?.forEach { f ->
+          if (f.isFile && f.length() < 50_000L) {
+            f.delete()
+          }
+        }
+      }
+    }
     refreshEnvironmentAndVerifyPostInstall()
   }
 
@@ -36,6 +46,7 @@ class AppUpdateManager(private val appContext: Context) {
     return UpdaterUiState(
       installedVersionName = installed.versionName,
       installedVersionCode = installed.versionCode,
+      currentBuildConfigVersionCode = installed.versionCode.toInt(),
       distributionChannel = channel,
       status = UpdaterStatus.IDLE,
       lastCheckedTimestampMs = lastCheckMs,
@@ -55,6 +66,7 @@ class AppUpdateManager(private val appContext: Context) {
       current.copy(
         installedVersionName = installed.versionName,
         installedVersionCode = installed.versionCode,
+        currentBuildConfigVersionCode = installed.versionCode.toInt(),
         distributionChannel = channel,
         canRequestPackageInstalls = canInstall,
         status = if (postUpgradeVerified) UpdaterStatus.INSTALLED_SUCCESS else current.status,
@@ -107,6 +119,7 @@ class AppUpdateManager(private val appContext: Context) {
       it.copy(
         installedVersionName = installed.versionName,
         installedVersionCode = installed.versionCode,
+        currentBuildConfigVersionCode = installed.versionCode.toInt(),
         distributionChannel = channel,
         canRequestPackageInstalls = canInstall,
         status = UpdaterStatus.CHECKING,
@@ -120,7 +133,7 @@ class AppUpdateManager(private val appContext: Context) {
     when (outcome) {
       is GitHubReleaseClient.ReleaseCheckOutcome.Success -> {
         val release = outcome.release
-        val effectiveInstalledCode = installed.versionCode.coerceAtLeast(com.example.BuildConfig.VERSION_CODE.toLong())
+        val effectiveInstalledCode = installed.versionCode
         val urgency = release.computeUrgency(effectiveInstalledCode)
         val hasNewerVersion = InAppUpdateService.isNewerVersionCode(
           remoteVersionCode = release.versionCode,
@@ -135,7 +148,7 @@ class AppUpdateManager(private val appContext: Context) {
             targetVersionName = release.versionName,
             targetVersionCode = release.versionCode,
             status = "UPDATE_AVAILABLE",
-            details = "New release v${release.versionName} (Code ${release.versionCode} > BuildConfig.VERSION_CODE ${com.example.BuildConfig.VERSION_CODE}) detected [${urgency.badgeLabel}]."
+            details = "New release v${release.versionName} (Code ${release.versionCode} > Installed Code $effectiveInstalledCode) detected [${urgency.badgeLabel}]."
           )
           if (!isSnoozed) {
             ApkUpdateDownloadManager.postUpdaterNotification(
@@ -147,7 +160,7 @@ class AppUpdateManager(private val appContext: Context) {
           _uiState.update {
             it.copy(
               installedVersionCode = effectiveInstalledCode,
-              currentBuildConfigVersionCode = com.example.BuildConfig.VERSION_CODE,
+              currentBuildConfigVersionCode = effectiveInstalledCode.toInt(),
               status = UpdaterStatus.UPDATE_AVAILABLE,
               urgency = urgency,
               latestRelease = release,
@@ -163,12 +176,12 @@ class AppUpdateManager(private val appContext: Context) {
             targetVersionName = release.versionName,
             targetVersionCode = release.versionCode,
             status = "CHECKED_UP_TO_DATE",
-            details = "Installed v${installed.versionName} (BuildConfig.VERSION_CODE $effectiveInstalledCode) is up to date."
+            details = "Installed v${installed.versionName} (Code $effectiveInstalledCode) is up to date."
           )
           _uiState.update {
             it.copy(
               installedVersionCode = effectiveInstalledCode,
-              currentBuildConfigVersionCode = com.example.BuildConfig.VERSION_CODE,
+              currentBuildConfigVersionCode = effectiveInstalledCode.toInt(),
               status = UpdaterStatus.UP_TO_DATE,
               urgency = UpdateUrgency.NONE,
               latestRelease = release,
@@ -193,9 +206,11 @@ class AppUpdateManager(private val appContext: Context) {
           it.copy(
             status = UpdaterStatus.UP_TO_DATE,
             urgency = UpdateUrgency.NONE,
+            latestRelease = null,
             lastCheckedTimestampMs = nowMs,
             showUpdateNotificationBanner = false,
             showUpdateDialog = false,
+            isFreshTestSimulation = false,
             errorMessage = null
           )
         }
@@ -210,9 +225,9 @@ class AppUpdateManager(private val appContext: Context) {
         )
         _uiState.update {
           it.copy(
-            status = UpdaterStatus.RATE_LIMITED,
+            status = if (isAutomaticCheck) UpdaterStatus.IDLE else UpdaterStatus.RATE_LIMITED,
             lastCheckedTimestampMs = nowMs,
-            errorMessage = outcome.message
+            errorMessage = if (isAutomaticCheck) null else outcome.message
           )
         }
       }
@@ -226,9 +241,9 @@ class AppUpdateManager(private val appContext: Context) {
         )
         _uiState.update {
           it.copy(
-            status = UpdaterStatus.ERROR,
+            status = if (isAutomaticCheck) UpdaterStatus.IDLE else UpdaterStatus.ERROR,
             lastCheckedTimestampMs = nowMs,
-            errorMessage = outcome.message
+            errorMessage = if (isAutomaticCheck) null else outcome.message
           )
         }
       }
@@ -274,24 +289,24 @@ class AppUpdateManager(private val appContext: Context) {
     nowMs: Long = System.currentTimeMillis()
   ): UpdaterUiState {
     val installed = ApkSecurityVerifier.getInstalledAppIdentity(appContext)
-    val effectiveInstalledCode = installed.versionCode.coerceAtLeast(com.example.BuildConfig.VERSION_CODE.toLong())
+    val effectiveInstalledCode = installed.versionCode
     val urgency = release.computeUrgency(effectiveInstalledCode)
     recordHistoryEntry(
       targetVersionName = release.versionName,
       targetVersionCode = release.versionCode,
       status = "FRESH_UPDATE_TEST_STAGED",
-      details = "Staged fresh update v${release.versionName} (Code ${release.versionCode} > BuildConfig.VERSION_CODE ${com.example.BuildConfig.VERSION_CODE}) for live verification."
+      details = "Staged fresh update v${release.versionName} (Code ${release.versionCode} > Installed Code $effectiveInstalledCode) for verification."
     )
     ApkUpdateDownloadManager.postUpdaterNotification(
       context = appContext,
       title = "BAYAN AL-HUDA UPDATE AVAILABLE (v${release.versionName})",
-      message = "Fresh update v${release.versionName} (Code ${release.versionCode}) is ready to download and verify."
+      message = "Update v${release.versionName} (Code ${release.versionCode}) is ready to download and verify."
     )
     _uiState.update {
       it.copy(
         installedVersionName = installed.versionName,
         installedVersionCode = effectiveInstalledCode,
-        currentBuildConfigVersionCode = com.example.BuildConfig.VERSION_CODE,
+        currentBuildConfigVersionCode = effectiveInstalledCode.toInt(),
         status = UpdaterStatus.UPDATE_AVAILABLE,
         urgency = urgency,
         latestRelease = release,

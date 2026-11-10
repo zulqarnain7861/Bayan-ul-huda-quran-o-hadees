@@ -743,22 +743,23 @@ fun SettingsGitHubUpdaterCard(
         }
       }
 
-      // Fresh Update Test Trigger Button (stages a cryptographically signed v1.1.0 / Code 9 APK & opens Update Dialog)
-      OutlinedButton(
-        onClick = onTriggerFreshUpdateTest,
-        border = BorderStroke(1.dp, GoldPrimary),
+      // Guidance for manual or CI APK uploads to GitHub Releases
+      Surface(
         shape = RoundedCornerShape(10.dp),
+        color = EmeraldPrimary.copy(alpha = 0.08f),
+        border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.45f)),
         modifier = Modifier
           .fillMaxWidth()
-          .testTag("about_test_fresh_update_button")
+          .testTag("updater_manual_apk_upload_guidance")
       ) {
-        Icon(Icons.Default.Security, contentDescription = null, tint = EmeraldPrimary, modifier = Modifier.size(16.dp))
-        Spacer(modifier = Modifier.width(6.dp))
         Text(
-          text = "Test Fresh Update Dialog & Verification (v1.1.0 • Code ${updaterState.currentBuildConfigVersionCode + 1})",
-          fontWeight = FontWeight.Bold,
-          fontSize = 11.sp,
-          color = EmeraldPrimary
+          text = "Running v${updaterState.installedVersionName} (BuildConfig.VERSION_CODE = ${updaterState.installedVersionCode}). Upload any newer signed APK (versionCode > ${updaterState.installedVersionCode}) to GitHub Releases to trigger automatic in-app update & verification.",
+          style = MaterialTheme.typography.labelSmall.copy(
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            lineHeight = 15.sp
+          ),
+          modifier = Modifier.padding(10.dp)
         )
       }
 

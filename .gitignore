@@ -16,5 +16,14 @@
 local.properties
 .env
 debug.keystore
+!debug.keystore.base64
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+my-upload-key.jks
+bayan-release-upload.jks
 *-debug.log
 .build-outputs

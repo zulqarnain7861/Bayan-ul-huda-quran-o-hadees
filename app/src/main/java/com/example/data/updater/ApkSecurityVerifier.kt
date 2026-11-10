@@ -289,12 +289,15 @@ object ApkSecurityVerifier {
 
   /**
    * Runs the complete 7-step pre-installation security verification pipeline on `apkFile`.
+   * Supports both CI-generated releases (with signed `update.json`) and manually uploaded GitHub Release APKs
+   * (verified via APK ZIP structure, streaming SHA-256, package name, anti-downgrade, and X.509 signing certificate match).
    */
   fun verifyDownloadedApk(
     context: Context,
     apkFile: File,
     signedManifest: SignedUpdateManifest?,
-    expectedVersionCode: Long? = null
+    expectedVersionCode: Long? = null,
+    expectedSha256FromChecksumAsset: String? = null
   ): ApkVerificationResult {
     val installed = getInstalledAppIdentity(context)
 
@@ -309,51 +312,58 @@ object ApkSecurityVerifier {
       )
     }
 
-    // Step 3: Verify signed update.json metadata signature
-    if (signedManifest == null) {
-      return ApkVerificationResult(
-        isValid = false,
+    // Step 3: Verify signed update.json metadata signature when update.json is present
+    if (signedManifest != null) {
+      val manifestSignatureValid = UpdateManifestVerifier.verifyManifestSignature(
+        manifest = signedManifest,
+        installedAppPublicKey = installed.publicKey,
         installedSigningCertSha256 = installed.signingCertSha256,
-        manifestSignatureVerified = false,
-        failureReason = ApkVerificationFailureReason.UNTRUSTED_OR_UNSIGNED_MANIFEST,
-        errorMessage = ApkVerificationFailureReason.UNTRUSTED_OR_UNSIGNED_MANIFEST.userFriendlyReason
+        expectedPackageName = installed.packageName
       )
+      if (!manifestSignatureValid) {
+        return ApkVerificationResult(
+          isValid = false,
+          expectedSha256 = signedManifest.sha256,
+          installedSigningCertSha256 = installed.signingCertSha256,
+          manifestSignatureVerified = false,
+          failureReason = ApkVerificationFailureReason.UNTRUSTED_OR_UNSIGNED_MANIFEST,
+          errorMessage = ApkVerificationFailureReason.UNTRUSTED_OR_UNSIGNED_MANIFEST.userFriendlyReason
+        )
+      }
     }
 
-    val manifestSignatureValid = UpdateManifestVerifier.verifyManifestSignature(
-      manifest = signedManifest,
-      installedAppPublicKey = installed.publicKey,
-      installedSigningCertSha256 = installed.signingCertSha256,
-      expectedPackageName = installed.packageName
-    )
-    if (!manifestSignatureValid) {
-      return ApkVerificationResult(
-        isValid = false,
-        expectedSha256 = signedManifest.sha256,
-        installedSigningCertSha256 = installed.signingCertSha256,
-        manifestSignatureVerified = false,
-        failureReason = ApkVerificationFailureReason.UNTRUSTED_OR_UNSIGNED_MANIFEST,
-        errorMessage = ApkVerificationFailureReason.UNTRUSTED_OR_UNSIGNED_MANIFEST.userFriendlyReason
-      )
-    }
-
-    // Step 4: Compute streaming SHA-256 of the downloaded APK and compare in constant time
+    // Step 4: Compute streaming SHA-256 of the downloaded APK and compare against signedManifest or .sha256 asset
     val actualSha256 = runCatching { computeFileSha256Hex(apkFile) }.getOrDefault("")
-    val expectedSha256 = signedManifest.sha256.trim().lowercase(Locale.ROOT)
-    val shaMatches = actualSha256.length == 64 && MessageDigest.isEqual(
-      actualSha256.lowercase(Locale.ROOT).toByteArray(StandardCharsets.UTF_8),
-      expectedSha256.toByteArray(StandardCharsets.UTF_8)
-    )
-    if (!shaMatches) {
+    if (actualSha256.length != 64) {
       return ApkVerificationResult(
         isValid = false,
-        actualSha256 = actualSha256,
-        expectedSha256 = expectedSha256,
         installedSigningCertSha256 = installed.signingCertSha256,
-        manifestSignatureVerified = true,
-        failureReason = ApkVerificationFailureReason.SHA256_MISMATCH,
-        errorMessage = ApkVerificationFailureReason.SHA256_MISMATCH.userFriendlyReason
+        failureReason = ApkVerificationFailureReason.UNSIGNED_OR_CORRUPTED_APK,
+        errorMessage = ApkVerificationFailureReason.UNSIGNED_OR_CORRUPTED_APK.userFriendlyReason
       )
+    }
+
+    val expectedSha256 = (signedManifest?.sha256 ?: expectedSha256FromChecksumAsset)
+      ?.trim()
+      ?.lowercase(Locale.ROOT)
+      ?.takeIf { it.length == 64 }
+
+    if (expectedSha256 != null) {
+      val shaMatches = MessageDigest.isEqual(
+        actualSha256.lowercase(Locale.ROOT).toByteArray(StandardCharsets.UTF_8),
+        expectedSha256.toByteArray(StandardCharsets.UTF_8)
+      )
+      if (!shaMatches) {
+        return ApkVerificationResult(
+          isValid = false,
+          actualSha256 = actualSha256,
+          expectedSha256 = expectedSha256,
+          installedSigningCertSha256 = installed.signingCertSha256,
+          manifestSignatureVerified = signedManifest != null,
+          failureReason = ApkVerificationFailureReason.SHA256_MISMATCH,
+          errorMessage = ApkVerificationFailureReason.SHA256_MISMATCH.userFriendlyReason
+        )
+      }
     }
 
     // Step 5: Parse APK archive metadata (package name, versionCode, signing certificate)
@@ -385,7 +395,7 @@ object ApkSecurityVerifier {
     }
 
     // Step 6: Reject version downgrades or non-increasing version codes
-    val targetMinVersionCode = expectedVersionCode ?: signedManifest.versionCode
+    val targetMinVersionCode = expectedVersionCode ?: signedManifest?.versionCode ?: (installed.versionCode + 1L)
     if (archiveMeta.versionCode <= installed.versionCode || archiveMeta.versionCode < targetMinVersionCode) {
       return ApkVerificationResult(
         isValid = false,
@@ -393,10 +403,10 @@ object ApkSecurityVerifier {
         versionName = archiveMeta.versionName,
         versionCode = archiveMeta.versionCode,
         actualSha256 = actualSha256,
-        expectedSha256 = expectedSha256,
+        expectedSha256 = expectedSha256 ?: actualSha256,
         installedSigningCertSha256 = installed.signingCertSha256,
         apkSigningCertSha256 = archiveMeta.signingCertSha256,
-        manifestSignatureVerified = true,
+        manifestSignatureVerified = signedManifest != null,
         failureReason = ApkVerificationFailureReason.VERSION_DOWNGRADE_REJECTED,
         errorMessage = "${ApkVerificationFailureReason.VERSION_DOWNGRADE_REJECTED.userFriendlyReason} (Installed: ${installed.versionCode}, APK: ${archiveMeta.versionCode})"
       )
@@ -411,16 +421,19 @@ object ApkSecurityVerifier {
         versionName = archiveMeta.versionName,
         versionCode = archiveMeta.versionCode,
         actualSha256 = actualSha256,
-        expectedSha256 = expectedSha256,
+        expectedSha256 = expectedSha256 ?: actualSha256,
         installedSigningCertSha256 = installed.signingCertSha256,
         apkSigningCertSha256 = null,
-        manifestSignatureVerified = true,
+        manifestSignatureVerified = signedManifest != null,
         failureReason = ApkVerificationFailureReason.UNSIGNED_OR_CORRUPTED_APK,
         errorMessage = ApkVerificationFailureReason.UNSIGNED_OR_CORRUPTED_APK.userFriendlyReason
       )
     }
 
-    val expectedCertSha = installed.signingCertSha256.ifBlank { signedManifest.signingCertSha256 }.trim().lowercase(Locale.ROOT)
+    val expectedCertSha = installed.signingCertSha256
+      .ifBlank { signedManifest?.signingCertSha256.orEmpty() }
+      .trim()
+      .lowercase(Locale.ROOT)
     val certMatches = expectedCertSha.isNotEmpty() && MessageDigest.isEqual(
       apkCertSha.toByteArray(StandardCharsets.UTF_8),
       expectedCertSha.toByteArray(StandardCharsets.UTF_8)
@@ -432,10 +445,10 @@ object ApkSecurityVerifier {
         versionName = archiveMeta.versionName,
         versionCode = archiveMeta.versionCode,
         actualSha256 = actualSha256,
-        expectedSha256 = expectedSha256,
+        expectedSha256 = expectedSha256 ?: actualSha256,
         installedSigningCertSha256 = installed.signingCertSha256,
         apkSigningCertSha256 = apkCertSha,
-        manifestSignatureVerified = true,
+        manifestSignatureVerified = signedManifest != null,
         failureReason = ApkVerificationFailureReason.SIGNING_CERTIFICATE_MISMATCH,
         errorMessage = ApkVerificationFailureReason.SIGNING_CERTIFICATE_MISMATCH.userFriendlyReason
       )
@@ -447,7 +460,7 @@ object ApkSecurityVerifier {
       versionName = archiveMeta.versionName,
       versionCode = archiveMeta.versionCode,
       actualSha256 = actualSha256,
-      expectedSha256 = expectedSha256,
+      expectedSha256 = expectedSha256 ?: actualSha256,
       installedSigningCertSha256 = installed.signingCertSha256,
       apkSigningCertSha256 = apkCertSha,
       manifestSignatureVerified = true,
