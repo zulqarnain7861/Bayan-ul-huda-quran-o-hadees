@@ -47,6 +47,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 enum class MainNavigationTab {
@@ -1191,43 +1193,57 @@ class BayanViewModel(application: Application) : AndroidViewModel(application) {
     searchJob = launchSafe(Dispatchers.IO) {
       kotlinx.coroutines.delay(90)
       val traditionScope = _uiState.value.searchTraditionScope
+      val activeCollectionKey = _uiState.value.selectedCollectionKey
       _uiState.value = _uiState.value.copy(isSearchingRemote = true)
 
-      // STAGE 1: Instant Offline Search — display local results immediately while online search continues
-      val ayahs = runCatching { repository.searchAyahsSmart(query) }.getOrDefault(emptyList())
-      val translationMatches = runCatching { repository.searchTranslationsSmart(query) }.getOrDefault(emptyList())
-
-      val extraAyahs = mutableListOf<AyahEntity>()
-      translationMatches.filter { it.sourceType == "QURAN" }.take(30).forEach { trans ->
-        val parts = trans.referenceKey.split(":")
-        val sNum = parts.getOrNull(0)?.toIntOrNull()
-        val vNum = parts.getOrNull(1)?.toIntOrNull()
-        if (sNum != null && vNum != null) {
-          runCatching { repository.getAyah(sNum, vNum) }.getOrNull()?.let { extraAyahs.add(it) }
+      // STAGE 1: Instant Offline Search — run Quran, Translation, and Hadith queries concurrently
+      val (localAyahs, localHadiths) = coroutineScope {
+        val ayahsDeferred = async {
+          runCatching { repository.searchAyahsSmart(query) }.getOrDefault(emptyList())
         }
-      }
-      val localAyahs = (ayahs + extraAyahs).distinctBy { "${it.surahNumber}:${it.verseNumber}" }
-      _searchAyahResults.value = localAyahs
-
-      val hadiths = runCatching {
-        repository.searchHadithsSmart(
-          rawQuery = query,
-          activeCollectionKey = _uiState.value.selectedCollectionKey,
-          traditionScope = traditionScope
-        )
-      }.getOrDefault(emptyList())
-
-      val extraHadiths = mutableListOf<HadithEntity>()
-      translationMatches.filter { it.sourceType == "HADITH" }.take(30).forEach { trans ->
-        val parts = trans.referenceKey.split(":")
-        val colKey = parts.getOrNull(0)
-        val hNum = parts.getOrNull(1)?.toIntOrNull()
-        if (colKey != null && hNum != null) {
-          runCatching { repository.getHadith(colKey, hNum) }.getOrNull()?.let { extraHadiths.add(it) }
+        val translationsDeferred = async {
+          runCatching { repository.searchTranslationsSmart(query) }.getOrDefault(emptyList())
         }
+        val hadithsDeferred = async {
+          runCatching {
+            repository.searchHadithsSmart(
+              rawQuery = query,
+              activeCollectionKey = activeCollectionKey,
+              traditionScope = traditionScope
+            )
+          }.getOrDefault(emptyList())
+        }
+
+        val ayahs = ayahsDeferred.await()
+        val translationMatches = translationsDeferred.await()
+        val hadiths = hadithsDeferred.await()
+
+        val extraAyahs = mutableListOf<AyahEntity>()
+        translationMatches.filter { it.sourceType == "QURAN" }.take(30).forEach { trans ->
+          val parts = trans.referenceKey.split(":")
+          val sNum = parts.getOrNull(0)?.toIntOrNull()
+          val vNum = parts.getOrNull(1)?.toIntOrNull()
+          if (sNum != null && vNum != null) {
+            runCatching { repository.getAyah(sNum, vNum) }.getOrNull()?.let { extraAyahs.add(it) }
+          }
+        }
+        val combinedAyahs = (ayahs + extraAyahs).distinctBy { "${it.surahNumber}:${it.verseNumber}" }
+        _searchAyahResults.value = combinedAyahs
+
+        val extraHadiths = mutableListOf<HadithEntity>()
+        translationMatches.filter { it.sourceType == "HADITH" }.take(30).forEach { trans ->
+          val parts = trans.referenceKey.split(":")
+          val colKey = parts.getOrNull(0)
+          val hNum = parts.getOrNull(1)?.toIntOrNull()
+          if (colKey != null && hNum != null) {
+            runCatching { repository.getHadith(colKey, hNum) }.getOrNull()?.let { extraHadiths.add(it) }
+          }
+        }
+        val combinedHadiths = (hadiths + extraHadiths).distinctBy { "${it.collectionKey}:${it.hadithNumber}" }
+        _searchHadithResults.value = combinedHadiths
+
+        combinedAyahs to combinedHadiths
       }
-      val localHadiths = (hadiths + extraHadiths).distinctBy { "${it.collectionKey}:${it.hadithNumber}" }
-      _searchHadithResults.value = localHadiths
 
       val localTafsirs = runCatching {
         repository.searchTafsirSmart(
@@ -1238,24 +1254,32 @@ class BayanViewModel(application: Application) : AndroidViewModel(application) {
       }.getOrDefault(emptyList())
       _searchTafsirResults.value = localTafsirs
 
-      // STAGE 2: Online Global Search — progressively fetch from online APIs & remote databases
-      val mergedAyahs = runCatching {
-        repository.searchAyahsOnlineStage2(
-          rawQuery = query,
-          traditionScope = traditionScope,
-          localResults = localAyahs
-        )
-      }.getOrDefault(localAyahs)
-      _searchAyahResults.value = mergedAyahs
-
-      val mergedHadiths = runCatching {
-        repository.searchHadithsOnlineStage2(
-          rawQuery = query,
-          traditionScope = traditionScope,
-          localResults = localHadiths
-        )
-      }.getOrDefault(localHadiths)
-      _searchHadithResults.value = mergedHadiths
+      // STAGE 2: Online Global Search — query online Quran & Hadith APIs concurrently, then merge Tafsir
+      val (mergedAyahs, _) = coroutineScope {
+        val onlineAyahsDeferred = async {
+          val result = runCatching {
+            repository.searchAyahsOnlineStage2(
+              rawQuery = query,
+              traditionScope = traditionScope,
+              localResults = localAyahs
+            )
+          }.getOrDefault(localAyahs)
+          _searchAyahResults.value = result
+          result
+        }
+        val onlineHadithsDeferred = async {
+          val result = runCatching {
+            repository.searchHadithsOnlineStage2(
+              rawQuery = query,
+              traditionScope = traditionScope,
+              localResults = localHadiths
+            )
+          }.getOrDefault(localHadiths)
+          _searchHadithResults.value = result
+          result
+        }
+        onlineAyahsDeferred.await() to onlineHadithsDeferred.await()
+      }
 
       val mergedTafsirs = runCatching {
         repository.searchTafsirOnlineStage2(

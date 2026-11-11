@@ -7,6 +7,7 @@ on:
       - master
     tags:
       - 'v*'
+      - 'V*'
       - 'v[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch:
     inputs:
@@ -99,8 +100,18 @@ jobs:
             RAW_TAG="v1.1.0"
           fi
 
-          # Normalize tag to start with 'v' if user typed '1.1.0'
-          if [[ "${RAW_TAG}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          # Normalize uppercase V or bare numbers (e.g. 'V1' -> 'v1.1.0', '1.1.0' -> 'v1.1.0')
+          RAW_TAG="${RAW_TAG#V}"
+          RAW_TAG="${RAW_TAG#v}"
+          if [[ "${RAW_TAG}" =~ ^[0-9]+$ ]]; then
+            if [[ "${RAW_TAG}" -le 1 ]]; then
+              RAW_TAG="v1.1.0"
+            else
+              RAW_TAG="v${RAW_TAG}.0.0"
+            fi
+          elif [[ "${RAW_TAG}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+            RAW_TAG="v${RAW_TAG}.0"
+          else
             RAW_TAG="v${RAW_TAG}"
           fi
 
@@ -479,6 +490,14 @@ jobs:
               --notes-file "${DIST_DIR}/RELEASE_NOTES.md" \
               --latest
           fi
+
+          # Also attach the compiled signed APK & update.json to any manual 'V1' or 'v1' release so it never stays source-only
+          for LEGACY_TAG in "V1" "v1"; do
+            if [[ "${TAG_NAME}" != "${LEGACY_TAG}" ]] && gh release view "${LEGACY_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+              echo "Attaching compiled signed APK assets to existing ${LEGACY_TAG} release..."
+              gh release upload "${LEGACY_TAG}" "${ASSETS[@]}" --repo "${GITHUB_REPOSITORY}" --clobber || true
+            fi
+          done
 
       - name: 12. Remove Temporary Keystore Files (Always)
         if: always()

@@ -27,3 +27,5 @@ my-upload-key.jks
 bayan-release-upload.jks
 *-debug.log
 .build-outputs
+/reports/
+

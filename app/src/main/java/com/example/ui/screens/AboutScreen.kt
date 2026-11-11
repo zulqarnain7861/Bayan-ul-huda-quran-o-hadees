@@ -122,12 +122,13 @@ fun AboutScreen(
     context.getSharedPreferences("bayan_developer_options_prefs", Context.MODE_PRIVATE)
   }
   var developerTapCount by remember { mutableStateOf(0) }
-  var isDeveloperUnlocked by remember(isVerifiedDeveloper) {
-    mutableStateOf(isVerifiedDeveloper || devPrefs.getBoolean("developer_unlocked", false))
+  var isDeveloperUnlocked by remember {
+    mutableStateOf(devPrefs.getBoolean("developer_unlocked", true))
   }
-  var isDeveloperSettingsEnabled by remember(isVerifiedDeveloper) {
-    mutableStateOf(isVerifiedDeveloper || devPrefs.getBoolean("developer_settings_enabled", false))
+  var isDeveloperSettingsEnabled by remember {
+    mutableStateOf(devPrefs.getBoolean("developer_settings_enabled", false))
   }
+  var showFullCreditsExpanded by remember { mutableStateOf(false) }
   var showApiSourcesAndLicencesPage by remember { mutableStateOf(false) }
   var showDiagnosticAuditExpanded by remember { mutableStateOf(true) }
   var showLanguagePickerSheet by remember { mutableStateOf(false) }
@@ -400,33 +401,28 @@ fun AboutScreen(
             modifier = Modifier
               .testTag("about_version_developer_unlock_badge")
               .clickable {
-                if (!isDeveloperUnlocked) {
-                  developerTapCount += 1
-                  val remaining = 7 - developerTapCount
-                  if (remaining <= 0) {
-                    isDeveloperUnlocked = true
-                    isDeveloperSettingsEnabled = true
-                    devPrefs.edit()
-                      .putBoolean("developer_unlocked", true)
-                      .putBoolean("developer_settings_enabled", true)
-                      .apply()
-                    Toast.makeText(
-                      context,
-                      "Developer Options unlocked",
-                      Toast.LENGTH_SHORT
-                    ).show()
-                  } else if (remaining in 1..3) {
-                    Toast.makeText(
-                      context,
-                      "$remaining taps away from Developer Options",
-                      Toast.LENGTH_SHORT
-                    ).show()
-                  }
+                developerTapCount += 1
+                if (developerTapCount >= 7 && !isDeveloperSettingsEnabled) {
+                  isDeveloperUnlocked = true
+                  isDeveloperSettingsEnabled = true
+                  devPrefs.edit()
+                    .putBoolean("developer_unlocked", true)
+                    .putBoolean("developer_settings_enabled", true)
+                    .apply()
+                  Toast.makeText(
+                    context,
+                    "Developer Options enabled",
+                    Toast.LENGTH_SHORT
+                  ).show()
                 }
               }
           ) {
             Text(
-              text = "Version ${updaterState.installedVersionName} (Code ${updaterState.installedVersionCode} • Production Release)",
+              text = if (isDeveloperSettingsEnabled) {
+                "Version ${updaterState.installedVersionName} (Code ${updaterState.installedVersionCode} • Production Release)"
+              } else {
+                "Version ${updaterState.installedVersionName}"
+              },
               modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
               style = MaterialTheme.typography.labelSmall.copy(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -437,7 +433,7 @@ fun AboutScreen(
       }
     }
 
-    // In-App Updater & Verified GitHub Releases Card (Settings → About → Check for Updates)
+    // In-App Updater Card (Tier 1 Friendly by default; Tier 2 technical diagnostics when Developer Options is ON)
     item {
       SettingsGitHubUpdaterCard(
         updaterState = updaterState,
@@ -467,7 +463,8 @@ fun AboutScreen(
           updaterScope.launch {
             com.example.data.updater.InAppUpdateService.triggerFreshUpdateTestRelease(context)
           }
-        }
+        },
+        isDeveloperOptionsEnabled = isDeveloperSettingsEnabled
       )
     }
 
@@ -941,7 +938,7 @@ fun AboutScreen(
       }
     }
 
-    // Actions: Share App (APK + Google Drive Updates Link) & Report Content Error
+    // Actions: Share App & Report Content Error (Friendly Tier 1 Surface)
     item {
       Card(
         modifier = Modifier
@@ -952,7 +949,7 @@ fun AboutScreen(
       ) {
         Column(modifier = Modifier.padding(16.dp)) {
           Text(
-            text = "Share App (APK + Updates Link) & Integrity",
+            text = "Share & Feedback",
             style = MaterialTheme.typography.titleMedium.copy(
               fontWeight = FontWeight.Bold,
               color = MaterialTheme.colorScheme.primary
@@ -962,7 +959,7 @@ fun AboutScreen(
           Spacer(modifier = Modifier.height(6.dp))
 
           Text(
-            text = "Share the Bayan al-Huda APK file directly along with the official Google Drive folder link where the latest app updates are published.",
+            text = "Invite family and friends to read the Quran and Hadith ad-free, or report any translation issue for review.",
             style = MaterialTheme.typography.bodySmall.copy(
               color = MaterialTheme.colorScheme.onSurfaceVariant,
               lineHeight = 17.sp
@@ -971,7 +968,7 @@ fun AboutScreen(
 
           Spacer(modifier = Modifier.height(10.dp))
 
-          // Share App (APK File + Google Drive Updates Folder Link)
+          // Friendly Share App Button
           Surface(
             modifier = Modifier
               .fillMaxWidth()
@@ -988,18 +985,18 @@ fun AboutScreen(
                 .padding(12.dp),
               verticalAlignment = Alignment.CenterVertically
             ) {
-              Icon(Icons.Default.Share, contentDescription = "Share Bayan al-Huda APK and Link", tint = Color.White)
+              Icon(Icons.Default.Share, contentDescription = "Share Bayan al-Huda with friends", tint = Color.White)
               Spacer(modifier = Modifier.width(10.dp))
               Column(modifier = Modifier.weight(1f)) {
                 Text(
-                  text = "Share Bayan al-Huda App (APK + Drive Link)",
+                  text = "Share Bayan al-Huda with friends",
                   style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                   )
                 )
                 Text(
-                  text = "Attaches APK file + Official Updates Folder Link",
+                  text = "Send the app and download link to family and friends",
                   style = MaterialTheme.typography.labelSmall.copy(
                     color = Color.White.copy(alpha = 0.9f)
                   )
@@ -1010,7 +1007,7 @@ fun AboutScreen(
 
           Spacer(modifier = Modifier.height(8.dp))
 
-          // Official Google Drive Updates Folder Card / Row
+          // Friendly Backup Download Row (Raw Drive URL hidden on Tier 1; shown only when Developer Options is ON)
           Surface(
             modifier = Modifier
               .fillMaxWidth()
@@ -1030,33 +1027,39 @@ fun AboutScreen(
             ) {
               Column(modifier = Modifier.weight(1f)) {
                 Text(
-                  text = "Latest App Updates Folder (Google Drive)",
+                  text = "Alternative Download (Backup Link)",
                   style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.SemiBold,
                     color = EmeraldPrimary
                   )
                 )
                 Text(
-                  text = com.example.ui.components.APP_UPDATES_GOOGLE_DRIVE_FOLDER_URL,
+                  text = if (isDeveloperSettingsEnabled) {
+                    com.example.ui.components.APP_UPDATES_GOOGLE_DRIVE_FOLDER_URL
+                  } else {
+                    "Use this backup download if direct update is unavailable in your country"
+                  },
                   style = MaterialTheme.typography.labelSmall.copy(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                   )
                 )
               }
-              IconButton(
-                onClick = {
-                  com.example.ui.components.copyAppUpdatesDriveLink(context)
-                },
-                modifier = Modifier
-                  .size(36.dp)
-                  .testTag("about_copy_drive_updates_link_button")
-              ) {
-                Icon(
-                  Icons.Default.ContentCopy,
-                  contentDescription = "Copy Updates Drive Link",
-                  tint = EmeraldPrimary,
-                  modifier = Modifier.size(18.dp)
-                )
+              if (isDeveloperSettingsEnabled) {
+                IconButton(
+                  onClick = {
+                    com.example.ui.components.copyAppUpdatesDriveLink(context)
+                  },
+                  modifier = Modifier
+                    .size(36.dp)
+                    .testTag("about_copy_drive_updates_link_button")
+                ) {
+                  Icon(
+                    Icons.Default.ContentCopy,
+                    contentDescription = "Copy Backup Download Link",
+                    tint = EmeraldPrimary,
+                    modifier = Modifier.size(18.dp)
+                  )
+                }
               }
             }
           }
@@ -1089,7 +1092,7 @@ fun AboutScreen(
       }
     }
 
-    // Legally Required User-Facing Copyright & Scholarly Attribution Notices
+    // Legally Required User-Facing Copyright & Scholarly Attribution Notices (with "Read full credits" expander)
     item {
       Card(
         modifier = Modifier
@@ -1099,33 +1102,55 @@ fun AboutScreen(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
       ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-          Text(
-            text = "Copyright & Content Attributions",
-            style = MaterialTheme.typography.titleMedium.copy(
-              fontWeight = FontWeight.Bold,
-              color = MaterialTheme.colorScheme.primary
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Text(
+              text = "Copyright & Content Attributions",
+              style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+              ),
+              modifier = Modifier.weight(1f)
             )
-          )
+            TextButton(
+              onClick = { showFullCreditsExpanded = !showFullCreditsExpanded },
+              contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+              modifier = Modifier.testTag("about_toggle_full_credits_button")
+            ) {
+              Text(
+                text = if (showFullCreditsExpanded) "Show less" else "Read full credits",
+                style = MaterialTheme.typography.labelMedium.copy(
+                  fontWeight = FontWeight.Bold,
+                  color = EmeraldPrimary
+                )
+              )
+            }
+          }
           Text(
             text = "• Quran Text & Translations: Canonical Uthmani Quran text courtesy of Tanzil.net & King Fahd Glorious Quran Printing Complex (CC BY 3.0). Translations credited to their respective authors via Quran.com / Quran Foundation, Quranic Universal Library (QUL — Tarteel AI), QuranEnc, Al-Islam.org (DILP), and ShiaQuran.in.",
             style = MaterialTheme.typography.bodySmall.copy(lineHeight = 17.sp)
           )
-          Text(
-            text = "• Hadith, Duas & Prayer Timings: Classical Sunni & Shia Hadith collections credited to Sunnah.com, FawazAhmed0, AhmedBaset (v1.2.0), HadithAPI.com, UmmahAPI.com, and Thaqalayn.net. Daily Adhkar from Hisn al-Muslim; Salah & Ramadan timetables powered by AlAdhan.com; Quran audio courtesy of EveryAyah.com, QuranicAudio.com, and MP3Quran.net.",
-            style = MaterialTheme.typography.bodySmall.copy(lineHeight = 17.sp)
-          )
-          Text(
-            text = "• Open-Source Fonts & UI: Amiri & Amiri Quran (© Khaled Hosny), Scheherazade New (© SIL International), and Noto Nastaliq Urdu (© Google LLC) licensed under the SIL Open Font License 1.1. AndroidX Jetpack Compose & Material Icons licensed under Apache License 2.0.",
-            style = MaterialTheme.typography.labelSmall.copy(
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-              lineHeight = 16.sp
+          if (showFullCreditsExpanded) {
+            Text(
+              text = "• Hadith, Duas & Prayer Timings: Classical Sunni & Shia Hadith collections credited to Sunnah.com, FawazAhmed0, AhmedBaset (v1.2.0), HadithAPI.com, UmmahAPI.com, and Thaqalayn.net. Daily Adhkar from Hisn al-Muslim; Salah & Ramadan timetables powered by AlAdhan.com; Quran audio courtesy of EveryAyah.com, QuranicAudio.com, and MP3Quran.net.",
+              style = MaterialTheme.typography.bodySmall.copy(lineHeight = 17.sp)
             )
-          )
+            Text(
+              text = "• Open-Source Fonts & UI: Amiri & Amiri Quran (© Khaled Hosny), Scheherazade New (© SIL International), and Noto Nastaliq Urdu (© Google LLC) licensed under the SIL Open Font License 1.1. AndroidX Jetpack Compose & Material Icons licensed under Apache License 2.0.",
+              style = MaterialTheme.typography.labelSmall.copy(
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 16.sp
+              )
+            )
+          }
         }
       }
     }
 
-    // Hidden Developer Options (Accessible ONLY when Developer Access is unlocked via authorized developer account or 7-tap version unlock)
+    // Tier 2 — Developer Options (Single Switch, OFF by default; reveals read-only technical details)
     if (isDeveloperUnlocked) {
       item {
         Card(
@@ -1154,9 +1179,9 @@ fun AboutScreen(
                   )
                   Text(
                     text = if (isDeveloperSettingsEnabled) {
-                      "Developer Setting Enabled • API Sources, Licences & Publication Audit"
+                      "Read-only technical details enabled • Turn off when finished"
                     } else {
-                      "Developer Setting Disabled • Turn on to view API Sources & Licences"
+                      "Optional • Extra technical details about sources and licences"
                     },
                     style = MaterialTheme.typography.labelSmall.copy(
                       color = GoldPrimary,
@@ -1178,6 +1203,93 @@ fun AboutScreen(
             if (isDeveloperSettingsEnabled) {
               HorizontalDivider()
 
+              // Friendly Reminder Banner to Turn Off Developer Options after inspecting
+              Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = GoldPrimary.copy(alpha = 0.14f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.65f)),
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .testTag("developer_turn_off_reminder_banner")
+              ) {
+                Row(
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                  horizontalArrangement = Arrangement.SpaceBetween,
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  Text(
+                    text = "Tip: Turn off Developer Options after inspecting technical details to keep Settings simple.",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      fontWeight = FontWeight.SemiBold,
+                      lineHeight = 15.sp
+                    ),
+                    modifier = Modifier.weight(1f)
+                  )
+                  Spacer(modifier = Modifier.width(8.dp))
+                  OutlinedButton(
+                    onClick = {
+                      isDeveloperSettingsEnabled = false
+                      devPrefs.edit().putBoolean("developer_settings_enabled", false).apply()
+                      Toast.makeText(context, "Developer Options turned off", Toast.LENGTH_SHORT).show()
+                    },
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                    modifier = Modifier.testTag("turn_off_developer_options_banner_btn")
+                  ) {
+                    Text("Turn Off", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                  }
+                }
+              }
+
+              // Sub-section 3 & 4 Summary: App Build & Update Info (Read-Only)
+              Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .testTag("developer_app_build_and_update_info_card")
+              ) {
+                Column(
+                  modifier = Modifier.padding(12.dp),
+                  verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                  Text(
+                    text = "App Build & Update Info (Read-Only)",
+                    style = MaterialTheme.typography.titleSmall.copy(
+                      fontWeight = FontWeight.Bold,
+                      color = MaterialTheme.colorScheme.primary
+                    )
+                  )
+                  Text(
+                    text = "• App Build: Version ${updaterState.installedVersionName} (Version Code ${updaterState.installedVersionCode} • Release Build)",
+                    style = MaterialTheme.typography.labelSmall
+                  )
+                  Text(
+                    text = "• Updater Channel: ${updaterState.distributionChannel.label}",
+                    style = MaterialTheme.typography.labelSmall
+                  )
+                  Text(
+                    text = "• Last Update Check: ${
+                      if (updaterState.lastCheckedTimestampMs > 0L) {
+                        java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US)
+                          .format(java.util.Date(updaterState.lastCheckedTimestampMs))
+                      } else {
+                        "Not checked yet"
+                      }
+                    }",
+                    style = MaterialTheme.typography.labelSmall
+                  )
+                  Text(
+                    text = "• Licences & Fonts: Amiri, Scheherazade New & Noto Nastaliq Urdu (SIL OFL 1.1); Jetpack Compose (Apache 2.0); Tanzil Uthmani Text (CC BY 3.0).",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      color = MaterialTheme.colorScheme.onSurfaceVariant,
+                      lineHeight = 15.sp
+                    )
+                  )
+                }
+              }
+
               Button(
                 onClick = { showApiSourcesAndLicencesPage = true },
                 colors = ButtonDefaults.buttonColors(
@@ -1192,7 +1304,7 @@ fun AboutScreen(
                 Icon(Icons.Default.FactCheck, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                  text = "Developer Options → API Sources & Licences",
+                  text = "Content & API Sources • Full Licences",
                   fontWeight = FontWeight.Bold,
                   fontSize = 13.sp
                 )
@@ -1221,14 +1333,14 @@ fun AboutScreen(
                   ) {
                     Column(modifier = Modifier.weight(1f)) {
                       Text(
-                        text = "Verified Sources & Developer Audit",
+                        text = "Verified Content & API Sources",
                         style = MaterialTheme.typography.titleSmall.copy(
                           fontWeight = FontWeight.Bold,
                           color = MaterialTheme.colorScheme.primary
                         )
                       )
                       Text(
-                        text = "100% Verified Sources Only • Deduplicated & Concise (${conciseVerifiedSources.size} Verified)",
+                        text = "Read-only public sources & licences (${conciseVerifiedSources.size} Verified)",
                         style = MaterialTheme.typography.labelSmall.copy(
                           color = GoldPrimary,
                           fontWeight = FontWeight.Bold
@@ -1261,7 +1373,7 @@ fun AboutScreen(
                         modifier = Modifier.fillMaxWidth()
                       ) {
                         Text(
-                          text = "Database Summary: ${auditReport.totalSurahsLocal}/114 Surahs • ${auditReport.totalAyahsLocal}/6,236 Ayahs • ${auditReport.totalHadithCollectionsLocal.coerceAtLeast(34)} Hadith Books (${auditReport.totalHadithsLocal} local + 75,800+ indexed) • Zero AI Text Alteration",
+                          text = "Database Summary: ${auditReport.totalSurahsLocal}/114 Surahs • ${auditReport.totalAyahsLocal}/6,236 Ayahs • ${auditReport.totalHadithCollectionsLocal.coerceAtLeast(34)} Hadith Books (${auditReport.totalHadithsLocal} local + 75,800+ indexed) • 22 Tafseer Works",
                           modifier = Modifier.padding(10.dp),
                           style = MaterialTheme.typography.labelSmall.copy(
                             lineHeight = 16.sp,
@@ -1338,7 +1450,13 @@ fun AboutScreen(
 
   if (showApiSourcesAndLicencesPage && isDeveloperUnlocked && isDeveloperSettingsEnabled) {
     DeveloperApiSourcesAndLicencesDialog(
-      onDismiss = { showApiSourcesAndLicencesPage = false }
+      onDismiss = { showApiSourcesAndLicencesPage = false },
+      onTurnOffDeveloperOptions = {
+        showApiSourcesAndLicencesPage = false
+        isDeveloperSettingsEnabled = false
+        devPrefs.edit().putBoolean("developer_settings_enabled", false).apply()
+        Toast.makeText(context, "Developer Options turned off", Toast.LENGTH_SHORT).show()
+      }
     )
   }
 
@@ -1451,7 +1569,8 @@ fun ReportErrorDialog(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun DeveloperApiSourcesAndLicencesDialog(
-  onDismiss: () -> Unit
+  onDismiss: () -> Unit,
+  onTurnOffDeveloperOptions: () -> Unit = onDismiss
 ) {
   val context = LocalContext.current
   val allSources = remember {
@@ -1529,19 +1648,28 @@ fun DeveloperApiSourcesAndLicencesDialog(
                 )
               )
               Text(
-                text = "${allSources.size} Verified Project Sources • Masked Credentials • Play Store Compliance Ready",
+                text = "${allSources.size} Verified Project Sources • Read-Only Technical Reference",
                 style = MaterialTheme.typography.labelSmall.copy(
                   color = GoldPrimary,
                   fontWeight = FontWeight.SemiBold
                 )
               )
             }
-            TextButton(
-              onClick = onDismiss,
-              colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
-              modifier = Modifier.testTag("close_api_sources_licences_button")
-            ) {
-              Text("Close", fontWeight = FontWeight.Bold)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+              TextButton(
+                onClick = onTurnOffDeveloperOptions,
+                colors = ButtonDefaults.textButtonColors(contentColor = GoldPrimary),
+                modifier = Modifier.testTag("close_and_turn_off_dev_options_button")
+              ) {
+                Text("Turn Off & Close", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+              }
+              TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
+                modifier = Modifier.testTag("close_api_sources_licences_button")
+              ) {
+                Text("Close", fontWeight = FontWeight.Bold)
+              }
             }
           }
         }

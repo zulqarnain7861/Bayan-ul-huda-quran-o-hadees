@@ -614,7 +614,8 @@ object VideoStreamExtractor {
     lecture: LectureRecord,
     pipeline: PipelineOption = PipelineOption.AUTO_SMART
   ): ResolvedVideoStreamBundle {
-    val verifiedArchiveMp4 = YtEmbedUrlBuilder.resolveVerifiedArchiveMp4OrNull(lecture).orEmpty()
+    val verifiedArchiveMp4 = YtEmbedUrlBuilder.resolveVerifiedArchiveMp4OrNull(lecture)
+      ?: YtEmbedUrlBuilder.resolveDirectMp4StreamUrl(lecture)
 
     val tracks = if (verifiedArchiveMp4.isNotBlank()) {
       mapOf(

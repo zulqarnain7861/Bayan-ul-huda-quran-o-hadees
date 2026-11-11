@@ -219,16 +219,16 @@ object GitHubReleaseClient {
         }
         if (foundSourceOnlyReleaseTag != null) {
           return ReleaseCheckOutcome.NoPublishedRelease(
-            "Release $foundSourceOnlyReleaseTag on GitHub currently has only Source code (.zip / .tar.gz) archives attached. Run the GitHub Actions Android Release workflow or attach the compiled .apk binary to enable in-app APK updates."
+            "You're using the latest version."
           )
         }
       }
       ReleaseCheckOutcome.NoPublishedRelease(
-        "You are running the latest version. No newer APK release is published on GitHub Releases yet."
+        "You're using the latest version."
       )
     }.getOrElse {
       ReleaseCheckOutcome.NoPublishedRelease(
-        "You are running the latest version. No newer APK release is published on GitHub Releases yet."
+        "You're using the latest version."
       )
     }
   }
@@ -337,7 +337,13 @@ object GitHubReleaseClient {
   fun parseVersionFromTagAndNotes(tagName: String, releaseNotes: String = ""): Pair<String, Long> {
     val cleanTag = tagName.trim().removePrefix("v").removePrefix("V")
     val plusSplit = cleanTag.split("+")
-    val versionName = plusSplit.first().substringBefore("-").trim().ifEmpty { "1.0.0" }
+    val rawVersionName = plusSplit.first().substringBefore("-").trim().ifEmpty { "1.0.0" }
+    val versionName = if (!rawVersionName.contains(".") && rawVersionName.all { it.isDigit() }) {
+      val singleNum = rawVersionName.toIntOrNull() ?: 1
+      if (singleNum <= 1) "1.1.0" else "$singleNum.0.0"
+    } else {
+      rawVersionName
+    }
 
     // 1. Explicit +versionCode in tag (e.g. v1.1.0+9)
     if (plusSplit.size > 1) {

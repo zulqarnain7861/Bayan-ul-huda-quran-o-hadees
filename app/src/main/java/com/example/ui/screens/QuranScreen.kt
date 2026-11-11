@@ -2357,7 +2357,7 @@ fun QuranTranslationBottomSheet(
   }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun TafsirModalSheet(
   ayah: AyahEntity,
@@ -2370,20 +2370,50 @@ fun TafsirModalSheet(
   onNextAyahTafsir: () -> Unit,
   onDismiss: () -> Unit
 ) {
+  val context = LocalContext.current
   val filteredEditions = remember(selectedTradition) {
     TafsirRepository.getEditionsForTradition(selectedTradition)
   }
 
-  var selectedEditionKey by remember(selectedTradition) { 
-    mutableStateOf(filteredEditions.firstOrNull()?.key ?: TafsirRepository.editions.first().key) 
+  var selectedEditionKey by remember(selectedTradition) {
+    mutableStateOf(filteredEditions.firstOrNull()?.key ?: TafsirRepository.editions.first().key)
   }
-  val tafsirResult = remember(ayah.surahNumber, ayah.verseNumber, selectedEditionKey) {
-    TafsirRepository.getTafsirForAyah(
-      ayah = ayah,
-      surah = surah,
-      editionKey = selectedEditionKey,
-      allHadiths = allHadiths
+
+  var tafsirResult by remember(ayah.surahNumber, ayah.verseNumber, selectedEditionKey) {
+    TafsirRepository.initializeWithContext(context)
+    mutableStateOf(
+      TafsirRepository.getTafsirForAyah(
+        ayah = ayah,
+        surah = surah,
+        editionKey = selectedEditionKey,
+        allHadiths = allHadiths
+      )
     )
+  }
+
+  var isLoadingRemote by remember(ayah.surahNumber, ayah.verseNumber, selectedEditionKey) {
+    mutableStateOf(false)
+  }
+  var reloadTrigger by remember { mutableIntStateOf(0) }
+  var inSheetSearchQuery by remember { mutableStateOf("") }
+  var isCommentaryExpanded by remember(ayah.surahNumber, ayah.verseNumber, selectedEditionKey) {
+    mutableStateOf(true)
+  }
+
+  LaunchedEffect(ayah.surahNumber, ayah.verseNumber, selectedEditionKey, reloadTrigger) {
+    if (!tafsirResult.isVerifiedContentAvailable || reloadTrigger > 0) {
+      isLoadingRemote = true
+      val fetched = TafsirRepository.fetchAndCacheTafsirForAyahAsync(
+        context = context,
+        ayah = ayah,
+        surah = surah,
+        editionKey = selectedEditionKey,
+        allHadiths = allHadiths,
+        forceRefresh = reloadTrigger > 0
+      )
+      tafsirResult = fetched
+      isLoadingRemote = false
+    }
   }
 
   ModalBottomSheet(
@@ -2403,7 +2433,7 @@ fun TafsirModalSheet(
       ) {
         Column(modifier = Modifier.weight(1f)) {
           Text(
-            text = "Authentic Tafsir & Linked Hadith",
+            text = "Authentic Tafsir & Linked Hadith (${filteredEditions.size} Works)",
             style = MaterialTheme.typography.titleLarge.copy(
               fontWeight = FontWeight.Bold,
               color = MaterialTheme.colorScheme.primary
@@ -2428,7 +2458,7 @@ fun TafsirModalSheet(
 
       Spacer(modifier = Modifier.height(10.dp))
 
-      // 8 Tafsir Edition Selector Chips
+      // Tafsir Edition Selector Chips (14 Sunni / 8 Shia)
       LazyRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth()
@@ -2512,6 +2542,15 @@ fun TafsirModalSheet(
               color = EmeraldPrimary
             )
           )
+          if (tafsirResult.edition.canonicalOriginalTitle.isNotBlank()) {
+            Text(
+              text = "Original Title: ${tafsirResult.edition.canonicalOriginalTitle} (${tafsirResult.edition.titleUrdu})",
+              style = MaterialTheme.typography.labelSmall.copy(
+                fontStyle = FontStyle.Italic,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+            )
+          }
           Text(
             text = tafsirResult.edition.scholarName,
             style = MaterialTheme.typography.labelMedium.copy(
@@ -2519,39 +2558,292 @@ fun TafsirModalSheet(
               fontWeight = FontWeight.Bold
             )
           )
-          Spacer(modifier = Modifier.height(4.dp))
+
+          Spacer(modifier = Modifier.height(6.dp))
+
+          // Language, Edition & Source Attribution Badges
+          FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            Surface(
+              shape = RoundedCornerShape(6.dp),
+              color = EmeraldPrimary.copy(alpha = 0.12f)
+            ) {
+              Text(
+                text = "Lang: ${tafsirResult.edition.primaryLanguage}",
+                style = MaterialTheme.typography.labelSmall.copy(
+                  color = EmeraldPrimary,
+                  fontWeight = FontWeight.SemiBold
+                ),
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+              )
+            }
+            if (tafsirResult.edition.apiResourceId.isNotBlank()) {
+              Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = GoldPrimary.copy(alpha = 0.14f)
+              ) {
+                Text(
+                  text = "ID: ${tafsirResult.edition.apiResourceId}",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    color = GoldPrimary,
+                    fontWeight = FontWeight.SemiBold
+                  ),
+                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+              }
+            }
+            Surface(
+              shape = RoundedCornerShape(6.dp),
+              color = MaterialTheme.colorScheme.surfaceVariant
+            ) {
+              Text(
+                text = if (tafsirResult.isVerifiedContentAvailable) "Verified Scholarly Text" else "Pending Online Fetch",
+                style = MaterialTheme.typography.labelSmall.copy(
+                  color = if (tafsirResult.isVerifiedContentAvailable) EmeraldPrimary else MaterialTheme.colorScheme.error,
+                  fontWeight = FontWeight.Bold
+                ),
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+              )
+            }
+          }
+
+          Spacer(modifier = Modifier.height(6.dp))
           Text(
             text = tafsirResult.edition.methodology,
             style = MaterialTheme.typography.bodySmall.copy(
               color = MaterialTheme.colorScheme.onSurfaceVariant
             )
           )
+          if (tafsirResult.edition.editionName.isNotBlank()) {
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+              text = "Edition: ${tafsirResult.edition.editionName} • Source: ${tafsirResult.edition.originalSource}",
+              style = MaterialTheme.typography.labelSmall.copy(
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+            )
+          }
+
+          Spacer(modifier = Modifier.height(8.dp))
+
+          // Action Row: Copy, Share, Expand/Collapse, Refresh
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            OutlinedButton(
+              onClick = {
+                val fullCopyText = buildString {
+                  appendLine("${tafsirResult.edition.titleEnglish} (${tafsirResult.edition.canonicalOriginalTitle})")
+                  appendLine("Scholar: ${tafsirResult.edition.scholarName}")
+                  appendLine("Verse: Surah ${surah.nameEnglish} (${tafsirResult.verseRef})")
+                  appendLine()
+                  if (tafsirResult.commentaryArabic.isNotBlank()) {
+                    appendLine(tafsirResult.commentaryArabic)
+                    appendLine()
+                  }
+                  if (tafsirResult.commentaryEnglish.isNotBlank()) {
+                    appendLine(tafsirResult.commentaryEnglish)
+                    appendLine()
+                  }
+                  if (tafsirResult.commentaryUrdu.isNotBlank()) {
+                    appendLine(tafsirResult.commentaryUrdu)
+                    appendLine()
+                  }
+                  appendLine("Source: ${tafsirResult.sourceAttribution}")
+                }
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                clipboard?.setPrimaryClip(ClipData.newPlainText("Tafseer ${tafsirResult.verseRef}", fullCopyText))
+                Toast.makeText(context, "Copied ${tafsirResult.edition.titleEnglish} (${tafsirResult.verseRef})", Toast.LENGTH_SHORT).show()
+              },
+              contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+              modifier = Modifier.testTag("tafsir_copy_button")
+            ) {
+              Icon(Icons.Default.ContentCopy, contentDescription = "Copy Tafseer", modifier = Modifier.size(14.dp))
+              Spacer(modifier = Modifier.width(4.dp))
+              Text("Copy", fontSize = 12.sp)
+            }
+
+            OutlinedButton(
+              onClick = {
+                val shareText = buildString {
+                  appendLine("${tafsirResult.edition.titleEnglish} — ${tafsirResult.edition.scholarName}")
+                  appendLine("Surah ${surah.nameEnglish} (${tafsirResult.verseRef})")
+                  appendLine()
+                  if (tafsirResult.commentaryArabic.isNotBlank()) {
+                    appendLine(tafsirResult.commentaryArabic)
+                    appendLine()
+                  }
+                  if (tafsirResult.commentaryEnglish.isNotBlank()) {
+                    appendLine(tafsirResult.commentaryEnglish)
+                  }
+                }
+                val sendIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                  type = "text/plain"
+                  putExtra(android.content.Intent.EXTRA_SUBJECT, "${tafsirResult.edition.titleEnglish} (${tafsirResult.verseRef})")
+                  putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                }
+                context.startActivity(android.content.Intent.createChooser(sendIntent, "Share Tafseer"))
+              },
+              contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+              modifier = Modifier.testTag("tafsir_share_button")
+            ) {
+              Text("Share", fontSize = 12.sp)
+            }
+
+            OutlinedButton(
+              onClick = { isCommentaryExpanded = !isCommentaryExpanded },
+              contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+              modifier = Modifier.testTag("tafsir_expand_toggle")
+            ) {
+              Text(if (isCommentaryExpanded) "Collapse" else "Expand", fontSize = 12.sp)
+            }
+          }
+
+          Spacer(modifier = Modifier.height(8.dp))
+
+          // Search inside current Tafseer commentary
+          OutlinedTextField(
+            value = inSheetSearchQuery,
+            onValueChange = { inSheetSearchQuery = it },
+            label = { Text("Filter within this Tafseer commentary...", fontSize = 12.sp) },
+            singleLine = true,
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("tafsir_in_sheet_search")
+          )
 
           HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
 
-          // English Tafsir
-          Text(
-            text = tafsirResult.commentaryEnglish,
-            style = MaterialTheme.typography.bodyMedium.copy(
-              lineHeight = 22.sp
-            )
-          )
+          if (isLoadingRemote) {
+            Row(
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+              horizontalArrangement = Arrangement.Center,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              CircularProgressIndicator(
+                modifier = Modifier.size(22.dp),
+                strokeWidth = 2.dp,
+                color = EmeraldPrimary
+              )
+              Spacer(modifier = Modifier.width(10.dp))
+              Text(
+                text = "Loading verified commentary from ${tafsirResult.edition.titleEnglish}...",
+                style = MaterialTheme.typography.bodySmall
+              )
+            }
+          }
 
-          Spacer(modifier = Modifier.height(12.dp))
+          if (!tafsirResult.isVerifiedContentAvailable && !isLoadingRemote) {
+            Surface(
+              shape = RoundedCornerShape(10.dp),
+              color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f),
+              modifier = Modifier.fillMaxWidth()
+            ) {
+              Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                  text = TafsirRepository.UNAVAILABLE_TAFSEER_MESSAGE,
+                  style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                  )
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                  text = "No cross-scholar substitution or synthetic commentary is ever shown. Connect to the internet and tap Retry to fetch ${tafsirResult.edition.titleEnglish} for verse ${tafsirResult.verseRef}.",
+                  style = MaterialTheme.typography.bodySmall.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                  )
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                  onClick = { reloadTrigger++ },
+                  colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+                  modifier = Modifier.testTag("tafsir_retry_button")
+                ) {
+                  Text("Retry Verified Online Fetch")
+                }
+              }
+            }
+          } else {
+            val queryTrimmed = inSheetSearchQuery.trim()
+            val filterParagraphs: (String) -> String = { rawText ->
+              if (queryTrimmed.isEmpty() || rawText.isBlank()) {
+                if (isCommentaryExpanded || rawText.length <= 900) rawText else rawText.take(900) + "…"
+              } else {
+                val matched = rawText.split("\n")
+                  .filter { it.contains(queryTrimmed, ignoreCase = true) }
+                if (matched.isEmpty()) "(No matching lines for \"$queryTrimmed\" in this section)"
+                else matched.joinToString("\n\n")
+              }
+            }
 
-          // Urdu Tafsir
-          Text(
-            text = tafsirResult.commentaryUrdu,
-            style = MaterialTheme.typography.bodyMedium.copy(
-              fontFamily = UrduNastaliqFontFamily,
-              fontSize = 15.sp,
-              lineHeight = 30.sp,
-              textAlign = TextAlign.Right,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-              platformStyle = PlatformTextStyle(includeFontPadding = true)
-            ),
-            modifier = Modifier.fillMaxWidth()
-          )
+            // Original Arabic Scholarly Commentary (RTL)
+            if (tafsirResult.commentaryArabic.isNotBlank()) {
+              Text(
+                text = "النص التفسيري الأصلي (${tafsirResult.edition.titleArabic})",
+                style = MaterialTheme.typography.labelMedium.copy(
+                  fontWeight = FontWeight.Bold,
+                  color = EmeraldPrimary,
+                  textAlign = TextAlign.Right
+                ),
+                modifier = Modifier.fillMaxWidth()
+              )
+              Spacer(modifier = Modifier.height(6.dp))
+              CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                Text(
+                  text = filterParagraphs(tafsirResult.commentaryArabic),
+                  style = MaterialTheme.typography.bodyLarge.copy(
+                    fontFamily = AmiriFontFamily,
+                    fontSize = 20.sp,
+                    lineHeight = 36.sp,
+                    textAlign = TextAlign.Right,
+                    textDirection = TextDirection.Rtl
+                  ),
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("tafsir_commentary_arabic")
+                )
+              }
+              Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // English Tafsir Commentary
+            if (tafsirResult.commentaryEnglish.isNotBlank()) {
+              Text(
+                text = filterParagraphs(tafsirResult.commentaryEnglish),
+                style = MaterialTheme.typography.bodyMedium.copy(
+                  lineHeight = 22.sp
+                ),
+                modifier = Modifier.testTag("tafsir_commentary_english")
+              )
+            }
+
+            // Urdu Tafsir Commentary
+            if (tafsirResult.commentaryUrdu.isNotBlank()) {
+              Spacer(modifier = Modifier.height(12.dp))
+              Text(
+                text = filterParagraphs(tafsirResult.commentaryUrdu),
+                style = MaterialTheme.typography.bodyMedium.copy(
+                  fontFamily = UrduNastaliqFontFamily,
+                  fontSize = 15.sp,
+                  lineHeight = 30.sp,
+                  textAlign = TextAlign.Right,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  platformStyle = PlatformTextStyle(includeFontPadding = true)
+                ),
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .testTag("tafsir_commentary_urdu")
+              )
+            }
+          }
         }
       }
 

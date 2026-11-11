@@ -82,15 +82,57 @@ private fun formatEpochTimestamp(epochMs: Long): String {
   }.getOrDefault("Recently")
 }
 
+private fun formatFriendlyRelativeTime(epochMs: Long): String {
+  if (epochMs <= 0L) return "Not checked yet"
+  val diffMs = System.currentTimeMillis() - epochMs
+  return when {
+    diffMs < 60_000L -> "Just now"
+    diffMs < 3_600_000L -> "${(diffMs / 60_000L).coerceAtLeast(1L)} min ago"
+    diffMs < 86_400_000L -> "Today"
+    diffMs < 172_800_000L -> "Yesterday"
+    else -> runCatching {
+      SimpleDateFormat("MMM d, yyyy", Locale.US).format(Date(epochMs))
+    }.getOrDefault("Recently")
+  }
+}
+
+private fun friendlyUpdaterStatusSentence(updaterState: UpdaterUiState): String {
+  val release = updaterState.latestRelease
+  return when (updaterState.status) {
+    UpdaterStatus.IDLE ->
+      if (updaterState.lastCheckedTimestampMs > 0L) {
+        "You're using the latest version (${updaterState.installedVersionName})."
+      } else {
+        "Version ${updaterState.installedVersionName} installed."
+      }
+    UpdaterStatus.CHECKING -> "Checking for updates..."
+    UpdaterStatus.UP_TO_DATE,
+    UpdaterStatus.NO_PUBLISHED_RELEASE -> "You're using the latest version (${updaterState.installedVersionName})."
+    UpdaterStatus.UPDATE_AVAILABLE ->
+      "A new version (${release?.versionName ?: "latest"}) is available."
+    UpdaterStatus.DOWNLOADING ->
+      "Downloading update (${updaterState.downloadProgressPercent}%)..."
+    UpdaterStatus.VERIFYING ->
+      "Preparing update..."
+    UpdaterStatus.READY_TO_INSTALL,
+    UpdaterStatus.AWAITING_INSTALL_PERMISSION ->
+      "Update ready to install."
+    UpdaterStatus.INSTALLING ->
+      "Installing update..."
+    UpdaterStatus.INSTALLED_SUCCESS ->
+      "You're using the latest version (${updaterState.installedVersionName})."
+    UpdaterStatus.DOWNLOAD_CANCELLED,
+    UpdaterStatus.INSTALL_CANCELLED ->
+      "Update paused. You can try again anytime."
+    UpdaterStatus.RATE_LIMITED,
+    UpdaterStatus.ERROR ->
+      "Couldn't check for updates right now. Please check your connection and try again."
+    else -> "You're using the latest version (${updaterState.installedVersionName})."
+  }
+}
+
 /**
- * In-App Update Notification Banner shown when a newer GitHub Release is detected on startup/resume
- * (Requirement 3).
- *
- * Displays:
- * - "BAYAN AL-HUDA UPDATE AVAILABLE" (with Critical / Optional badge)
- * - Installed version & Latest version
- * - Release notes preview
- * - Buttons: "Download Update", "Remind Me Later", "Release Details"
+ * In-App Update Notification Banner shown when a newer release is detected on startup/resume.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -144,7 +186,7 @@ fun InAppUpdateAvailableBanner(
           )
           Spacer(modifier = Modifier.width(8.dp))
           Text(
-            text = "BAYAN AL-HUDA UPDATE AVAILABLE",
+            text = "New Update Available",
             style = MaterialTheme.typography.titleSmall.copy(
               fontWeight = FontWeight.ExtraBold,
               color = GoldPrimary
@@ -169,7 +211,7 @@ fun InAppUpdateAvailableBanner(
       }
 
       Text(
-        text = "Installed version: ${updaterState.installedVersionName} (${updaterState.installedVersionCode})  •  Latest version: ${release.versionName} (${release.versionCode})",
+        text = "Version ${release.versionName} is ready (Current: ${updaterState.installedVersionName})",
         style = MaterialTheme.typography.labelMedium.copy(
           color = Color.White,
           fontWeight = FontWeight.SemiBold,
@@ -188,7 +230,7 @@ fun InAppUpdateAvailableBanner(
         ) {
           Column(modifier = Modifier.padding(10.dp)) {
             Text(
-              text = "Release notes:",
+              text = "What's new:",
               style = MaterialTheme.typography.labelSmall.copy(
                 color = GoldPrimary,
                 fontWeight = FontWeight.Bold
@@ -219,7 +261,7 @@ fun InAppUpdateAvailableBanner(
           )
           Spacer(modifier = Modifier.height(4.dp))
           Text(
-            text = "Downloading: ${updaterState.downloadProgressPercent}% (${ApkUpdateDownloadManager.formatFileSize(updaterState.downloadedBytes)} / ${ApkUpdateDownloadManager.formatFileSize(updaterState.totalBytes)})",
+            text = "Downloading: ${updaterState.downloadProgressPercent}%",
             style = MaterialTheme.typography.labelSmall.copy(color = GoldPrimary),
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
@@ -250,7 +292,7 @@ fun InAppUpdateAvailableBanner(
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
             modifier = Modifier.testTag("update_banner_install_btn")
           ) {
-            Text("Install Verified Update", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text("Install", fontSize = 11.sp, fontWeight = FontWeight.Bold)
           }
         } else {
           Button(
@@ -262,7 +304,7 @@ fun InAppUpdateAvailableBanner(
           ) {
             Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(15.dp))
             Spacer(modifier = Modifier.width(6.dp))
-            Text("Download Update", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text("Download", fontSize = 11.sp, fontWeight = FontWeight.Bold)
           }
         }
 
@@ -272,7 +314,7 @@ fun InAppUpdateAvailableBanner(
           contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
           modifier = Modifier.testTag("update_banner_remind_later_btn")
         ) {
-          Text("Remind Me Later", fontSize = 11.sp, color = GoldPrimary, fontWeight = FontWeight.SemiBold)
+          Text("Later", fontSize = 11.sp, color = GoldPrimary, fontWeight = FontWeight.SemiBold)
         }
 
         TextButton(
@@ -283,7 +325,7 @@ fun InAppUpdateAvailableBanner(
           contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
           modifier = Modifier.testTag("update_banner_release_details_btn")
         ) {
-          Text("Release Details", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
+          Text("What's New", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
         }
       }
     }
@@ -291,18 +333,18 @@ fun InAppUpdateAvailableBanner(
 }
 
 /**
- * Full Settings → About → Check for Updates Card (Requirement 9).
+ * Settings → App Updates Card.
  *
- * Displays:
- * - Current installed version & distribution channel (Direct APK vs Google Play Store)
- * - Latest available version & Last update check date
- * - Check for Updates button
- * - Release notes & file size
- * - Real-time download progress bar, percentage, Cancel & Retry controls
- * - 7-Step Security Verification badge (SHA-256 + X.509 signing certificate + signed update.json)
- * - Android PackageInstaller launch button & "Install unknown apps" permission helper
- * - Official GitHub Releases link
- * - Expandable Update History
+ * Tier 1 (Default when `isDeveloperOptionsEnabled == false`):
+ * - Friendly status sentence ("You're using the latest version.", "A new version is available.", etc.)
+ * - Relative last-checked time ("Last checked: Today")
+ * - Primary action: "Check for updates" -> "Download" -> progress + "Cancel" -> "Install"
+ * - Backup download button ("Alternative Download (Backup)") in case direct update is unavailable in the user's region,
+ *   without exposing any raw URLs, GitHub/CI jargon, version codes, or hashes.
+ *
+ * Tier 2 (When `isDeveloperOptionsEnabled == true`):
+ * - Reveals read-only technical details (distribution channel, version codes, timestamps,
+ *   verification hashes, official GitHub Releases page, and update history).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -314,6 +356,7 @@ fun SettingsGitHubUpdaterCard(
   onInstallVerifiedUpdate: () -> Unit,
   onRemindMeLater: () -> Unit,
   onTriggerFreshUpdateTest: () -> Unit = {},
+  isDeveloperOptionsEnabled: Boolean = false,
   modifier: Modifier = Modifier
 ) {
   val context = LocalContext.current
@@ -321,6 +364,7 @@ fun SettingsGitHubUpdaterCard(
   var showReleaseDetailsModal by remember { mutableStateOf(false) }
   val release = updaterState.latestRelease
   val isPlayStore = updaterState.distributionChannel == DistributionChannel.GOOGLE_PLAY_STORE
+  val hasNewerRelease = release != null && release.versionCode > updaterState.installedVersionCode
 
   ElevatedCard(
     modifier = modifier
@@ -339,9 +383,9 @@ fun SettingsGitHubUpdaterCard(
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-      // Symmetrical Multilingual Header
+      // Friendly Multilingual Header
       Text(
-        text = "تَحْدِيثُ التَّطْبِيقِ وَالتَّحَقُّقُ الأَمْنِيُّ",
+        text = "تَحْدِيثُ التَّطْبِيقِ",
         style = MaterialTheme.typography.titleMedium.copy(
           fontFamily = ScheherazadeFontFamily,
           fontSize = 20.sp,
@@ -352,11 +396,12 @@ fun SettingsGitHubUpdaterCard(
         modifier = Modifier.fillMaxWidth()
       )
       Text(
-        text = "ایپ اپڈیٹ، گٹ ہب ریلیزز اور سیکیورٹی تصدیق",
+        text = "ایپ کی تازہ ترین اپڈیٹ",
         style = MaterialTheme.typography.bodyMedium.copy(
           fontFamily = UrduNastaliqFontFamily,
           fontSize = 14.sp,
-          lineHeight = 23.sp,
+          lineHeight = 26.sp,
+          platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = true),
           fontWeight = FontWeight.Bold,
           color = EmeraldPrimary,
           textAlign = TextAlign.Center
@@ -364,7 +409,7 @@ fun SettingsGitHubUpdaterCard(
         modifier = Modifier.fillMaxWidth()
       )
       Text(
-        text = "In-App Updater & Verified GitHub Releases",
+        text = "App Updates",
         style = MaterialTheme.typography.titleMedium.copy(
           fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.primary,
@@ -373,127 +418,42 @@ fun SettingsGitHubUpdaterCard(
         modifier = Modifier.fillMaxWidth()
       )
 
-      // Distribution Channel & Status Pill
+      // Friendly Status Box
       Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = EmeraldPrimary.copy(alpha = 0.10f),
-        border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.55f)),
+        shape = RoundedCornerShape(12.dp),
+        color = EmeraldPrimary.copy(alpha = 0.08f),
+        border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.45f)),
         modifier = Modifier.fillMaxWidth()
       ) {
         Column(
           modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
           horizontalAlignment = Alignment.CenterHorizontally,
-          verticalArrangement = Arrangement.spacedBy(3.dp)
+          verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
           Text(
-            text = "Distribution Channel: ${updaterState.distributionChannel.label}",
-            style = MaterialTheme.typography.labelSmall.copy(
+            text = friendlyUpdaterStatusSentence(updaterState),
+            style = MaterialTheme.typography.bodyMedium.copy(
               fontWeight = FontWeight.Bold,
               color = EmeraldPrimary,
               textAlign = TextAlign.Center
             ),
-            modifier = Modifier.testTag("updater_distribution_channel_text")
-          )
-          Text(
-            text = "Status: ${updaterState.status.displayLabel}",
-            style = MaterialTheme.typography.labelSmall.copy(
-              fontWeight = FontWeight.SemiBold,
-              color = GoldPrimary,
-              textAlign = TextAlign.Center
-            ),
             modifier = Modifier.testTag("updater_status_text")
           )
+          Text(
+            text = "Last checked: ${formatFriendlyRelativeTime(updaterState.lastCheckedTimestampMs)}",
+            style = MaterialTheme.typography.labelSmall.copy(
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.testTag("updater_last_checked_value")
+          )
         }
       }
 
-      // Version & Check Metadata Summary Grid
-      Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        modifier = Modifier.fillMaxWidth()
-      ) {
-        Column(
-          modifier = Modifier.padding(12.dp),
-          verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-          ) {
-            Text(
-              text = "Current Installed Version:",
-              style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-            )
-            Text(
-              text = "${updaterState.installedVersionName} (Code ${updaterState.installedVersionCode})",
-              style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-              modifier = Modifier.testTag("updater_installed_version_value")
-            )
-          }
-
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-          ) {
-            Text(
-              text = "Latest Available Version:",
-              style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-            )
-            Text(
-              text = if (release != null) {
-                "${release.versionName} (Code ${release.versionCode})"
-              } else {
-                "${updaterState.installedVersionName} (Up to date)"
-              },
-              style = MaterialTheme.typography.bodySmall.copy(
-                fontWeight = FontWeight.Bold,
-                color = if (release != null && release.versionCode > updaterState.installedVersionCode) {
-                  EmeraldPrimary
-                } else {
-                  MaterialTheme.colorScheme.onSurface
-                }
-              ),
-              modifier = Modifier.testTag("updater_latest_version_value")
-            )
-          }
-
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-          ) {
-            Text(
-              text = "Last Update Check:",
-              style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-            )
-            Text(
-              text = formatEpochTimestamp(updaterState.lastCheckedTimestampMs),
-              style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-              modifier = Modifier.testTag("updater_last_checked_value")
-            )
-          }
-
-          if (release != null && release.apkAsset.sizeBytes > 0L) {
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-              Text(
-                text = "Release APK Size:",
-                style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-              )
-              Text(
-                text = ApkUpdateDownloadManager.formatFileSize(release.apkAsset.sizeBytes),
-                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium)
-              )
-            }
-          }
-        }
-      }
-
-      // Release Notes Section when a release is loaded
-      if (release != null) {
+      // What's New Section when a newer update is available
+      if (hasNewerRelease && release != null) {
         Surface(
           shape = RoundedCornerShape(12.dp),
           color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
@@ -509,18 +469,19 @@ fun SettingsGitHubUpdaterCard(
               verticalAlignment = Alignment.CenterVertically
             ) {
               Text(
-                text = "Release Notes (${release.tagName})",
+                text = "What's new in Version ${release.versionName}",
                 style = MaterialTheme.typography.labelMedium.copy(
                   fontWeight = FontWeight.Bold,
                   color = EmeraldPrimary
                 )
               )
-              TextButton(
-                onClick = { showReleaseDetailsModal = true },
-                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
-                modifier = Modifier.testTag("updater_open_release_details_modal_btn")
-              ) {
-                Text("Release Details", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+              if (release.apkAsset.sizeBytes > 0L) {
+                Text(
+                  text = ApkUpdateDownloadManager.formatFileSize(release.apkAsset.sizeBytes),
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                  )
+                )
               }
             }
             Text(
@@ -532,7 +493,7 @@ fun SettingsGitHubUpdaterCard(
         }
       }
 
-      // Download Progress Bar + Cancel / Retry Controls
+      // Download Progress Bar + Cancel Control
       if (updaterState.status == UpdaterStatus.DOWNLOADING || updaterState.status == UpdaterStatus.VERIFYING) {
         Surface(
           shape = RoundedCornerShape(12.dp),
@@ -557,7 +518,7 @@ fun SettingsGitHubUpdaterCard(
               trackColor = EmeraldPrimary.copy(alpha = 0.2f)
             )
             Text(
-              text = "${updaterState.downloadProgressPercent}% • ${ApkUpdateDownloadManager.formatFileSize(updaterState.downloadedBytes)} / ${ApkUpdateDownloadManager.formatFileSize(updaterState.totalBytes)}",
+              text = "${updaterState.downloadProgressPercent}% (${ApkUpdateDownloadManager.formatFileSize(updaterState.downloadedBytes)} / ${ApkUpdateDownloadManager.formatFileSize(updaterState.totalBytes)})",
               style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
               modifier = Modifier.testTag("updater_download_progress_label")
             )
@@ -566,66 +527,14 @@ fun SettingsGitHubUpdaterCard(
                 onClick = onCancelDownload,
                 modifier = Modifier.testTag("updater_cancel_download_button")
               ) {
-                Text("Cancel Download", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Text("Cancel", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
               }
             }
           }
         }
       }
 
-      // Security Verification Result Summary
-      updaterState.verificationResult?.let { verification ->
-        Surface(
-          shape = RoundedCornerShape(12.dp),
-          color = if (verification.isValid) {
-            EmeraldPrimary.copy(alpha = 0.12f)
-          } else {
-            MaterialTheme.colorScheme.errorContainer
-          },
-          modifier = Modifier
-            .fillMaxWidth()
-            .testTag("updater_verification_result_card")
-        ) {
-          Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Icon(
-              imageVector = if (verification.isValid) Icons.Default.CheckCircle else Icons.Default.Warning,
-              contentDescription = null,
-              tint = if (verification.isValid) EmeraldPrimary else MaterialTheme.colorScheme.error,
-              modifier = Modifier.size(22.dp)
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-              Text(
-                text = if (verification.isValid) {
-                  "APK Integrity, Signed Metadata & X.509 Certificate Verified"
-                } else {
-                  "APK Security Verification Rejected Package"
-                },
-                style = MaterialTheme.typography.labelMedium.copy(
-                  fontWeight = FontWeight.Bold,
-                  color = if (verification.isValid) EmeraldPrimary else MaterialTheme.colorScheme.onErrorContainer
-                )
-              )
-              Text(
-                text = if (verification.isValid) {
-                  "SHA-256: ${verification.actualSha256?.take(16)}... • Cert SHA-256 matched installed app"
-                } else {
-                  verification.errorMessage ?: "Verification failed"
-                },
-                style = MaterialTheme.typography.labelSmall.copy(
-                  fontSize = 11.sp,
-                  lineHeight = 15.sp
-                )
-              )
-            }
-          }
-        }
-      }
-
-      // Error / Rate Limit / Permission Guidance Banner
+      // Friendly Error / Permission Guidance Banner
       if (!updaterState.errorMessage.isNullOrBlank()) {
         Surface(
           shape = RoundedCornerShape(12.dp),
@@ -639,7 +548,11 @@ fun SettingsGitHubUpdaterCard(
             verticalArrangement = Arrangement.spacedBy(6.dp)
           ) {
             Text(
-              text = updaterState.errorMessage!!,
+              text = if (isDeveloperOptionsEnabled) {
+                updaterState.errorMessage!!
+              } else {
+                friendlyUpdaterStatusSentence(updaterState)
+              },
               style = MaterialTheme.typography.bodySmall.copy(
                 color = MaterialTheme.colorScheme.onErrorContainer,
                 fontWeight = FontWeight.Medium
@@ -657,14 +570,14 @@ fun SettingsGitHubUpdaterCard(
               ) {
                 Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Open Android Settings → Allow 'Install Unknown Apps'", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text("Allow App Update Installation in Settings", fontSize = 11.sp, fontWeight = FontWeight.Bold)
               }
             }
           }
         }
       }
 
-      // Primary Action Buttons Row
+      // Primary Action Buttons Row ("Check for updates" -> "Download" -> "Install")
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -684,13 +597,17 @@ fun SettingsGitHubUpdaterCard(
           Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
           Spacer(modifier = Modifier.width(6.dp))
           Text(
-            text = if (updaterState.status == UpdaterStatus.CHECKING) "Checking..." else "Check for Updates",
+            text = when (updaterState.status) {
+              UpdaterStatus.CHECKING -> "Checking..."
+              UpdaterStatus.ERROR, UpdaterStatus.RATE_LIMITED -> "Try again"
+              else -> "Check for updates"
+            },
             fontWeight = FontWeight.Bold,
             fontSize = 12.sp
           )
         }
 
-        if (release != null && release.versionCode > updaterState.installedVersionCode) {
+        if (hasNewerRelease) {
           if (isPlayStore) {
             Button(
               onClick = {
@@ -702,7 +619,7 @@ fun SettingsGitHubUpdaterCard(
                 .weight(1f)
                 .testTag("about_update_on_play_store_button")
             ) {
-              Text("Google Play Update", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+              Text("Update on Play Store", fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
           } else if (updaterState.status == UpdaterStatus.READY_TO_INSTALL || updaterState.status == UpdaterStatus.AWAITING_INSTALL_PERMISSION) {
             Button(
@@ -713,9 +630,9 @@ fun SettingsGitHubUpdaterCard(
                 .weight(1f)
                 .testTag("about_install_verified_update_button")
             ) {
-              Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.size(16.dp))
+              Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
               Spacer(modifier = Modifier.width(6.dp))
-              Text("Install Update", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+              Text("Install", fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
           } else {
             Button(
@@ -731,9 +648,9 @@ fun SettingsGitHubUpdaterCard(
               Spacer(modifier = Modifier.width(6.dp))
               Text(
                 text = if (updaterState.status == UpdaterStatus.DOWNLOAD_CANCELLED || updaterState.status == UpdaterStatus.ERROR) {
-                  "Retry Download"
+                  "Try again"
                 } else {
-                  "Download Update"
+                  "Download"
                 },
                 fontWeight = FontWeight.Bold,
                 fontSize = 12.sp
@@ -743,148 +660,281 @@ fun SettingsGitHubUpdaterCard(
         }
       }
 
-      // Guidance for manual or CI APK uploads to GitHub Releases
-      Surface(
+      // Friendly Backup Download Option (Google Drive link without raw URL) in case direct update is blocked in user's country
+      OutlinedButton(
+        onClick = { openAppUpdatesDriveFolder(context) },
         shape = RoundedCornerShape(10.dp),
-        color = EmeraldPrimary.copy(alpha = 0.08f),
-        border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.45f)),
         modifier = Modifier
           .fillMaxWidth()
-          .testTag("updater_manual_apk_upload_guidance")
+          .testTag("updater_backup_drive_download_button")
       ) {
+        Icon(Icons.Default.CloudDownload, contentDescription = null, tint = EmeraldPrimary, modifier = Modifier.size(16.dp))
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
-          text = "Running v${updaterState.installedVersionName} (BuildConfig.VERSION_CODE = ${updaterState.installedVersionCode}). Upload any newer signed APK (versionCode > ${updaterState.installedVersionCode}) to GitHub Releases to trigger automatic in-app update & verification.",
-          style = MaterialTheme.typography.labelSmall.copy(
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            lineHeight = 15.sp
-          ),
-          modifier = Modifier.padding(10.dp)
+          text = "Alternative Download (Backup Link)",
+          style = MaterialTheme.typography.labelMedium.copy(
+            fontWeight = FontWeight.SemiBold,
+            color = EmeraldPrimary
+          )
         )
       }
 
-      // Official GitHub Releases Web Link
-      Surface(
-        modifier = Modifier
-          .fillMaxWidth()
-          .testTag("about_open_github_releases_button")
-          .clickable {
-            val url = release?.htmlUrl ?: AppUpdaterConstants.GITHUB_RELEASES_WEB_URL
-            try {
-              context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-              })
-            } catch (_: Exception) {
-              Toast.makeText(context, "Could not open browser for GitHub Releases", Toast.LENGTH_SHORT).show()
+      // TIER 2 ONLY: Read-only Technical Updater Info (Visible ONLY when Developer Options switch is ON)
+      if (isDeveloperOptionsEnabled) {
+        HorizontalDivider()
+        Surface(
+          shape = RoundedCornerShape(12.dp),
+          color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+          ) {
+            Text(
+              text = "Developer Update Diagnostics (Read-Only)",
+              style = MaterialTheme.typography.labelMedium.copy(
+                fontWeight = FontWeight.Bold,
+                color = GoldPrimary
+              )
+            )
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+              Text(
+                text = "Updater Channel:",
+                style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+              )
+              Text(
+                text = updaterState.distributionChannel.label,
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                modifier = Modifier.testTag("updater_distribution_channel_text")
+              )
             }
-          },
-        shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant
-      ) {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+              Text(
+                text = "Installed Version:",
+                style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+              )
+              Text(
+                text = "${updaterState.installedVersionName} (Code ${updaterState.installedVersionCode})",
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                modifier = Modifier.testTag("updater_installed_version_value")
+              )
+            }
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+              Text(
+                text = "Latest Version:",
+                style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+              )
+              Text(
+                text = if (release != null) {
+                  "${release.versionName} (Code ${release.versionCode})"
+                } else {
+                  "${updaterState.installedVersionName} (Code ${updaterState.installedVersionCode})"
+                },
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                modifier = Modifier.testTag("updater_latest_version_value")
+              )
+            }
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+              Text(
+                text = "Last Check Timestamp:",
+                style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+              )
+              Text(
+                text = formatEpochTimestamp(updaterState.lastCheckedTimestampMs),
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium)
+              )
+            }
+          }
+        }
+
+        updaterState.verificationResult?.let { verification ->
+          Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = if (verification.isValid) {
+              EmeraldPrimary.copy(alpha = 0.12f)
+            } else {
+              MaterialTheme.colorScheme.errorContainer
+            },
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("updater_verification_result_card")
+          ) {
+            Row(
+              modifier = Modifier.padding(12.dp),
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Icon(
+                imageVector = if (verification.isValid) Icons.Default.CheckCircle else Icons.Default.Warning,
+                contentDescription = null,
+                tint = if (verification.isValid) EmeraldPrimary else MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(20.dp)
+              )
+              Spacer(modifier = Modifier.width(10.dp))
+              Column(modifier = Modifier.weight(1f)) {
+                Text(
+                  text = if (verification.isValid) {
+                    "Package Signature & Checksum Verified"
+                  } else {
+                    "Package Verification Failed"
+                  },
+                  style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = if (verification.isValid) EmeraldPrimary else MaterialTheme.colorScheme.onErrorContainer
+                  )
+                )
+                Text(
+                  text = if (verification.isValid) {
+                    "SHA-256: ${verification.actualSha256?.take(16)}..."
+                  } else {
+                    verification.errorMessage ?: "Verification failed"
+                  },
+                  style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp)
+                )
+              }
+            }
+          }
+        }
+
+        // Official GitHub Releases Web Link (Developer Options only)
+        Surface(
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("about_open_github_releases_button")
+            .clickable {
+              val url = release?.htmlUrl ?: AppUpdaterConstants.GITHUB_RELEASES_WEB_URL
+              try {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                  addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                })
+              } catch (_: Exception) {
+                Toast.makeText(context, "Could not open browser", Toast.LENGTH_SHORT).show()
+              }
+            },
+          shape = RoundedCornerShape(10.dp),
+          color = MaterialTheme.colorScheme.surfaceVariant
+        ) {
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = "Official GitHub Releases Page",
+                style = MaterialTheme.typography.bodySmall.copy(
+                  fontWeight = FontWeight.Bold,
+                  color = EmeraldPrimary
+                )
+              )
+              Text(
+                text = AppUpdaterConstants.GITHUB_RELEASES_WEB_URL,
+                style = MaterialTheme.typography.labelSmall.copy(
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+              )
+            }
+            Icon(
+              imageVector = Icons.Default.FactCheck,
+              contentDescription = "Open GitHub Releases",
+              tint = EmeraldPrimary,
+              modifier = Modifier.size(18.dp)
+            )
+          }
+        }
+
+        // Update History Section (Developer Options only)
         Row(
           modifier = Modifier
             .fillMaxWidth()
-            .padding(12.dp),
+            .clickable { showHistoryExpanded = !showHistoryExpanded }
+            .testTag("about_toggle_update_history_button")
+            .padding(vertical = 4.dp),
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          Column(modifier = Modifier.weight(1f)) {
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Refresh, contentDescription = null, tint = EmeraldPrimary, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
-              text = "Official GitHub Releases Page",
-              style = MaterialTheme.typography.bodySmall.copy(
-                fontWeight = FontWeight.Bold,
-                color = EmeraldPrimary
-              )
-            )
-            Text(
-              text = AppUpdaterConstants.GITHUB_RELEASES_WEB_URL,
-              style = MaterialTheme.typography.labelSmall.copy(
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-              )
+              text = "Update History (${updaterState.updateHistory.size})",
+              style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
             )
           }
-          Icon(
-            imageVector = Icons.Default.FactCheck,
-            contentDescription = "Open GitHub Releases",
-            tint = EmeraldPrimary,
-            modifier = Modifier.size(18.dp)
-          )
-        }
-      }
-
-      // Update History Section
-      HorizontalDivider()
-      Row(
-        modifier = Modifier
-          .fillMaxWidth()
-          .clickable { showHistoryExpanded = !showHistoryExpanded }
-          .testTag("about_toggle_update_history_button")
-          .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          Icon(Icons.Default.Refresh, contentDescription = null, tint = EmeraldPrimary, modifier = Modifier.size(18.dp))
-          Spacer(modifier = Modifier.width(8.dp))
           Text(
-            text = "Update History (${updaterState.updateHistory.size})",
-            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
+            text = if (showHistoryExpanded) "Hide" else "Show",
+            style = MaterialTheme.typography.labelSmall.copy(
+              color = EmeraldPrimary,
+              fontWeight = FontWeight.Bold
+            )
           )
         }
-        Text(
-          text = if (showHistoryExpanded) "Hide" else "Show",
-          style = MaterialTheme.typography.labelSmall.copy(
-            color = EmeraldPrimary,
-            fontWeight = FontWeight.Bold
-          )
-        )
-      }
 
-      if (showHistoryExpanded) {
-        Column(
-          modifier = Modifier
-            .fillMaxWidth()
-            .testTag("about_update_history_list"),
-          verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-          if (updaterState.updateHistory.isEmpty()) {
-            Text(
-              text = "No update events recorded yet.",
-              style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-            )
-          } else {
-            updaterState.updateHistory.take(10).forEachIndexed { idx, entry ->
-              Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .testTag("update_history_item_$idx")
-              ) {
-                Column(modifier = Modifier.padding(8.dp)) {
-                  Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                  ) {
-                    Text(
-                      text = "${entry.status} • v${entry.targetVersionName} (${entry.targetVersionCode})",
-                      style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = EmeraldPrimary
+        if (showHistoryExpanded) {
+          Column(
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("about_update_history_list"),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+          ) {
+            if (updaterState.updateHistory.isEmpty()) {
+              Text(
+                text = "No update events recorded yet.",
+                style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+              )
+            } else {
+              updaterState.updateHistory.take(10).forEachIndexed { idx, entry ->
+                val cleanDetails = if (entry.details.contains("Source code (.zip / .tar.gz)", ignoreCase = true)) {
+                  "Checked release status: Installed version is up to date."
+                } else {
+                  entry.details
+                }
+                Surface(
+                  shape = RoundedCornerShape(8.dp),
+                  color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("update_history_item_$idx")
+                ) {
+                  Column(modifier = Modifier.padding(8.dp)) {
+                    Row(
+                      modifier = Modifier.fillMaxWidth(),
+                      horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                      Text(
+                        text = "${entry.status} • v${entry.targetVersionName} (${entry.targetVersionCode})",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                          fontWeight = FontWeight.Bold,
+                          color = EmeraldPrimary
+                        )
                       )
-                    )
-                    Text(
-                      text = formatEpochTimestamp(entry.timestampMs),
-                      style = MaterialTheme.typography.labelSmall.copy(
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                      Text(
+                        text = formatEpochTimestamp(entry.timestampMs),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                          fontSize = 10.sp,
+                          color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                       )
+                    }
+                    Text(
+                      text = cleanDetails,
+                      style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp)
                     )
                   }
-                  Text(
-                    text = entry.details,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp)
-                  )
                 }
               }
             }
@@ -899,26 +949,16 @@ fun SettingsGitHubUpdaterCard(
       onDismissRequest = { showReleaseDetailsModal = false },
       title = {
         Text(
-          text = "Bayan al-Huda ${release.tagName} Release Details",
+          text = "What's New in Version ${release.versionName}",
           fontWeight = FontWeight.Bold
         )
       },
       text = {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
           Text(
-            text = "Installed: v${updaterState.installedVersionName} (Code ${updaterState.installedVersionCode})\n" +
-              "Latest: v${release.versionName} (Code ${release.versionCode})\n" +
-              "Minimum Supported Code: ${release.minimumVersionCode}\n" +
-              "Urgency: ${updaterState.urgency.badgeLabel}\n" +
-              "Asset: ${release.apkAsset.name} (${ApkUpdateDownloadManager.formatFileSize(release.apkAsset.sizeBytes)})",
+            text = "Current version: ${updaterState.installedVersionName}\nNew version: ${release.versionName}",
             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold)
           )
-          if (release.signedManifest != null) {
-            Text(
-              text = "Expected SHA-256:\n${release.signedManifest.sha256}",
-              style = MaterialTheme.typography.labelSmall.copy(color = EmeraldPrimary)
-            )
-          }
           HorizontalDivider()
           Text(
             text = release.releaseNotes,
@@ -934,7 +974,7 @@ fun SettingsGitHubUpdaterCard(
           },
           colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary)
         ) {
-          Text("Download Update")
+          Text("Download")
         }
       },
       dismissButton = {
@@ -944,7 +984,7 @@ fun SettingsGitHubUpdaterCard(
             onRemindMeLater()
           }
         ) {
-          Text("Remind Me Later")
+          Text("Later")
         }
       }
     )
@@ -952,9 +992,7 @@ fun SettingsGitHubUpdaterCard(
 }
 
 /**
- * Modal In-App Update Dialog triggered automatically by `InAppUpdateService` when the GitHub Releases API
- * (`https://api.github.com/repos/zulqarnain7861/Bayan-ul-huda-quran-o-hadees/releases/latest`)
- * reports a `versionCode > BuildConfig.VERSION_CODE`.
+ * Modal In-App Update Dialog triggered when a newer version is available.
  */
 @Composable
 fun InAppUpdateAlertDialog(
@@ -996,7 +1034,7 @@ fun InAppUpdateAlertDialog(
           )
         )
         Text(
-          text = "BAYAN AL-HUDA UPDATE AVAILABLE",
+          text = "New Update Available",
           style = MaterialTheme.typography.titleSmall.copy(
             fontWeight = FontWeight.ExtraBold,
             color = EmeraldPrimary,
@@ -1036,25 +1074,27 @@ fun InAppUpdateAlertDialog(
             verticalArrangement = Arrangement.spacedBy(4.dp)
           ) {
             Text(
-              text = "Installed (BuildConfig.VERSION_CODE = ${updaterState.currentBuildConfigVersionCode}): v${updaterState.installedVersionName} (Code ${updaterState.installedVersionCode})",
+              text = "Current version: ${updaterState.installedVersionName}",
               style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
               modifier = Modifier.testTag("in_app_update_dialog_installed_version")
             )
             Text(
-              text = "Latest GitHub Release: v${release.versionName} (Code ${release.versionCode})",
+              text = "New version: ${release.versionName}",
               style = MaterialTheme.typography.labelMedium.copy(
                 fontWeight = FontWeight.ExtraBold,
                 color = EmeraldPrimary
               ),
               modifier = Modifier.testTag("in_app_update_dialog_latest_version")
             )
-            Text(
-              text = "APK Size: ${ApkUpdateDownloadManager.formatFileSize(release.apkAsset.sizeBytes)} • Source: GitHub Releases API",
-              style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            if (release.apkAsset.sizeBytes > 0L) {
+              Text(
+                text = "Download size: ${ApkUpdateDownloadManager.formatFileSize(release.apkAsset.sizeBytes)}",
+                style = MaterialTheme.typography.labelSmall.copy(
+                  fontSize = 10.sp,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
               )
-            )
+            }
           }
         }
 
@@ -1066,7 +1106,7 @@ fun InAppUpdateAlertDialog(
           ) {
             Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
               Text(
-                text = "What's New in ${release.tagName}:",
+                text = "What's new:",
                 style = MaterialTheme.typography.labelSmall.copy(
                   fontWeight = FontWeight.Bold,
                   color = EmeraldPrimary
@@ -1102,9 +1142,9 @@ fun InAppUpdateAlertDialog(
             )
             Text(
               text = if (updaterState.status == UpdaterStatus.VERIFYING) {
-                "Verifying SHA-256 checksum & X.509 certificate..."
+                "Preparing update..."
               } else {
-                "Downloading APK: ${updaterState.downloadProgressPercent}% (${ApkUpdateDownloadManager.formatFileSize(updaterState.downloadedBytes)} / ${ApkUpdateDownloadManager.formatFileSize(updaterState.totalBytes)})"
+                "Downloading: ${updaterState.downloadProgressPercent}%"
               },
               style = MaterialTheme.typography.labelSmall.copy(
                 fontWeight = FontWeight.Bold,
@@ -1141,9 +1181,9 @@ fun InAppUpdateAlertDialog(
               Spacer(modifier = Modifier.width(8.dp))
               Text(
                 text = if (verification.isValid) {
-                  "Verified SHA-256 (${verification.actualSha256?.take(12)}...) & X.509 Signing Certificate"
+                  "Update ready to install"
                 } else {
-                  verification.errorMessage ?: "Verification failed"
+                  verification.errorMessage ?: "Couldn't verify download. Please try again."
                 },
                 style = MaterialTheme.typography.labelSmall.copy(
                   fontWeight = FontWeight.Bold,
@@ -1172,9 +1212,9 @@ fun InAppUpdateAlertDialog(
           colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = Color(0xFF0A1914)),
           modifier = Modifier.testTag("in_app_update_dialog_install_btn")
         ) {
-          Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.size(16.dp))
+          Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
           Spacer(modifier = Modifier.width(6.dp))
-          Text("Install Verified APK", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+          Text("Install", fontWeight = FontWeight.Bold, fontSize = 12.sp)
         }
       } else {
         Button(
@@ -1185,7 +1225,7 @@ fun InAppUpdateAlertDialog(
         ) {
           Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(16.dp))
           Spacer(modifier = Modifier.width(6.dp))
-          Text("Download & Verify Update", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+          Text("Download", fontWeight = FontWeight.Bold, fontSize = 12.sp)
         }
       }
     },
@@ -1204,10 +1244,11 @@ fun InAppUpdateAlertDialog(
           onClick = onRemindMeLater,
           modifier = Modifier.testTag("in_app_update_dialog_remind_later_btn")
         ) {
-          Text("Remind Me Later", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+          Text("Later", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         }
       }
     }
   )
 }
+
 

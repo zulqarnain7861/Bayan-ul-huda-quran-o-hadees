@@ -39,6 +39,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,12 +47,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.ExtendedHadithDataProvider
@@ -70,31 +75,57 @@ import com.example.ui.viewmodels.SearchCategory
 
 private val SearchMatchRedColor = Color(0xFFD32F2F)
 private val SearchMatchRedBackground = Color(0x22D32F2F)
+private val WhitespaceSplitRegex = Regex("\\s+")
 
 /**
  * Highlights exact matching phrases, words, and partial terms in RED (`Color(0xFFD32F2F)`)
- * across Arabic, Urdu, and English passages.
+ * across Arabic, Urdu, and English passages, snippeting oversized passages around the first
+ * matched token so LazyColumn scrolling and layout measurement remain fast and smooth.
  */
 fun buildRedHighlightedSearchText(
   text: String,
-  rawQuery: String
+  rawQuery: String,
+  maxSnippetChars: Int = 650
 ): AnnotatedString {
+  if (text.isBlank()) return AnnotatedString("")
   val cleanQuery = rawQuery.trim()
-  if (cleanQuery.isBlank() || text.isBlank()) {
-    return AnnotatedString(text)
+  if (cleanQuery.isBlank()) {
+    val clipped = if (text.length > maxSnippetChars) {
+      text.take(maxSnippetChars).trimEnd() + "…"
+    } else {
+      text
+    }
+    return AnnotatedString(clipped)
   }
-  return buildAnnotatedString {
-    append(text)
-    val tokens = (
-      listOf(cleanQuery) +
-        cleanQuery.split(Regex("\\s+")).filter { it.length >= 2 }
-      ).distinct()
 
+  val tokens = (
+    listOf(cleanQuery) +
+      cleanQuery.split(WhitespaceSplitRegex).filter { it.length >= 2 }
+    ).distinct()
+
+  val displayString = if (text.length > maxSnippetChars) {
+    val firstMatchIdx = tokens
+      .map { token -> text.indexOf(token, ignoreCase = true) }
+      .filter { it >= 0 }
+      .minOrNull() ?: 0
+    val windowStart = (firstMatchIdx - (maxSnippetChars / 4)).coerceAtLeast(0)
+    val windowEnd = (windowStart + maxSnippetChars).coerceAtMost(text.length)
+    buildString(maxSnippetChars + 4) {
+      if (windowStart > 0) append("…")
+      append(text, windowStart, windowEnd)
+      if (windowEnd < text.length) append("…")
+    }
+  } else {
+    text
+  }
+
+  return buildAnnotatedString {
+    append(displayString)
     for (token in tokens) {
-      var startIndex = text.indexOf(token, ignoreCase = true)
+      var startIndex = displayString.indexOf(token, ignoreCase = true)
       var guard = 0
       while (startIndex >= 0 && guard < 24) {
-        val endIndex = (startIndex + token.length).coerceAtMost(text.length)
+        val endIndex = (startIndex + token.length).coerceAtMost(displayString.length)
         addStyle(
           style = SpanStyle(
             color = SearchMatchRedColor,
@@ -104,7 +135,7 @@ fun buildRedHighlightedSearchText(
           start = startIndex,
           end = endIndex
         )
-        startIndex = text.indexOf(token, startIndex + token.length.coerceAtLeast(1), ignoreCase = true)
+        startIndex = displayString.indexOf(token, startIndex + token.length.coerceAtLeast(1), ignoreCase = true)
         guard++
       }
     }
@@ -124,6 +155,12 @@ private data class LearnIslamSearchHit(
   val reference: String
 )
 
+private data class IndexedLearnIslamEntry(
+  val hit: LearnIslamSearchHit,
+  val lowercaseHaystack: String,
+  val isCompleteSalahOverviewStep: Boolean
+)
+
 private data class ClassicalBookSearchHit(
   val id: String,
   val bookTitleEnglish: String,
@@ -137,6 +174,121 @@ private data class ClassicalBookSearchHit(
   val urduExcerpt: String,
   val primarySourceCitation: String
 )
+
+private data class IndexedClassicalBookEntry(
+  val hit: ClassicalBookSearchHit,
+  val traditionUpper: String,
+  val lowercaseHaystack: String
+)
+
+private val preIndexedLearnIslamEntries: List<IndexedLearnIslamEntry> by lazy {
+  buildList {
+    LearnIslamCurriculumData.completeSalahSteps.forEach { step ->
+      val haystack = buildString {
+        append(step.section).append(' ')
+        append(step.title).append(' ')
+        append(step.arabic).append(' ')
+        append(step.urdu).append(' ')
+        append(step.english).append(' ')
+        append(step.reference).append(' ')
+        append(step.videoTitle.orEmpty()).append(' ')
+        append("Complete Salah Namaz Wudu")
+      }.lowercase()
+      add(
+        IndexedLearnIslamEntry(
+          hit = LearnIslamSearchHit(
+            id = "complete_salah_${step.step_no}",
+            tab = LearnIslamTab.NAMAZ_AND_WUDU,
+            badgeLabel = "Learn Islam • Complete Salah",
+            stepNo = step.step_no,
+            sectionTitle = "Complete Salah — ${step.section}",
+            stepTitle = step.title,
+            arabic = step.arabic,
+            urdu = step.urdu,
+            english = step.english,
+            reference = step.reference
+          ),
+          lowercaseHaystack = haystack,
+          isCompleteSalahOverviewStep = step.step_no == 1 || step.step_no == 10
+        )
+      )
+    }
+
+    NimazJanazaSubSection.entries.forEach { sub ->
+      LearnIslamCurriculumData.getNimazJanazaSteps(sub).forEach { step ->
+        val haystack = buildString {
+          append(sub.labelEnglish).append(' ')
+          append(sub.labelUrdu).append(' ')
+          append(step.section).append(' ')
+          append(step.title).append(' ')
+          append(step.arabic).append(' ')
+          append(step.urdu).append(' ')
+          append(step.english).append(' ')
+          append(step.reference).append(' ')
+          append("Nimaz Janaza نماز جنازہ funeral prayer standing only no ruku no sajdah")
+        }.lowercase()
+        add(
+          IndexedLearnIslamEntry(
+            hit = LearnIslamSearchHit(
+              id = "nimaz_janaza_${sub.key}_${step.step_no}",
+              tab = LearnIslamTab.NIMAZ_JANAZA,
+              badgeLabel = "Learn Islam • Nimaz Janaza (${sub.labelEnglish})",
+              stepNo = step.step_no,
+              sectionTitle = "Nimaz Janaza (${sub.labelEnglish} / ${sub.labelUrdu})",
+              stepTitle = step.title,
+              arabic = step.arabic,
+              urdu = step.urdu,
+              english = step.english,
+              reference = step.reference
+            ),
+            lowercaseHaystack = haystack,
+            isCompleteSalahOverviewStep = false
+          )
+        )
+      }
+    }
+  }
+}
+
+private val preIndexedClassicalBookEntries: List<IndexedClassicalBookEntry> by lazy {
+  buildList {
+    for (book in IslamicBooksCatalog.allSunniAndShiaBooks) {
+      val traditionUpper = book.tradition.uppercase()
+      for (chapter in book.chapters) {
+        val haystack = buildString {
+          append(book.titleEnglish).append(' ')
+          append(book.titleArabic).append(' ')
+          append(book.author).append(' ')
+          append(book.category).append(' ')
+          append(chapter.titleEnglish).append(' ')
+          append(chapter.arabicExcerpt).append(' ')
+          append(chapter.englishContent).append(' ')
+          append(chapter.urduContent).append(' ')
+          append(chapter.crossReferences)
+        }.lowercase()
+        add(
+          IndexedClassicalBookEntry(
+            hit = ClassicalBookSearchHit(
+              id = "${book.id}_${chapter.chapterNumber}",
+              bookTitleEnglish = book.titleEnglish,
+              bookTitleArabic = book.titleArabic,
+              author = book.author,
+              tradition = book.tradition,
+              category = book.category,
+              chapterTitle = "Ch. ${chapter.chapterNumber}: ${chapter.titleEnglish}",
+              arabicExcerpt = chapter.arabicExcerpt,
+              englishExcerpt = chapter.englishContent,
+              urduExcerpt = chapter.urduContent,
+              primarySourceCitation = chapter.crossReferences
+            ),
+            traditionUpper = traditionUpper,
+            lowercaseHaystack = haystack
+          )
+        )
+      }
+    }
+  }
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -187,141 +339,55 @@ fun SearchScreen(
 
   val scopedTafsirResults = remember(tafsirResults, hadithTraditionScope) {
     when (hadithTraditionScope) {
-      "SUNNI" -> tafsirResults.filter { !it.edition.eraBadge.contains("Shia", ignoreCase = true) }
-      "SHIA" -> tafsirResults.filter { it.edition.eraBadge.contains("Shia", ignoreCase = true) }
+      "SUNNI" -> tafsirResults.filter { !it.edition.tradition.equals("SHIA", ignoreCase = true) }
+      "SHIA" -> tafsirResults.filter { it.edition.tradition.equals("SHIA", ignoreCase = true) }
       else -> tafsirResults
     }
   }
 
-  // Search Learn Islam ("Complete Salah" & "Nimaz Janaza")
+  // Fast pre-indexed search across Learn Islam ("Complete Salah" & "Nimaz Janaza")
   val learnIslamHits = remember(searchQuery) {
     val q = searchQuery.trim().lowercase()
     if (q.length < 2) {
       emptyList()
     } else {
-      val hits = mutableListOf<LearnIslamSearchHit>()
-      val tokens = q.split(Regex("\\s+")).filter { it.length >= 2 }
-
-      // 1. Complete Salah (30 steps)
+      val tokens = q.split(WhitespaceSplitRegex).filter { it.length >= 2 }
       val matchesCompleteSalahLabel = "complete salah".contains(q) || "namaz".contains(q) || "nimaz".contains(q)
-      LearnIslamCurriculumData.completeSalahSteps.forEach { step ->
-        val haystack = buildString {
-          append(step.section).append(' ')
-          append(step.title).append(' ')
-          append(step.arabic).append(' ')
-          append(step.urdu).append(' ')
-          append(step.english).append(' ')
-          append(step.reference).append(' ')
-          append(step.videoTitle.orEmpty()).append(' ')
-          append("Complete Salah Namaz Wudu")
-        }.lowercase()
+      val hits = ArrayList<LearnIslamSearchHit>(15)
+      for (entry in preIndexedLearnIslamEntries) {
+        val haystack = entry.lowercaseHaystack
         val matched = haystack.contains(q) ||
           (tokens.isNotEmpty() && tokens.all { haystack.contains(it) }) ||
-          (matchesCompleteSalahLabel && step.step_no in listOf(1, 10))
+          (matchesCompleteSalahLabel && entry.isCompleteSalahOverviewStep)
         if (matched) {
-          hits.add(
-            LearnIslamSearchHit(
-              id = "complete_salah_${step.step_no}",
-              tab = LearnIslamTab.NAMAZ_AND_WUDU,
-              badgeLabel = "Learn Islam • Complete Salah",
-              stepNo = step.step_no,
-              sectionTitle = "Complete Salah — ${step.section}",
-              stepTitle = step.title,
-              arabic = step.arabic,
-              urdu = step.urdu,
-              english = step.english,
-              reference = step.reference
-            )
-          )
+          hits.add(entry.hit)
+          if (hits.size >= 15) break
         }
       }
-
-      // 2. Nimaz Janaza (Adult, Baby Boy, Baby Girl)
-      NimazJanazaSubSection.entries.forEach { sub ->
-        LearnIslamCurriculumData.getNimazJanazaSteps(sub).forEach { step ->
-          val haystack = buildString {
-            append(sub.labelEnglish).append(' ')
-            append(sub.labelUrdu).append(' ')
-            append(step.section).append(' ')
-            append(step.title).append(' ')
-            append(step.arabic).append(' ')
-            append(step.urdu).append(' ')
-            append(step.english).append(' ')
-            append(step.reference).append(' ')
-            append("Nimaz Janaza نماز جنازہ funeral prayer standing only no ruku no sajdah")
-          }.lowercase()
-          val matched = haystack.contains(q) ||
-            (tokens.isNotEmpty() && tokens.all { haystack.contains(it) })
-          if (matched) {
-            hits.add(
-              LearnIslamSearchHit(
-                id = "nimaz_janaza_${sub.key}_${step.step_no}",
-                tab = LearnIslamTab.NIMAZ_JANAZA,
-                badgeLabel = "Learn Islam • Nimaz Janaza (${sub.labelEnglish})",
-                stepNo = step.step_no,
-                sectionTitle = "Nimaz Janaza (${sub.labelEnglish} / ${sub.labelUrdu})",
-                stepTitle = step.title,
-                arabic = step.arabic,
-                urdu = step.urdu,
-                english = step.english,
-                reference = step.reference
-              )
-            )
-          }
-        }
-      }
-      hits.take(15)
+      hits
     }
   }
 
-  // Search Classical Sunni & Shia Books Catalog
+  // Fast pre-indexed search across Classical Sunni & Shia Books Catalog
   val classicalBookHits = remember(searchQuery, hadithTraditionScope) {
     val q = searchQuery.trim().lowercase()
     if (q.length < 2) {
       emptyList()
     } else {
-      val tokens = q.split(Regex("\\s+")).filter { it.length >= 2 }
-      val hits = mutableListOf<ClassicalBookSearchHit>()
-      val books = IslamicBooksCatalog.allSunniAndShiaBooks.filter { book ->
-        when (hadithTraditionScope) {
-          "SUNNI" -> book.tradition.equals("SUNNI", ignoreCase = true)
-          "SHIA" -> book.tradition.equals("SHIA", ignoreCase = true)
+      val tokens = q.split(WhitespaceSplitRegex).filter { it.length >= 2 }
+      val hits = ArrayList<ClassicalBookSearchHit>(20)
+      for (entry in preIndexedClassicalBookEntries) {
+        val matchesTradition = when (hadithTraditionScope) {
+          "SUNNI" -> entry.traditionUpper == "SUNNI"
+          "SHIA" -> entry.traditionUpper == "SHIA"
           else -> true
         }
-      }
-      for (book in books) {
-        for (chapter in book.chapters) {
-          val haystack = buildString {
-            append(book.titleEnglish).append(' ')
-            append(book.titleArabic).append(' ')
-            append(book.author).append(' ')
-            append(book.category).append(' ')
-            append(chapter.titleEnglish).append(' ')
-            append(chapter.arabicExcerpt).append(' ')
-            append(chapter.englishContent).append(' ')
-            append(chapter.urduContent).append(' ')
-            append(chapter.crossReferences)
-          }.lowercase()
-          if (haystack.contains(q) || (tokens.isNotEmpty() && tokens.all { haystack.contains(it) })) {
-            hits.add(
-              ClassicalBookSearchHit(
-                id = "${book.id}_${chapter.chapterNumber}",
-                bookTitleEnglish = book.titleEnglish,
-                bookTitleArabic = book.titleArabic,
-                author = book.author,
-                tradition = book.tradition,
-                category = book.category,
-                chapterTitle = "Ch. ${chapter.chapterNumber}: ${chapter.titleEnglish}",
-                arabicExcerpt = chapter.arabicExcerpt,
-                englishExcerpt = chapter.englishContent,
-                urduExcerpt = chapter.urduContent,
-                primarySourceCitation = chapter.crossReferences
-              )
-            )
-            if (hits.size >= 20) break
-          }
+        if (!matchesTradition) continue
+        val haystack = entry.lowercaseHaystack
+        if (haystack.contains(q) || (tokens.isNotEmpty() && tokens.all { haystack.contains(it) })) {
+          hits.add(entry.hit)
+          if (hits.size >= 20) break
         }
-        if (hits.size >= 20) break
       }
       hits
     }
@@ -394,7 +460,8 @@ fun SearchScreen(
           Text(
             text = "Search Quran, Hadith, Sahaba & Ahl al-Bayt, Tafsir, Books...",
             fontSize = 12.sp,
-            maxLines = 1
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
           )
         },
         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
@@ -486,7 +553,8 @@ fun SearchScreen(
                 fontWeight = FontWeight.Bold,
                 fontSize = 12.sp
               ),
-              maxLines = 1
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis
             )
           }
 
@@ -591,7 +659,7 @@ fun SearchScreen(
             FilterChip(
               selected = hadithTraditionScope == "BOTH",
               onClick = { updateTraditionScope("BOTH") },
-              label = { Text("Both Traditions", fontSize = 11.sp, maxLines = 1, softWrap = false) },
+              label = { Text("Both Traditions", fontSize = 11.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) },
               colors = FilterChipDefaults.filterChipColors(
                 selectedContainerColor = MaterialTheme.colorScheme.primary,
                 selectedLabelColor = MaterialTheme.colorScheme.onPrimary
@@ -601,7 +669,7 @@ fun SearchScreen(
             FilterChip(
               selected = hadithTraditionScope == "SUNNI",
               onClick = { updateTraditionScope("SUNNI") },
-              label = { Text("Sunni Only", fontSize = 11.sp, maxLines = 1, softWrap = false) },
+              label = { Text("Sunni Only", fontSize = 11.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) },
               colors = FilterChipDefaults.filterChipColors(
                 selectedContainerColor = EmeraldPrimary,
                 selectedLabelColor = Color.White
@@ -611,7 +679,7 @@ fun SearchScreen(
             FilterChip(
               selected = hadithTraditionScope == "SHIA",
               onClick = { updateTraditionScope("SHIA") },
-              label = { Text("Shia Only", fontSize = 11.sp, maxLines = 1, softWrap = false) },
+              label = { Text("Shia Only", fontSize = 11.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) },
               colors = FilterChipDefaults.filterChipColors(
                 selectedContainerColor = GoldPrimary,
                 selectedLabelColor = Color.Black
@@ -770,50 +838,71 @@ fun SearchScreen(
                       )
                     )
                   }
-                  Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                      text = bio.personNameArabic,
-                      style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = AmiriFontFamily,
-                        color = MaterialTheme.colorScheme.primary
+                  Spacer(modifier = Modifier.width(8.dp))
+                  CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                    Column(horizontalAlignment = Alignment.Start) {
+                      Text(
+                        text = bio.personNameArabic,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                          fontFamily = AmiriFontFamily,
+                          lineHeight = 28.sp,
+                          textAlign = TextAlign.Right,
+                          color = MaterialTheme.colorScheme.primary
+                        )
                       )
-                    )
-                    Text(
-                      text = bio.personNameUrdu,
-                      style = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = UrduNastaliqFontFamily,
-                        color = MaterialTheme.colorScheme.secondary
+                      Text(
+                        text = bio.personNameUrdu,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                          fontFamily = UrduNastaliqFontFamily,
+                          fontSize = 13.sp,
+                          lineHeight = 26.sp,
+                          platformStyle = PlatformTextStyle(includeFontPadding = true),
+                          textAlign = TextAlign.Right,
+                          color = MaterialTheme.colorScheme.secondary
+                        )
                       )
-                    )
+                    }
                   }
                 }
 
                 Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                  text = buildRedHighlightedSearchText(bio.arabicText, searchQuery),
-                  style = MaterialTheme.typography.bodyLarge.copy(
-                    fontFamily = AmiriFontFamily,
-                    fontSize = 19.sp,
-                    lineHeight = 32.sp,
-                    textAlign = TextAlign.Right
-                  ),
-                  modifier = Modifier.fillMaxWidth()
-                )
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                  Text(
+                    text = buildRedHighlightedSearchText(bio.arabicText, searchQuery),
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                      fontFamily = AmiriFontFamily,
+                      fontSize = 19.sp,
+                      lineHeight = 32.sp,
+                      textAlign = TextAlign.Right
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis
+                  )
+                }
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                  text = buildRedHighlightedSearchText(bio.urduTranslation, searchQuery),
-                  style = MaterialTheme.typography.bodySmall.copy(
-                    fontFamily = UrduNastaliqFontFamily,
-                    fontSize = 13.sp,
-                    textAlign = TextAlign.Right,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                  ),
-                  modifier = Modifier.fillMaxWidth()
-                )
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                  Text(
+                    text = buildRedHighlightedSearchText(bio.urduTranslation, searchQuery),
+                    style = MaterialTheme.typography.bodySmall.copy(
+                      fontFamily = UrduNastaliqFontFamily,
+                      fontSize = 14.sp,
+                      lineHeight = 28.sp,
+                      platformStyle = PlatformTextStyle(includeFontPadding = true),
+                      textAlign = TextAlign.Right,
+                      color = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis
+                  )
+                }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                   text = buildRedHighlightedSearchText(bio.englishTranslation, searchQuery),
-                  style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp)
+                  style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 20.sp),
+                  maxLines = 5,
+                  overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -874,6 +963,7 @@ fun SearchScreen(
                       )
                     )
                   }
+                  Spacer(modifier = Modifier.width(8.dp))
                   Surface(
                     shape = RoundedCornerShape(6.dp),
                     color = GoldPrimary.copy(alpha = 0.2f)
@@ -884,42 +974,49 @@ fun SearchScreen(
                       style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold,
                         color = EmeraldPrimary
-                      )
+                      ),
+                      maxLines = 1
                     )
                   }
                 }
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                Text(
-                  text = buildRedHighlightedSearchText(hit.arabic, searchQuery),
-                  style = MaterialTheme.typography.bodyLarge.copy(
-                    fontFamily = AmiriFontFamily,
-                    fontSize = 20.sp,
-                    lineHeight = 34.sp,
-                    textAlign = TextAlign.Right
-                  ),
-                  modifier = Modifier.fillMaxWidth()
-                )
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                  Text(
+                    text = buildRedHighlightedSearchText(hit.arabic, searchQuery),
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                      fontFamily = AmiriFontFamily,
+                      fontSize = 20.sp,
+                      lineHeight = 34.sp,
+                      textAlign = TextAlign.Right
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                  )
+                }
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                Text(
-                  text = buildRedHighlightedSearchText(hit.urdu, searchQuery),
-                  style = MaterialTheme.typography.bodySmall.copy(
-                    fontFamily = UrduNastaliqFontFamily,
-                    fontSize = 13.sp,
-                    textAlign = TextAlign.Right,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                  ),
-                  modifier = Modifier.fillMaxWidth()
-                )
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                  Text(
+                    text = buildRedHighlightedSearchText(hit.urdu, searchQuery),
+                    style = MaterialTheme.typography.bodySmall.copy(
+                      fontFamily = UrduNastaliqFontFamily,
+                      fontSize = 14.sp,
+                      lineHeight = 28.sp,
+                      platformStyle = PlatformTextStyle(includeFontPadding = true),
+                      textAlign = TextAlign.Right,
+                      color = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                  )
+                }
 
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
                   text = buildRedHighlightedSearchText(hit.english, searchQuery),
-                  style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp)
+                  style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 20.sp)
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -981,6 +1078,7 @@ fun SearchScreen(
                     ),
                     modifier = Modifier.weight(1f)
                   )
+                  Spacer(modifier = Modifier.width(8.dp))
                   Surface(
                     shape = RoundedCornerShape(6.dp),
                     color = EmeraldPrimary.copy(alpha = 0.12f)
@@ -991,44 +1089,51 @@ fun SearchScreen(
                       style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold,
                         color = EmeraldPrimary
-                      )
+                      ),
+                      maxLines = 1
                     )
                   }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Text(
-                  text = buildRedHighlightedSearchText(ayah.textArabic, searchQuery),
-                  style = MaterialTheme.typography.bodyLarge.copy(
-                    fontFamily = AmiriFontFamily,
-                    fontSize = 20.sp,
-                    lineHeight = 34.sp,
-                    textAlign = TextAlign.Right
-                  ),
-                  modifier = Modifier.fillMaxWidth()
-                )
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                  Text(
+                    text = buildRedHighlightedSearchText(ayah.textArabic, searchQuery),
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                      fontFamily = AmiriFontFamily,
+                      fontSize = 20.sp,
+                      lineHeight = 34.sp,
+                      textAlign = TextAlign.Right
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                  )
+                }
 
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
                   text = buildRedHighlightedSearchText(ayah.translationEnglish, searchQuery),
-                  style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp)
+                  style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 20.sp)
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
 
                 if (ayah.translationUrdu.isNotBlank()) {
-                  Text(
-                    text = buildRedHighlightedSearchText(ayah.translationUrdu, searchQuery),
-                    style = MaterialTheme.typography.bodySmall.copy(
-                      fontFamily = UrduNastaliqFontFamily,
-                      fontSize = 13.sp,
-                      textAlign = TextAlign.Right,
-                      color = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                  )
+                  CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                    Text(
+                      text = buildRedHighlightedSearchText(ayah.translationUrdu, searchQuery),
+                      style = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = UrduNastaliqFontFamily,
+                        fontSize = 14.sp,
+                        lineHeight = 28.sp,
+                        platformStyle = PlatformTextStyle(includeFontPadding = true),
+                        textAlign = TextAlign.Right,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                      ),
+                      modifier = Modifier.fillMaxWidth()
+                    )
+                  }
                 }
               }
             }
@@ -1087,6 +1192,7 @@ fun SearchScreen(
                     ),
                     modifier = Modifier.weight(1f)
                   )
+                  Spacer(modifier = Modifier.width(8.dp))
                   SahihGradeBadge(grade = hadith.grade.ifBlank { "Verified Source" })
                 }
 
@@ -1155,36 +1261,48 @@ fun SearchScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 if (hadith.arabicText.isNotBlank()) {
-                  Text(
-                    text = buildRedHighlightedSearchText(hadith.arabicText, searchQuery),
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                      fontFamily = AmiriFontFamily,
-                      fontSize = 19.sp,
-                      lineHeight = 32.sp,
-                      textAlign = TextAlign.Right
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                  )
+                  CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                    Text(
+                      text = buildRedHighlightedSearchText(hadith.arabicText, searchQuery),
+                      style = MaterialTheme.typography.bodyLarge.copy(
+                        fontFamily = AmiriFontFamily,
+                        fontSize = 19.sp,
+                        lineHeight = 32.sp,
+                        textAlign = TextAlign.Right
+                      ),
+                      modifier = Modifier.fillMaxWidth(),
+                      maxLines = 5,
+                      overflow = TextOverflow.Ellipsis
+                    )
+                  }
                   Spacer(modifier = Modifier.height(6.dp))
                 }
 
                 Text(
                   text = buildRedHighlightedSearchText(hadith.englishText, searchQuery),
-                  style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp)
+                  style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 20.sp),
+                  maxLines = 6,
+                  overflow = TextOverflow.Ellipsis
                 )
 
                 if (hadith.urduText.isNotBlank()) {
                   Spacer(modifier = Modifier.height(4.dp))
-                  Text(
-                    text = buildRedHighlightedSearchText(hadith.urduText, searchQuery),
-                    style = MaterialTheme.typography.bodySmall.copy(
-                      fontFamily = UrduNastaliqFontFamily,
-                      fontSize = 13.sp,
-                      textAlign = TextAlign.Right,
-                      color = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                  )
+                  CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                    Text(
+                      text = buildRedHighlightedSearchText(hadith.urduText, searchQuery),
+                      style = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = UrduNastaliqFontFamily,
+                        fontSize = 14.sp,
+                        lineHeight = 28.sp,
+                        platformStyle = PlatformTextStyle(includeFontPadding = true),
+                        textAlign = TextAlign.Right,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                      ),
+                      modifier = Modifier.fillMaxWidth(),
+                      maxLines = 5,
+                      overflow = TextOverflow.Ellipsis
+                    )
+                  }
                 }
               }
             }
@@ -1212,7 +1330,7 @@ fun SearchScreen(
             val sNum = parts.getOrNull(0)?.toIntOrNull() ?: 1
             val vNum = parts.getOrNull(1)?.toIntOrNull()
             val surah = surahs.find { it.number == sNum }
-            val isShiaTafsir = tafsir.edition.eraBadge.contains("Shia", ignoreCase = true)
+            val isShiaTafsir = tafsir.edition.tradition.equals("SHIA", ignoreCase = true)
 
             Card(
               modifier = Modifier
@@ -1250,6 +1368,7 @@ fun SearchScreen(
                       )
                     )
                   }
+                  Spacer(modifier = Modifier.width(8.dp))
                   Surface(
                     shape = RoundedCornerShape(6.dp),
                     color = if (isShiaTafsir) GoldPrimary.copy(alpha = 0.2f) else EmeraldPrimary.copy(alpha = 0.12f)
@@ -1260,32 +1379,59 @@ fun SearchScreen(
                       style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold,
                         color = if (isShiaTafsir) GoldPrimary else EmeraldPrimary
-                      )
+                      ),
+                      maxLines = 1
                     )
                   }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Text(
-                  text = buildRedHighlightedSearchText(tafsir.commentaryEnglish, searchQuery),
-                  style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-                  maxLines = 5
-                )
+                if (tafsir.commentaryArabic.isNotBlank()) {
+                  CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                    Text(
+                      text = buildRedHighlightedSearchText(tafsir.commentaryArabic, searchQuery),
+                      style = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = AmiriFontFamily,
+                        fontSize = 18.sp,
+                        lineHeight = 32.sp,
+                        textAlign = TextAlign.Right
+                      ),
+                      modifier = Modifier.fillMaxWidth(),
+                      maxLines = 4,
+                      overflow = TextOverflow.Ellipsis
+                    )
+                  }
+                  Spacer(modifier = Modifier.height(4.dp))
+                }
+
+                if (tafsir.commentaryEnglish.isNotBlank()) {
+                  Text(
+                    text = buildRedHighlightedSearchText(tafsir.commentaryEnglish, searchQuery),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 20.sp),
+                    maxLines = 5,
+                    overflow = TextOverflow.Ellipsis
+                  )
+                }
 
                 if (tafsir.commentaryUrdu.isNotBlank()) {
                   Spacer(modifier = Modifier.height(4.dp))
-                  Text(
-                    text = buildRedHighlightedSearchText(tafsir.commentaryUrdu, searchQuery),
-                    style = MaterialTheme.typography.bodySmall.copy(
-                      fontFamily = UrduNastaliqFontFamily,
-                      fontSize = 13.sp,
-                      textAlign = TextAlign.Right,
-                      color = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                    maxLines = 4
-                  )
+                  CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                    Text(
+                      text = buildRedHighlightedSearchText(tafsir.commentaryUrdu, searchQuery),
+                      style = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = UrduNastaliqFontFamily,
+                        fontSize = 14.sp,
+                        lineHeight = 28.sp,
+                        platformStyle = PlatformTextStyle(includeFontPadding = true),
+                        textAlign = TextAlign.Right,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                      ),
+                      modifier = Modifier.fillMaxWidth(),
+                      maxLines = 4,
+                      overflow = TextOverflow.Ellipsis
+                    )
+                  }
                 }
               }
             }
@@ -1335,6 +1481,7 @@ fun SearchScreen(
                       )
                     )
                   }
+                  Spacer(modifier = Modifier.width(8.dp))
                   Surface(
                     shape = RoundedCornerShape(6.dp),
                     color = if (isShiaBook) GoldPrimary.copy(alpha = 0.2f) else EmeraldPrimary.copy(alpha = 0.14f)
@@ -1355,7 +1502,8 @@ fun SearchScreen(
                         style = MaterialTheme.typography.labelSmall.copy(
                           fontWeight = FontWeight.Bold,
                           color = if (isShiaBook) GoldPrimary else EmeraldPrimary
-                        )
+                        ),
+                        maxLines = 1
                       )
                     }
                   }
@@ -1364,38 +1512,48 @@ fun SearchScreen(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 if (bookHit.arabicExcerpt.isNotBlank()) {
-                  Text(
-                    text = buildRedHighlightedSearchText(bookHit.arabicExcerpt, searchQuery),
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                      fontFamily = AmiriFontFamily,
-                      fontSize = 18.sp,
-                      lineHeight = 30.sp,
-                      textAlign = TextAlign.Right
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                  )
+                  CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                    Text(
+                      text = buildRedHighlightedSearchText(bookHit.arabicExcerpt, searchQuery),
+                      style = MaterialTheme.typography.bodyLarge.copy(
+                        fontFamily = AmiriFontFamily,
+                        fontSize = 18.sp,
+                        lineHeight = 32.sp,
+                        textAlign = TextAlign.Right
+                      ),
+                      modifier = Modifier.fillMaxWidth(),
+                      maxLines = 4,
+                      overflow = TextOverflow.Ellipsis
+                    )
+                  }
                   Spacer(modifier = Modifier.height(4.dp))
                 }
 
                 Text(
                   text = buildRedHighlightedSearchText(bookHit.englishExcerpt, searchQuery),
-                  style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-                  maxLines = 4
+                  style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 20.sp),
+                  maxLines = 4,
+                  overflow = TextOverflow.Ellipsis
                 )
 
                 if (bookHit.urduExcerpt.isNotBlank()) {
                   Spacer(modifier = Modifier.height(4.dp))
-                  Text(
-                    text = buildRedHighlightedSearchText(bookHit.urduExcerpt, searchQuery),
-                    style = MaterialTheme.typography.bodySmall.copy(
-                      fontFamily = UrduNastaliqFontFamily,
-                      fontSize = 13.sp,
-                      textAlign = TextAlign.Right,
-                      color = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                    maxLines = 3
-                  )
+                  CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                    Text(
+                      text = buildRedHighlightedSearchText(bookHit.urduExcerpt, searchQuery),
+                      style = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = UrduNastaliqFontFamily,
+                        fontSize = 14.sp,
+                        lineHeight = 28.sp,
+                        platformStyle = PlatformTextStyle(includeFontPadding = true),
+                        textAlign = TextAlign.Right,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                      ),
+                      modifier = Modifier.fillMaxWidth(),
+                      maxLines = 3,
+                      overflow = TextOverflow.Ellipsis
+                    )
+                  }
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))

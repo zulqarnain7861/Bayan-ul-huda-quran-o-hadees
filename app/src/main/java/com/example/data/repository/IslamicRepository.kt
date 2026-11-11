@@ -74,6 +74,15 @@ class IslamicRepository(
   private val sourceRegistryRepo = SourceRegistryRepository(sourceRegistryDao)
 
   suspend fun initializeDatabaseIfNeeded() = withContext(Dispatchers.IO) {
+    TafsirRepository.initializeWithContext(appContext)
+    if (translationDao.getTranslationCountForEdition("tafsir.ibn_kathir.en") == 0) {
+      val tafsirEntities = TafsirRepository.buildRoomTranslationEntitiesForCorpus(appContext)
+      if (tafsirEntities.isNotEmpty()) {
+        tafsirEntities.chunked(500).forEach { batch ->
+          translationDao.insertTranslations(batch)
+        }
+      }
+    }
     if (surahDao.getSurahCount() < 114) {
       surahDao.insertSurahs(InitialDataLoader.getAll114Surahs())
     }
@@ -1126,27 +1135,25 @@ class IslamicRepository(
       }
     }
 
-    // Fetch live remote Tafsir commentary for the top 3 matched Ayahs
+    // Fetch live remote Tafsir commentary per scholar edition for the top 3 matched Ayahs
+    val targetEditions = when (traditionScope.uppercase()) {
+      "SUNNI" -> TafsirRepository.getEditionsForTradition("SUNNI")
+      "SHIA" -> TafsirRepository.getEditionsForTradition("SHIA")
+      else -> TafsirRepository.editions
+    }
     for (ayah in matchedAyahs.take(3)) {
-      val remoteExcerpt = IslamicRemoteService.fetchRemoteTafsirExcerpt(
-        surahNumber = ayah.surahNumber,
-        verseNumber = ayah.verseNumber,
-        traditionScope = traditionScope
-      ) ?: continue
-
-      val (enLive, urLive) = remoteExcerpt
-      val targetEditions = when (traditionScope.uppercase()) {
-        "SUNNI" -> TafsirRepository.getEditionsForTradition("SUNNI")
-        "SHIA" -> TafsirRepository.getEditionsForTradition("SHIA")
-        else -> TafsirRepository.editions
-      }
+      val surah = surahDao.getSurahByNumber(ayah.surahNumber)
       for (ed in targetEditions.take(4)) {
-        val base = TafsirRepository.getTafsirForAyah(ayah, surahDao.getSurahByNumber(ayah.surahNumber), ed.key, hadiths)
-        val enriched = base.copy(
-          commentaryEnglish = if (enLive.isNotBlank()) "${base.commentaryEnglish}\n\n[Online Tafsir API Excerpt]: $enLive" else base.commentaryEnglish,
-          commentaryUrdu = if (urLive.isNotBlank()) "${base.commentaryUrdu}\n\n[آن لائن تفسیر مآخذ]: $urLive" else base.commentaryUrdu
+        val fetched = TafsirRepository.fetchAndCacheTafsirForAyahAsync(
+          context = appContext,
+          ayah = ayah,
+          surah = surah,
+          editionKey = ed.key,
+          allHadiths = hadiths
         )
-        merged["${ed.key}_${base.verseRef}"] = enriched
+        if (fetched.isVerifiedContentAvailable) {
+          merged["${ed.key}_${fetched.verseRef}"] = fetched
+        }
       }
     }
 

@@ -690,12 +690,34 @@ object ClassicalLibraryAndBiographiesRepository {
     "asma" to listOf("asma bint abi bakr")
   )
 
+  private val preIndexedBioSearchBlobs: Map<String, Pair<String, String>> by lazy {
+    getAllBiographies().associate { bio ->
+      val rawConcat = buildString {
+        append(bio.personNameEnglish).append(' ')
+        append(bio.personNameArabic).append(' ')
+        append(bio.personNameUrdu).append(' ')
+        append(bio.titleHonorific).append(' ')
+        append(bio.category).append(' ')
+        append(bio.primarySourceBook).append(' ')
+        append(bio.sourceBookArabic).append(' ')
+        append(bio.author).append(' ')
+        append(bio.volumeAndPage).append(' ')
+        append(bio.crossReferences).append(' ')
+        append(bio.arabicText).append(' ')
+        append(bio.urduTranslation).append(' ')
+        append(bio.englishTranslation)
+      }
+      bio.id to (normalizeBioQuery(rawConcat) to rawConcat.lowercase())
+    }
+  }
+
   fun searchBiographies(
     query: String,
     traditionFilter: String = "BOTH",
     categoryFilter: String = "ALL"
   ): List<BiographyEntry> {
     val rawQ = query.trim()
+    val rawLower = rawQ.lowercase()
     val normQ = normalizeBioQuery(rawQ)
       .removePrefix("hazrat ")
       .removePrefix("hadhrat ")
@@ -703,15 +725,15 @@ object ClassicalLibraryAndBiographiesRepository {
       .removePrefix("imam ")
       .trim()
 
-    val expandedTerms = buildList {
+    val expandedNormalizedTerms = buildList {
       if (normQ.isNotEmpty()) add(normQ)
-      if (rawQ.isNotEmpty()) add(rawQ.lowercase())
+      if (rawLower.isNotEmpty()) add(normalizeBioQuery(rawLower))
       romanUrduBioAliases.forEach { (alias, targets) ->
         if (normQ == alias || normQ.contains(alias)) {
-          addAll(targets)
+          targets.forEach { add(normalizeBioQuery(it)) }
         }
       }
-    }.distinct()
+    }.filter { it.isNotEmpty() }.distinct()
 
     val isGeneralSahabaOrAhlulBaytQuery = normQ in setOf(
       "sahaba", "sahabi", "companions", "ahalbayat", "ahlulbayt", "ahlebait",
@@ -737,36 +759,9 @@ object ClassicalLibraryAndBiographiesRepository {
           true
         }
       } else {
-        val searchableBlob = normalizeBioQuery(
-          buildString {
-            append(bio.personNameEnglish).append(' ')
-            append(bio.personNameArabic).append(' ')
-            append(bio.personNameUrdu).append(' ')
-            append(bio.titleHonorific).append(' ')
-            append(bio.category).append(' ')
-            append(bio.primarySourceBook).append(' ')
-            append(bio.sourceBookArabic).append(' ')
-            append(bio.author).append(' ')
-            append(bio.volumeAndPage).append(' ')
-            append(bio.crossReferences).append(' ')
-            append(bio.arabicText).append(' ')
-            append(bio.urduTranslation).append(' ')
-            append(bio.englishTranslation)
-          }
-        )
-        expandedTerms.any { term ->
-          searchableBlob.contains(normalizeBioQuery(term))
-        } ||
-          bio.personNameEnglish.contains(rawQ, ignoreCase = true) ||
-          bio.personNameArabic.contains(rawQ) ||
-          bio.personNameUrdu.contains(rawQ) ||
-          bio.titleHonorific.contains(rawQ, ignoreCase = true) ||
-          bio.primarySourceBook.contains(rawQ, ignoreCase = true) ||
-          bio.author.contains(rawQ, ignoreCase = true) ||
-          bio.crossReferences.contains(rawQ, ignoreCase = true) ||
-          bio.arabicText.contains(rawQ) ||
-          bio.urduTranslation.contains(rawQ) ||
-          bio.englishTranslation.contains(rawQ, ignoreCase = true)
+        val (searchableBlob, rawLowerBlob) = preIndexedBioSearchBlobs[bio.id] ?: ("" to "")
+        expandedNormalizedTerms.any { term -> searchableBlob.contains(term) } ||
+          rawLowerBlob.contains(rawLower)
       }
     }
   }

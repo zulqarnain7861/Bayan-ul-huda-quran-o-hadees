@@ -124,7 +124,10 @@ object SecurityIntegrityGuard {
     "askemam.pk",
     "readmaududi.com",
     "www.readmaududi.com",
-    "openlibrary.org"
+    "openlibrary.org",
+    "api.quranpedia.net",
+    "quranpedia.net",
+    "files.quranpedia.net"
   )
 
   private val ALLOWED_HTTPS_DOMAIN_SUFFIXES = listOf(
@@ -147,7 +150,8 @@ object SecurityIntegrityGuard {
     ".google.com",
     ".android.com",
     ".github.com",
-    ".githubusercontent.com"
+    ".githubusercontent.com",
+    ".quranpedia.net"
   )
 
   private val SENSITIVE_QUERY_PARAM_REGEX = Regex(

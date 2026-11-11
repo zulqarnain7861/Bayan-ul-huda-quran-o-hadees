@@ -682,6 +682,7 @@ class DownloadManager(
     // 3. Licensed Tafsir Resources
     for (tafsirKey in request.selectedTafsirEditions) {
       val spec = OfflineCatalogRegistry.licensedTafsirs.find { it.editionKey == tafsirKey } ?: continue
+      val editionMeta = TafsirRepository.editions.find { it.key == spec.editionKey }
       val pkgId = "quran_tafsir_${spec.editionKey}"
       val destDir = File(getOfflineRootDir(), "tafsir/${spec.editionKey}").apply { mkdirs() }
       val localFile = File(destDir, "tafsir_${spec.editionKey}.json")
@@ -691,7 +692,7 @@ class DownloadManager(
         packageId = pkgId,
         resourceIdentifier = "tafsir:${spec.editionKey}",
         title = spec.title,
-        sourceUrl = "https://api.quran.com/api/v4/quran/tafsirs/${spec.editionKey}",
+        sourceUrl = editionMeta?.sourceUrl ?: "https://api.quran.com/api/v4/quran/tafsirs/${spec.editionKey}",
         localFilePath = localFile.absolutePath,
         licence = spec.licenceText,
         expectedFormat = "TAFSIR_JSON"
@@ -1746,21 +1747,7 @@ class DownloadManager(
 
       resourceIdentifier.startsWith("tafsir:") -> {
         val editionKey = resourceIdentifier.removePrefix("tafsir:")
-        val spec = OfflineCatalogRegistry.licensedTafsirs.find { it.editionKey == editionKey }
-        JSONObject().apply {
-          put("editionKey", editionKey)
-          put("title", spec?.title ?: editionKey)
-          put("author", spec?.author ?: "Classical Exegete")
-          put("languageCode", spec?.languageCode ?: "en")
-          put(
-            "classicalSummary",
-            "Tafsir commentary for Ayat al-Kursi (2:255) and key Quranic passages affirming Tawhid, divine sovereignty (Al-Hayy Al-Qayyum), and prophetic explanation."
-          )
-          put(
-            "thematicNotes",
-            JSONArray(listOf("Tawhid & Divine Sovereignty", "Asbab al-Nuzul (Context of Revelation)", "Cross-Verse Exegesis (Tafsir al-Quran bil-Quran)"))
-          )
-        }.toString().toByteArray(Charsets.UTF_8)
+        TafsirRepository.exportSchemaCompliantDatasetJson(editionKey, context).toByteArray(Charsets.UTF_8)
       }
 
       resourceIdentifier.startsWith("hadith:") -> {
@@ -1914,6 +1901,19 @@ class DownloadManager(
             translationDao.insertTranslations(batch.toList())
             batch.clear()
           }
+        }
+      }
+
+      item.resourceIdentifier.startsWith("tafsir:") -> {
+        val editionKey = item.resourceIdentifier.removePrefix("tafsir:")
+        val rawStr = runCatching { String(bytes, Charsets.UTF_8) }.getOrNull() ?: return
+        val entities = TafsirRepository.ingestSchemaCompliantDatasetJson(
+          context = context,
+          expectedEditionKey = editionKey,
+          rawJson = rawStr
+        )
+        if (entities.isNotEmpty()) {
+          translationDao.insertTranslations(entities)
         }
       }
 

@@ -248,4 +248,159 @@ class ShiaQuranAndQaSearchTest {
     assertFalse("Battle of Yarmouk must return Shia historical chronicle", yarmoukShia.isEmpty())
     assertTrue(yarmoukShia.any { it.collectionKey == "shia_history" && it.bookName.contains("Yarmouk", ignoreCase = true) })
   }
+
+  @Test
+  fun `verify Complete Authentic Tafseer Library - 14 Sunni works have distinct verified commentary and composite cache keys`() {
+    val hadiths = ExtendedHadithDataProvider.getExtendedHadiths()
+    val sunniEditions = TafsirRepository.getEditionsForTradition("SUNNI")
+    assertEquals("Must have 14 Sunni Tafseer works", 14, sunniEditions.size)
+
+    // Verify all 14 Sunni Tafseer identities, including #12 Zad al-Masir
+    val expectedCanonicalTitles = mapOf(
+      "ibn_kathir" to "Tafsir al-Quran al-Azim",
+      "qurtubi" to "Al-Jami li-Ahkam al-Quran",
+      "tabari" to "Jami al-Bayan an Ta'wil Ay al-Quran",
+      "jalalayn" to "Tafsir al-Jalalayn",
+      "maariful_quran" to "Ma'ariful Quran",
+      "as_sadi" to "Taysir al-Karim al-Rahman",
+      "tafheem" to "Tafhim al-Quran",
+      "usmani" to "Tafsir-e-Usmani (Al-Fawa'id al-Usmaniyyah)",
+      "baghawi" to "Ma'alim al-Tanzil",
+      "baydawi" to "Anwar al-Tanzil wa Asrar al-Ta'wil",
+      "razi_kabir" to "Mafatih al-Ghayb",
+      "zad_al_masir" to "Zad al-Masir fi 'Ilm al-Tafsir",
+      "adwa_al_bayan" to "Adwa' al-Bayan fi Idah al-Quran bil-Quran",
+      "ruh_al_maani" to "Ruh al-Ma'ani fi Tafsir al-Quran al-Azim wa al-Sab' al-Mathani"
+    )
+
+    val compositeKeysFor1_1 = mutableSetOf<String>()
+    sunniEditions.forEach { ed ->
+      assertEquals(
+        "Canonical original title mismatch for ${ed.key}",
+        expectedCanonicalTitles[ed.key],
+        ed.canonicalOriginalTitle
+      )
+      assertTrue("Scholar name must be non-blank for ${ed.key}", ed.scholarName.isNotBlank())
+      assertTrue("Edition name must be non-blank for ${ed.key}", ed.editionName.isNotBlank())
+      assertTrue("Source URL must be non-blank for ${ed.key}", ed.sourceUrl.isNotBlank())
+      assertTrue("API Resource ID must be non-blank for ${ed.key}", ed.apiResourceId.isNotBlank())
+
+      val ck = TafsirRepository.buildCompositeCacheKey(ed, 1, 1)
+      assertTrue("Composite cache key must include tafsirId", ck.startsWith("${ed.key}:"))
+      assertTrue("Composite cache key must include apiResourceId", ck.contains(ed.apiResourceId))
+      assertTrue("Composite cache key must end with :1:1", ck.endsWith(":1:1"))
+      compositeKeysFor1_1.add(ck)
+    }
+    assertEquals("All 14 Sunni Tafseer works must have unique composite cache keys", 14, compositeKeysFor1_1.size)
+
+    // Verify representative verses (1:1, 2:255, 112:1) produce 14 distinct commentaries across the 14 Sunni Tafseers
+    val representativeAyahs = listOf(
+      AyahEntity(
+        id = 1L,
+        surahNumber = 1,
+        verseNumber = 1,
+        textArabic = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+        translationEnglish = "In the name of Allah, the Entirely Merciful, the Especially Merciful.",
+        translationUrdu = "شروع اللہ کے نام سے جو بڑا مہربان نہایت رحم والا ہے",
+        transliteration = "Bismillahi ar-Rahmani ar-Raheem",
+        juzNumber = 1,
+        pageNumber = 1
+      ),
+      AyahEntity(
+        id = 255L,
+        surahNumber = 2,
+        verseNumber = 255,
+        textArabic = "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ",
+        translationEnglish = "Allah - there is no deity except Him, the Ever-Living, the Sustainer of all existence.",
+        translationUrdu = "اللہ جس کے سوا کوئی معبود نہیں وہ زندہ ہے سب کا تھامنے والا",
+        transliteration = "Allahu la ilaha illa huwal-Hayyul-Qayyum",
+        juzNumber = 3,
+        pageNumber = 42
+      ),
+      AyahEntity(
+        id = 6222L,
+        surahNumber = 112,
+        verseNumber = 1,
+        textArabic = "قُلْ هُوَ اللَّهُ أَحَدٌ",
+        translationEnglish = "Say, He is Allah, [who is] One,",
+        translationUrdu = "کہو کہ وہ اللہ ایک ہے",
+        transliteration = "Qul huwa Allahu ahad",
+        juzNumber = 30,
+        pageNumber = 604
+      )
+    )
+
+    for (ayah in representativeAyahs) {
+      val primaryFingerprints = mutableSetOf<String>()
+      for (ed in sunniEditions) {
+        val res = TafsirRepository.getTafsirForAyah(ayah, null, ed.key, hadiths)
+        assertTrue(
+          "Verified commentary must be available offline for ${ed.key} at ${ayah.surahNumber}:${ayah.verseNumber}",
+          res.isVerifiedContentAvailable
+        )
+        val combinedScholarText = listOf(res.commentaryArabic, res.commentaryEnglish, res.commentaryUrdu)
+          .filter { it.isNotBlank() }
+          .joinToString("|")
+        assertTrue(
+          "Scholar text must be substantial for ${ed.key} at ${ayah.surahNumber}:${ayah.verseNumber}",
+          combinedScholarText.length >= 25
+        )
+        primaryFingerprints.add(combinedScholarText)
+      }
+      assertEquals(
+        "All 14 Sunni Tafseer works must have completely distinct, non-identical commentary at ${ayah.surahNumber}:${ayah.verseNumber}",
+        14,
+        primaryFingerprints.size
+      )
+    }
+
+    // Verify strict anti-fabrication fallback for an uncached verse offline
+    val uncachedAyah = AyahEntity(
+      id = 3132L,
+      surahNumber = 26,
+      verseNumber = 200,
+      textArabic = "كَذَٰلِكَ سَلَكْنَاهُ فِي قُلُوبِ الْمُجْرِمِينَ",
+      translationEnglish = "Thus have We caused it to enter the hearts of the criminals.",
+      translationUrdu = "اسی طرح ہم نے اس کو مجرموں کے دلوں میں اتار دیا ہے",
+      transliteration = "Kadhalika salaknahu fi qulubil-mujrimin",
+      juzNumber = 19,
+      pageNumber = 375
+    )
+    val fallbackRes = TafsirRepository.getTafsirForAyah(uncachedAyah, null, "ibn_kathir", hadiths)
+    assertFalse("Uncached verse must report isVerifiedContentAvailable = false", fallbackRes.isVerifiedContentAvailable)
+    assertEquals(
+      "Uncached verse must return exact unavailable message without fabricating or substituting",
+      TafsirRepository.UNAVAILABLE_TAFSEER_MESSAGE,
+      fallbackRes.commentaryEnglish
+    )
+
+    // Verify schema-compliant JSON dataset export & Room SQLite TranslationEntity conversion
+    for (targetKey in listOf("ibn_kathir", "jalalayn", "maariful_quran", "qurtubi", "tabari", "zad_al_masir")) {
+      val exportedJson = TafsirRepository.exportSchemaCompliantDatasetJson(targetKey)
+      assertTrue("Exported JSON for $targetKey must contain schemaVersion", exportedJson.contains("2.0-bayan-authentic-tafsir"))
+      assertTrue("Exported JSON for $targetKey must contain editionKey", exportedJson.contains("\"editionKey\":\"$targetKey\""))
+
+      val roomEntities = TafsirRepository.ingestSchemaCompliantDatasetJson(
+        context = null,
+        expectedEditionKey = targetKey,
+        rawJson = exportedJson
+      )
+      assertTrue("Room SQLite entities for $targetKey must be non-empty", roomEntities.isNotEmpty())
+      assertTrue("All Room SQLite entities for $targetKey must have sourceType = TAFSIR", roomEntities.all { it.sourceType == "TAFSIR" })
+      assertTrue("All Room SQLite entities for $targetKey must have editionKey prefix tafsir.$targetKey.", roomEntities.all { it.editionKey.startsWith("tafsir.$targetKey.") })
+    }
+
+    // Verify anti-mismatch protection rejects a dataset declared for a different scholar
+    val mismatchedEntities = TafsirRepository.ingestSchemaCompliantDatasetJson(
+      context = null,
+      expectedEditionKey = "qurtubi",
+      rawJson = TafsirRepository.exportSchemaCompliantDatasetJson("ibn_kathir")
+    )
+    assertTrue("Cross-scholar dataset mismatch must be rejected", mismatchedEntities.isEmpty())
+
+    val fullCorpusRoomRows = TafsirRepository.buildRoomTranslationEntitiesForCorpus()
+    assertTrue("Bundled corpus must produce >= 1000 verified Room SQLite TAFSIR rows", fullCorpusRoomRows.size >= 1000)
+  }
 }
+
+
