@@ -1,4 +1,7 @@
 <resources>
     <string name="app_name">Bayan al-Huda</string>
     <string name="recaptcha_site_key" translatable="false">YOUR_RECAPTCHA_ENTERPRISE_SITE_KEY</string>
+    <!-- Google Sign-In compile fallback for CI/build environments where google-services.json is not yet materialized.
+         The actual client id must be replaced with the Firebase web client ID in production builds. -->
+    <string name="default_web_client_id" translatable="false">000000000000-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com</string>
 </resources>
