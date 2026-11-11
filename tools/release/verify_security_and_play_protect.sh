@@ -45,6 +45,8 @@ PROHIBITED_PERMISSIONS=(
   "android.permission.READ_CONTACTS"
   "android.permission.SYSTEM_ALERT_WINDOW"
   "android.permission.INSTALL_PACKAGES"
+  "android.permission.REQUEST_INSTALL_PACKAGES"
+  "android.permission.USE_FULL_SCREEN_INTENT"
   "android.permission.REQUEST_DELETE_PACKAGES"
   "android.permission.WRITE_SECURE_SETTINGS"
   "android.permission.MANAGE_EXTERNAL_STORAGE"

@@ -1235,41 +1235,41 @@ fun ClassifiedFolderLibraryExplorerView(
               ) {
                 Column(modifier = Modifier.padding(14.dp)) {
                   Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth()
                   ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                      Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                      ) {
-                        Icon(
-                          Icons.Default.MenuBook,
-                          contentDescription = null,
-                          tint = MaterialTheme.colorScheme.primary,
-                          modifier = Modifier.size(16.dp)
-                        )
-                        Text(
-                          text = book.titleEnglish,
-                          style = MaterialTheme.typography.titleSmall,
-                          fontWeight = FontWeight.Bold
-                        )
-                      }
-                      Text(
-                        text = "${book.author} (${book.eraHijri}) • ${book.volumesCount} Jilds",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary
-                      )
-                    }
+                    Icon(
+                      Icons.Default.MenuBook,
+                      contentDescription = null,
+                      tint = MaterialTheme.colorScheme.primary,
+                      modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                      text = book.titleEnglish,
+                      style = MaterialTheme.typography.titleSmall,
+                      fontWeight = FontWeight.Bold,
+                      modifier = Modifier.weight(1f)
+                    )
+                  }
+                  if (book.titleArabic.isNotBlank()) {
                     Text(
                       text = book.titleArabic,
                       style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = ScheherazadeFontFamily
+                        fontFamily = ScheherazadeFontFamily,
+                        textDirection = TextDirection.Rtl
                       ),
-                      color = MaterialTheme.colorScheme.primary
+                      textAlign = TextAlign.Right,
+                      color = MaterialTheme.colorScheme.primary,
+                      modifier = Modifier.fillMaxWidth()
                     )
                   }
+                  Text(
+                    text = "${book.author} (${book.eraHijri}) • ${book.volumesCount} Jilds",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.fillMaxWidth()
+                  )
 
                   if (item.scholarlyFlagBadge.isNotBlank()) {
                     Spacer(modifier = Modifier.height(6.dp))
@@ -1297,8 +1297,10 @@ fun ClassifiedFolderLibraryExplorerView(
                       text = "${book.chapters.size} Indexed Jilds/Chapters • Tap to Read Line 1 → End",
                       style = MaterialTheme.typography.labelSmall,
                       color = MaterialTheme.colorScheme.primary,
-                      fontWeight = FontWeight.SemiBold
+                      fontWeight = FontWeight.SemiBold,
+                      modifier = Modifier.weight(1f)
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Button(
                       onClick = { onOpenClassicalBook(book) },
                       contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
@@ -1908,60 +1910,61 @@ fun SahabaAhlAlBaytBiographiesView(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
       ) {
         Column(modifier = Modifier.padding(14.dp)) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
+          Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = accentColor.copy(alpha = 0.12f)
           ) {
-            Column(modifier = Modifier.weight(1f)) {
-              Surface(
-                shape = RoundedCornerShape(6.dp),
-                color = accentColor.copy(alpha = 0.12f)
-              ) {
-                Text(
-                  text = "${bio.traditionPerspective} PERSPECTIVE • ${bio.category}",
-                  style = MaterialTheme.typography.labelSmall,
-                  fontWeight = FontWeight.Bold,
-                  color = accentColor,
-                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                )
-              }
-              Spacer(modifier = Modifier.height(4.dp))
-              Text(
-                text = bio.personNameEnglish,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-              )
-              Text(
-                text = "${bio.titleHonorific} • Era: ${bio.eraHijri}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.secondary
-              )
-              Text(
-                text = "Source: ${bio.primarySourceBook} (${bio.sourceBookArabic}) • ${bio.author} • ${bio.volumeAndPage}",
-                style = MaterialTheme.typography.labelSmall,
-                color = accentColor,
-                fontWeight = FontWeight.SemiBold
-              )
-            }
-            Column(horizontalAlignment = Alignment.End) {
-              Text(
-                text = bio.personNameArabic,
-                style = MaterialTheme.typography.titleLarge.copy(
-                  fontFamily = ScheherazadeFontFamily
-                ),
-                color = MaterialTheme.colorScheme.primary
-              )
-              Text(
-                text = bio.personNameUrdu,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                  fontFamily = UrduNastaliqFontFamily
-                ),
-                color = MaterialTheme.colorScheme.secondary
-              )
-            }
+            Text(
+              text = "${bio.traditionPerspective} PERSPECTIVE • ${bio.category}",
+              style = MaterialTheme.typography.labelSmall,
+              fontWeight = FontWeight.Bold,
+              color = accentColor,
+              modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+            )
           }
+          Spacer(modifier = Modifier.height(6.dp))
+          Text(
+            text = bio.personNameEnglish,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.fillMaxWidth()
+          )
+          Spacer(modifier = Modifier.height(2.dp))
+          Text(
+            text = bio.personNameArabic,
+            style = MaterialTheme.typography.titleLarge.copy(
+              fontFamily = ScheherazadeFontFamily,
+              textDirection = TextDirection.Rtl
+            ),
+            textAlign = TextAlign.Right,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.fillMaxWidth()
+          )
+          Text(
+            text = bio.personNameUrdu,
+            style = MaterialTheme.typography.bodyMedium.copy(
+              fontFamily = UrduNastaliqFontFamily,
+              textDirection = TextDirection.Rtl
+            ),
+            textAlign = TextAlign.Right,
+            color = MaterialTheme.colorScheme.secondary,
+            modifier = Modifier.fillMaxWidth()
+          )
+          Spacer(modifier = Modifier.height(4.dp))
+          Text(
+            text = "${bio.titleHonorific} • Era: ${bio.eraHijri}",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.secondary,
+            modifier = Modifier.fillMaxWidth()
+          )
+          Text(
+            text = "Source: ${bio.primarySourceBook} (${bio.sourceBookArabic}) • ${bio.author} • ${bio.volumeAndPage}",
+            style = MaterialTheme.typography.labelSmall,
+            color = accentColor,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.fillMaxWidth()
+          )
 
           Spacer(modifier = Modifier.height(10.dp))
           Surface(
@@ -2441,8 +2444,10 @@ fun IslamQaScholarlyArchiveView() {
                 text = "${fatwa.categoryDisplayEnglish} • #${fatwa.id}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
               )
+              Spacer(modifier = Modifier.width(8.dp))
               Text(
                 text = fatwa.urduStatusNotice,
                 style = MaterialTheme.typography.labelSmall.copy(

@@ -124,17 +124,17 @@ fun AuthScreen(
 
         Box(
           modifier = Modifier
-            .size(68.dp)
-            .clip(CircleShape)
+            .size(84.dp)
+            .clip(RoundedCornerShape(18.dp))
             .background(GoldPrimary.copy(alpha = 0.15f))
-            .border(1.5.dp, GoldPrimary, CircleShape),
+            .border(1.5.dp, GoldPrimary, RoundedCornerShape(18.dp)),
           contentAlignment = Alignment.Center
         ) {
-          Icon(
-            imageVector = Icons.Default.MenuBook,
-            contentDescription = null,
-            tint = GoldPrimary,
-            modifier = Modifier.size(34.dp)
+          androidx.compose.foundation.Image(
+            painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.bayan_ul_huda_logo),
+            contentDescription = "Bayan ul Huda Logo",
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
           )
         }
 

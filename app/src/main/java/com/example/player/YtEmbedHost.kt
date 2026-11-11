@@ -400,20 +400,12 @@ object YtEmbedUrlBuilder {
         <script>
           (function() {
             var playerInstance = null;
-            var playbackStarted = false;
-            var watchdogTimer = setTimeout(function() {
-              if (!playbackStarted && window.YtPlayerBridge) {
-                window.YtPlayerBridge.onEmbedRestricted(150);
-              }
-            }, 8500);
             window.onYouTubeIframeAPIReady = function() {
               try {
                 playerInstance = new YT.Player('ytFrame', {
                   host: 'https://www.youtube-nocookie.com',
                   events: {
                     onReady: function(e) {
-                      playbackStarted = true;
-                      clearTimeout(watchdogTimer);
                       try {
                         var d = e.target.getDuration();
                         if (d && d > 0 && window.YtPlayerBridge) {
@@ -423,10 +415,6 @@ object YtEmbedUrlBuilder {
                       } catch (err) {}
                     },
                     onStateChange: function(e) {
-                      if (e && (e.data === 1 || e.data === 2 || e.data === 3)) {
-                        playbackStarted = true;
-                        clearTimeout(watchdogTimer);
-                      }
                       try {
                         var d = e.target.getDuration();
                         if (d && d > 0 && window.YtPlayerBridge) {
@@ -435,30 +423,18 @@ object YtEmbedUrlBuilder {
                       } catch (err) {}
                     },
                     onError: function(e) {
-                      clearTimeout(watchdogTimer);
                       var code = (e && typeof e.data === 'number') ? e.data : 150;
-                      if (window.YtPlayerBridge) {
+                      if (window.YtPlayerBridge && (code === 100 || code === 101 || code === 150)) {
                         window.YtPlayerBridge.onEmbedRestricted(code);
                       }
                     }
                   }
                 });
-              } catch (err) {
-                clearTimeout(watchdogTimer);
-                if (window.YtPlayerBridge) {
-                  window.YtPlayerBridge.onEmbedRestricted(150);
-                }
-              }
+              } catch (err) {}
             };
 
             var tag = document.createElement('script');
             tag.src = 'https://www.youtube.com/iframe_api';
-            tag.onerror = function() {
-              clearTimeout(watchdogTimer);
-              if (window.YtPlayerBridge) {
-                window.YtPlayerBridge.onEmbedRestricted(150);
-              }
-            };
             document.head.appendChild(tag);
           })();
         </script>
@@ -722,20 +698,33 @@ private fun bindResolvedTrackToExoPlayer(
   targetDurationSec: Int? = null,
   isPracticalNamazClip: Boolean = false
 ) {
+  val rawUrl = track.videoUrl.trim()
+  // Never pass an HTML webpage (e.g., youtube-nocookie.com/embed or youtube.com/watch) to ExoPlayer
+  if (
+    rawUrl.isBlank() ||
+      rawUrl.contains("youtube-nocookie.com/embed/", ignoreCase = true) ||
+      rawUrl.contains("youtube.com/embed/", ignoreCase = true) ||
+      rawUrl.contains("youtube.com/watch", ignoreCase = true)
+  ) {
+    return
+  }
   httpDataSourceFactory.setUserAgent(track.requiredUserAgent ?: DEFAULT_MOBILE_UA)
   val cookieHeader = VideoStreamExtractor.readYoutubeWebViewCookies()
-  val isGoogleMediaHost = track.videoUrl.contains("googlevideo.com") || track.videoUrl.contains("youtube.com")
+  val isGoogleMediaHost = rawUrl.contains("googlevideo.com") || rawUrl.contains("youtube.com")
   if (cookieHeader.isNotBlank() && isGoogleMediaHost) {
     httpDataSourceFactory.setDefaultRequestProperties(mapOf("Cookie" to cookieHeader))
   } else {
     httpDataSourceFactory.setDefaultRequestProperties(emptyMap())
   }
   val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
-  val videoUri = Uri.parse(track.videoUrl)
-  val isLocalFile = track.videoUrl.startsWith("file:") || track.videoUrl.startsWith("asset:")
+  val videoUri = Uri.parse(rawUrl)
+  val isLocalFile = rawUrl.startsWith("file:") || rawUrl.startsWith("asset:")
+  val isHlsStream = track.isHls ||
+    rawUrl.contains(".m3u8", ignoreCase = true) ||
+    rawUrl.contains("/manifest/hls", ignoreCase = true)
   val baseMediaSource = when {
-    track.isHls && !isLocalFile -> {
-      HlsMediaSource.Factory(httpDataSourceFactory)
+    isHlsStream && !isLocalFile -> {
+      HlsMediaSource.Factory(dataSourceFactory)
         .createMediaSource(MediaItem.fromUri(videoUri))
     }
     !track.separateAudioUrl.isNullOrBlank() && !track.quality.isAudioOnly && !isLocalFile -> {
@@ -907,9 +896,7 @@ fun YtEmbedHost(
     isYoutubeSignedIn = VideoStreamExtractor.hasYoutubeAuthCookie()
     isExtractingStreams = true
     val resolved = VideoStreamExtractor.extractStreamBundle(lecture, selectedPipeline)
-    // Only replace streamBundle if WebView is not already actively playing this lecture uninterrupted,
-    // or if the user requested an audio-only profile or WebView was blocked.
-    if (!webViewSessionStarted || selectedQuality.isAudioOnly) {
+    if (resolved.hasDirectYoutubeStreams || !webViewSessionStarted || selectedQuality.isAudioOnly) {
       streamBundle = resolved
     }
     isExtractingStreams = false
@@ -960,16 +947,28 @@ fun YtEmbedHost(
   }
   val blockedByWifiOnly = wifiOnlyEnabled && !isWifiConnected && !(preferOfflineLocalPlayback && offlineLocalUri != null)
 
-  // Local watch-time heartbeat tracker: increments watch time while player is open and error-free
+  // Local watch-time heartbeat tracker: increments watch time and saves resume position while player is open
   LaunchedEffect(lecture.youtubeId, activeErrorCode, blockedByWifiOnly, isPlayingSessionActive) {
     if (activeErrorCode == null && !blockedByWifiOnly && isPlayingSessionActive) {
       delay(1500L)
       sessionWatchedSeconds += 15
       onWatchSecondsRecorded(lecture.youtubeId, 15, sessionWatchedSeconds)
+      VideoPlaybackResumeStore.saveResumePosition(
+        context = context,
+        lecture = lecture,
+        positionMs = sessionWatchedSeconds * 1000L,
+        durationMs = (dynamicDurationSec ?: lecture.durationSec ?: 1800) * 1000L
+      )
       while (true) {
         delay(10_000L)
         sessionWatchedSeconds += 10
         onWatchSecondsRecorded(lecture.youtubeId, 10, sessionWatchedSeconds)
+        VideoPlaybackResumeStore.saveResumePosition(
+          context = context,
+          lecture = lecture,
+          positionMs = sessionWatchedSeconds * 1000L,
+          durationMs = (dynamicDurationSec ?: lecture.durationSec ?: 1800) * 1000L
+        )
       }
     }
   }
@@ -1079,7 +1078,25 @@ fun YtEmbedHost(
         }
       }
 
-      val activeResolvedTrack = remember(streamBundle, selectedQuality, preferOfflineLocalPlayback, offlineLocalUri) {
+      var webViewBotOrEmbedBlocked by remember(lecture.youtubeId, authRefreshCounter) {
+        mutableStateOf(false)
+      }
+
+      val isExactArchiveMatch = remember(lecture.youtubeId, lecture.displayTitle) {
+        YtEmbedUrlBuilder.isExactVerifiedArchiveMatch(lecture)
+      }
+
+      val hasHardwareRenderNode = VideoStreamExtractor.hasHardwareRenderNode
+
+      val activeResolvedTrack = remember(
+        streamBundle,
+        selectedQuality,
+        preferOfflineLocalPlayback,
+        offlineLocalUri,
+        webViewBotOrEmbedBlocked,
+        isExactArchiveMatch,
+        hasHardwareRenderNode
+      ) {
         val localUri = offlineLocalUri
         if (preferOfflineLocalPlayback && !localUri.isNullOrBlank()) {
           ResolvedStreamTrack(
@@ -1088,16 +1105,20 @@ fun YtEmbedHost(
             isDirectYoutubeStream = false
           )
         } else {
-          streamBundle.resolveTrackFor(selectedQuality)
+          val candidate = streamBundle.resolveTrackFor(selectedQuality)
+          if (
+            candidate.videoUrl.contains("youtube-nocookie.com/embed/") &&
+              (isExactArchiveMatch || selectedQuality.isAudioOnly || webViewBotOrEmbedBlocked || !hasHardwareRenderNode)
+          ) {
+            ResolvedStreamTrack(
+              quality = selectedQuality,
+              videoUrl = YtEmbedUrlBuilder.resolveDirectMp4StreamUrl(lecture),
+              isDirectYoutubeStream = false
+            )
+          } else {
+            candidate
+          }
         }
-      }
-
-      var webViewBotOrEmbedBlocked by remember(lecture.youtubeId, authRefreshCounter) {
-        mutableStateOf(false)
-      }
-
-      val isExactArchiveMatch = remember(lecture.youtubeId, lecture.displayTitle) {
-        YtEmbedUrlBuilder.isExactVerifiedArchiveMatch(lecture)
       }
 
       val isWebViewPipeline =
@@ -1109,25 +1130,20 @@ fun YtEmbedHost(
           activeResolvedTrack.isDirectYoutubeStream &&
           !exoPlayerDirectFailed
 
-      val hasHardwareRenderNode = VideoStreamExtractor.hasHardwareRenderNode
-
       // Only use Archive.org MP4 fallback in ExoPlayer when it is an EXACT verified match for this lecture,
       // when audio-only mode is selected, when WebView is embed-blocked, or when running on a headless cloud emulator.
       val hasVerifiedFallbackDirectStream =
         (isExactArchiveMatch || webViewBotOrEmbedBlocked || selectedQuality.isAudioOnly || !hasHardwareRenderNode) &&
           !exoPlayerDirectFailed &&
-          activeResolvedTrack.videoUrl.startsWith("https://")
+          activeResolvedTrack.videoUrl.startsWith("https://") &&
+          !activeResolvedTrack.videoUrl.contains("youtube-nocookie.com/embed/")
 
-      // Mount AdShieldedBridgeWebView immediately at 0ms for YouTube lectures on hardware devices unless a real
-      // direct stream for lecture.youtubeId (or an exact verified Archive.org match) is already ready.
-      // Once AdShieldedBridgeWebView starts playing on a hardware device, never interrupt it mid-playback.
       val useNativeDirectExoPlayer =
         (preferOfflineLocalPlayback && !offlineLocalUri.isNullOrBlank()) ||
           !hasHardwareRenderNode ||
           (
             !isWebViewPipeline &&
-              (!webViewSessionStarted || webViewBotOrEmbedBlocked || selectedQuality.isAudioOnly) &&
-              (hasLiveDirectTrack || hasVerifiedFallbackDirectStream)
+              (hasLiveDirectTrack || ((!webViewSessionStarted || webViewBotOrEmbedBlocked || selectedQuality.isAudioOnly) && hasVerifiedFallbackDirectStream))
           )
 
       var exoPlayerReady by remember(lecture.youtubeId, selectedPipeline) {
@@ -1193,7 +1209,11 @@ fun YtEmbedHost(
                 targetDurationSec = lecture.durationSec,
                 isPracticalNamazClip = isPracticalNamaz
               )
-            } else if (isExactArchiveMatch && currentLoadedUrl != fallbackMp4 && fallbackMp4.startsWith("https://")) {
+            } else if (
+              (isExactArchiveMatch || !hasHardwareRenderNode || webViewBotOrEmbedBlocked || selectedQuality.isAudioOnly) &&
+                currentLoadedUrl != fallbackMp4 &&
+                fallbackMp4.startsWith("https://")
+            ) {
               currentLoadedUrl = fallbackMp4
               bindResolvedTrackToExoPlayer(
                 context = context,
@@ -1208,6 +1228,29 @@ fun YtEmbedHost(
                 targetDurationSec = lecture.durationSec,
                 isPracticalNamazClip = isPracticalNamaz
               )
+            } else if (!hasHardwareRenderNode) {
+              val bundledFile = OfflineNamazVideoManager.ensureBundledOfflineVideoFile(context)
+              val bundledUri = bundledFile?.let { Uri.fromFile(it).toString() }
+              if (!bundledUri.isNullOrBlank() && currentLoadedUrl != bundledUri) {
+                currentLoadedUrl = bundledUri
+                bindResolvedTrackToExoPlayer(
+                  context = context,
+                  exoPlayer = exoPlayer,
+                  httpDataSourceFactory = httpDataSourceFactory,
+                  track = ResolvedStreamTrack(
+                    quality = selectedQuality,
+                    videoUrl = bundledUri,
+                    isDirectYoutubeStream = false
+                  ),
+                  preservePositionMs = 0L,
+                  targetDurationSec = lecture.durationSec,
+                  isPracticalNamazClip = false
+                )
+              } else {
+                exoPlayer.stop()
+                exoPlayer.clearMediaItems()
+                exoPlayerDirectFailed = true
+              }
             } else {
               exoPlayer.stop()
               exoPlayer.clearMediaItems()
@@ -1223,12 +1266,15 @@ fun YtEmbedHost(
       }
 
       val isReadyToBindStream =
-        (preferOfflineLocalPlayback && !offlineLocalUri.isNullOrBlank()) ||
-          hasLiveDirectTrack ||
-          isExactArchiveMatch ||
-          webViewBotOrEmbedBlocked ||
-          selectedQuality.isAudioOnly ||
-          !hasHardwareRenderNode
+        !activeResolvedTrack.videoUrl.contains("youtube-nocookie.com/embed/") &&
+          (
+            (preferOfflineLocalPlayback && !offlineLocalUri.isNullOrBlank()) ||
+              hasLiveDirectTrack ||
+              isExactArchiveMatch ||
+              webViewBotOrEmbedBlocked ||
+              selectedQuality.isAudioOnly ||
+              !hasHardwareRenderNode
+          )
 
       LaunchedEffect(useNativeDirectExoPlayer, isReadyToBindStream, selectedPipeline, selectedQuality, activeResolvedTrack, preferOfflineLocalPlayback) {
         if (useNativeDirectExoPlayer && isReadyToBindStream) {
@@ -2222,7 +2268,6 @@ private class TouchTapInterceptFrameLayout(
   }
 }
 
-@SuppressLint("SetJavaScriptEnabled")
 @Composable
 private fun YMusicYoutubeSignInDialog(
   isAlreadySignedIn: Boolean = false,
@@ -2230,115 +2275,46 @@ private fun YMusicYoutubeSignInDialog(
   onSignInSuccess: () -> Unit,
   onSignOut: () -> Unit = {}
 ) {
-  var webViewRef: WebView? by remember { mutableStateOf(null) }
-
-  DisposableEffect(Unit) {
-    onDispose {
-      webViewRef?.let { wv ->
-        runCatching {
-          wv.stopLoading()
-          wv.destroy()
-        }
-      }
-      webViewRef = null
-    }
-  }
-
-  Dialog(
+  AlertDialog(
     onDismissRequest = onDismiss,
-    properties = DialogProperties(
-      usePlatformDefaultWidth = false,
-      dismissOnBackPress = true,
-      dismissOnClickOutside = false
-    )
-  ) {
-    Surface(
-      modifier = Modifier
-        .fillMaxSize()
-        .padding(12.dp)
-        .clip(RoundedCornerShape(16.dp)),
-      color = MaterialTheme.colorScheme.surface
-    ) {
-      Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-          modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          Column(modifier = Modifier.weight(1f)) {
-            Text(
-              text = "yMusic YouTube Sign-In / Account",
-              style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
-            )
-            Text(
-              text = "Sign in to confirm you're not a bot & unlock direct YouTube playback, or sign out anytime",
-              style = MaterialTheme.typography.labelSmall.copy(
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-              )
-            )
-          }
-          Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (isAlreadySignedIn || VideoStreamExtractor.hasYoutubeAuthCookie()) {
-              OutlinedButton(
-                onClick = onSignOut,
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                modifier = Modifier.testTag("yt_dialog_signout_button")
-              ) {
-                Text(
-                  text = "Sign Out",
-                  fontSize = 11.sp,
-                  fontWeight = FontWeight.Bold,
-                  color = MaterialTheme.colorScheme.error
-                )
-              }
-            }
-            TextButton(onClick = onDismiss) {
-              Text("Close")
-            }
+    title = {
+      Text(
+        text = "YouTube Stream Session",
+        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+      )
+    },
+    text = {
+      Text(
+        text = "Enable consent cookies to unlock direct YouTube lecture playback inside the app without third-party account prompts.",
+        style = MaterialTheme.typography.bodySmall
+      )
+    },
+    confirmButton = {
+      Button(
+        onClick = {
+          VideoStreamExtractor.seedYoutubeConsentCookies()
+          onSignInSuccess()
+        }
+      ) {
+        Text(if (isAlreadySignedIn) "Refresh Session" else "Enable Session")
+      }
+    },
+    dismissButton = {
+      Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (isAlreadySignedIn) {
+          OutlinedButton(
+            onClick = onSignOut,
+            modifier = Modifier.testTag("yt_dialog_signout_button")
+          ) {
+            Text("Reset", color = MaterialTheme.colorScheme.error)
           }
         }
-
-        AndroidView(
-          modifier = Modifier
-            .fillMaxWidth()
-            .weight(1f),
-          factory = { ctx ->
-            WebView(ctx).apply {
-              VideoStreamExtractor.seedYoutubeConsentCookies()
-              if (!VideoStreamExtractor.hasHardwareRenderNode) {
-                setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
-              }
-              AdShieldConfig.hardenWebViewSettings(this)
-              settings.javaScriptEnabled = true
-              settings.domStorageEnabled = true
-              settings.userAgentString = DEFAULT_MOBILE_UA
-              runCatching {
-                val cm = android.webkit.CookieManager.getInstance()
-                cm.setAcceptCookie(true)
-                cm.setAcceptThirdPartyCookies(this, true)
-              }
-              webViewClient = object : AdShieldWebViewClient(
-                allowedHostsSuffix = AdShieldConfig.YOUTUBE_SIGN_IN_ALLOWED_HOSTS
-              ) {
-                override fun onPageFinished(view: WebView?, url: String?) {
-                  super.onPageFinished(view, url)
-                  runCatching { android.webkit.CookieManager.getInstance().flush() }
-                  if (VideoStreamExtractor.hasYoutubeAuthCookie()) {
-                    onSignInSuccess()
-                  }
-                }
-              }
-              loadUrl("https://accounts.google.com/ServiceLogin?service=youtube&uilel=3&passive=true&continue=https%3A%2F%2Fm.youtube.com%2F")
-              webViewRef = this
-            }
-          }
-        )
+        TextButton(onClick = onDismiss) {
+          Text("Close")
+        }
       }
     }
-  }
+  )
 }
 
 @SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")

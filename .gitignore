@@ -28,4 +28,8 @@ bayan-release-upload.jks
 *-debug.log
 .build-outputs
 /reports/
+.aistudio/
+/public/assets/aistudio/*.jpg
+/public/assets/aistudio/*.png
+/public/assets/aistudio/*.pdf
 

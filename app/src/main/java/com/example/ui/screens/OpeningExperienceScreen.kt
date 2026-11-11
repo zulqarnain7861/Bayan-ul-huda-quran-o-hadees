@@ -37,11 +37,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.Image
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -97,19 +101,22 @@ fun OpeningExperienceScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
       ) {
-        // Subtle Islamic Star Ornament
+        // Official Bayan ul Huda Emblem
         Box(
           modifier = Modifier
-            .size(96.dp)
-            .border(2.dp, GoldPrimary, CircleShape)
-            .background(Color(0xFF08281E), CircleShape),
+            .size(116.dp)
+            .border(2.dp, GoldPrimary, RoundedCornerShape(22.dp))
+            .background(Color(0xFF08281E), RoundedCornerShape(22.dp)),
           contentAlignment = Alignment.Center
         ) {
-          Icon(
-            imageVector = Icons.Default.MenuBook,
-            contentDescription = "Quran Emblem",
-            tint = GoldLight,
-            modifier = Modifier.size(48.dp)
+          Image(
+            painter = painterResource(id = com.example.R.drawable.bayan_ul_huda_logo),
+            contentDescription = "Bayan ul Huda Logo",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+              .fillMaxSize()
+              .padding(2.dp)
+              .clip(RoundedCornerShape(20.dp))
           )
         }
 

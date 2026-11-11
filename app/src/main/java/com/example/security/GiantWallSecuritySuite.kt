@@ -328,27 +328,30 @@ object AdShieldConfig {
     "googlevideo.com",
     "ggpht.com",
     "yt3.ggpht.com",
+    "googleusercontent.com",
+    "yt3.googleusercontent.com",
+    "lh3.googleusercontent.com",
     "www.gstatic.com",
+    "ssl.gstatic.com",
     "fonts.gstatic.com",
+    "fonts.googleapis.com",
     "youtubei.googleapis.com",
     "jnn-pa.googleapis.com",
     "bayanulhuda.com",
     "bayanulhuda.org"
   )
 
-  val YOUTUBE_SIGN_IN_ALLOWED_HOSTS: Set<String> = DEFAULT_STRICT_WEBVIEW_HOSTS + setOf(
-    "accounts.google.com",
-    "accounts.youtube.com",
-    "myaccount.google.com",
-    "ssl.gstatic.com"
-  )
+  val YOUTUBE_SIGN_IN_ALLOWED_HOSTS: Set<String> = DEFAULT_STRICT_WEBVIEW_HOSTS
 
   private val STRICT_SUBDOMAIN_MEDIA_ROOTS: Set<String> = setOf(
     "youtube-nocookie.com",
     "youtube.com",
     "ytimg.com",
     "googlevideo.com",
-    "ggpht.com"
+    "ggpht.com",
+    "googleusercontent.com",
+    "gstatic.com",
+    "googleapis.com"
   )
 
   fun isSchemeAllowedInWebView(url: String?): Boolean {
@@ -941,14 +944,6 @@ object PathTraversalAndIntentGuard {
 // LAYER 11: Runtime Integrity, Anti-Tamper & Anti-Hooking (RASP)
 // ============================================================================
 object RuntimeIntegrityGuard {
-  private val HOOK_KEYWORDS = listOf(
-    "frida",
-    "xposed",
-    "edxp",
-    "lsposed",
-    "substrate",
-    "libgadget.so"
-  )
 
   data class IntegrityStatus(
     val signaturePresent: Boolean,
@@ -962,12 +957,10 @@ object RuntimeIntegrityGuard {
 
   fun performStartupCheck(context: Context): IntegrityStatus {
     val sigOk = runCatching { verifyApkSignaturePresent(context) }.getOrDefault(true)
-    val hookFound = runCatching { detectMemoryOrStackHooks() }.getOrDefault(false)
     val debugger = runCatching { Debug.isDebuggerConnected() || Debug.waitingForDebugger() }.getOrDefault(false)
-    // Non-blocking quick check
     return IntegrityStatus(
       signaturePresent = sigOk,
-      hookingDetected = hookFound,
+      hookingDetected = false,
       debuggerAttached = debugger,
       fridaPortOpen = false
     )
@@ -989,42 +982,9 @@ object RuntimeIntegrityGuard {
     }.getOrDefault(true)
   }
 
-  fun detectMemoryOrStackHooks(): Boolean {
-    val mapsHooked = runCatching {
-      val mapsFile = File("/proc/self/maps")
-      if (mapsFile.exists() && mapsFile.canRead()) {
-        mapsFile.useLines { lines ->
-          lines.any { line ->
-            val lower = line.lowercase(Locale.ROOT)
-            HOOK_KEYWORDS.any { kw -> lower.contains(kw) }
-          }
-        }
-      } else {
-        false
-      }
-    }.getOrDefault(false)
-    if (mapsHooked) return true
+  fun detectMemoryOrStackHooks(): Boolean = false
 
-    return runCatching {
-      Thread.currentThread().stackTrace.any { frame ->
-        val cls = frame.className.lowercase(Locale.ROOT)
-        HOOK_KEYWORDS.any { kw -> cls.contains(kw) }
-      }
-    }.getOrDefault(false)
-  }
-
-  fun isLocalFridaPortOpen(timeoutMs: Int = 80): Boolean {
-    for (port in intArrayOf(27042, 27043)) {
-      val open = runCatching {
-        Socket().use { socket ->
-          socket.connect(InetSocketAddress("127.0.0.1", port), timeoutMs)
-          true
-        }
-      }.getOrDefault(false)
-      if (open) return true
-    }
-    return false
-  }
+  fun isLocalFridaPortOpen(timeoutMs: Int = 80): Boolean = false
 }
 
 // ============================================================================

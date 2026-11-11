@@ -41,11 +41,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.Image
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -79,19 +83,14 @@ fun TopIslamicBar(
     TopAppBar(
       title = {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Box(
+          Image(
+            painter = painterResource(id = com.example.R.drawable.bayan_ul_huda_logo),
+            contentDescription = "Bayan ul Huda Logo",
+            contentScale = ContentScale.Crop,
             modifier = Modifier
-              .size(32.dp)
-              .background(EmeraldPrimary, CircleShape),
-            contentAlignment = Alignment.Center
-          ) {
-            Icon(
-              imageVector = Icons.Default.MenuBook,
-              contentDescription = null,
-              tint = GoldPrimary,
-              modifier = Modifier.size(18.dp)
-            )
-          }
+              .size(34.dp)
+              .clip(RoundedCornerShape(8.dp))
+          )
           Spacer(modifier = Modifier.width(8.dp))
           Column {
             Text(

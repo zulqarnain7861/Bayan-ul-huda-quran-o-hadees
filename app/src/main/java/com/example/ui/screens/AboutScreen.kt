@@ -291,20 +291,14 @@ fun AboutScreen(
             .padding(20.dp),
           horizontalAlignment = Alignment.CenterHorizontally
         ) {
-          Box(
+          androidx.compose.foundation.Image(
+            painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.bayan_ul_huda_logo),
+            contentDescription = "Bayan ul Huda Logo",
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
             modifier = Modifier
-              .size(64.dp)
-              .clip(CircleShape)
-              .background(EmeraldPrimary),
-            contentAlignment = Alignment.Center
-          ) {
-            Icon(
-              imageVector = Icons.Default.MenuBook,
-              contentDescription = null,
-              tint = GoldPrimary,
-              modifier = Modifier.size(36.dp)
-            )
-          }
+              .size(96.dp)
+              .clip(RoundedCornerShape(18.dp))
+          )
 
           Spacer(modifier = Modifier.height(10.dp))
 

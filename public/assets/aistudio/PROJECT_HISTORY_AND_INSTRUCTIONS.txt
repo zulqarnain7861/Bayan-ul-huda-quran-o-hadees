@@ -1,0 +1,71 @@
+================================================================================
+BAYAN AL-HUDA — PROJECT INSTRUCTIONS, ARCHITECTURE & HISTORY TRACK
+================================================================================
+
+1. BEHAVIORAL & ENGINEERING PRINCIPLES (KARPATHY PROTOCOL)
+--------------------------------------------------------------------------------
+- Think Before Coding: State assumptions, preserve existing architecture, and
+  keep changes minimal and verifiable.
+- Simplicity First: Write minimal, clean code without speculative abstractions.
+- Surgical Changes: Touch only the lines required for the requested fix or
+  feature; preserve all existing features, test tags, and religious content.
+- Goal-Driven Verification: Verify changes via `verify_security_and_play_protect.sh`,
+  Robolectric/JUnit verification suites, and `assembleDebug`.
+
+2. TWO-TIER UX & SECURITY HYGIENE (SETTINGS / UPDATES / ABOUT)
+--------------------------------------------------------------------------------
+- Tier 1 (Default User Surface):
+  - Friendly language only: "Check for updates" -> status -> "Download" ->
+    progress -> "Install", plus the backup Google Drive Updates link card in
+    case GitHub is unreachable in the user's region.
+  - No machinery words on Tier 1 (no APK, SHA-256, checksum, repository,
+    release tag, workflow, versionCode, or stack traces).
+- Tier 2 (Developer Options — OFF by default):
+  - Read-only technical diagnostics: verified API/content sources, open-source
+    licences, versionName/versionCode, build type, updater channel, and last
+    check time.
+- Sensitive Data Prohibition:
+  - Never render, log, or copy API keys, tokens, secrets, client IDs, keystore
+    passwords/aliases, rate-limit internals, or user identifiers in any UI.
+
+3. GOOGLE PLAY PROTECT & ANDROID SECURITY COMPLIANCE
+--------------------------------------------------------------------------------
+- Zero high-risk / dropper-flagged permissions in `AndroidManifest.xml`:
+  - `REQUEST_INSTALL_PACKAGES` and `USE_FULL_SCREEN_INTENT` are removed so
+    sideloaded APKs are never blocked by Google Play Protect's dropper heuristic.
+- Safe Update Installation (`AndroidPackageInstallerCoordinator.kt`):
+  - Uses standard `Intent.ACTION_VIEW` after 7-step APK integrity verification
+    (`ApkSecurityVerifier.verifyDownloadedApk`) instead of silent
+    `PackageInstaller.Session` stream writing.
+- WebView Security (`GiantWallSecuritySuite.kt` & `YtEmbedHost.kt`):
+  - Enforces strict HTTPS host allowlist (`DEFAULT_STRICT_WEBVIEW_HOSTS`),
+    disables file/universal access, blocks untrusted domains (`www.google.com`,
+    `archive.org/download/untrusted.js`, userinfo spoofing, `data:text/html`)
+    with `204 No Content`, and never loads `accounts.google.com/ServiceLogin`
+    or scrapes auth cookies inside an in-app WebView.
+
+4. CORE MODULES & COMPLETED MILESTONES
+--------------------------------------------------------------------------------
+- Quran & 6-Tab Tajweed Engine:
+  - Complete 114 Surahs (6,236 Ayahs), multi-translator catalog (English, Urdu,
+    Kashmiri), word-by-word morphology, 17 colour-coded Tajweed rules, calibrated
+    verse-by-verse audio sync (`TajweedAudioSyncEngine`), and offline Voice
+    Recitation Check.
+- Hadith & Classical Library:
+  - 34 Hadith collections with server-side proxy support, Sahaba & Ahl al-Bayt
+    classified biographies, 25 Prophet Stories, 4,203 IslamQA scholarly answers,
+    and Fard Namaz Azkar / Hisn al-Muslim audio & text.
+- Video Library (`VideoStreamExtractor.kt`, `YtEmbedHost.kt`, `VideoPlaybackResumeStore.kt`):
+  - Strict thumbnail-to-video identity validation (`validatePlaybackBinding`),
+    real multi-quality ladder (`144p`..`1080p` + `Audio 64k`/`128k`), hardware
+    render detection on physical Android devices, and keyed resume position
+    persistence (`Continue Watching`).
+- Prayer & Sehri/Iftar Timetable (`SehriIftarTimetableEngine.kt`):
+  - Worldwide city catalog, AlAdhan API + offline astronomical calculation,
+    dual-Ramadan Gregorian year support (e.g., 1997, 2030), and Hanafi/Shafi
+    adjustments.
+- CI/CD & Clean Build (`android-ci.yml`, `android-release.yml`):
+  - Automated clean-build verification (`verifyCleanBuildConfig`), unified
+    Robolectric SDK 34 test execution with 3 GB heap and 15-minute timeout, and
+    signed release artifact generation.
+================================================================================

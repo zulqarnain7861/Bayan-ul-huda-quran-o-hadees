@@ -195,9 +195,16 @@ data class ResolvedVideoStreamBundle(
         isDirectYoutubeStream = hasDirectYoutubeStreams
       )
     }
+    val safeFallbackUrl = fallbackBackupMp4Url.ifBlank {
+      if (LectureRecord.isValidYoutubeId(youtubeId)) {
+        YtEmbedUrlBuilder.buildEmbedUrl(youtubeId)
+      } else {
+        "https://www.youtube-nocookie.com"
+      }
+    }
     return ResolvedStreamTrack(
       quality = quality,
-      videoUrl = fallbackBackupMp4Url,
+      videoUrl = safeFallbackUrl,
       isDirectYoutubeStream = false
     )
   }
@@ -306,25 +313,32 @@ object VideoStreamExtractor {
 
   private val fastClusterClient by lazy {
     SecureNetworkClient.httpClient.newBuilder()
-      .connectTimeout(1800, java.util.concurrent.TimeUnit.MILLISECONDS)
-      .readTimeout(2200, java.util.concurrent.TimeUnit.MILLISECONDS)
-      .callTimeout(2600, java.util.concurrent.TimeUnit.MILLISECONDS)
+      .connectTimeout(6000, java.util.concurrent.TimeUnit.MILLISECONDS)
+      .readTimeout(8000, java.util.concurrent.TimeUnit.MILLISECONDS)
+      .callTimeout(10000, java.util.concurrent.TimeUnit.MILLISECONDS)
       .build()
   }
 
   /**
-   * Detects whether the host device exposes a physical/DRM GPU render node (true on physical phones,
-   * false on headless/cloud emulators lacking `/dev/dri/renderD128`). Prevents spawning Chromium's
-   * GPU process when no DRM render node exists.
+   * Detects whether the host device supports hardware-accelerated rendering (true on physical phones,
+   * false on headless emulators lacking `/dev/dri/renderD128`). Physical Android devices block
+   * direct `File.exists()` on `/dev/dri` via SELinux, so we only probe `/dev/dri` when running on an emulator.
    */
   val hasHardwareRenderNode: Boolean by lazy {
     runCatching {
-      java.io.File("/dev/dri/renderD128").exists() ||
-        java.io.File("/dev/dri/card0").exists() ||
-        java.io.File("/dev/kgsl-3d0").exists() ||
-        java.io.File("/dev/mali0").exists() ||
-        java.io.File("/dev/pvr_sync").exists()
-    }.getOrDefault(false)
+      val hw = android.os.Build.HARDWARE.orEmpty().lowercase()
+      val fp = android.os.Build.FINGERPRINT.orEmpty().lowercase()
+      val isEmulator = hw.contains("ranchu") ||
+        hw.contains("goldfish") ||
+        fp.contains("generic") ||
+        fp.contains("robolectric")
+      if (!isEmulator) {
+        true
+      } else {
+        java.io.File("/dev/dri/renderD128").exists() ||
+          java.io.File("/dev/dri/card0").exists()
+      }
+    }.getOrDefault(true)
   }
 
   @Volatile
@@ -352,74 +366,25 @@ object VideoStreamExtractor {
 
   fun readYoutubeWebViewCookies(): String {
     if (!webViewCookieSessionActive) return ""
-    return runCatching {
-      val cm = android.webkit.CookieManager.getInstance()
-      val ytCookie = cm.getCookie("https://www.youtube.com").orEmpty()
-      val ytmCookie = cm.getCookie("https://music.youtube.com").orEmpty()
-      if (ytCookie.length >= ytmCookie.length) ytCookie else ytmCookie
-    }.getOrDefault("")
+    return "CONSENT=YES+cb.20240101-17-p0.en+FX+999"
   }
 
   fun hasYoutubeAuthCookie(): Boolean {
-    if (!webViewCookieSessionActive) return false
-    val cookies = readYoutubeWebViewCookies()
-    return cookies.contains("SAPISID=") ||
-      cookies.contains("__Secure-3PAPISID=") ||
-      cookies.contains("SID=")
+    return webViewCookieSessionActive
   }
 
   fun signOutYoutubeWebViewCookies() {
-    if (!webViewCookieSessionActive) {
-      directBundleCache.clear()
-      resetAllProviderCooldowns()
-      return
-    }
-    runCatching {
-      val cm = android.webkit.CookieManager.getInstance()
-      cm.removeAllCookies(null)
-      cm.flush()
-      directBundleCache.clear()
-      resetAllProviderCooldowns()
-      seedYoutubeConsentCookies()
-    }
-  }
-
-  private fun extractCookieValue(cookieHeader: String, key: String): String? {
-    for (part in cookieHeader.split(";")) {
-      val trimmed = part.trim()
-      if (trimmed.startsWith("$key=")) {
-        return trimmed.substringAfter("$key=").trim().takeIf { it.isNotEmpty() }
-      }
-    }
-    return null
-  }
-
-  private fun computeSapisidHashHeader(cookieHeader: String, originUrl: String): String? {
-    val sapisid = extractCookieValue(cookieHeader, "SAPISID")
-      ?: extractCookieValue(cookieHeader, "__Secure-3PAPISID")
-      ?: return null
-    val timestampSec = System.currentTimeMillis() / 1000L
-    val input = "$timestampSec $sapisid $originUrl"
-    val sha1Bytes = java.security.MessageDigest.getInstance("SHA-1")
-      .digest(input.toByteArray(java.nio.charset.StandardCharsets.UTF_8))
-    val sha1Hex = sha1Bytes.joinToString("") { "%02x".format(it) }
-    return "SAPISIDHASH ${timestampSec}_$sha1Hex"
+    webViewCookieSessionActive = false
+    directBundleCache.clear()
+    resetAllProviderCooldowns()
   }
 
   private fun applyYoutubeSessionHeaders(
     reqBuilder: Request.Builder,
     originUrl: String
   ) {
-    val cookieHeader = readYoutubeWebViewCookies()
-    if (cookieHeader.isNotBlank()) {
-      reqBuilder.header("Cookie", cookieHeader)
-      val sapisidAuth = computeSapisidHashHeader(cookieHeader, originUrl)
-      if (sapisidAuth != null) {
-        reqBuilder.header("Authorization", sapisidAuth)
-        reqBuilder.header("X-Origin", originUrl)
-        reqBuilder.header("X-Goog-AuthUser", "0")
-      }
-    }
+    reqBuilder.header("Cookie", "CONSENT=YES+cb.20240101-17-p0.en+FX+999")
+    reqBuilder.header("Origin", originUrl)
   }
 
   private fun isStreamUrlPlayableHttp200Or206(url: String, userAgent: String?): Boolean {
@@ -431,15 +396,15 @@ object VideoStreamExtractor {
           "User-Agent",
           userAgent ?: "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
         )
-      val cookieHeader = readYoutubeWebViewCookies()
-      if (cookieHeader.isNotBlank() && url.contains("googlevideo.com")) {
-        reqBuilder.header("Cookie", cookieHeader)
-      }
-      if (!url.contains(".m3u8")) {
+      if (!url.contains(".m3u8", ignoreCase = true) && !url.contains("/manifest/hls", ignoreCase = true)) {
         reqBuilder.header("Range", "bytes=0-511")
       }
       fastClusterClient.newCall(reqBuilder.get().build()).execute().use { resp ->
-        resp.code in 200..299
+        val ct = resp.header("Content-Type").orEmpty().lowercase()
+        val isNonMediaPayload = ct.startsWith("text/html") ||
+          ct.startsWith("text/plain") ||
+          ct.contains("application/json")
+        resp.code in 200..299 && !isNonMediaPayload
       }
     }.getOrDefault(false)
   }
@@ -614,8 +579,7 @@ object VideoStreamExtractor {
     lecture: LectureRecord,
     pipeline: PipelineOption = PipelineOption.AUTO_SMART
   ): ResolvedVideoStreamBundle {
-    val verifiedArchiveMp4 = YtEmbedUrlBuilder.resolveVerifiedArchiveMp4OrNull(lecture)
-      ?: YtEmbedUrlBuilder.resolveDirectMp4StreamUrl(lecture)
+    val verifiedArchiveMp4 = YtEmbedUrlBuilder.resolveVerifiedArchiveMp4OrNull(lecture).orEmpty()
 
     val tracks = if (verifiedArchiveMp4.isNotBlank()) {
       mapOf(
@@ -702,9 +666,9 @@ object VideoStreamExtractor {
             pipedDeferred.await()
           )
           else -> listOf(
-            vineDeferred.await(),
             innerTubeDeferred.await(),
             watchPageDeferred.await(),
+            vineDeferred.await(),
             pipedDeferred.await(),
             invidiousDeferred.await()
           )
