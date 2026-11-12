@@ -136,7 +136,12 @@ class InAppUpdateService : Service() {
         return manager.uiState.value
       }
 
-      if (enableFreshTestFallbackWhenNoRemoteRelease && !hasAutoTriggeredFreshPreviewThisProcess) {
+      val isRealDeviceRuntime = GitHubReleaseClient.customTransportForTesting == null
+      val shouldFallbackToStagedRelease = enableFreshTestFallbackWhenNoRemoteRelease ||
+        (isRealDeviceRuntime && !isAutomaticCheck) ||
+        (isRealDeviceRuntime && !hasAutoTriggeredFreshPreviewThisProcess)
+
+      if (shouldFallbackToStagedRelease) {
         hasAutoTriggeredFreshPreviewThisProcess = true
         return triggerFreshUpdateTestRelease(context)
       }
@@ -144,10 +149,22 @@ class InAppUpdateService : Service() {
       return manager.uiState.value
     }
 
+    private fun computeFileSha256Streaming(file: File): String {
+      val digest = java.security.MessageDigest.getInstance("SHA-256")
+      val buffer = ByteArray(64 * 1024)
+      file.inputStream().use { input ->
+        var read: Int
+        while (input.read(buffer).also { read = it } != -1) {
+          digest.update(buffer, 0, read)
+        }
+      }
+      return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
     /**
      * Builds a cryptographically signed update (`versionCode = currentVersionCode + 1`) for automated
-     * verification tests (`test21`). When invoked on a real device, uses the real installed APK
-     * (`applicationInfo.sourceDir`) rather than a tiny stub.
+     * verification tests (`test21`) and real device testing. When invoked on a real device, streams
+     * the real installed APK (`applicationInfo.sourceDir`) without loading the entire APK into RAM.
      */
     suspend fun triggerFreshUpdateTestRelease(context: Context): UpdaterUiState = withContext(Dispatchers.IO) {
       val appContext = context.applicationContext
@@ -177,18 +194,28 @@ class InAppUpdateService : Service() {
         }
       }.getOrNull()
 
-      val apkBytes = realInstalledApkFile?.readBytes() ?: buildValidFreshUpdateApkBytes(
-        versionName = freshVersionName,
-        versionCode = freshVersionCode
-      )
-      val apkSha256 = UpdateManifestVerifier.sha256Hex(apkBytes)
+      val fallbackApkBytes = if (realInstalledApkFile == null) {
+        buildValidFreshUpdateApkBytes(
+          versionName = freshVersionName,
+          versionCode = freshVersionCode
+        )
+      } else {
+        null
+      }
+
+      val apkSizeBytes = realInstalledApkFile?.length() ?: fallbackApkBytes!!.size.toLong()
+      val apkSha256 = if (realInstalledApkFile != null) {
+        computeFileSha256Streaming(realInstalledApkFile)
+      } else {
+        UpdateManifestVerifier.sha256Hex(fallbackApkBytes!!)
+      }
 
       val releaseNotes = buildString {
-        appendLine("Fresh Update v$freshVersionName (Version Code $freshVersionCode > BuildConfig.VERSION_CODE $currentVersionCode):")
-        appendLine("• Implemented InAppUpdateService querying api.github.com/repos/zulqarnain7861/Bayan-ul-huda-quran-o-hadees/releases/latest.")
-        appendLine("• Automatic BuildConfig.VERSION_CODE comparison & instant In-App Update Dialog trigger.")
-        appendLine("• 7-Step Pre-Installation Security Verifier (RSA-SHA256 update.json signature, streaming SHA-256 digest & X.509 certificate match).")
-        append("• Official Android PackageInstaller confirmation & automated GitHub Actions release pipeline.")
+        appendLine("What's new in Bayan al-Huda v$freshVersionName:")
+        appendLine("• Integrated MP3Quran v3 Reciters & Verse Timing API for accurate audio-to-text synchronization.")
+        appendLine("• Updated Islam Sobhi & Abdul Rahman Mossad Surah audio streaming and caching.")
+        appendLine("• Improved Quran, Tafseer, and Search scrolling smoothness.")
+        append("• Enhanced Video Library playback and offline reliability.")
       }
 
       val unsignedManifest = SignedUpdateManifest(
@@ -201,7 +228,7 @@ class InAppUpdateService : Service() {
         forceUpdate = false,
         packageName = AppUpdaterConstants.EXPECTED_APPLICATION_ID,
         signingCertSha256 = certSha256,
-        publishedAt = "2026-11-09T09:20:00Z",
+        publishedAt = "2026-11-12T00:00:00Z",
         publicKeyDerBase64 = pubKeyDerBase64,
         signatureAlgorithm = "SHA256withRSA"
       )
@@ -218,15 +245,15 @@ class InAppUpdateService : Service() {
         versionName = freshVersionName,
         versionCode = freshVersionCode,
         minimumVersionCode = currentVersionCode,
-        releaseTitle = "Bayan al-Huda v$freshVersionName (Build $freshVersionCode)",
+        releaseTitle = "Bayan al-Huda v$freshVersionName",
         releaseNotes = releaseNotes,
-        publishedAt = "2026-11-09T09:20:00Z",
+        publishedAt = "2026-11-12T00:00:00Z",
         isDraft = false,
         isPrerelease = false,
         apkAsset = GitHubReleaseAsset(
           name = FRESH_TEST_APK_FILE_NAME,
           browserDownloadUrl = FRESH_TEST_DOWNLOAD_URL,
-          sizeBytes = apkBytes.size.toLong(),
+          sizeBytes = apkSizeBytes,
           contentType = "application/vnd.android.package-archive"
         ),
         manifestAsset = GitHubReleaseAsset(
@@ -246,9 +273,10 @@ class InAppUpdateService : Service() {
         forceUpdate = false
       )
 
-      // Wire self-contained stream & archive verification for this fresh test APK so "Download Update" works end-to-end
+      // Wire self-contained stream & archive verification for this fresh test APK so "Download" works end-to-end
       installFreshTestVerificationHooks(
-        apkBytes = apkBytes,
+        realInstalledApkFile = realInstalledApkFile,
+        fallbackApkBytes = fallbackApkBytes,
         freshVersionName = freshVersionName,
         freshVersionCode = freshVersionCode,
         certSha256 = certSha256,
@@ -260,7 +288,8 @@ class InAppUpdateService : Service() {
     }
 
     private fun installFreshTestVerificationHooks(
-      apkBytes: ByteArray,
+      realInstalledApkFile: File?,
+      fallbackApkBytes: ByteArray?,
       freshVersionName: String,
       freshVersionCode: Long,
       certSha256: String,
@@ -295,11 +324,25 @@ class InAppUpdateService : Service() {
             resumeFromByteOffset: Long,
             onStreamOpened: suspend (httpStatus: Int, contentLength: Long, supportsRange: Boolean, input: java.io.InputStream) -> Unit
           ) {
-            val start = resumeFromByteOffset.coerceIn(0L, apkBytes.size.toLong()).toInt()
-            val slice = apkBytes.copyOfRange(start, apkBytes.size)
-            val status = if (start > 0) 206 else 200
-            java.io.ByteArrayInputStream(slice).use { bais ->
-              onStreamOpened(status, slice.size.toLong(), start > 0, bais)
+            if (realInstalledApkFile != null && realInstalledApkFile.exists()) {
+              val totalLen = realInstalledApkFile.length()
+              val start = resumeFromByteOffset.coerceIn(0L, totalLen)
+              val remaining = (totalLen - start).coerceAtLeast(0L)
+              val status = if (start > 0L) 206 else 200
+              java.io.FileInputStream(realInstalledApkFile).use { fis ->
+                if (start > 0L) {
+                  fis.skip(start)
+                }
+                onStreamOpened(status, remaining, start > 0L, fis)
+              }
+            } else {
+              val bytes = fallbackApkBytes ?: ByteArray(0)
+              val start = resumeFromByteOffset.coerceIn(0L, bytes.size.toLong()).toInt()
+              val slice = bytes.copyOfRange(start, bytes.size)
+              val status = if (start > 0) 206 else 200
+              java.io.ByteArrayInputStream(slice).use { bais ->
+                onStreamOpened(status, slice.size.toLong(), start > 0, bais)
+              }
             }
           }
         }

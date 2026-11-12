@@ -280,4 +280,86 @@ class TajweedSyncAndCrashFixVerificationTest {
     assertTrue((entry?.basmalaOffsetMs ?: 0L) >= 4600L)
     tempAudio.delete()
   }
+
+  @Test
+  fun test9_mp3QuranV3RecitersAndAyatTimingApiIntegration() {
+    val sampleRecitersJson = """
+      {
+        "reciters": [
+          {
+            "id": 253,
+            "name": "Islam Sobhi",
+            "letter": "I",
+            "date": "2026-06-21T18:47:55.000000Z",
+            "moshaf": [
+              {
+                "id": 253,
+                "name": "Rewayat Hafs A'n Assem - Murattal",
+                "rewaya_id": 1,
+                "server": "https://cdn.mp3quran.net/audio/islam-sobhi/r1/",
+                "surah_total": 109,
+                "moshaf_type": 11,
+                "surah_list": "1,2,36,67,114"
+              }
+            ]
+          }
+        ]
+      }
+    """.trimIndent()
+
+    val parsedReciters = com.example.ui.audio.Mp3QuranTimingClient.parseRecitersJson(sampleRecitersJson)
+    assertEquals(1, parsedReciters.size)
+    assertEquals(253, parsedReciters.first().id)
+    assertEquals("https://cdn.mp3quran.net/audio/islam-sobhi/r1/", parsedReciters.first().moshafList.first().serverUrl)
+    assertTrue(parsedReciters.first().moshafList.first().surahSet.contains(36))
+
+    val sampleTimingsJson = """
+      [
+        {"ayah": 1, "start_time": 3160, "end_time": 9400, "x": "178.34", "y": "63.11", "page": "https://www.mp3quran.net/api/quran_pages_svg/002.svg"},
+        {"ayah": 2, "start_time": 9400, "end_time": 15760, "x": "178.90", "y": "91.95", "page": "https://www.mp3quran.net/api/quran_pages_svg/002.svg"},
+        {"ayah": 3, "start_time": 15760, "end_time": 24340, "x": "120.74", "y": "119.66", "page": "https://www.mp3quran.net/api/quran_pages_svg/002.svg"}
+      ]
+    """.trimIndent()
+    val parsedTimings = com.example.ui.audio.Mp3QuranTimingClient.parseSurahAyatTimingsJson(sampleTimingsJson)
+    assertEquals(3, parsedTimings.size)
+    assertEquals(1, parsedTimings[0].ayah)
+    assertEquals(3160, parsedTimings[0].startTimeMs)
+    assertEquals(9400, parsedTimings[0].endTimeMs)
+
+    val sampleUpdatedJson = """
+      {
+        "status": true,
+        "data": {
+          "page": 1,
+          "total_count": 100,
+          "records_count": 2,
+          "records": {
+            "reciters": [],
+            "mushafs": [],
+            "tracks": [],
+            "verses_timings": [
+              {"id": 10, "track_id": 1, "mushaf_id": 253, "sura_id": 1, "aya": 1, "start_time": 0, "end_time": 4200, "updated_at": "2026-06-21"}
+            ]
+          }
+        }
+      }
+    """.trimIndent()
+    val updatedSnapshot = com.example.ui.audio.Mp3QuranTimingClient.parseVersesTimingsUpdatedJson(sampleUpdatedJson)
+    assertNotNull(updatedSnapshot)
+    assertTrue(updatedSnapshot!!.status)
+    assertEquals(1, updatedSnapshot.verseTimingRows.size)
+    assertEquals(4200, updatedSnapshot.verseTimingRows.first().endTimeMs)
+
+    // Verify exact timing sync in AudioPlayerManager when MP3Quran timing entries are cached
+    com.example.ui.audio.Mp3QuranTimingClient.putSurahAyatTimingsInCache(253, 1, listOf(
+      com.example.ui.audio.Mp3QuranTimingClient.Mp3QuranAyatTimingEntry(ayah = 1, startTimeMs = 0, endTimeMs = 4000),
+      com.example.ui.audio.Mp3QuranTimingClient.Mp3QuranAyatTimingEntry(ayah = 2, startTimeMs = 4000, endTimeMs = 9000),
+      com.example.ui.audio.Mp3QuranTimingClient.Mp3QuranAyatTimingEntry(ayah = 3, startTimeMs = 9000, endTimeMs = 14000)
+    ))
+    val manager = AudioPlayerManager(context)
+    val sobhi = availableReciters.first { it.id == "islam_sobhi" }
+    manager.setReciter(sobhi, autoResumeCurrentAyah = false)
+    val timingAt5s = manager.computeSurahAyahTimingForPosition(surah = 1, positionMs = 5000, totalSurahDurationMs = 14000)
+    assertEquals(2, timingAt5s.first)
+  }
 }

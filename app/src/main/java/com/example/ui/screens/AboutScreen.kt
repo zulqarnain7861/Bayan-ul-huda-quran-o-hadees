@@ -435,7 +435,7 @@ fun AboutScreen(
           updaterScope.launch {
             com.example.data.updater.InAppUpdateService.checkForUpdatesAndTriggerDialog(
               context = context,
-              enableFreshTestFallbackWhenNoRemoteRelease = false
+              enableFreshTestFallbackWhenNoRemoteRelease = true
             )
           }
         },

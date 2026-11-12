@@ -278,46 +278,39 @@ class AudioPlayerManager(private val context: Context) {
       "masad", "ikhlas", "falaq", "nas"
     )
 
+    // Surahs available with canonical 3-digit filenames on https://archive.org/download/AbdulrahmanMassaad/{002..114}.mp3
+    private val ABDUL_RAHMAN_MASSAAD_CLEAN_SURAHS = setOf(
+      2, 3, 5, 7, 10, 15, 16, 19, 23, 24, 25, 29, 30, 32, 49, 67, 73, 78, 87, 88, 100, 107, 112, 113, 114
+    )
+
     // Verified canonical Surah-number -> exact Archive.org filename mapping for `abdulrahman-mosad`
-    // (In this archive, tracks 01..37 are album playlist indices, NOT Quran surah numbers:
-    //  e.g., Surah 5 Al-Ma'idah is Track 06, while Track 36 is Surah 88 Al-Ghashiyah!)
     private val ABDUL_RAHMAN_MOSSAD_ARCHIVE_SURAH_FILES = mapOf(
-      1 to "01%20Al-Fatihah%20%D8%A7%D9%84%D9%81%D8%A7%D8%AA%D8%AD%D8%A9.mp3",
-      2 to "02%20Al-Baqarah%20%D8%A7%D9%84%D8%A8%D9%82%D8%B1%D8%A9.mp3",
-      3 to "03%20Al-%27Imran%20%D8%A2%D9%84%20%D8%B9%D9%85%D8%B1%D8%A7%D9%86.mp3",
-      4 to "05%20An-Nisa%27%20%D8%A7%D9%84%D9%86%D8%B3%D8%A7%D8%A1.mp3",
-      5 to "06%20Al-Ma%27idah%20%D8%A7%D9%84%D9%85%D8%A7%D8%A6%D8%AF%D8%A9.mp3",
-      6 to "07%20Al-An%27am%20%D8%A7%D9%84%D8%A3%D9%86%D8%B9%D8%A7%D9%85.mp3",
-      10 to "08%20Yunus%20%D9%8A%D9%88%D9%86%D8%B3.mp3",
-      12 to "09%20Yusuf%20%D9%8A%D9%88%D8%B3%D9%81.mp3",
-      13 to "10%20Ar-Ra%27d%20%D8%A7%D9%84%D8%B1%D8%B9%D8%AF.mp3",
-      14 to "11%20Ibrahim%20%D8%A5%D8%A8%D8%B1%D8%A7%D9%87%D9%8A%D9%85.mp3",
-      16 to "12%20An-Nahl%20%D8%A7%D9%84%D9%86%D8%AD%D9%84.mp3",
-      17 to "13%20Al-Isra%27%20%D8%A7%D9%84%D8%A5%D8%B3%D8%B1%D8%A7%D8%A1.mp3",
-      18 to "14%20Al-Kahf%20%D8%A7%D9%84%D9%83%D9%87%D9%81.mp3",
-      19 to "15%20Maryam%20%D9%85%D8%B1%D9%8A%D9%85.mp3",
-      20 to "16%20Ta%20Ha%20%D8%B7%D9%87.mp3",
-      23 to "17%20Al-Mu%27minun%20%D8%A7%D9%84%D9%85%D8%A4%D9%85%D9%86%D9%88%D9%86.mp3",
-      25 to "18%20Al-Furqan%20%D8%A7%D9%84%D9%81%D8%B1%D9%82%D8%A7%D9%86.mp3",
-      26 to "19%20Ash-Shu%27ara%27%20%D8%A7%D9%84%D8%B4%D8%B9%D8%B1%D8%A7%D8%A1.mp3",
-      27 to "20%20An-Naml%20%D8%A7%D9%84%D9%86%D9%85%D9%84.mp3",
-      28 to "21%20Al-Qasas%20%D8%A7%D9%84%D9%82%D8%B5%D8%B5.mp3",
-      29 to "22%20Al-%27Ankabut%20%D8%A7%D9%84%D8%B9%D9%86%D9%83%D8%A8%D9%88%D8%AA.mp3",
-      30 to "23%20Ar-Rum%20%D8%A7%D9%84%D8%B1%D9%88%D9%85.mp3",
-      31 to "24%20Luqman%20%D9%84%D9%82%D9%85%D8%A7%D9%86.mp3",
-      32 to "25%20As-Sajdah%20%D8%A7%D9%84%D8%B3%D8%AC%D8%AF%D8%A9.mp3",
-      44 to "26%20Ad-Dukhan%20%D8%A7%D9%84%D8%AF%D8%AE%D8%A7%D9%86.mp3",
-      50 to "27%20Qaf%20%D9%82.mp3",
-      53 to "28%20An-Najm%20%D8%A7%D9%84%D9%86%D8%AC%D9%85.mp3",
-      56 to "29%20Al-Waqi%27ah%20%D8%A7%D9%84%D9%88%D8%A7%D9%82%D8%B9%D8%A9.mp3",
-      57 to "30%20Al-Hadid%20%D8%A7%D9%84%D8%AD%D8%AF%D9%8A%D8%AF.mp3",
-      59 to "31%20Al-Hashr%20%D8%A7%D9%84%D8%AD%D8%B4%D8%B1.mp3",
-      70 to "32%20Al-Ma%27arij%20%D8%A7%D9%84%D9%85%D8%B9%D8%A7%D8%B1%D8%AC.mp3",
-      73 to "33%20Al-Muzzammil%20%D8%A7%D9%84%D9%85%D8%B2%D9%85%D9%84.mp3",
-      79 to "34%20An-Nazi%27at%20%D8%A7%D9%84%D9%86%D8%A7%D8%B2%D8%B9%D8%A7%D8%AA.mp3",
-      85 to "35%20Al-Buruj%20%D8%A7%D9%84%D8%A8%D8%B1%D9%88%D8%AC.mp3",
-      87 to "37%20Al-A%27la%20%D8%A7%D9%84%D8%A3%D8%B9%D9%84%D9%89.mp3",
-      88 to "36%20Al-Ghashiyah%20%D8%A7%D9%84%D8%BA%D8%A7%D8%B4%D9%8A%D8%A9.mp3"
+      1 to "001%20Al-Fatiha%20%D8%A7%D9%84%D9%81%D8%A7%D8%AA%D8%AD%D8%A9.mp3",
+      2 to "002%20Al-Baqara%20197-202%20%D8%A7%D9%84%D8%A8%D9%82%D8%B1%D8%A9.mp3",
+      3 to "003%20Al-Imran%201-14%20%D8%A2%D9%84%20%D8%B9%D9%85%D8%B1%D8%A7%D9%86.mp3",
+      5 to "005%20Al-Ma%27idah%2067-76%20%D8%A7%D9%84%D9%85%D8%A7%D8%A6%D8%AF%D8%A9.mp3",
+      7 to "007%20Al-A%27raf%20196-206%20%D8%A7%D9%84%D8%A3%D8%B9%D8%B1%D8%A7%D9%81.mp3",
+      9 to "009%20At-Tawbah%2040%20%D8%A7%D9%84%D8%AA%D9%88%D8%A8%D8%A9.mp3",
+      10 to "010%20Yunus%203-25%20%D9%8A%D9%88%D9%86%D8%B3.mp3",
+      12 to "012%20Yusuf%20102-111%20%D9%8A%D9%88%D8%B3%D9%81.mp3",
+      13 to "013%20Ar-Ra%27d%2012-13%20%D8%A7%D9%84%D8%B1%D8%B9%D8%AF.mp3",
+      14 to "014%20Ibrahim%2042-47%20%D8%A5%D8%A8%D8%B1%D8%A7%D9%87%D9%8A%D9%85.mp3",
+      16 to "016%20An-Nahl%2052-64%20%D8%A7%D9%84%D9%86%D8%AD%D9%84.mp3",
+      19 to "019%20Maryam%2065-98%20%D9%85%D8%B1%D9%8A%D9%85.mp3",
+      22 to "022%20Al-Hajj%2027-29%20%D8%A7%D9%84%D8%AD%D8%AC.mp3",
+      23 to "023%20Al-Mu%27minun%2051-92%20%D8%A7%D9%84%D9%85%D8%A4%D9%85%D9%86%D9%88%D9%86.mp3",
+      24 to "024%20An-Nur%2036-38%20%D8%A7%D9%84%D9%86%D9%88%D8%B1.mp3",
+      29 to "029%20Al-Ankabut%20%D8%A7%D9%84%D8%B9%D9%86%D9%83%D8%A8%D9%88%D8%AA.mp3",
+      30 to "030%20Ar-Rum%2017-19%20%D8%A7%D9%84%D8%B1%D9%88%D9%85.mp3",
+      32 to "032%20As-Sajdah%20%D8%A7%D9%84%D8%B3%D8%AC%D8%AF%D8%A9.mp3",
+      48 to "048%20Al-Fath%2018%20%D8%A7%D9%84%D9%81%D8%AA%D8%AD.mp3",
+      49 to "049%20Al-Hujurat%20%D8%A7%D9%84%D8%AD%D8%AC%D8%B1%D8%A7%D8%AA.mp3",
+      73 to "073%20Al-Muzzammil%20%D8%A7%D9%84%D9%85%D8%B2%D9%85%D9%84.mp3",
+      78 to "078%20An-Naba%20%D8%A7%D9%84%D9%86%D8%A8%D8%A3.mp3",
+      87 to "087%20Al-Ala%20%D8%A7%D9%84%D8%A3%D8%B9%D9%84%D9%89.mp3",
+      88 to "088%20Al-Ghashiyah%20%D8%A7%D9%84%D8%BA%D8%A7%D8%B4%D9%8A%D8%A9.mp3",
+      100 to "100%20Al-Adiyat%20%D8%A7%D9%84%D8%B9%D8%A7%D8%AF%D9%8A%D8%A7%D8%AA.mp3",
+      107 to "107%20Al-Ma%27un%20%D8%A7%D9%84%D9%85%D8%A7%D8%B9%D9%88%D9%86.mp3"
     )
 
     fun getSurahTotalAyahs(surahNumber: Int): Int {
@@ -413,15 +406,53 @@ class AudioPlayerManager(private val context: Context) {
 
   /**
    * Derives `(activeAyahNumber, withinAyahPositionMs, ayahWindowDurationMs)` from a surah-level audio position.
-   * Accounts for the Basmala prefix (`0 until basmalaOffsetMs` on Surahs 2..114 except 9) so that
-   * during the Basmala prefix the Starting Bismillah Verse highlights in Green, and Ayah 1 Word 1
-   * starts highlighting at `basmalaOffsetMs` when Ayah 1 begins!
+   * - First checks if exact MP3Quran v3 Ayat Timing rows (`Mp3QuranTimingClient`) are cached for the active
+   *   reciter and Surah.
+   * - Otherwise uses calibrated Basmala prefix (`0 until basmalaOffsetMs` on Surahs 2..114 except 9) +
+   *   per-verse character weights so the Starting Bismillah Verse highlights in Green during the prefix
+   *   and Ayah 1 Word 1 starts highlighting at `basmalaOffsetMs`.
    */
   fun computeSurahAyahTimingForPosition(
     surah: Int,
     positionMs: Int,
     totalSurahDurationMs: Int
   ): Triple<Int, Int, Int> {
+    val activeReciterId = _audioState.value.reciter.id
+    val apiTimings = Mp3QuranTimingClient.getCachedAyatTimingsForReciter(activeReciterId, surah)
+    if (!apiTimings.isNullOrEmpty()) {
+      val apiTotalMs = apiTimings.maxOfOrNull { it.endTimeMs } ?: 0
+      if (apiTotalMs > 1000) {
+        val scale = if (totalSurahDurationMs > 1500) {
+          apiTotalMs.toDouble() / totalSurahDurationMs.toDouble()
+        } else {
+          1.0
+        }
+        val mappedPosMs = (positionMs * scale).toInt().coerceIn(0, apiTotalMs)
+        val firstVerseStart = apiTimings.firstOrNull { it.ayah == 1 }?.startTimeMs ?: 0
+        if (surah != 1 && surah != 9 && firstVerseStart > 0 && mappedPosMs < firstVerseStart) {
+          val firstVerseEnd = apiTimings.firstOrNull { it.ayah == 1 }?.endTimeMs ?: (firstVerseStart + 4000)
+          val unscaledPos = (mappedPosMs / scale).toInt()
+          val unscaledDur = (firstVerseEnd / scale).toInt().coerceAtLeast(1000)
+          return Triple(1, unscaledPos, unscaledDur)
+        }
+        val matchingEntry = apiTimings.firstOrNull { it.ayah >= 1 && mappedPosMs in it.startTimeMs until it.endTimeMs }
+          ?: apiTimings.lastOrNull { it.ayah >= 1 && mappedPosMs >= it.startTimeMs }
+          ?: apiTimings.firstOrNull { it.ayah >= 1 }
+        if (matchingEntry != null) {
+          val rawWithin = (mappedPosMs - matchingEntry.startTimeMs).coerceAtLeast(0)
+          val rawDur = matchingEntry.durationMs.coerceAtLeast(600)
+          val unscaledWithin = (rawWithin / scale).toInt()
+          val unscaledDur = (rawDur / scale).toInt().coerceAtLeast(600)
+          return if (matchingEntry.ayah == 1 && surah != 1 && surah != 9 && firstVerseStart > 0) {
+            val unscaledBasmala = (firstVerseStart / scale).toInt()
+            Triple(1, unscaledBasmala + unscaledWithin, unscaledBasmala + unscaledDur)
+          } else {
+            Triple(matchingEntry.ayah, unscaledWithin, unscaledDur)
+          }
+        }
+      }
+    }
+
     val weights = getWeightsForSurah(surah)
     val totalAyahs = weights.size.coerceAtLeast(1)
     val safeTotalDuration = totalSurahDurationMs.coerceAtLeast(totalAyahs * 2500)
@@ -466,6 +497,21 @@ class AudioPlayerManager(private val context: Context) {
 
   fun computeStartOffsetMsForAyah(surah: Int, targetAyah: Int, totalSurahDurationMs: Int): Int {
     if (targetAyah <= 1) return 0
+    val activeReciterId = _audioState.value.reciter.id
+    val apiTimings = Mp3QuranTimingClient.getCachedAyatTimingsForReciter(activeReciterId, surah)
+    if (!apiTimings.isNullOrEmpty()) {
+      val apiTotalMs = apiTimings.maxOfOrNull { it.endTimeMs } ?: 0
+      val entry = apiTimings.firstOrNull { it.ayah == targetAyah }
+      if (entry != null && apiTotalMs > 1000) {
+        val scale = if (totalSurahDurationMs > 1500) {
+          totalSurahDurationMs.toDouble() / apiTotalMs.toDouble()
+        } else {
+          1.0
+        }
+        return (entry.startTimeMs * scale).toInt().coerceIn(0, (totalSurahDurationMs - 500).coerceAtLeast(0))
+      }
+    }
+
     val weights = getWeightsForSurah(surah)
     val totalAyahs = weights.size.coerceAtLeast(1)
     val clampedAyah = targetAyah.coerceIn(1, totalAyahs)
@@ -516,13 +562,15 @@ class AudioPlayerManager(private val context: Context) {
     val formattedAyah = ayah.toString().padStart(3, '0')
     return if (reciter.isSurahLevelReciter) {
       when (reciter.id) {
-        "islam_sobhi" -> "https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/$formattedSurah.mp3"
+        "islam_sobhi" -> "https://cdn.mp3quran.net/audio/islam-sobhi/r1/$formattedSurah.mp3"
         "abdul_rehman_mossad" -> {
-          val mappedFile = ABDUL_RAHMAN_MOSSAD_ARCHIVE_SURAH_FILES[surah]
-          if (mappedFile != null) {
-            "https://archive.org/download/abdulrahman-mosad/$mappedFile"
-          } else {
-            "https://media.way2quran.com/mp3/abdul-rahman-musaad/$formattedSurah.mp3"
+          when {
+            surah in ABDUL_RAHMAN_MASSAAD_CLEAN_SURAHS ->
+              "https://archive.org/download/AbdulrahmanMassaad/$formattedSurah.mp3"
+            ABDUL_RAHMAN_MOSSAD_ARCHIVE_SURAH_FILES.containsKey(surah) ->
+              "https://archive.org/download/abdulrahman-mosad/${ABDUL_RAHMAN_MOSSAD_ARCHIVE_SURAH_FILES[surah]}"
+            else ->
+              "https://archive.org/download/AbdulrahmanMassaad/$formattedSurah.mp3"
           }
         }
         else -> "https://download.quranicaudio.com/quran/${reciter.subfolder}/$formattedSurah.mp3"
@@ -587,16 +635,22 @@ class AudioPlayerManager(private val context: Context) {
     // 1. Add primary verified canonical Surah endpoints first (zero playlist-offset ambiguity)
     when (reciter.id) {
       "islam_sobhi" -> {
+        candidates.add("https://cdn.mp3quran.net/audio/islam-sobhi/r1/$formattedSurah.mp3")
         candidates.add("https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/$formattedSurah.mp3")
         candidates.add("https://archive.org/download/010_20221110/$formattedSurah.mp3")
         candidates.add("https://media.way2quran.com/mp3/islam-sobhi/$formattedSurah.mp3")
       }
       "abdul_rehman_mossad" -> {
+        if (surah in ABDUL_RAHMAN_MASSAAD_CLEAN_SURAHS) {
+          candidates.add("https://archive.org/download/AbdulrahmanMassaad/$formattedSurah.mp3")
+        }
         ABDUL_RAHMAN_MOSSAD_ARCHIVE_SURAH_FILES[surah]?.let { exactFile ->
           candidates.add("https://archive.org/download/abdulrahman-mosad/$exactFile")
         }
+        if (surah !in ABDUL_RAHMAN_MASSAAD_CLEAN_SURAHS) {
+          candidates.add("https://archive.org/download/AbdulrahmanMassaad/$formattedSurah.mp3")
+        }
         candidates.add("https://media.way2quran.com/mp3/abdul-rahman-musaad/$formattedSurah.mp3")
-        candidates.add("https://archive.org/download/abdulrahman-mosad/$formattedSurah.mp3")
       }
       else -> {
         candidates.add("https://download.quranicaudio.com/quran/${reciter.subfolder}/$formattedSurah.mp3")
@@ -620,9 +674,11 @@ class AudioPlayerManager(private val context: Context) {
         }
       }
       "abdul_rehman_mossad" -> {
-        val archiveFile = fetchArchiveSurahFileIfNeeded("abdulrahman-mosad", surah)
-        if (archiveFile != null) {
-          candidates.add("https://archive.org/download/abdulrahman-mosad/$archiveFile")
+        for (archiveId in listOf("AbdulrahmanMassaad", "abdulrahman-mosad", "AMusad")) {
+          val archiveFile = fetchArchiveSurahFileIfNeeded(archiveId, surah)
+          if (archiveFile != null) {
+            candidates.add("https://archive.org/download/$archiveId/$archiveFile")
+          }
         }
       }
     }
@@ -643,44 +699,18 @@ class AudioPlayerManager(private val context: Context) {
     }
     if (searchTerms.isEmpty()) return null
 
-    val apiUrls = listOf(
-      "https://www.mp3quran.net/api/v3/reciters?language=eng",
-      "https://www.mp3quran.net/api/v3/reciters?language=ar"
-    )
-    for (apiUrl in apiUrls) {
-      if (!SecurityIntegrityGuard.isUrlTrustedAndAllowed(apiUrl)) continue
-      try {
-        val conn = java.net.URL(apiUrl).openConnection() as java.net.HttpURLConnection
-        conn.instanceFollowRedirects = false
-        conn.connectTimeout = 4000
-        conn.readTimeout = 5000
-        if (conn.responseCode == 200 && conn.contentLengthLong <= SecurityIntegrityGuard.MAX_HTTP_RESPONSE_BYTES) {
-          val body = conn.inputStream.bufferedReader().use { it.readText() }
-          if (body.length > SecurityIntegrityGuard.MAX_HTTP_RESPONSE_BYTES) continue
-          val root = org.json.JSONObject(body)
-          val recitersArr = root.optJSONArray("reciters") ?: continue
-          for (i in 0 until recitersArr.length()) {
-            val obj = recitersArr.getJSONObject(i)
-            val name = obj.optString("name", "").lowercase()
-            if (searchTerms.any { name.contains(it) }) {
-              val moshafArr = obj.optJSONArray("moshaf")
-              if (moshafArr != null && moshafArr.length() > 0) {
-                val moshaf = moshafArr.getJSONObject(0)
-                val server = moshaf.optString("server", "").replace("http://", "https://")
-                val surahListRaw = moshaf.optString("surah_list", "")
-                val surahSet = surahListRaw.split(",")
-                  .mapNotNull { it.trim().toIntOrNull() }
-                  .toSet()
-                if (server.isNotBlank() && SecurityIntegrityGuard.isUrlTrustedAndAllowed(server)) {
-                  val info = Mp3QuranMoshafInfo(server, surahSet)
-                  resolvedMp3QuranServers[reciterId] = info
-                  return info
-                }
-              }
-            }
+    for (lang in listOf("eng", "ar")) {
+      val reciters = Mp3QuranTimingClient.fetchReciters(language = lang)
+      for (entry in reciters) {
+        val lowerName = entry.name.lowercase()
+        if (searchTerms.any { lowerName.contains(it) }) {
+          val moshaf = entry.moshafList.firstOrNull()
+          if (moshaf != null && SecurityIntegrityGuard.isUrlTrustedAndAllowed(moshaf.serverUrl)) {
+            val info = Mp3QuranMoshafInfo(moshaf.serverUrl, moshaf.surahSet)
+            resolvedMp3QuranServers[reciterId] = info
+            return info
           }
         }
-      } catch (_: Exception) {
       }
     }
     return null
@@ -690,26 +720,19 @@ class AudioPlayerManager(private val context: Context) {
     val map = resolvedArchiveSurahFiles.getOrPut(archiveIdentifier) {
       val discovered = mutableMapOf<Int, String>()
       val metaUrl = "https://archive.org/metadata/$archiveIdentifier"
-      if (SecurityIntegrityGuard.isUrlTrustedAndAllowed(metaUrl)) {
+      val body = Mp3QuranTimingClient.executeSafeGetJson(metaUrl)
+      if (!body.isNullOrBlank()) {
         try {
-          val conn = java.net.URL(metaUrl).openConnection() as java.net.HttpURLConnection
-          conn.instanceFollowRedirects = false
-          conn.connectTimeout = 4000
-          conn.readTimeout = 5000
-          if (conn.responseCode == 200 && conn.contentLengthLong <= SecurityIntegrityGuard.MAX_HTTP_RESPONSE_BYTES) {
-            val body = conn.inputStream.bufferedReader().use { it.readText() }
-            if (body.length > SecurityIntegrityGuard.MAX_HTTP_RESPONSE_BYTES) return@getOrPut discovered
-            val root = org.json.JSONObject(body)
-            val filesArr = root.optJSONArray("files")
-            if (filesArr != null) {
-              for (i in 0 until filesArr.length()) {
-                val fileObj = filesArr.getJSONObject(i)
-                val fileName = fileObj.optString("name", "")
-                if (fileName.endsWith(".mp3", ignoreCase = true)) {
-                  val canonicalSurah = resolveCanonicalSurahNumberFromFileName(fileName)
-                  if (canonicalSurah != null && canonicalSurah in 1..114 && !discovered.containsKey(canonicalSurah)) {
-                    discovered[canonicalSurah] = java.net.URLEncoder.encode(fileName, "UTF-8").replace("+", "%20")
-                  }
+          val root = org.json.JSONObject(body)
+          val filesArr = root.optJSONArray("files")
+          if (filesArr != null) {
+            for (i in 0 until filesArr.length()) {
+              val fileObj = filesArr.getJSONObject(i)
+              val fileName = fileObj.optString("name", "")
+              if (fileName.endsWith(".mp3", ignoreCase = true)) {
+                val canonicalSurah = resolveCanonicalSurahNumberFromFileName(fileName)
+                if (canonicalSurah != null && canonicalSurah in 1..114 && !discovered.containsKey(canonicalSurah)) {
+                  discovered[canonicalSurah] = java.net.URLEncoder.encode(fileName, "UTF-8").replace("+", "%20")
                 }
               }
             }
@@ -1306,6 +1329,7 @@ class AudioPlayerManager(private val context: Context) {
       )
 
       fallbackJob = scope.launch(Dispatchers.IO) {
+        Mp3QuranTimingClient.prefetchAyatTimingsForReciterAndSurah(currentReciter.id, surah)
         val candidateUrls = resolveCandidateUrlsForReciter(currentReciter, surah, safeAyah)
         if (candidateUrls.isEmpty()) {
           launch(Dispatchers.Main) {
@@ -1814,33 +1838,49 @@ class AudioPlayerManager(private val context: Context) {
 
   private suspend fun catchAudioForOffline(url: String, targetFile: File) {
     if (targetFile.exists() && targetFile.length() > 4096L) return
-    if (!SecurityIntegrityGuard.isUrlTrustedAndAllowed(url)) return
     val maxAudioCacheBytes = 64L * 1024L * 1024L
     try {
-      val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-      conn.instanceFollowRedirects = false
-      conn.connectTimeout = 5000
-      conn.readTimeout = 10000
-      if (conn.responseCode == 200 && conn.contentLengthLong <= maxAudioCacheBytes) {
-        val tmp = File(targetFile.parentFile, "${targetFile.name}.tmp")
-        var totalBytes = 0L
-        conn.inputStream.use { input ->
-          tmp.outputStream().use { output ->
-            val buf = ByteArray(8192)
-            var read: Int
-            while (input.read(buf).also { read = it } != -1) {
-              totalBytes += read
-              if (totalBytes > maxAudioCacheBytes) {
-                tmp.delete()
-                return
+      var currentUrl = url
+      var redirects = 0
+      while (redirects < 5) {
+        if (!SecurityIntegrityGuard.isUrlTrustedAndAllowed(currentUrl)) return
+        val conn = java.net.URL(currentUrl).openConnection() as java.net.HttpURLConnection
+        conn.instanceFollowRedirects = false
+        conn.connectTimeout = 5000
+        conn.readTimeout = 10000
+        val code = conn.responseCode
+        if (code in 301..308) {
+          val location = conn.getHeaderField("Location")
+          conn.disconnect()
+          if (location.isNullOrBlank()) return
+          currentUrl = if (location.startsWith("http")) location.replace("http://", "https://") else return
+          redirects++
+          continue
+        }
+        if (code == 200 && conn.contentLengthLong <= maxAudioCacheBytes) {
+          val tmp = File(targetFile.parentFile, "${targetFile.name}.tmp")
+          var totalBytes = 0L
+          conn.inputStream.use { input ->
+            tmp.outputStream().use { output ->
+              val buf = ByteArray(8192)
+              var read: Int
+              while (input.read(buf).also { read = it } != -1) {
+                totalBytes += read
+                if (totalBytes > maxAudioCacheBytes) {
+                  tmp.delete()
+                  conn.disconnect()
+                  return
+                }
+                output.write(buf, 0, read)
               }
-              output.write(buf, 0, read)
             }
           }
+          if (tmp.exists() && tmp.length() > 4096L) {
+            tmp.renameTo(targetFile)
+          }
         }
-        if (tmp.exists() && tmp.length() > 4096L) {
-          tmp.renameTo(targetFile)
-        }
+        conn.disconnect()
+        return
       }
     } catch (_: Exception) {}
   }

@@ -785,12 +785,23 @@ class SourceRegistryRepository(
         DeveloperApiSourceLicenceItem(
           id = "mp3quran_and_archive_org",
           category = "Audio",
-          sourceName = "MP3Quran.net v3 API & Internet Archive Audio",
-          purpose = "Surah-level Quran recitation streaming for Islam Sobhi and Abdul Rehman Mossad.",
-          officialDocumentationUrl = "https://www.mp3quran.net/eng/api",
+          sourceName = "MP3Quran.net v3 Reciters API (mp3quran.net/api/v3/reciters?language=eng) & Internet Archive Audio",
+          purpose = "Surah-level Quran recitation discovery and streaming for Islam Sobhi (cdn.mp3quran.net/audio/islam-sobhi/r1/) and Abdul Rehman Mossad (Archive.org AbdulrahmanMassaad & abdulrahman-mosad).",
+          officialDocumentationUrl = "https://mp3quran.net/api/v3/reciters?language=eng",
           applicableLicenceName = "Open Non-Commercial Quran Audio Distribution",
-          applicableLicenceUrl = "https://archive.org/about/terms.php",
+          applicableLicenceUrl = "https://www.mp3quran.net/eng/api",
           attributionRequirements = "Credit MP3Quran.net, Archive.org, and the reciter; honestly mark unrecorded Surahs as unavailable without substituting other reciters.",
+          configurationStatus = "Configured"
+        ),
+        DeveloperApiSourceLicenceItem(
+          id = "mp3quran_v3_timing_api",
+          category = "Audio",
+          sourceName = "MP3Quran.net v3 Ayat Timing & Updates API (getVersesTimingsUpdated)",
+          purpose = "Per-verse millisecond start/end audio synchronization (ayat_timing, ayat_timing/reads, ayat_timing/soar, and verses_timings/updated) for syncing Uthmani text and Tajweed highlighting with recitation audio.",
+          officialDocumentationUrl = "https://www.mp3quran.net/eng/timing-api#/Timing%20updates/getVersesTimingsUpdated",
+          applicableLicenceName = "MP3Quran Open Timing API License",
+          applicableLicenceUrl = "https://www.mp3quran.net/eng/timing-api",
+          attributionRequirements = "Credit MP3Quran.net Timing API for verse synchronization metadata.",
           configurationStatus = "Configured"
         ),
         DeveloperApiSourceLicenceItem(

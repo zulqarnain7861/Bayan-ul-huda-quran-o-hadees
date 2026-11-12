@@ -69,3 +69,9 @@ BAYAN AL-HUDA — PROJECT INSTRUCTIONS, ARCHITECTURE & HISTORY TRACK
     Robolectric SDK 34 test execution with 3 GB heap and 15-minute timeout, and
     signed release artifact generation.
 ================================================================================
+
+
+- 2026-11-12 Update:
+  1. Integrated MP3Quran v3 Reciters API (`https://mp3quran.net/api/v3/reciters?language=eng`) and Timing API (`https://www.mp3quran.net/eng/timing-api#/Timing%20updates/getVersesTimingsUpdated` — `ayat_timing`, `ayat_timing/reads`, `ayat_timing/soar`, and `verses_timings/updated`) via `Mp3QuranTimingClient.kt` and `AudioPlayerManager.kt`.
+  2. Updated Islam Sobhi (`https://cdn.mp3quran.net/audio/islam-sobhi/r1/`) and Abdul Rahman Mossad (`https://archive.org/download/AbdulrahmanMassaad/` and `https://archive.org/download/abdulrahman-mosad/`) audio URLs, HTTPS redirect following, and per-verse audio-to-text timing synchronization.
+  3. Enabled real on-device update availability in `InAppUpdateService.kt`, `AboutScreen.kt`, and `MainActivity.kt` so tapping "Check for updates" immediately surfaces version 1.1.0 with full Download -> Progress -> 7-Step Verification -> Android PackageInstaller confirmation flow.
