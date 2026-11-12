@@ -130,21 +130,39 @@ class BootAndTimeChangeReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent?) {
     if (!com.example.security.PathTraversalAndIntentGuard.sanitizeIncomingIntent(intent)) return
     val action = intent?.action ?: return
-    if (action == Intent.ACTION_BOOT_COMPLETED ||
-      action == Intent.ACTION_TIME_CHANGED ||
-      action == Intent.ACTION_TIMEZONE_CHANGED ||
-      action == Intent.ACTION_DATE_CHANGED ||
-      action == Intent.ACTION_MY_PACKAGE_REPLACED ||
-      action == "android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED"
-    ) {
-      val appCtx = context.applicationContext
-      val config = PrayerPreferencesManager.loadConfig(appCtx)
-      PrayerAlarmScheduler.scheduleAllDailyAlarms(appCtx, null, config)
-      com.example.data.prayer.SunnahReminderManager.scheduleAllSunnahReminders(appCtx)
-      if (action == Intent.ACTION_DATE_CHANGED) {
-        com.example.data.prayer.SunnahReminderManager.ensureTodayCalculatedNotificationSentIfEnabled(appCtx)
-      }
+    if (action !in ALLOWED_SYSTEM_ACTIONS) return
+    // Ignore explicit broadcasts that carry unexpected data URIs
+    if (intent.data != null && action != Intent.ACTION_MY_PACKAGE_REPLACED) return
+
+    val now = android.os.SystemClock.elapsedRealtime()
+    if (lastRescheduleElapsedRealtimeMs > 0L && (now - lastRescheduleElapsedRealtimeMs) in 0 until MIN_RESCHEDULE_INTERVAL_MS) {
+      return
     }
+    lastRescheduleElapsedRealtimeMs = now
+
+    val appCtx = context.applicationContext
+    val config = PrayerPreferencesManager.loadConfig(appCtx)
+    PrayerAlarmScheduler.scheduleAllDailyAlarms(appCtx, null, config)
+    com.example.data.prayer.SunnahReminderManager.scheduleAllSunnahReminders(appCtx)
+    if (action == Intent.ACTION_DATE_CHANGED) {
+      com.example.data.prayer.SunnahReminderManager.ensureTodayCalculatedNotificationSentIfEnabled(appCtx)
+    }
+  }
+
+  companion object {
+    private const val MIN_RESCHEDULE_INTERVAL_MS = 3_000L
+
+    @Volatile
+    private var lastRescheduleElapsedRealtimeMs: Long = 0L
+
+    private val ALLOWED_SYSTEM_ACTIONS = setOf(
+      Intent.ACTION_BOOT_COMPLETED,
+      Intent.ACTION_TIME_CHANGED,
+      Intent.ACTION_TIMEZONE_CHANGED,
+      Intent.ACTION_DATE_CHANGED,
+      Intent.ACTION_MY_PACKAGE_REPLACED,
+      "android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED"
+    )
   }
 }
 

@@ -43,7 +43,13 @@ class ApkInstallStatusReceiver : BroadcastReceiver() {
             @Suppress("DEPRECATION")
             intent.getParcelableExtra(Intent.EXTRA_INTENT)
           }
-          if (confirmIntent != null) {
+          if (confirmIntent != null && com.example.security.PathTraversalAndIntentGuard.sanitizeIncomingIntent(confirmIntent)) {
+            confirmIntent.removeFlags(
+              Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or
+                Intent.FLAG_GRANT_PREFIX_URI_PERMISSION
+            )
             confirmIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             runCatching { context.startActivity(confirmIntent) }
           }

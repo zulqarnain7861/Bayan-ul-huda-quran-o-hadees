@@ -62,7 +62,7 @@ data class AudioState(
 )
 
 val availableReciters = listOf(
-  // Verified Sunni Quran Reciters
+  // ── Verified Sunni Quran Reciters (EveryAyah Verse-by-Verse + MP3Quran Timing API Sync) ──
   Reciter(
     id = "husary",
     name = "Mahmoud Khalil Al-Husary",
@@ -70,7 +70,25 @@ val availableReciters = listOf(
     arabicName = "محمود خليل الحصري",
     tradition = "SUNNI",
     style = "Murattal (Tajweed Standard)",
-    verificationStatus = "Verified Complete 114 Surahs (EveryAyah / QuranicAudio)"
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #118)"
+  ),
+  Reciter(
+    id = "husary_mujawwad",
+    name = "Mahmoud Khalil Al-Husary (Mujawwad)",
+    subfolder = "Husary_128kbps_Mujawwad",
+    arabicName = "محمود خليل الحصري (مجود)",
+    tradition = "SUNNI",
+    style = "Mujawwad (Melodic Tajweed 128 kbps)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #119)"
+  ),
+  Reciter(
+    id = "husary_muallim",
+    name = "Mahmoud Khalil Al-Husary (Al-Muallim)",
+    subfolder = "Husary_Muallim_128kbps",
+    arabicName = "محمود خليل الحصري (المعلم)",
+    tradition = "SUNNI",
+    style = "Muallim (Teaching Cadence 128 kbps)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #118)"
   ),
   Reciter(
     id = "abdulbasit",
@@ -79,7 +97,16 @@ val availableReciters = listOf(
     arabicName = "عبد الباسط عبد الصمد",
     tradition = "SUNNI",
     style = "Murattal (Classical 192 kbps)",
-    verificationStatus = "Verified Complete 114 Surahs (EveryAyah / QuranicAudio)"
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #53)"
+  ),
+  Reciter(
+    id = "abdulbasit_mujawwad",
+    name = "Abdul Basit Abdul Samad (Mujawwad)",
+    subfolder = "Abdul_Basit_Mujawwad_128kbps",
+    arabicName = "عبد الباسط عبد الصمد (مجود)",
+    tradition = "SUNNI",
+    style = "Mujawwad (Golden Era 128 kbps)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #51)"
   ),
   Reciter(
     id = "minshawi",
@@ -88,7 +115,16 @@ val availableReciters = listOf(
     arabicName = "محمد صديق المنشاوي",
     tradition = "SUNNI",
     style = "Murattal (Classical 128 kbps)",
-    verificationStatus = "Verified Complete 114 Surahs (EveryAyah / QuranicAudio)"
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #112)"
+  ),
+  Reciter(
+    id = "minshawi_mujawwad",
+    name = "Muhammad Siddiq Al-Minshawi (Mujawwad)",
+    subfolder = "Minshawy_Mujawwad_192kbps",
+    arabicName = "محمد صديق المنشاوي (مجود)",
+    tradition = "SUNNI",
+    style = "Mujawwad (Soulful 192 kbps)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #113)"
   ),
   Reciter(
     id = "sudais",
@@ -96,8 +132,26 @@ val availableReciters = listOf(
     subfolder = "Abdurrahmaan_As-Sudais_192kbps",
     arabicName = "عبد الرحمن السديس",
     tradition = "SUNNI",
-    style = "Murattal (Masjid al-Haram)",
-    verificationStatus = "Verified Complete 114 Surahs (EveryAyah / QuranicAudio)"
+    style = "Murattal (Imam of Masjid al-Haram)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #54)"
+  ),
+  Reciter(
+    id = "shuraim",
+    name = "Saud Al-Shuraim",
+    subfolder = "Saood_ash-Shuraym_128kbps",
+    arabicName = "سعود الشريم",
+    tradition = "SUNNI",
+    style = "Murattal (Masjid al-Haram 128 kbps)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #31)"
+  ),
+  Reciter(
+    id = "maher_muaiqly",
+    name = "Maher Al-Muaiqly",
+    subfolder = "MaherAlMuaiqly128kbps",
+    arabicName = "ماهر المعيقلي",
+    tradition = "SUNNI",
+    style = "Murattal (Masjid al-Haram 128 kbps)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #102)"
   ),
   Reciter(
     id = "shatri",
@@ -106,16 +160,234 @@ val availableReciters = listOf(
     arabicName = "أبو بكر الشاطري",
     tradition = "SUNNI",
     style = "Murattal (128 kbps)",
-    verificationStatus = "Verified Complete 114 Surahs (EveryAyah / QuranicAudio)"
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #4)"
   ),
+  Reciter(
+    id = "ghamdi",
+    name = "Saad Al-Ghamdi",
+    subfolder = "Ghamadi_40kbps",
+    arabicName = "سعد الغامدي",
+    tradition = "SUNNI",
+    style = "Murattal (Classic Haramain Style)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #30)"
+  ),
+  Reciter(
+    id = "hudhaify",
+    name = "Ali Al-Hudhaify",
+    subfolder = "Hudhaify_128kbps",
+    arabicName = "علي الحذيفي",
+    tradition = "SUNNI",
+    style = "Murattal (Imam of Masjid an-Nabawi)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #74)"
+  ),
+  Reciter(
+    id = "dossari",
+    name = "Yasser Al-Dossari",
+    subfolder = "Yasser_Ad-Dussary_128kbps",
+    arabicName = "ياسر الدوسري",
+    tradition = "SUNNI",
+    style = "Murattal (Masjid al-Haram 128 kbps)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #128)"
+  ),
+  Reciter(
+    id = "qatami",
+    name = "Nasser Al-Qatami",
+    subfolder = "Nasser_Alqatami_128kbps",
+    arabicName = "ناصر القطامي",
+    tradition = "SUNNI",
+    style = "Murattal (Melodious 128 kbps)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #122)"
+  ),
+  Reciter(
+    id = "ayyub",
+    name = "Muhammad Ayyub",
+    subfolder = "Muhammad_Ayyoub_128kbps",
+    arabicName = "محمد أيوب",
+    tradition = "SUNNI",
+    style = "Murattal (Masjid an-Nabawi 128 kbps)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #109)"
+  ),
+  Reciter(
+    id = "jibreel",
+    name = "Muhammad Jibreel",
+    subfolder = "Muhammad_Jibreel_128kbps",
+    arabicName = "محمد جبريل",
+    tradition = "SUNNI",
+    style = "Murattal (Egyptian Qira'at 128 kbps)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #111)"
+  ),
+  Reciter(
+    id = "basfar",
+    name = "Abdullah Basfar",
+    subfolder = "Abdullah_Basfar_192kbps",
+    arabicName = "عبد الله بصفر",
+    tradition = "SUNNI",
+    style = "Murattal (192 kbps)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #60)"
+  ),
+  Reciter(
+    id = "rifai",
+    name = "Hani Ar-Rifai",
+    subfolder = "Hani_Rifai_192kbps",
+    arabicName = "هاني الرفاعي",
+    tradition = "SUNNI",
+    style = "Murattal (Emotional 192 kbps)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #125)"
+  ),
+  Reciter(
+    id = "ajamy",
+    name = "Ahmed ibn Ali Al-Ajamy",
+    subfolder = "ahmed_ibn_ali_al_ajamy_128kbps",
+    arabicName = "أحمد بن علي العجمي",
+    tradition = "SUNNI",
+    style = "Murattal (128 kbps)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #5)"
+  ),
+  Reciter(
+    id = "akhdar",
+    name = "Ibrahim Al-Akhdar",
+    subfolder = "Ibrahim_Akhdar_32kbps",
+    arabicName = "إبراهيم الأخضر",
+    tradition = "SUNNI",
+    style = "Murattal (Masjid an-Nabawi)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #1)"
+  ),
+  Reciter(
+    id = "bukhatir",
+    name = "Salah Bukhatir",
+    subfolder = "Salaah_AbdulRahman_Bukhatir_128kbps",
+    arabicName = "صلاح بو خاطر",
+    tradition = "SUNNI",
+    style = "Murattal (128 kbps)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #46)"
+  ),
+  Reciter(
+    id = "budair",
+    name = "Salah Al-Budair",
+    subfolder = "Salah_Al_Budair_128kbps",
+    arabicName = "صلاح البدير",
+    tradition = "SUNNI",
+    style = "Murattal (Imam of Masjid an-Nabawi)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #47)"
+  ),
+  Reciter(
+    id = "matroud",
+    name = "Abdullah Al-Matroud",
+    subfolder = "Abdullah_Matroud_128kbps",
+    arabicName = "عبد الله المطرود",
+    tradition = "SUNNI",
+    style = "Murattal (128 kbps)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #65)"
+  ),
+  Reciter(
+    id = "juhany",
+    name = "Abdullah Awad Al-Juhany",
+    subfolder = "Abdullaah_3awwaad_Al-Juhaynee_128kbps",
+    arabicName = "عبد الله عواد الجهني",
+    tradition = "SUNNI",
+    style = "Murattal (Masjid al-Haram 128 kbps)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #62)"
+  ),
+  Reciter(
+    id = "ali_jaber",
+    name = "Ali Jaber",
+    subfolder = "Ali_Jaber_64kbps",
+    arabicName = "علي جابر",
+    tradition = "SUNNI",
+    style = "Murattal (Former Imam of Masjid al-Haram)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #76)"
+  ),
+  Reciter(
+    id = "fares_abbad",
+    name = "Fares Abbad",
+    subfolder = "Fares_Abbad_64kbps",
+    arabicName = "فارس عباد",
+    tradition = "SUNNI",
+    style = "Murattal (Clear Articulation)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #81)"
+  ),
+  Reciter(
+    id = "tunaiji",
+    name = "Khalifa Al-Tunaiji",
+    subfolder = "khalefa_al_tunaiji_64kbps",
+    arabicName = "خليفة الطنيجي",
+    tradition = "SUNNI",
+    style = "Murattal (Tajweed Precision)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #26)"
+  ),
+  Reciter(
+    id = "banna",
+    name = "Mahmoud Ali Al-Banna",
+    subfolder = "mahmoud_ali_al_banna_32kbps",
+    arabicName = "محمود علي البنا",
+    tradition = "SUNNI",
+    style = "Murattal (Classical Egyptian)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #117)"
+  ),
+  Reciter(
+    id = "suwayd",
+    name = "Dr. Ayman Suwayd",
+    subfolder = "Ayman_Sowaid_64kbps",
+    arabicName = "أيمن سويد",
+    tradition = "SUNNI",
+    style = "Muallim (Master of Tajweed Articulation)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #12)"
+  ),
+  Reciter(
+    id = "muhsin_qasim",
+    name = "Abdul Muhsin Al-Qasim",
+    subfolder = "Muhsin_Al_Qasim_192kbps",
+    arabicName = "عبد المحسن القاسم",
+    tradition = "SUNNI",
+    style = "Murattal (Imam of Masjid an-Nabawi)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #58)"
+  ),
+  Reciter(
+    id = "qahtani",
+    name = "Khaled Al-Qahtani",
+    subfolder = "Khaled_Al-Qahtani_192kbps",
+    arabicName = "خالد القحطاني",
+    tradition = "SUNNI",
+    style = "Murattal (192 kbps)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #24)"
+  ),
+  Reciter(
+    id = "sahl_yassin",
+    name = "Sahl Yassin",
+    subfolder = "Sahl_Yassin_128kbps",
+    arabicName = "سهل ياسين",
+    tradition = "SUNNI",
+    style = "Murattal (128 kbps)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #44)"
+  ),
+  Reciter(
+    id = "tablawi",
+    name = "Mohammad Al-Tablawi",
+    subfolder = "Mohammad_al_Tablaway_128kbps",
+    arabicName = "محمد محمود الطبلاوي",
+    tradition = "SUNNI",
+    style = "Murattal (Classical Egyptian 128 kbps)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #106)"
+  ),
+  Reciter(
+    id = "warsh_yassin",
+    name = "Yassin Al-Jazaery (Warsh)",
+    subfolder = "warsh/warsh_yassin_al_jazaery_64kbps",
+    arabicName = "ياسين الجزائري (ورش عن نافع)",
+    tradition = "SUNNI",
+    style = "Murattal (Riwayat Warsh 'an Nafi')",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah & MP3Quran Read #131)"
+  ),
+
+  // ── Verified MP3Quran.net v3 & Timing API Reciters (Surah Stream + Live Verse Sync) ──
   Reciter(
     id = "islam_sobhi",
     name = "Islam Sobhi",
     subfolder = "islam/Rewayat-Hafs-A-n-Assem",
     arabicName = "إسلام صبحي",
     tradition = "SUNNI",
-    style = "Murattal (Melodious & Soulful)",
-    verificationStatus = "Verified MP3Quran v3 API & Archive Recitations (Available Surahs Only)",
+    style = "Murattal (Melodious & Soulful • MP3Quran Read #253)",
+    verificationStatus = "Verified MP3Quran v3 API & Timing Sync (server14.mp3quran.net + Archive)",
     isSurahLevelReciter = true
   ),
   Reciter(
@@ -124,11 +396,122 @@ val availableReciters = listOf(
     subfolder = "abdulrahman-mosad",
     arabicName = "عبد الرحمن مسعد",
     tradition = "SUNNI",
-    style = "Murattal (Tranquil & Heart-Touching)",
-    verificationStatus = "Verified Archive & MP3Quran Recitations (Available Surahs Only)",
+    style = "Murattal (Tranquil & Heart-Touching • MP3Quran Read #254)",
+    verificationStatus = "Verified MP3Quran v3 & Archive Recitations with Verse Timing Sync",
     isSurahLevelReciter = true
   ),
-  // Verified Shia Quran Reciters (Quranic Recitation Only — Separate from Duas/Ziyarat)
+  Reciter(
+    id = "bandar_baleelah",
+    name = "Bandar Baleelah",
+    subfolder = "bandar_baleela",
+    arabicName = "بندر بليلة",
+    tradition = "SUNNI",
+    style = "Murattal (Imam of Masjid al-Haram • MP3Quran Read #15)",
+    verificationStatus = "Verified Complete 114 Surahs (MP3Quran v3 server6 + Ayat Timing API)",
+    isSurahLevelReciter = true
+  ),
+  Reciter(
+    id = "idrees_abkar",
+    name = "Idrees Abkar",
+    subfolder = "idrees_abkar",
+    arabicName = "إدريس أبكر",
+    tradition = "SUNNI",
+    style = "Murattal (Deep Emotional Cadence • MP3Quran Read #10)",
+    verificationStatus = "Verified Complete 114 Surahs (MP3Quran v3 server6 + Ayat Timing API)",
+    isSurahLevelReciter = true
+  ),
+  Reciter(
+    id = "hazza_albalushi",
+    name = "Hazza Al-Balushi",
+    subfolder = "hazza_al_balushi",
+    arabicName = "هزاع البلوشي",
+    tradition = "SUNNI",
+    style = "Murattal (Tranquil Recitation • MP3Quran Read #231)",
+    verificationStatus = "Verified MP3Quran v3 Official Stream (server11 + Ayat Timing API)",
+    isSurahLevelReciter = true
+  ),
+  Reciter(
+    id = "raad_alkurdi",
+    name = "Raad Mohammad Al-Kurdi",
+    subfolder = "raad_al_kurdi",
+    arabicName = "رعد محمد الكردي",
+    tradition = "SUNNI",
+    style = "Murattal (Powerful & Clear • MP3Quran Read #221)",
+    verificationStatus = "Verified MP3Quran v3 Official Stream (server6 + Ayat Timing API)",
+    isSurahLevelReciter = true
+  ),
+  Reciter(
+    id = "wadih_alyamani",
+    name = "Wadih Al-Yamani",
+    subfolder = "wadee_hammadi_al-yamani",
+    arabicName = "وديع اليمني",
+    tradition = "SUNNI",
+    style = "Murattal (Complete 114 Surahs • MP3Quran Read #218)",
+    verificationStatus = "Verified Complete 114 Surahs (MP3Quran v3 server6 + Ayat Timing API)",
+    isSurahLevelReciter = true
+  ),
+  Reciter(
+    id = "muhammad_luhaidan",
+    name = "Muhammad Al-Luhaidan",
+    subfolder = "muhammad_al_luhaidan",
+    arabicName = "محمد اللحيدان",
+    tradition = "SUNNI",
+    style = "Murattal (Reverent & Moving • MP3Quran Read #107)",
+    verificationStatus = "Verified Complete 114 Surahs (MP3Quran v3 server8 + Ayat Timing API)",
+    isSurahLevelReciter = true
+  ),
+  Reciter(
+    id = "mansour_alsalimi",
+    name = "Mansour Al-Salimi",
+    subfolder = "mansor",
+    arabicName = "منصور السالمي",
+    tradition = "SUNNI",
+    style = "Murattal (Heart-Softening • MP3Quran Read #245)",
+    verificationStatus = "Verified MP3Quran v3 Official Stream (server14 + Ayat Timing API)",
+    isSurahLevelReciter = true
+  ),
+  Reciter(
+    id = "noreen_siddiq",
+    name = "Noreen Mohammad Siddiq",
+    subfolder = "nourin_siddig/Rewayat-Aldori-A-n-Abi-Amr",
+    arabicName = "نورين محمد صديق",
+    tradition = "SUNNI",
+    style = "Murattal (Riwayat Ad-Duri 'an Abi 'Amr • MP3Quran Read #229)",
+    verificationStatus = "Verified Complete 114 Surahs (MP3Quran v3 server16 + Ayat Timing API)",
+    isSurahLevelReciter = true
+  ),
+  Reciter(
+    id = "sherzad_taher",
+    name = "Sherzad Abdulrahman Taher",
+    subfolder = "taher",
+    arabicName = "شيرزاد عبد الرحمن طاهر",
+    tradition = "SUNNI",
+    style = "Murattal (Complete 114 Surahs • MP3Quran Read #49)",
+    verificationStatus = "Verified Complete 114 Surahs (MP3Quran v3 server12 + Ayat Timing API)",
+    isSurahLevelReciter = true
+  ),
+  Reciter(
+    id = "hatem_farid",
+    name = "Hatem Farid Al-Waer",
+    subfolder = "hatem_farid",
+    arabicName = "حاتم فريد الواعر",
+    tradition = "SUNNI",
+    style = "Murattal (Complete 114 Surahs • MP3Quran Read #19)",
+    verificationStatus = "Verified Complete 114 Surahs (MP3Quran v3 server11 + Ayat Timing API)",
+    isSurahLevelReciter = true
+  ),
+  Reciter(
+    id = "peshawari",
+    name = "Abdul Basit (MP3Quran Full Mushaf)",
+    subfolder = "basit/Almusshaf-Al-Mojawwad",
+    arabicName = "عبد الباسط عبد الصمد (المصحف المجود الكامل)",
+    tradition = "SUNNI",
+    style = "Mujawwad Full-Surah Stream (MP3Quran Read #52)",
+    verificationStatus = "Verified Complete 114 Surahs (MP3Quran v3 server7 + Ayat Timing API)",
+    isSurahLevelReciter = true
+  ),
+
+  // ── Verified Shia Quran Reciters (Quranic Recitation Only — Separate from Duas/Ziyarat) ──
   Reciter(
     id = "karim_mansouri",
     name = "Karim Mansouri",
@@ -146,6 +529,15 @@ val availableReciters = listOf(
     tradition = "SHIA",
     style = "Murattal (Verified Shia Quran Reciter)",
     verificationStatus = "Verified Shia Quran Reciter (Available Surahs Only)"
+  ),
+  Reciter(
+    id = "shahriar_parhizgar",
+    name = "Shahriar Parhizgar",
+    subfolder = "Parhizgar_48kbps",
+    arabicName = "شهريار پرهيزگار",
+    tradition = "SHIA",
+    style = "Tartil / Murattal (Complete 114 Surahs)",
+    verificationStatus = "Verified Complete 114 Surahs (EveryAyah Archive)"
   )
 )
 
@@ -562,7 +954,7 @@ class AudioPlayerManager(private val context: Context) {
     val formattedAyah = ayah.toString().padStart(3, '0')
     return if (reciter.isSurahLevelReciter) {
       when (reciter.id) {
-        "islam_sobhi" -> "https://cdn.mp3quran.net/audio/islam-sobhi/r1/$formattedSurah.mp3"
+        "islam_sobhi" -> "https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/$formattedSurah.mp3"
         "abdul_rehman_mossad" -> {
           when {
             surah in ABDUL_RAHMAN_MASSAAD_CLEAN_SURAHS ->
@@ -573,7 +965,14 @@ class AudioPlayerManager(private val context: Context) {
               "https://archive.org/download/AbdulrahmanMassaad/$formattedSurah.mp3"
           }
         }
-        else -> "https://download.quranicaudio.com/quran/${reciter.subfolder}/$formattedSurah.mp3"
+        else -> {
+          val registeredServers = Mp3QuranTimingClient.getRegisteredServerUrlsForReciter(reciter.id)
+          if (registeredServers.isNotEmpty()) {
+            "${registeredServers.first().trimEnd('/')}/$formattedSurah.mp3"
+          } else {
+            "https://download.quranicaudio.com/quran/${reciter.subfolder}/$formattedSurah.mp3"
+          }
+        }
       }
     } else {
       "https://everyayah.com/data/${reciter.subfolder}/$formattedSurah$formattedAyah.mp3"
@@ -635,8 +1034,8 @@ class AudioPlayerManager(private val context: Context) {
     // 1. Add primary verified canonical Surah endpoints first (zero playlist-offset ambiguity)
     when (reciter.id) {
       "islam_sobhi" -> {
-        candidates.add("https://cdn.mp3quran.net/audio/islam-sobhi/r1/$formattedSurah.mp3")
         candidates.add("https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/$formattedSurah.mp3")
+        candidates.add("https://cdn.mp3quran.net/audio/islam-sobhi/r1/$formattedSurah.mp3")
         candidates.add("https://archive.org/download/010_20221110/$formattedSurah.mp3")
         candidates.add("https://media.way2quran.com/mp3/islam-sobhi/$formattedSurah.mp3")
       }
@@ -650,9 +1049,15 @@ class AudioPlayerManager(private val context: Context) {
         if (surah !in ABDUL_RAHMAN_MASSAAD_CLEAN_SURAHS) {
           candidates.add("https://archive.org/download/AbdulrahmanMassaad/$formattedSurah.mp3")
         }
+        candidates.add("https://server16.mp3quran.net/a_musad/Rewayat-Hafs-A-n-Assem/$formattedSurah.mp3")
+        candidates.add("https://cdn.mp3quran.net/audio/abdulrahman-mossad/r1/$formattedSurah.mp3")
         candidates.add("https://media.way2quran.com/mp3/abdul-rahman-musaad/$formattedSurah.mp3")
       }
       else -> {
+        val registeredServers = Mp3QuranTimingClient.getRegisteredServerUrlsForReciter(reciter.id)
+        for (srv in registeredServers) {
+          candidates.add("${srv.trimEnd('/')}/$formattedSurah.mp3")
+        }
         candidates.add("https://download.quranicaudio.com/quran/${reciter.subfolder}/$formattedSurah.mp3")
       }
     }
@@ -691,20 +1096,23 @@ class AudioPlayerManager(private val context: Context) {
 
   private fun fetchMp3QuranInfoIfNeeded(reciterId: String): Mp3QuranMoshafInfo? {
     resolvedMp3QuranServers[reciterId]?.let { return it }
+    val directReadId = Mp3QuranTimingClient.resolveReadIdForReciter(reciterId)
     val searchTerms = when (reciterId) {
       "islam_sobhi" -> listOf("islam sobhi", "إسلام صبحي", "اسلام صبحي")
       // Strictly match Abdul Rahman Mossad / Musaad (never "masoud" which is a different reciter)
       "abdul_rehman_mossad" -> listOf("abdulrahman mosad", "abdul rahman mossad", "abdulrahman musaad", "عبدالرحمن مسعد", "عبد الرحمن مسعد")
       else -> emptyList()
     }
-    if (searchTerms.isEmpty()) return null
+    if (searchTerms.isEmpty() && directReadId == null) return null
 
     for (lang in listOf("eng", "ar")) {
       val reciters = Mp3QuranTimingClient.fetchReciters(language = lang)
       for (entry in reciters) {
         val lowerName = entry.name.lowercase()
-        if (searchTerms.any { lowerName.contains(it) }) {
-          val moshaf = entry.moshafList.firstOrNull()
+        val idMatch = directReadId != null && entry.id == directReadId
+        val nameMatch = searchTerms.isNotEmpty() && searchTerms.any { lowerName.contains(it) }
+        if (idMatch || nameMatch) {
+          val moshaf = entry.moshafList.maxByOrNull { it.surahTotal } ?: entry.moshafList.firstOrNull()
           if (moshaf != null && SecurityIntegrityGuard.isUrlTrustedAndAllowed(moshaf.serverUrl)) {
             val info = Mp3QuranMoshafInfo(moshaf.serverUrl, moshaf.surahSet)
             resolvedMp3QuranServers[reciterId] = info
@@ -751,7 +1159,9 @@ class AudioPlayerManager(private val context: Context) {
       var currentUrl = url
       var redirects = 0
       while (redirects < 5) {
-        if (!SecurityIntegrityGuard.isUrlTrustedAndAllowed(currentUrl)) return false
+        if (!SecurityIntegrityGuard.isUrlTrustedAndAllowed(currentUrl) ||
+          !com.example.security.SsrfRedirectValidator.validateUrlSafety(currentUrl, resolveDns = false)
+        ) return false
         val conn = java.net.URL(currentUrl).openConnection() as java.net.HttpURLConnection
         conn.instanceFollowRedirects = false
         conn.requestMethod = "GET"
@@ -1328,8 +1738,12 @@ class AudioPlayerManager(private val context: Context) {
         statusMessage = connectingStatus
       )
 
-      fallbackJob = scope.launch(Dispatchers.IO) {
+      // Warm MP3Quran Ayat Timing in parallel without delaying audio startup
+      scope.launch(Dispatchers.IO) {
         Mp3QuranTimingClient.prefetchAyatTimingsForReciterAndSurah(currentReciter.id, surah)
+      }
+
+      fallbackJob = scope.launch(Dispatchers.IO) {
         val candidateUrls = resolveCandidateUrlsForReciter(currentReciter, surah, safeAyah)
         if (candidateUrls.isEmpty()) {
           launch(Dispatchers.Main) {
@@ -1338,9 +1752,9 @@ class AudioPlayerManager(private val context: Context) {
           return@launch
         }
 
-        // For Surah-level reciters (Islam Sobhi, Abdul Rahman Mossad), verify reachability across candidate servers first
+        // Prefer the first reachable mirror, or fall back to candidateUrls.first() so MediaPlayer can cascade across fallbackUrls
         val verifiedUrl = if (isSurahMode) {
-          candidateUrls.firstOrNull { verifyAudioUrlReachable(it) }
+          candidateUrls.firstOrNull { verifyAudioUrlReachable(it) } ?: candidateUrls.firstOrNull()
         } else {
           candidateUrls.firstOrNull()
         }
@@ -1843,7 +2257,9 @@ class AudioPlayerManager(private val context: Context) {
       var currentUrl = url
       var redirects = 0
       while (redirects < 5) {
-        if (!SecurityIntegrityGuard.isUrlTrustedAndAllowed(currentUrl)) return
+        if (!SecurityIntegrityGuard.isUrlTrustedAndAllowed(currentUrl) ||
+          !com.example.security.SsrfRedirectValidator.validateUrlSafety(currentUrl, resolveDns = false)
+        ) return
         val conn = java.net.URL(currentUrl).openConnection() as java.net.HttpURLConnection
         conn.instanceFollowRedirects = false
         conn.connectTimeout = 5000

@@ -3899,11 +3899,37 @@ fun QuranRecitersBottomSheet(
   onDismiss: () -> Unit
 ) {
   val context = LocalContext.current
-  val sunniReciters = remember(recitersList) {
-    recitersList.filter { it.tradition == "SUNNI" }
+  var mergedCatalog by remember(recitersList) { mutableStateOf(recitersList) }
+  var searchQuery by remember { mutableStateOf("") }
+
+  LaunchedEffect(recitersList) {
+    val liveMerged = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+      com.example.ui.audio.Mp3QuranTimingClient.fetchAndMergeLiveRecitersCatalog(recitersList)
+    }
+    if (liveMerged.size > mergedCatalog.size) {
+      mergedCatalog = liveMerged
+    }
   }
-  val shiaReciters = remember(recitersList) {
-    recitersList.filter { it.tradition == "SHIA" }
+
+  val filteredCatalog = remember(mergedCatalog, searchQuery) {
+    val q = searchQuery.trim().lowercase()
+    if (q.isBlank()) {
+      mergedCatalog
+    } else {
+      mergedCatalog.filter { r ->
+        r.name.lowercase().contains(q) ||
+          r.arabicName.contains(q) ||
+          r.style.lowercase().contains(q) ||
+          r.verificationStatus.lowercase().contains(q)
+      }
+    }
+  }
+
+  val sunniReciters = remember(filteredCatalog) {
+    filteredCatalog.filter { it.tradition == "SUNNI" }
+  }
+  val shiaReciters = remember(filteredCatalog) {
+    filteredCatalog.filter { it.tradition == "SHIA" }
   }
 
   ModalBottomSheet(
@@ -3924,14 +3950,27 @@ fun QuranRecitersBottomSheet(
         )
       )
       Text(
-        text = "Separate Sunni & Shia Quran Reciters • Canonical Uthmani Recitation Only",
+        text = "MP3Quran v3 + EveryAyah + Ayat Timing API Sync (${mergedCatalog.size} Reciters)",
         style = MaterialTheme.typography.labelMedium.copy(
           color = GoldPrimary,
           fontWeight = FontWeight.Bold
         )
       )
 
-      Spacer(modifier = Modifier.height(14.dp))
+      Spacer(modifier = Modifier.height(10.dp))
+
+      OutlinedTextField(
+        value = searchQuery,
+        onValueChange = { searchQuery = it },
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("reciter_search_input"),
+        singleLine = true,
+        placeholder = { Text("Search ${mergedCatalog.size}+ reciters by name, Arabic, or style...") },
+        shape = RoundedCornerShape(12.dp)
+      )
+
+      Spacer(modifier = Modifier.height(12.dp))
 
       // Section 1: Verified Sunni Quran Reciters
       Text(
@@ -3945,6 +3984,7 @@ fun QuranRecitersBottomSheet(
 
       sunniReciters.forEach { reciter ->
         val isSelected = reciter.id == currentReciter.id
+        val timingReadId = com.example.ui.audio.Mp3QuranTimingClient.resolveReadIdForReciter(reciter.id)
         val hasCachedAudio = remember(reciter.id) {
           val dir = java.io.File(context.filesDir, "audio_cache_v2/${reciter.id}")
           dir.exists() && (dir.listFiles()?.isNotEmpty() == true)
@@ -3997,6 +4037,16 @@ fun QuranRecitersBottomSheet(
                     color = if (reciter.isSurahLevelReciter) Color(0xFF1B5E20) else Color(0xFFD32F2F)
                   )
                 )
+                if (timingReadId != null) {
+                  Text(
+                    text = "⏱ Timing Sync #$timingReadId",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      fontSize = 10.sp,
+                      fontWeight = FontWeight.Bold,
+                      color = GoldPrimary
+                    )
+                  )
+                }
               }
             }
             if (isSelected) {

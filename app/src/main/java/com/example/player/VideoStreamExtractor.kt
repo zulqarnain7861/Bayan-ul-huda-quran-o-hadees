@@ -313,9 +313,9 @@ object VideoStreamExtractor {
 
   private val fastClusterClient by lazy {
     SecureNetworkClient.httpClient.newBuilder()
-      .connectTimeout(6000, java.util.concurrent.TimeUnit.MILLISECONDS)
-      .readTimeout(8000, java.util.concurrent.TimeUnit.MILLISECONDS)
-      .callTimeout(10000, java.util.concurrent.TimeUnit.MILLISECONDS)
+      .connectTimeout(2500, java.util.concurrent.TimeUnit.MILLISECONDS)
+      .readTimeout(3500, java.util.concurrent.TimeUnit.MILLISECONDS)
+      .callTimeout(4500, java.util.concurrent.TimeUnit.MILLISECONDS)
       .build()
   }
 
@@ -387,37 +387,14 @@ object VideoStreamExtractor {
     reqBuilder.header("Origin", originUrl)
   }
 
-  private fun isStreamUrlPlayableHttp200Or206(url: String, userAgent: String?): Boolean {
-    if (!SsrfRedirectValidator.validateUrlSafety(url, resolveDns = false)) return false
-    return runCatching {
-      val reqBuilder = Request.Builder()
-        .url(url)
-        .header(
-          "User-Agent",
-          userAgent ?: "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
-        )
-      if (!url.contains(".m3u8", ignoreCase = true) && !url.contains("/manifest/hls", ignoreCase = true)) {
-        reqBuilder.header("Range", "bytes=0-511")
-      }
-      fastClusterClient.newCall(reqBuilder.get().build()).execute().use { resp ->
-        val ct = resp.header("Content-Type").orEmpty().lowercase()
-        val isNonMediaPayload = ct.startsWith("text/html") ||
-          ct.startsWith("text/plain") ||
-          ct.contains("application/json")
-        resp.code in 200..299 && !isNonMediaPayload
-      }
-    }.getOrDefault(false)
-  }
-
   private fun isResolvedBundleReachable(bundle: ResolvedVideoStreamBundle?): Boolean {
     if (bundle == null || !bundle.hasDirectYoutubeStreams) return false
     val sampleTrack = bundle.resolveTrackFor(VideoQualityOption.Q_360P)
     if (!sampleTrack.isDirectYoutubeStream) return false
-    val videoOk = isStreamUrlPlayableHttp200Or206(sampleTrack.videoUrl, sampleTrack.requiredUserAgent)
-    if (!videoOk) return false
+    if (!SsrfRedirectValidator.validateUrlSafety(sampleTrack.videoUrl, resolveDns = false)) return false
     val sepAudio = sampleTrack.separateAudioUrl
-    if (!sepAudio.isNullOrBlank()) {
-      return isStreamUrlPlayableHttp200Or206(sepAudio, sampleTrack.requiredUserAgent)
+    if (!sepAudio.isNullOrBlank() && !SsrfRedirectValidator.validateUrlSafety(sepAudio, resolveDns = false)) {
+      return false
     }
     return true
   }
@@ -636,46 +613,38 @@ object VideoStreamExtractor {
     }
 
     runCatching {
-      val resolved = coroutineScope {
-        val vineDeferred = async { tryVineYMusicSdkFallback(videoId, baseline) }
-        val innerTubeDeferred = async { tryPipeline1InnerTube(videoId, baseline) }
-        val watchPageDeferred = async { tryWatchPageEmbeddedPlayerResponse(videoId, baseline) }
-        val pipedDeferred = async { tryPipeline2Piped(videoId, baseline) }
-        val invidiousDeferred = async { tryPipeline3Invidious(videoId, baseline) }
-
-        val orderedResults = when (preferredPipeline) {
-          PipelineOption.PIPELINE_1 -> listOf(
-            innerTubeDeferred.await(),
-            watchPageDeferred.await(),
-            vineDeferred.await(),
-            pipedDeferred.await(),
-            invidiousDeferred.await()
+      val resolved = kotlinx.coroutines.withTimeoutOrNull(4200L) {
+        coroutineScope {
+          val resultChannel = kotlinx.coroutines.channels.Channel<ResolvedVideoStreamBundle?>(
+            kotlinx.coroutines.channels.Channel.UNLIMITED
           )
-          PipelineOption.PIPELINE_2 -> listOf(
-            pipedDeferred.await(),
-            vineDeferred.await(),
-            innerTubeDeferred.await(),
-            watchPageDeferred.await(),
-            invidiousDeferred.await()
+          val tasks = listOf<suspend () -> ResolvedVideoStreamBundle?>(
+            { tryPipeline1InnerTube(videoId, baseline) },
+            { tryWatchPageEmbeddedPlayerResponse(videoId, baseline) },
+            { tryVineYMusicSdkFallback(videoId, baseline) },
+            { tryPipeline2Piped(videoId, baseline) },
+            { tryPipeline3Invidious(videoId, baseline) }
           )
-          PipelineOption.PIPELINE_3 -> listOf(
-            invidiousDeferred.await(),
-            vineDeferred.await(),
-            innerTubeDeferred.await(),
-            watchPageDeferred.await(),
-            pipedDeferred.await()
-          )
-          else -> listOf(
-            innerTubeDeferred.await(),
-            watchPageDeferred.await(),
-            vineDeferred.await(),
-            pipedDeferred.await(),
-            invidiousDeferred.await()
-          )
-        }
-
-        orderedResults.firstOrNull { candidate ->
-          candidate != null && candidate.hasDirectYoutubeStreams && candidate.youtubeId == videoId
+          if (cachedVisitorData.isNullOrBlank()) {
+            async { runCatching { fetchOrGetVisitorData(videoId) } }
+          }
+          val jobs = tasks.map { block ->
+            async {
+              val res = runCatching { block() }.getOrNull()
+              resultChannel.trySend(res)
+            }
+          }
+          var winner: ResolvedVideoStreamBundle? = null
+          for (i in tasks.indices) {
+            val candidate = resultChannel.receive()
+            if (candidate != null && candidate.hasDirectYoutubeStreams && candidate.youtubeId == videoId) {
+              winner = candidate
+              break
+            }
+          }
+          jobs.forEach { it.cancel() }
+          resultChannel.close()
+          winner
         }
       }
 
@@ -772,7 +741,7 @@ object VideoStreamExtractor {
     val providerKey = "vine_ymusic_sdk"
     if (isProviderInCooldown(providerKey)) return null
 
-    val visitorData = fetchOrGetVisitorData(videoId)
+    val visitorData = cachedVisitorData
     val vineClients = listOf(
       Triple(
         "WEB_REMIX",
@@ -876,7 +845,7 @@ object VideoStreamExtractor {
     baseline: ResolvedVideoStreamBundle
   ): ResolvedVideoStreamBundle? {
     val endpoint = "https://www.youtube.com/youtubei/v1/player?prettyPrint=false"
-    val visitorData = fetchOrGetVisitorData(videoId)
+    val visitorData = cachedVisitorData
     for (profile in INNERTUBE_PROFILES) {
       val providerKey = "innertube_${profile.clientName}"
       if (isProviderInCooldown(providerKey)) continue

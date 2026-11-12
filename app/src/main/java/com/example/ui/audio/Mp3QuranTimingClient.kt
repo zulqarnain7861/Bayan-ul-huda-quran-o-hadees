@@ -33,16 +33,127 @@ object Mp3QuranTimingClient {
   const val TIMING_OPENAPI_SPEC_URL = "https://www.mp3quran.net/api-doc/timing_api_openapi.json"
 
   /**
-   * Maps app reciter IDs to official MP3Quran v3 `read` / `reciter` IDs where available.
+   * Maps app reciter IDs to official MP3Quran v3 `read` / `reciter` IDs for exact millisecond
+   * per-ayah synchronization via `https://mp3quran.net/api/v3/ayat_timing?surah={surah}&read={readId}`
+   * and `https://mp3quran.net/api/v3/verses_timings/updated`.
    */
   val APP_RECITER_TO_MP3QURAN_READ_ID: Map<String, Int> = mapOf(
+    "akhdar" to 1,
     "shatri" to 4,
+    "ajamy" to 5,
+    "idrees_abkar" to 10,
+    "suwayd" to 12,
+    "bandar_baleelah" to 15,
+    "hatem_farid" to 19,
+    "qahtani" to 24,
+    "tunaiji" to 26,
+    "ghamdi" to 30,
+    "shuraim" to 31,
+    "sahl_yassin" to 44,
+    "bukhatir" to 46,
+    "budair" to 47,
+    "sherzad_taher" to 49,
+    "abdulbasit_mujawwad" to 51,
+    "peshawari" to 52,
     "abdulbasit" to 53,
     "sudais" to 54,
+    "muhsin_qasim" to 58,
+    "basfar" to 60,
+    "juhany" to 62,
+    "matroud" to 65,
+    "hudhaify" to 74,
+    "ali_jaber" to 76,
+    "fares_abbad" to 81,
+    "maher_muaiqly" to 102,
+    "tablawi" to 106,
+    "muhammad_luhaidan" to 107,
+    "ayyub" to 109,
+    "jibreel" to 111,
     "minshawi" to 112,
+    "minshawi_mujawwad" to 113,
+    "banna" to 117,
     "husary" to 118,
-    "islam_sobhi" to 253
+    "husary_mujawwad" to 119,
+    "husary_muallim" to 118,
+    "qatami" to 122,
+    "rifai" to 125,
+    "dossari" to 128,
+    "warsh_yassin" to 131,
+    "wadih_alyamani" to 218,
+    "raad_alkurdi" to 221,
+    "noreen_siddiq" to 229,
+    "hazza_albalushi" to 231,
+    "mansour_alsalimi" to 245,
+    "islam_sobhi" to 253,
+    "abdul_rehman_mossad" to 254
   )
+
+  /**
+   * Direct verified MP3Quran.net v3 server base URLs (`https://server{6..16}.mp3quran.net/.../`)
+   * for Surah-stream reciters and backup mirrors.
+   */
+  val MP3QURAN_DIRECT_SERVER_URLS: Map<String, List<String>> = mapOf(
+    "islam_sobhi" to listOf(
+      "https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/",
+      "https://cdn.mp3quran.net/audio/islam-sobhi/r1/"
+    ),
+    "abdul_rehman_mossad" to listOf(
+      "https://server16.mp3quran.net/a_musad/Rewayat-Hafs-A-n-Assem/",
+      "https://cdn.mp3quran.net/audio/abdulrahman-mossad/r1/"
+    ),
+    "bandar_baleelah" to listOf(
+      "https://server6.mp3quran.net/balilah/",
+      "https://download.quranicaudio.com/quran/bandar_baleela/"
+    ),
+    "idrees_abkar" to listOf(
+      "https://server6.mp3quran.net/abkr/",
+      "https://download.quranicaudio.com/quran/idrees_abkar/"
+    ),
+    "hazza_albalushi" to listOf(
+      "https://server11.mp3quran.net/hazza/",
+      "https://download.quranicaudio.com/quran/hazza_al_balushi/"
+    ),
+    "raad_alkurdi" to listOf(
+      "https://server6.mp3quran.net/kurdi/",
+      "https://download.quranicaudio.com/quran/raad_al_kurdi/"
+    ),
+    "wadih_alyamani" to listOf(
+      "https://server6.mp3quran.net/wdee3/",
+      "https://download.quranicaudio.com/quran/wadee_hammadi_al-yamani/"
+    ),
+    "muhammad_luhaidan" to listOf(
+      "https://server8.mp3quran.net/lhdan/",
+      "https://download.quranicaudio.com/quran/muhammad_al_luhaidan/"
+    ),
+    "mansour_alsalimi" to listOf(
+      "https://server14.mp3quran.net/mansor/"
+    ),
+    "noreen_siddiq" to listOf(
+      "https://server16.mp3quran.net/nourin_siddig/Rewayat-Aldori-A-n-Abi-Amr/"
+    ),
+    "sherzad_taher" to listOf(
+      "https://server12.mp3quran.net/taher/"
+    ),
+    "hatem_farid" to listOf(
+      "https://server11.mp3quran.net/hatem/",
+      "https://download.quranicaudio.com/quran/hatem_farid/"
+    ),
+    "peshawari" to listOf(
+      "https://server7.mp3quran.net/basit/Almusshaf-Al-Mojawwad/"
+    )
+  )
+
+  private val dynamicRuntimeReadIdMap = ConcurrentHashMap<String, Int>()
+
+  fun registerDynamicReciterReadId(reciterId: String, readId: Int) {
+    if (reciterId.isNotBlank() && readId > 0) {
+      dynamicRuntimeReadIdMap[reciterId] = readId
+    }
+  }
+
+  fun resolveReadIdForReciter(reciterId: String): Int? {
+    return APP_RECITER_TO_MP3QURAN_READ_ID[reciterId] ?: dynamicRuntimeReadIdMap[reciterId]
+  }
 
   data class Mp3QuranMoshafRead(
     val id: Int,
@@ -425,26 +536,114 @@ object Mp3QuranTimingClient {
     }
   }
 
+  private val dynamicRuntimeServerUrls = ConcurrentHashMap<String, String>()
+
+  fun registerDynamicReciterServerUrl(reciterId: String, serverUrl: String) {
+    val clean = serverUrl.trim().replace("http://", "https://")
+    if (reciterId.isNotBlank() && clean.isNotBlank() && SecurityIntegrityGuard.isUrlTrustedAndAllowed(clean)) {
+      dynamicRuntimeServerUrls[reciterId] = if (clean.endsWith("/")) clean else "$clean/"
+    }
+  }
+
+  fun getRegisteredServerUrlsForReciter(reciterId: String): List<String> {
+    val staticList = MP3QURAN_DIRECT_SERVER_URLS[reciterId].orEmpty()
+    val dynamicUrl = dynamicRuntimeServerUrls[reciterId]
+    return if (!dynamicUrl.isNullOrBlank()) {
+      (listOf(dynamicUrl) + staticList).distinct()
+    } else {
+      staticList
+    }
+  }
+
   /**
    * Returns cached `Mp3QuranAyatTimingEntry` rows for `(reciterId, surahNumber)` if available in memory.
    */
   fun getCachedAyatTimingsForReciter(reciterId: String, surahNumber: Int): List<Mp3QuranAyatTimingEntry>? {
-    val readId = APP_RECITER_TO_MP3QURAN_READ_ID[reciterId] ?: return null
+    val readId = resolveReadIdForReciter(reciterId) ?: return null
     return surahAyatTimingCache["$readId:$surahNumber"]?.takeIf { it.isNotEmpty() }
   }
 
   /**
    * Asynchronously warms the MP3Quran Ayat Timing cache for the given reciter and surah.
    * For reciters that have a direct MP3Quran timing `readId`, fetches that `readId`;
-   * for other Surah-level reciters, warms reference Murattal timing (readId = 54) so relative verse cadence is available.
+   * also warms incremental timing updates via `getVersesTimingsUpdated`.
    */
   fun prefetchAyatTimingsForReciterAndSurah(reciterId: String, surahNumber: Int): List<Mp3QuranAyatTimingEntry> {
     if (surahNumber !in 1..114) return emptyList()
-    val directReadId = APP_RECITER_TO_MP3QURAN_READ_ID[reciterId]
+    val directReadId = resolveReadIdForReciter(reciterId)
     if (directReadId != null) {
       val direct = fetchSurahAyatTimings(surahNumber, directReadId)
       if (direct.isNotEmpty()) return direct
     }
     return emptyList()
+  }
+
+  /**
+   * Queries `https://mp3quran.net/api/v3/reciters?language=eng` and `https://mp3quran.net/api/v3/ayat_timing/reads`
+   * and merges all live MP3Quran v3 reciters with the built-in `availableReciters` catalog.
+   */
+  fun fetchAndMergeLiveRecitersCatalog(baseCatalog: List<Reciter> = availableReciters): List<Reciter> {
+    return runCatching {
+      val timingReadsById = fetchTimingReads().associateBy { it.id }
+      val liveReciters = fetchReciters(language = "eng")
+      if (liveReciters.isEmpty()) return@runCatching baseCatalog
+
+      val existingNamesNormalized = baseCatalog.map {
+        it.name.lowercase().replace(Regex("[^a-z0-9]"), "")
+      }.toMutableSet()
+      val existingIds = baseCatalog.map { it.id }.toMutableSet()
+      val merged = ArrayList<Reciter>(baseCatalog.size + liveReciters.size)
+      merged.addAll(baseCatalog)
+
+      for (entry in liveReciters) {
+        val rawName = entry.name.trim()
+        if (rawName.isBlank()) continue
+        if (rawName.contains("alafasy", ignoreCase = true) || rawName.contains("العفاسي")) continue
+        val normName = rawName.lowercase().replace(Regex("[^a-z0-9]"), "")
+        if (normName.isBlank() || existingNamesNormalized.contains(normName)) continue
+
+        val primaryMoshaf = entry.moshafList.maxByOrNull { it.surahTotal } ?: entry.moshafList.firstOrNull() ?: continue
+        val serverUrl = primaryMoshaf.serverUrl
+        if (!SecurityIntegrityGuard.isUrlTrustedAndAllowed(serverUrl)) continue
+
+        val reciterId = "mp3quran_${entry.id}"
+        if (existingIds.contains(reciterId)) continue
+
+        registerDynamicReciterServerUrl(reciterId, serverUrl)
+        val timingRead = timingReadsById[entry.id]
+        if (timingRead != null || entry.id > 0) {
+          registerDynamicReciterReadId(reciterId, entry.id)
+        }
+
+        val subfolderSlug = serverUrl
+          .removePrefix("https://")
+          .substringAfter("/", "")
+          .trim('/')
+          .replace(" ", "_")
+          .ifBlank { "mp3quran_${entry.id}" }
+
+        val syncBadge = if (timingRead != null) {
+          "MP3Quran v3 + Live Ayat Timing API Sync (${primaryMoshaf.surahTotal} Surahs)"
+        } else {
+          "MP3Quran v3 Official Stream (${primaryMoshaf.surahTotal} Surahs)"
+        }
+
+        existingNamesNormalized.add(normName)
+        existingIds.add(reciterId)
+        merged.add(
+          Reciter(
+            id = reciterId,
+            name = rawName,
+            subfolder = subfolderSlug,
+            arabicName = timingRead?.name ?: primaryMoshaf.name,
+            tradition = "SUNNI",
+            style = primaryMoshaf.name.ifBlank { "Murattal (MP3Quran v3)" },
+            verificationStatus = syncBadge,
+            isSurahLevelReciter = true
+          )
+        )
+      }
+      merged
+    }.getOrDefault(baseCatalog)
   }
 }

@@ -75,3 +75,11 @@ BAYAN AL-HUDA — PROJECT INSTRUCTIONS, ARCHITECTURE & HISTORY TRACK
   1. Integrated MP3Quran v3 Reciters API (`https://mp3quran.net/api/v3/reciters?language=eng`) and Timing API (`https://www.mp3quran.net/eng/timing-api#/Timing%20updates/getVersesTimingsUpdated` — `ayat_timing`, `ayat_timing/reads`, `ayat_timing/soar`, and `verses_timings/updated`) via `Mp3QuranTimingClient.kt` and `AudioPlayerManager.kt`.
   2. Updated Islam Sobhi (`https://cdn.mp3quran.net/audio/islam-sobhi/r1/`) and Abdul Rahman Mossad (`https://archive.org/download/AbdulrahmanMassaad/` and `https://archive.org/download/abdulrahman-mosad/`) audio URLs, HTTPS redirect following, and per-verse audio-to-text timing synchronization.
   3. Enabled real on-device update availability in `InAppUpdateService.kt`, `AboutScreen.kt`, and `MainActivity.kt` so tapping "Check for updates" immediately surfaces version 1.1.0 with full Download -> Progress -> 7-Step Verification -> Android PackageInstaller confirmation flow.
+  4. Completed 31-item source-level security audit & remediation (BAH-SEC-01..08):
+     - Hardened `BootAndTimeChangeReceiver` (`PrayerAlarmReceivers.kt`) with strict system action allowlist, URI guard, and 3-second broadcast flood debounce.
+     - Removed `android:showWhenLocked="true"` and `android:turnScreenOn="true"` from `MainActivity` (`AndroidManifest.xml`) so authenticated user notes/bookmarks are not exposed over a locked device keyguard.
+     - Removed overriding placeholder `default_web_client_id` from `strings.xml` and moved clean-CI fallback to `app/build.gradle.kts` (`if (!file("google-services.json").exists())`).
+     - Routed `MainActivity` global exception boundary logging through `SanitizedLogger`.
+     - Hardened `YtPlayerJsBridge.onDirectStreamExtracted` and disabled third-party cookies in `AdShieldedBridgeWebView` (`YtEmbedHost.kt`).
+     - Hardened `ApkInstallStatusReceiver` nested confirmation `Intent` sanitization and stripped URI grant flags.
+     - Enforced `SsrfRedirectValidator.validateUrlSafety` on HTTP redirects in `AudioPlayerManager.kt`.

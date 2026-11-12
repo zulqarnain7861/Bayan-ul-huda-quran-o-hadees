@@ -128,7 +128,7 @@ class MainActivity : ComponentActivity() {
   private fun installGlobalExceptionBoundary() {
     val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
     Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-      android.util.Log.e(
+      com.example.security.SanitizedLogger.e(
         "GlobalErrorBoundary",
         "Uncaught exception on thread ${thread.name}: ${throwable.message}",
         throwable
@@ -136,7 +136,7 @@ class MainActivity : ComponentActivity() {
       // If a background worker thread throws a non-fatal IO/network/SQLite/JSON exception, absorb it safely
       val isMainThread = thread == android.os.Looper.getMainLooper()?.thread
       if (!isMainThread && throwable !is Error) {
-        android.util.Log.w(
+        com.example.security.SanitizedLogger.w(
           "GlobalErrorBoundary",
           "Absorbed non-fatal background thread exception on ${thread.name} to prevent app crash."
         )

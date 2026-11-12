@@ -30,6 +30,9 @@ bayan-release-upload.jks
 /reports/
 .aistudio/
 /public/assets/aistudio/*.jpg
+/public/assets/aistudio/*.jpeg
 /public/assets/aistudio/*.png
+/public/assets/aistudio/*.webp
 /public/assets/aistudio/*.pdf
-
+/public/assets/aistudio/*.md
+*.keystore.properties

@@ -381,9 +381,48 @@ fun AudioMiniPlayerBar(
         HorizontalDivider()
         Spacer(modifier = Modifier.height(10.dp))
 
-        // All Available Reciters with Checkmark & Offline/Basmala Badges (Part 5)
-        availableReciters.forEach { reciter ->
+        var miniMergedReciters by remember { mutableStateOf(availableReciters) }
+        var miniSearchQuery by remember { mutableStateOf("") }
+
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+          val liveMerged = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            com.example.ui.audio.Mp3QuranTimingClient.fetchAndMergeLiveRecitersCatalog(availableReciters)
+          }
+          if (liveMerged.size > miniMergedReciters.size) {
+            miniMergedReciters = liveMerged
+          }
+        }
+
+        val displayedReciters = remember(miniMergedReciters, miniSearchQuery) {
+          val q = miniSearchQuery.trim().lowercase()
+          if (q.isBlank()) {
+            miniMergedReciters
+          } else {
+            miniMergedReciters.filter { r ->
+              r.name.lowercase().contains(q) ||
+                r.arabicName.contains(q) ||
+                r.style.lowercase().contains(q)
+            }
+          }
+        }
+
+        androidx.compose.material3.OutlinedTextField(
+          value = miniSearchQuery,
+          onValueChange = { miniSearchQuery = it },
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("mini_player_reciter_search_input"),
+          singleLine = true,
+          placeholder = { Text("Search ${miniMergedReciters.size}+ reciters...") },
+          shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // All Available Reciters with Checkmark & Offline/Basmala/Timing Badges (Part 5)
+        displayedReciters.forEach { reciter ->
           val isSelected = reciter.id == audioState.reciter.id
+          val timingReadId = com.example.ui.audio.Mp3QuranTimingClient.resolveReadIdForReciter(reciter.id)
           val hasCachedAudio = remember(reciter.id, audioState.surahNumber) {
             val dir = File(context.filesDir, "audio_cache_v2/${reciter.id}")
             dir.exists() && (dir.listFiles()?.isNotEmpty() == true)
@@ -444,6 +483,16 @@ fun AudioMiniPlayerBar(
                       color = if (recitesBasmala) Color(0xFF1B5E20) else Color(0xFFD32F2F)
                     )
                   )
+                  if (timingReadId != null) {
+                    Text(
+                      text = "⏱ Timing #$timingReadId",
+                      style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = GoldPrimary
+                      )
+                    )
+                  }
                 }
               }
               if (isSelected) {

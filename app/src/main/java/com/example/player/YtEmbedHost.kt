@@ -400,6 +400,12 @@ object YtEmbedUrlBuilder {
         <script>
           (function() {
             var playerInstance = null;
+            var playbackConfirmed = false;
+            var watchdogTimer = setTimeout(function() {
+              if (!playbackConfirmed && window.YtPlayerBridge) {
+                window.YtPlayerBridge.onEmbedRestricted(150);
+              }
+            }, 3200);
             window.onYouTubeIframeAPIReady = function() {
               try {
                 playerInstance = new YT.Player('ytFrame', {
@@ -409,6 +415,8 @@ object YtEmbedUrlBuilder {
                       try {
                         var d = e.target.getDuration();
                         if (d && d > 0 && window.YtPlayerBridge) {
+                          playbackConfirmed = true;
+                          clearTimeout(watchdogTimer);
                           window.YtPlayerBridge.onDuration(Math.round(d));
                         }
                         e.target.playVideo();
@@ -416,15 +424,22 @@ object YtEmbedUrlBuilder {
                     },
                     onStateChange: function(e) {
                       try {
+                        if (e && (e.data === 1 || e.data === 3)) {
+                          playbackConfirmed = true;
+                          clearTimeout(watchdogTimer);
+                        }
                         var d = e.target.getDuration();
                         if (d && d > 0 && window.YtPlayerBridge) {
+                          playbackConfirmed = true;
+                          clearTimeout(watchdogTimer);
                           window.YtPlayerBridge.onDuration(Math.round(d));
                         }
                       } catch (err) {}
                     },
                     onError: function(e) {
+                      clearTimeout(watchdogTimer);
                       var code = (e && typeof e.data === 'number') ? e.data : 150;
-                      if (window.YtPlayerBridge && (code === 100 || code === 101 || code === 150)) {
+                      if (window.YtPlayerBridge) {
                         window.YtPlayerBridge.onEmbedRestricted(code);
                       }
                     }
@@ -538,7 +553,12 @@ class YtPlayerJsBridge(
 
   @JavascriptInterface
   fun onDirectStreamExtracted(videoId: String, streamUrl: String, durationSec: Int) {
-    if (streamUrl.startsWith("https://")) {
+    if (
+      videoId.matches(Regex("^[A-Za-z0-9_-]{6,20}$")) &&
+      streamUrl.startsWith("https://") &&
+      com.example.security.SsrfRedirectValidator.validateUrlSafety(streamUrl, resolveDns = false) &&
+      AdShieldConfig.isWebViewHostAllowed(streamUrl)
+    ) {
       onDirectStreamExtractedCallback(videoId, streamUrl, durationSec)
     }
   }
@@ -1067,9 +1087,9 @@ fun YtEmbedHost(
       val httpDataSourceFactory = remember {
         DefaultHttpDataSource.Factory()
           .setUserAgent(DEFAULT_MOBILE_UA)
-          .setAllowCrossProtocolRedirects(false)
-          .setConnectTimeoutMs(10_000)
-          .setReadTimeoutMs(15_000)
+          .setAllowCrossProtocolRedirects(true)
+          .setConnectTimeoutMs(6_000)
+          .setReadTimeoutMs(10_000)
       }
 
       val trackSelector = remember(lecture.youtubeId) {
@@ -1087,10 +1107,14 @@ fun YtEmbedHost(
       }
 
       val hasHardwareRenderNode = VideoStreamExtractor.hasHardwareRenderNode
+      val isExplicitDirectPipeline =
+        selectedPipeline == PipelineOption.PIPELINE_2 || selectedPipeline == PipelineOption.PIPELINE_3
 
       val activeResolvedTrack = remember(
         streamBundle,
         selectedQuality,
+        selectedPipeline,
+        isExtractingStreams,
         preferOfflineLocalPlayback,
         offlineLocalUri,
         webViewBotOrEmbedBlocked,
@@ -1108,7 +1132,14 @@ fun YtEmbedHost(
           val candidate = streamBundle.resolveTrackFor(selectedQuality)
           if (
             candidate.videoUrl.contains("youtube-nocookie.com/embed/") &&
-              (isExactArchiveMatch || selectedQuality.isAudioOnly || webViewBotOrEmbedBlocked || !hasHardwareRenderNode)
+              (
+                isExactArchiveMatch ||
+                  selectedQuality.isAudioOnly ||
+                  webViewBotOrEmbedBlocked ||
+                  !hasHardwareRenderNode ||
+                  isExplicitDirectPipeline ||
+                  (!isExtractingStreams && !streamBundle.hasDirectYoutubeStreams)
+                )
           ) {
             ResolvedStreamTrack(
               quality = selectedQuality,
@@ -1122,7 +1153,8 @@ fun YtEmbedHost(
       }
 
       val isWebViewPipeline =
-        selectedPipeline == PipelineOption.PIPELINE_1 || selectedPipeline == PipelineOption.PIPELINE_4
+        (selectedPipeline == PipelineOption.PIPELINE_1 || selectedPipeline == PipelineOption.PIPELINE_4) &&
+          !webViewBotOrEmbedBlocked
 
       val hasLiveDirectTrack =
         streamBundle.youtubeId == lecture.youtubeId &&
@@ -1130,10 +1162,15 @@ fun YtEmbedHost(
           activeResolvedTrack.isDirectYoutubeStream &&
           !exoPlayerDirectFailed
 
-      // Only use Archive.org MP4 fallback in ExoPlayer when it is an EXACT verified match for this lecture,
-      // when audio-only mode is selected, when WebView is embed-blocked, or when running on a headless cloud emulator.
       val hasVerifiedFallbackDirectStream =
-        (isExactArchiveMatch || webViewBotOrEmbedBlocked || selectedQuality.isAudioOnly || !hasHardwareRenderNode) &&
+        (
+          isExactArchiveMatch ||
+            webViewBotOrEmbedBlocked ||
+            selectedQuality.isAudioOnly ||
+            !hasHardwareRenderNode ||
+            isExplicitDirectPipeline ||
+            (!isExtractingStreams && !streamBundle.hasDirectYoutubeStreams)
+          ) &&
           !exoPlayerDirectFailed &&
           activeResolvedTrack.videoUrl.startsWith("https://") &&
           !activeResolvedTrack.videoUrl.contains("youtube-nocookie.com/embed/")
@@ -1141,9 +1178,14 @@ fun YtEmbedHost(
       val useNativeDirectExoPlayer =
         (preferOfflineLocalPlayback && !offlineLocalUri.isNullOrBlank()) ||
           !hasHardwareRenderNode ||
+          webViewBotOrEmbedBlocked ||
           (
             !isWebViewPipeline &&
-              (hasLiveDirectTrack || ((!webViewSessionStarted || webViewBotOrEmbedBlocked || selectedQuality.isAudioOnly) && hasVerifiedFallbackDirectStream))
+              (
+                hasLiveDirectTrack ||
+                  isExplicitDirectPipeline ||
+                  ((!webViewSessionStarted || webViewBotOrEmbedBlocked || selectedQuality.isAudioOnly || !isExtractingStreams) && hasVerifiedFallbackDirectStream)
+                )
           )
 
       var exoPlayerReady by remember(lecture.youtubeId, selectedPipeline) {
@@ -1155,8 +1197,17 @@ fun YtEmbedHost(
       }
 
       val exoPlayer = remember(lecture.youtubeId) {
+        val fastLoadControl = androidx.media3.exoplayer.DefaultLoadControl.Builder()
+          .setBufferDurationsMs(
+            6_000,
+            30_000,
+            700,
+            1_400
+          )
+          .build()
         ExoPlayer.Builder(context)
           .setTrackSelector(trackSelector)
+          .setLoadControl(fastLoadControl)
           .build()
           .apply {
             setAudioAttributes(
@@ -2474,43 +2525,59 @@ private fun AdShieldedBridgeWebView(
                           }
                         }
                         var bodyText = (document.body && document.body.innerText) ? document.body.innerText : '';
-                        var isBotPrompt = bodyText.indexOf("confirm you're not a bot") !== -1 || bodyText.indexOf("Sign in to confirm") !== -1;
-                        if (!isBotPrompt) {
-                          var applyTheaterAndPlay = function() {
-                            var styleEl = document.getElementById('ymusic-theater-style');
-                            if (!styleEl) {
-                              styleEl = document.createElement('style');
-                              styleEl.id = 'ymusic-theater-style';
-                              styleEl.textContent =
-                                'html, body { margin: 0 !important; padding: 0 !important; background: #000 !important; overflow: hidden !important; } ' +
-                                'ytm-mobile-topbar-renderer, header, ytm-watch-metadata, ytm-slim-video-metadata-section-renderer, ' +
-                                'ytm-item-section-renderer, ytm-comments-entry-point-header-renderer, ytm-pivot-bar-renderer, ' +
-                                '.related-chips-slot-wrapper, ytm-companion-ad-renderer { display: none !important; } ' +
-                                '#player-container-id, .player-container, #player, .html5-video-player { ' +
-                                'position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; ' +
-                                'width: 100vw !important; height: 100vh !important; max-height: 100vh !important; z-index: 99999 !important; background: #000 !important; } ' +
-                                'video.html5-main-video { width: 100vw !important; height: 100vh !important; object-fit: contain !important; }';
-                              document.head.appendChild(styleEl);
-                            }
-                            var v = document.querySelector('video');
-                            if (v) {
-                              v.muted = false;
-                              if (v.paused) {
-                                v.play().catch(function(){});
-                              }
-                              if (v.duration && v.duration > 0 && window.YtPlayerBridge) {
-                                window.YtPlayerBridge.onDuration(Math.round(v.duration));
-                              }
-                            }
-                          };
-                          applyTheaterAndPlay();
-                          var ticks = 0;
-                          var theaterInterval = setInterval(function() {
-                            ticks++;
-                            applyTheaterAndPlay();
-                            if (ticks >= 5) clearInterval(theaterInterval);
-                          }, 400);
+                        var isBotPrompt = bodyText.indexOf("confirm you're not a bot") !== -1 ||
+                          bodyText.indexOf("Sign in to confirm") !== -1 ||
+                          bodyText.indexOf("Video unavailable") !== -1;
+                        if (isBotPrompt) {
+                          if (window.YtPlayerBridge && window.YtPlayerBridge.onError) {
+                            window.YtPlayerBridge.onError(150);
+                          }
+                          return;
                         }
+                        var videoStarted = false;
+                        var applyTheaterAndPlay = function() {
+                          var styleEl = document.getElementById('ymusic-theater-style');
+                          if (!styleEl) {
+                            styleEl = document.createElement('style');
+                            styleEl.id = 'ymusic-theater-style';
+                            styleEl.textContent =
+                              'html, body { margin: 0 !important; padding: 0 !important; background: #000 !important; overflow: hidden !important; } ' +
+                              'ytm-mobile-topbar-renderer, header, ytm-watch-metadata, ytm-slim-video-metadata-section-renderer, ' +
+                              'ytm-item-section-renderer, ytm-comments-entry-point-header-renderer, ytm-pivot-bar-renderer, ' +
+                              '.related-chips-slot-wrapper, ytm-companion-ad-renderer { display: none !important; } ' +
+                              '#player-container-id, .player-container, #player, .html5-video-player { ' +
+                              'position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; ' +
+                              'width: 100vw !important; height: 100vh !important; max-height: 100vh !important; z-index: 99999 !important; background: #000 !important; } ' +
+                              'video.html5-main-video { width: 100vw !important; height: 100vh !important; object-fit: contain !important; }';
+                            document.head.appendChild(styleEl);
+                          }
+                          var v = document.querySelector('video');
+                          if (v) {
+                            v.muted = false;
+                            if (v.paused) {
+                              v.play().catch(function(){});
+                            }
+                            if (v.currentTime > 0 || !v.paused) {
+                              videoStarted = true;
+                            }
+                            if (v.duration && v.duration > 0 && window.YtPlayerBridge) {
+                              videoStarted = true;
+                              window.YtPlayerBridge.onDuration(Math.round(v.duration));
+                            }
+                          }
+                        };
+                        applyTheaterAndPlay();
+                        var ticks = 0;
+                        var theaterInterval = setInterval(function() {
+                          ticks++;
+                          applyTheaterAndPlay();
+                          if (ticks >= 6) {
+                            clearInterval(theaterInterval);
+                            if (!videoStarted && window.YtPlayerBridge && window.YtPlayerBridge.onError) {
+                              window.YtPlayerBridge.onError(150);
+                            }
+                          }
+                        }, 400);
                       } catch (e) {}
                     })();
                   """.trimIndent()
