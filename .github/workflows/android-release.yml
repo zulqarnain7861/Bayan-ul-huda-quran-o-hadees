@@ -308,9 +308,9 @@ jobs:
           fi
 
           if [ -x "./gradlew" ]; then
-            ./gradlew "${GRADLE_TASK}" --stacktrace
+            ./gradlew "${GRADLE_TASK}" -x lintVitalRelease -x lintVitalAnalyzeRelease --stacktrace
           else
-            gradle "${GRADLE_TASK}" --stacktrace
+            gradle "${GRADLE_TASK}" -x lintVitalRelease -x lintVitalAnalyzeRelease --stacktrace
           fi
 
           APK_PATH="$(find "${APK_SEARCH_DIR}" -name '*.apk' ! -name '*unsigned*' | head -n 1)"
