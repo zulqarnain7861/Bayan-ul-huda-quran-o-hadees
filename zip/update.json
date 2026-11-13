@@ -3,13 +3,13 @@
   "version_code": 8,
   "minimum_version_code": 8,
   "download_url": "https://github.com/zulqarnain7861/Bayan-ul-huda-quran-o-hadees/releases/download/v1.0.2/bayan-al-huda-v1.0.2-release.apk",
-  "sha256": "d030d8a252f62cdb6c62e68b7595964f946938bdd3c97d58505e7e6a23be6734",
+  "sha256": "06f633cb030e5373e471cbd0156deeb67519123cb89b4c2f5020769590bc4ae7",
   "release_notes": "- Native HD Noorani Qaida 53-page PDF reader with 3-tier quizzes, 280-reciter audio picker, and Azkar/Duas.",
   "force_update": false,
   "package_name": "com.bayanulhuda.com",
   "signing_cert_sha256": "4eb2beaf05cb3550f5480ce4fb529530a340f1473aa95305ade04b118e8a7b72",
-  "published_at": "2026-11-13T15:33:11Z",
-  "signature_base64": "OP1rSfT6WDsstgyY/CY0UsSmWM4tm6+hZ5eXoBqfpvUb/LPUY5sJg3icsKNk1453CCZIUJpOjlQ7wmohAFNATQa937p5kIr1G86oMwA4tCjRWBHUBc/3BgNdvPVncfR8BEdrYv9FFAoNqmjHq4iLa3Vs6Eh5wiYtDf86Q7NXJZBiq+lPZgRkQD0PFQ3HqSXGRi2HWhfDLYKegU2lzfmMlTNaXqubZ4wH6WswddYuOF6gbs+mFeXAD8EyXS5e/vDGIErfzdDanSU3qUTuJ3hmAfMTYsPUTzVaANw5+Ib5BAnS+/zn9PDDJ/h/AA+tcsHO/ZQo/JqA2U3GrRwipq0DpQ==",
+  "published_at": "2026-11-13T15:56:09Z",
+  "signature_base64": "W9cnQ1980SS2MighmSTEVe1M9iy40nah27fyIgvh38OkOQcxgseYmnOozyineaLUe7seyy9ZZExFuMrsJJQ/NXkoyPKhVs/khZTtXXHdq+zqrY11AUsxs/NEmVc8C8dSdb2sYlJEr923aw4A262A2xptsLQZ6iKRtSdykaY3BYegSQ/jXcaet7tekEdQfyfrnU3f2SzJhAPpMj3xDrJlAQZfKKI9sEqyaV8KGBOqPkyXz3q3rM+PRvhehcxDGuuTIwXS1MOzMOfZFnEGnazpQVQTsstomZ+xmkuXgSOBWcTi7qFF3bVz7Hg48O8+xGC0rNhz/RRHga+hhRa1rJjNxA==",
   "public_key_der_base64": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsfLk9GIyp/pfPKmooG5vU/iWFL+j3qaZS90XiuULf7L52KMr9XPchzlZ05WlythAlUwfXitYr6jMZs/ZszpaxiyP6AwEFnR1PLhxPN+FH+/1gdei4SPI3I/FHPgZx4F/QmnPjel1ERF1PV6IAXexXRX8bCxiyfpSttTn/C+rvBB94vxfurGZqmGcrKPMeBqCVCGnSVXy8W5+JC/g3ciOMqn59EJLaUPCEtTCAV7GET2+8HyFjc+0aT0iQC8HfnsRw8X4vOf2WLCeuFXIdK5AWESc6vhb40QkBKFc8xPNOjDB4PEkOs0BE3TpsPGKqUiDsf/Cu4HUE/LZfARKojtrbQIDAQAB",
   "signature_algorithm": "SHA256withRSA"
 }

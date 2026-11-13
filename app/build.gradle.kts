@@ -68,6 +68,7 @@ android {
   }
   androidResources {
     localeFilters += listOf("en", "ar", "ur")
+    noCompress += listOf("dat", "pdf", "mp3", "zip")
   }
   packaging {
     dex {

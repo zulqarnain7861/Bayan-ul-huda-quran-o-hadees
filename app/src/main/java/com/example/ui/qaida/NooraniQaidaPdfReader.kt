@@ -281,10 +281,9 @@ class NooraniQaidaPdfController(private val context: Context) {
 
       renderMutex.withLock {
         bitmapCache.get(validIndex)?.takeIf { !it.isRecycled }?.let { return@withLock it }
-        val renderer = ensureRendererOpen() ?: return@withLock null
-        if (validIndex < 0 || validIndex >= renderer.pageCount) return@withLock null
-
-        runCatching {
+        val renderedFromPdf = runCatching {
+          val renderer = ensureRendererOpen() ?: return@runCatching null
+          if (validIndex < 0 || validIndex >= renderer.pageCount) return@runCatching null
           renderer.openPage(validIndex).use { page ->
             val aspect = if (page.width > 0) page.height.toFloat() / page.width.toFloat() else 1.414f
             val bmpWidth = targetWidthPx.coerceIn(720, 1600)
@@ -292,10 +291,22 @@ class NooraniQaidaPdfController(private val context: Context) {
             val bitmap = Bitmap.createBitmap(bmpWidth, bmpHeight, Bitmap.Config.ARGB_8888)
             bitmap.eraseColor(AndroidColor.WHITE)
             page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-            bitmapCache.put(validIndex, bitmap)
             bitmap
           }
         }.getOrNull()
+
+        val finalBitmap = renderedFromPdf ?: runCatching {
+          val pageNumOneBased = validIndex + 1
+          val assetName = String.format(java.util.Locale.US, "qaida_hd_pages/page_%02d.jpg", pageNumOneBased)
+          context.assets.open(assetName).use { stream ->
+            android.graphics.BitmapFactory.decodeStream(stream)
+          }
+        }.getOrNull()
+
+        if (finalBitmap != null) {
+          bitmapCache.put(validIndex, finalBitmap)
+        }
+        finalBitmap
       }
     }
 

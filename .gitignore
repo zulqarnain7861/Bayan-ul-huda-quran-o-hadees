@@ -37,6 +37,9 @@ bayan-release-upload.jks
 /public/assets/aistudio/*.md
 /public/assets/aistudio/*.txt
 /zip/*.apk
+/zip/*.ipa
+/zip/*.zip
 *.keystore.properties
+
 
 
