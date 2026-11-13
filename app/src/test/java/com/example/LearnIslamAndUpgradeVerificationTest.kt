@@ -194,7 +194,7 @@ class LearnIslamAndUpgradeVerificationTest {
   @Test
   fun verifyDeveloperOptionsApiSourcesAndLicencesAndZeroSecretExposure() {
     val devSources = com.example.data.repository.SourceRegistryRepository.getDeveloperApiSourcesAndLicences()
-    assertEquals(38, devSources.size)
+    assertEquals(39, devSources.size)
 
     // Verify all 6 categories are represented
     val categories = devSources.map { it.category }.toSet()
@@ -353,5 +353,34 @@ class LearnIslamAndUpgradeVerificationTest {
     assertEquals(5, auditReport.size)
     assertTrue(auditReport.any { it.summary.contains("779") && it.summary.contains("222") })
   }
+
+  @Test
+  fun verifyNooraniQaidaHdPdfAndMcqExerciseCatalog() {
+    val allMcqs = com.example.ui.qaida.NooraniQaidaExerciseQuizCatalog.allQuestions
+    assertTrue("Expected at least 35 MCQs across the 53 pages", allMcqs.size >= 35)
+
+    // Verify BASIC, INTERMEDIATE, and HARD difficulty levels are all populated
+    val basic = com.example.ui.qaida.NooraniQaidaExerciseQuizCatalog.getQuestionsForDifficulty("BASIC")
+    val intermediate = com.example.ui.qaida.NooraniQaidaExerciseQuizCatalog.getQuestionsForDifficulty("INTERMEDIATE")
+    val hard = com.example.ui.qaida.NooraniQaidaExerciseQuizCatalog.getQuestionsForDifficulty("HARD")
+    assertTrue(basic.isNotEmpty())
+    assertTrue(intermediate.isNotEmpty())
+    assertTrue(hard.isNotEmpty())
+    assertEquals(allMcqs.size, basic.size + intermediate.size + hard.size)
+
+    // Verify every MCQ has valid pageNumber (1..53), bookPageNumber (1..56), 4 options, and non-blank Arabic/Urdu/English
+    allMcqs.forEach { q ->
+      assertTrue("Page number out of range for ${q.id}", q.pageNumber in 1..53)
+      assertTrue("Book page number out of range for ${q.id}", q.bookPageNumber in 1..56)
+      assertEquals(4, q.options.size)
+      assertTrue(q.correctOptionIndex in q.options.indices)
+      assertTrue(q.arabicPrompt.isNotBlank())
+      assertTrue(q.questionEnglish.isNotBlank())
+      assertTrue(q.questionUrdu.isNotBlank())
+      assertTrue(q.explanationEnglish.isNotBlank())
+      assertTrue(q.explanationUrdu.isNotBlank())
+    }
+  }
 }
+
 

@@ -201,11 +201,7 @@ data class GitHubReleaseInfo(
 ) {
   fun computeUrgency(installedVersionCode: Long): UpdateUrgency {
     if (versionCode <= installedVersionCode) return UpdateUrgency.NONE
-    return if (forceUpdate || installedVersionCode < minimumVersionCode) {
-      UpdateUrgency.CRITICAL
-    } else {
-      UpdateUrgency.OPTIONAL
-    }
+    return UpdateUrgency.OPTIONAL
   }
 }
 

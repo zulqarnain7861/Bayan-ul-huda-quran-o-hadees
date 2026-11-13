@@ -29,7 +29,19 @@ data class Reciter(
   val tradition: String = "SUNNI", // "SUNNI" or "SHIA"
   val style: String = "Murattal",
   val verificationStatus: String = "Verified 114-Surah Quran Recitation",
-  val isSurahLevelReciter: Boolean = false
+  val isSurahLevelReciter: Boolean = false,
+  val moshafId: Int = Mp3QuranTimingClient.resolveReadIdForReciter(id) ?: 1
+)
+
+data class ResolvedPlaybackSource(
+  val reciterId: String,
+  val moshafId: Int,
+  val surahNumber: Int,
+  val ayahNumber: Int,
+  val candidateUrls: List<String>,
+  val cuePoints: List<Mp3QuranTimingClient.Mp3QuranAyatTimingEntry>,
+  val isPerAyahSource: Boolean,
+  val isAvailable: Boolean
 )
 
 data class ReciterAvailabilityNote(
@@ -396,9 +408,10 @@ val availableReciters = listOf(
     subfolder = "abdulrahman-mosad",
     arabicName = "عبد الرحمن مسعد",
     tradition = "SUNNI",
-    style = "Murattal (Tranquil & Heart-Touching • MP3Quran Read #254)",
-    verificationStatus = "Verified MP3Quran v3 & Archive Recitations with Verse Timing Sync",
-    isSurahLevelReciter = true
+    style = "Murattal (Tranquil & Heart-Touching • Verified Partial Mushaf #2540)",
+    verificationStatus = "Verified Archive Recitations with Acoustic Verse Timing Sync",
+    isSurahLevelReciter = true,
+    moshafId = 2540
   ),
   Reciter(
     id = "bandar_baleelah",
@@ -609,6 +622,8 @@ class AudioPlayerManager(private val context: Context) {
   private val resolvedArchiveSurahFiles = mutableMapOf<String, Map<Int, String>>()
   private val surahAyahWeights = mutableMapOf<Int, List<Int>>()
   @Volatile
+  private var activeCuePoints: List<Mp3QuranTimingClient.Mp3QuranAyatTimingEntry> = emptyList()
+  @Volatile
   var lastConfirmedAudioUrl: String = ""
     private set
 
@@ -623,6 +638,43 @@ class AudioPlayerManager(private val context: Context) {
   }
 
   companion object {
+    const val KEY_PREFERRED_RECITER_ID = "preferred_reciter_id"
+    private const val PREFS_NAME = "bayan_prayer_and_alarm_prefs"
+
+    /**
+     * Reads the user's stored preferred reciter ID from SharedPreferences (`preferred_reciter_id`).
+     * Edge-case protection: If the stored reciter ID no longer exists in `catalog`, clears the stored
+     * value and returns `null` so the picker opens with no preselection.
+     */
+    fun getPreferredReciterId(
+      context: Context,
+      catalog: List<Reciter> = availableReciters
+    ): String? {
+      val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+      val storedId = prefs.getString(KEY_PREFERRED_RECITER_ID, null)?.trim()?.takeIf { it.isNotEmpty() }
+        ?: return null
+      val existsInCatalog = catalog.any { it.id == storedId }
+      if (!existsInCatalog) {
+        prefs.edit().remove(KEY_PREFERRED_RECITER_ID).apply()
+        return null
+      }
+      return storedId
+    }
+
+    /**
+     * Saves the user's chosen reciter ID (`preferred_reciter_id`) ONLY when the user confirms Play in the dialog.
+     */
+    fun savePreferredReciterId(context: Context, reciterId: String) {
+      val cleanId = reciterId.trim()
+      if (cleanId.isEmpty()) return
+      val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+      prefs.edit().putString(KEY_PREFERRED_RECITER_ID, cleanId).apply()
+    }
+
+    fun clearPreferredReciterId(context: Context) {
+      val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+      prefs.edit().remove(KEY_PREFERRED_RECITER_ID).apply()
+    }
     private val SURAH_VERSE_COUNTS = intArrayOf(
       7, 286, 200, 176, 120, 165, 206, 75, 129, 109,
       123, 111, 43, 52, 99, 128, 111, 110, 98, 135,
@@ -670,32 +722,26 @@ class AudioPlayerManager(private val context: Context) {
       "masad", "ikhlas", "falaq", "nas"
     )
 
-    // Surahs available with canonical 3-digit filenames on https://archive.org/download/AbdulrahmanMassaad/{002..114}.mp3
-    private val ABDUL_RAHMAN_MASSAAD_CLEAN_SURAHS = setOf(
-      2, 3, 5, 7, 10, 15, 16, 19, 23, 24, 25, 29, 30, 32, 49, 67, 73, 78, 87, 88, 100, 107, 112, 113, 114
+    // Canonical surahs recorded by Islam Sobhi in MP3Quran v3 Moshaf #253 (`server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/`)
+    val ISLAM_SOBHI_AVAILABLE_SURAHS = setOf(
+      1, 2, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 24, 25, 26, 28, 29, 30, 31, 32, 34, 36,
+      39, 40, 41, 42, 44, 50, 51, 52, 53, 54, 55, 56, 57, 62, 63, 64, 66, 67, 68, 70, 71, 72,
+      73, 74, 75, 76, 77, 78, 79, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 97,
+      99, 100, 102, 103, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114
     )
 
-    // Verified canonical Surah-number -> exact Archive.org filename mapping for `abdulrahman-mosad`
-    private val ABDUL_RAHMAN_MOSSAD_ARCHIVE_SURAH_FILES = mapOf(
+    // Surahs available with canonical 3-digit filenames on https://archive.org/download/AbdulrahmanMassaad/{002..114}.mp3
+    // (Excludes partial-ayah excerpts so only full-surah recordings are selected)
+    val ABDUL_RAHMAN_MASSAAD_CLEAN_SURAHS = setOf(
+      15, 25, 29, 32, 49, 67, 73, 78, 87, 88, 100, 107, 112, 113, 114
+    )
+
+    // Verified canonical Surah-number -> exact FULL-Surah Archive.org filename mapping for `abdulrahman-mosad`
+    // (Strictly excludes partial-ayah clips such as `197-202`, `1-14`, `67-76`, `40`, etc.)
+    val ABDUL_RAHMAN_MOSSAD_ARCHIVE_SURAH_FILES = mapOf(
       1 to "001%20Al-Fatiha%20%D8%A7%D9%84%D9%81%D8%A7%D8%AA%D8%AD%D8%A9.mp3",
-      2 to "002%20Al-Baqara%20197-202%20%D8%A7%D9%84%D8%A8%D9%82%D8%B1%D8%A9.mp3",
-      3 to "003%20Al-Imran%201-14%20%D8%A2%D9%84%20%D8%B9%D9%85%D8%B1%D8%A7%D9%86.mp3",
-      5 to "005%20Al-Ma%27idah%2067-76%20%D8%A7%D9%84%D9%85%D8%A7%D8%A6%D8%AF%D8%A9.mp3",
-      7 to "007%20Al-A%27raf%20196-206%20%D8%A7%D9%84%D8%A3%D8%B9%D8%B1%D8%A7%D9%81.mp3",
-      9 to "009%20At-Tawbah%2040%20%D8%A7%D9%84%D8%AA%D9%88%D8%A8%D8%A9.mp3",
-      10 to "010%20Yunus%203-25%20%D9%8A%D9%88%D9%86%D8%B3.mp3",
-      12 to "012%20Yusuf%20102-111%20%D9%8A%D9%88%D8%B3%D9%81.mp3",
-      13 to "013%20Ar-Ra%27d%2012-13%20%D8%A7%D9%84%D8%B1%D8%B9%D8%AF.mp3",
-      14 to "014%20Ibrahim%2042-47%20%D8%A5%D8%A8%D8%B1%D8%A7%D9%87%D9%8A%D9%85.mp3",
-      16 to "016%20An-Nahl%2052-64%20%D8%A7%D9%84%D9%86%D8%AD%D9%84.mp3",
-      19 to "019%20Maryam%2065-98%20%D9%85%D8%B1%D9%8A%D9%85.mp3",
-      22 to "022%20Al-Hajj%2027-29%20%D8%A7%D9%84%D8%AD%D8%AC.mp3",
-      23 to "023%20Al-Mu%27minun%2051-92%20%D8%A7%D9%84%D9%85%D8%A4%D9%85%D9%86%D9%88%D9%86.mp3",
-      24 to "024%20An-Nur%2036-38%20%D8%A7%D9%84%D9%86%D9%88%D8%B1.mp3",
       29 to "029%20Al-Ankabut%20%D8%A7%D9%84%D8%B9%D9%86%D9%83%D8%A8%D9%88%D8%AA.mp3",
-      30 to "030%20Ar-Rum%2017-19%20%D8%A7%D9%84%D8%B1%D9%88%D9%85.mp3",
       32 to "032%20As-Sajdah%20%D8%A7%D9%84%D8%B3%D8%AC%D8%AF%D8%A9.mp3",
-      48 to "048%20Al-Fath%2018%20%D8%A7%D9%84%D9%81%D8%AA%D8%AD.mp3",
       49 to "049%20Al-Hujurat%20%D8%A7%D9%84%D8%AD%D8%AC%D8%B1%D8%A7%D8%AA.mp3",
       73 to "073%20Al-Muzzammil%20%D8%A7%D9%84%D9%85%D8%B2%D9%85%D9%84.mp3",
       78 to "078%20An-Naba%20%D8%A7%D9%84%D9%86%D8%A8%D8%A3.mp3",
@@ -704,6 +750,26 @@ class AudioPlayerManager(private val context: Context) {
       100 to "100%20Al-Adiyat%20%D8%A7%D9%84%D8%B9%D8%A7%D8%AF%D9%8A%D8%A7%D8%AA.mp3",
       107 to "107%20Al-Ma%27un%20%D8%A7%D9%84%D9%85%D8%A7%D8%B9%D9%88%D9%86.mp3"
     )
+
+    /**
+     * Checks whether `reciter` has a verified recording for `surahNumber` (1..114).
+     * Used by the UI (`SelectReciterDialog` and `QuranRecitersBottomSheet`) to disable
+     * unavailable reciter/surah combinations with a neutral note instead of substituting another reciter.
+     */
+    fun isSurahAvailableForReciter(reciter: Reciter, surahNumber: Int): Boolean {
+      if (surahNumber !in 1..114) return false
+      if (!reciter.isSurahLevelReciter) return true
+      return when (reciter.id) {
+        "islam_sobhi" -> surahNumber in ISLAM_SOBHI_AVAILABLE_SURAHS
+        "abdul_rehman_mossad" ->
+          surahNumber in ABDUL_RAHMAN_MASSAAD_CLEAN_SURAHS ||
+            ABDUL_RAHMAN_MOSSAD_ARCHIVE_SURAH_FILES.containsKey(surahNumber)
+        else -> {
+          val dynamicSet = Mp3QuranTimingClient.getDynamicReciterAvailableSurahs(reciter.id)
+          dynamicSet?.contains(surahNumber) ?: true
+        }
+      }
+    }
 
     fun getSurahTotalAyahs(surahNumber: Int): Int {
       return if (surahNumber in 1..114) SURAH_VERSE_COUNTS[surahNumber - 1] else 7
@@ -798,11 +864,8 @@ class AudioPlayerManager(private val context: Context) {
 
   /**
    * Derives `(activeAyahNumber, withinAyahPositionMs, ayahWindowDurationMs)` from a surah-level audio position.
-   * - First checks if exact MP3Quran v3 Ayat Timing rows (`Mp3QuranTimingClient`) are cached for the active
-   *   reciter and Surah.
-   * - Otherwise uses calibrated Basmala prefix (`0 until basmalaOffsetMs` on Surahs 2..114 except 9) +
-   *   per-verse character weights so the Starting Bismillah Verse highlights in Green during the prefix
-   *   and Ayah 1 Word 1 starts highlighting at `basmalaOffsetMs`.
+   * Uses validated cue points (`Mp3QuranTimingClient.normalizeAndValidateCuePoints`) without linear duration
+   * scaling or millisecond fudge offsets.
    */
   fun computeSurahAyahTimingForPosition(
     surah: Int,
@@ -810,111 +873,38 @@ class AudioPlayerManager(private val context: Context) {
     totalSurahDurationMs: Int
   ): Triple<Int, Int, Int> {
     val activeReciterId = _audioState.value.reciter.id
-    val apiTimings = Mp3QuranTimingClient.getCachedAyatTimingsForReciter(activeReciterId, surah)
-    if (!apiTimings.isNullOrEmpty()) {
-      val apiTotalMs = apiTimings.maxOfOrNull { it.endTimeMs } ?: 0
-      if (apiTotalMs > 1000) {
-        val scale = if (totalSurahDurationMs > 1500) {
-          apiTotalMs.toDouble() / totalSurahDurationMs.toDouble()
-        } else {
-          1.0
-        }
-        val mappedPosMs = (positionMs * scale).toInt().coerceIn(0, apiTotalMs)
-        val firstVerseStart = apiTimings.firstOrNull { it.ayah == 1 }?.startTimeMs ?: 0
-        if (surah != 1 && surah != 9 && firstVerseStart > 0 && mappedPosMs < firstVerseStart) {
-          val firstVerseEnd = apiTimings.firstOrNull { it.ayah == 1 }?.endTimeMs ?: (firstVerseStart + 4000)
-          val unscaledPos = (mappedPosMs / scale).toInt()
-          val unscaledDur = (firstVerseEnd / scale).toInt().coerceAtLeast(1000)
-          return Triple(1, unscaledPos, unscaledDur)
-        }
-        val matchingEntry = apiTimings.firstOrNull { it.ayah >= 1 && mappedPosMs in it.startTimeMs until it.endTimeMs }
-          ?: apiTimings.lastOrNull { it.ayah >= 1 && mappedPosMs >= it.startTimeMs }
-          ?: apiTimings.firstOrNull { it.ayah >= 1 }
-        if (matchingEntry != null) {
-          val rawWithin = (mappedPosMs - matchingEntry.startTimeMs).coerceAtLeast(0)
-          val rawDur = matchingEntry.durationMs.coerceAtLeast(600)
-          val unscaledWithin = (rawWithin / scale).toInt()
-          val unscaledDur = (rawDur / scale).toInt().coerceAtLeast(600)
-          return if (matchingEntry.ayah == 1 && surah != 1 && surah != 9 && firstVerseStart > 0) {
-            val unscaledBasmala = (firstVerseStart / scale).toInt()
-            Triple(1, unscaledBasmala + unscaledWithin, unscaledBasmala + unscaledDur)
-          } else {
-            Triple(matchingEntry.ayah, unscaledWithin, unscaledDur)
-          }
-        }
-      }
+    val rawTimings = activeCuePoints.takeIf { it.isNotEmpty() }
+      ?: Mp3QuranTimingClient.getCachedAyatTimingsForReciter(activeReciterId, surah)
+    val validatedTimings = if (!rawTimings.isNullOrEmpty()) {
+      Mp3QuranTimingClient.normalizeAndValidateCuePoints(rawTimings, totalSurahDurationMs)
+    } else {
+      null
     }
-
-    val weights = getWeightsForSurah(surah)
-    val totalAyahs = weights.size.coerceAtLeast(1)
-    val safeTotalDuration = totalSurahDurationMs.coerceAtLeast(totalAyahs * 2500)
-    val safePos = positionMs.coerceIn(0, safeTotalDuration)
-    val basmalaOffsetMs = resolveSurahBasmalaOffsetMs(surah, safeTotalDuration)
-
-    // Subtract Basmala prefix so verse 1..N weights map strictly to `(basmalaOffsetMs .. safeTotalDuration)`
-    val versesTotalDuration = (safeTotalDuration - basmalaOffsetMs).coerceAtLeast(totalAyahs * 1500)
-    // Add a natural inter-ayah pause cushion (+12 weight units per verse) so word timing never outruns the reciter
-    val adjustedWeights = weights.map { it + 12 }
-    val totalWeight = adjustedWeights.sum().coerceAtLeast(1).toLong()
-
-    if (basmalaOffsetMs > 0 && safePos < basmalaOffsetMs) {
-      val firstAyahDur = ((adjustedWeights.first() * versesTotalDuration) / totalWeight).toInt().coerceAtLeast(1200)
-      return Triple(1, safePos, basmalaOffsetMs + firstAyahDur)
+    if (!validatedTimings.isNullOrEmpty()) {
+      val maxEndMs = validatedTimings.last().endTimeMs
+      val clampedPosMs = positionMs.coerceIn(0, maxEndMs)
+      val matchingEntry = validatedTimings.firstOrNull { clampedPosMs in it.startTimeMs until it.endTimeMs }
+        ?: validatedTimings.lastOrNull { clampedPosMs >= it.startTimeMs }
+        ?: validatedTimings.first()
+      val withinAyahMs = (clampedPosMs - matchingEntry.startTimeMs).coerceAtLeast(0)
+      val ayahDurationMs = matchingEntry.durationMs.coerceAtLeast(600)
+      return Triple(matchingEntry.ayah, withinAyahMs, ayahDurationMs)
     }
-
-    val posAfterBasmala = (safePos - basmalaOffsetMs).coerceAtLeast(0)
-    var cumulativeWeight = 0L
-    for (idx in adjustedWeights.indices) {
-      val startMs = ((cumulativeWeight * versesTotalDuration) / totalWeight).toInt()
-      cumulativeWeight += adjustedWeights[idx]
-      val endMs = if (idx == adjustedWeights.lastIndex) {
-        versesTotalDuration
-      } else {
-        ((cumulativeWeight * versesTotalDuration) / totalWeight).toInt()
-      }
-      if (posAfterBasmala < endMs || idx == adjustedWeights.lastIndex) {
-        val rawWindowDuration = (endMs - startMs).coerceAtLeast(600)
-        val rawWithinAyahPos = (posAfterBasmala - startMs).coerceIn(0, rawWindowDuration)
-        return if (idx == 0 && basmalaOffsetMs > 0) {
-          // Include basmalaOffsetMs in Ayah 1's window so TajweedAudioSyncEngine.computeSyncedWordIndex
-          // knows currentPositionMs >= basmalaOffsetMs!
-          Triple(1, basmalaOffsetMs + rawWithinAyahPos, basmalaOffsetMs + rawWindowDuration)
-        } else {
-          Triple(idx + 1, rawWithinAyahPos, rawWindowDuration)
-        }
-      }
-    }
-    return Triple(1, 0, safeTotalDuration.coerceAtLeast(1000))
+    return Triple(1, positionMs.coerceAtLeast(0), totalSurahDurationMs.coerceAtLeast(1000))
   }
 
   fun computeStartOffsetMsForAyah(surah: Int, targetAyah: Int, totalSurahDurationMs: Int): Int {
     if (targetAyah <= 1) return 0
     val activeReciterId = _audioState.value.reciter.id
-    val apiTimings = Mp3QuranTimingClient.getCachedAyatTimingsForReciter(activeReciterId, surah)
-    if (!apiTimings.isNullOrEmpty()) {
-      val apiTotalMs = apiTimings.maxOfOrNull { it.endTimeMs } ?: 0
-      val entry = apiTimings.firstOrNull { it.ayah == targetAyah }
-      if (entry != null && apiTotalMs > 1000) {
-        val scale = if (totalSurahDurationMs > 1500) {
-          totalSurahDurationMs.toDouble() / apiTotalMs.toDouble()
-        } else {
-          1.0
-        }
-        return (entry.startTimeMs * scale).toInt().coerceIn(0, (totalSurahDurationMs - 500).coerceAtLeast(0))
-      }
+    val rawTimings = activeCuePoints.takeIf { it.isNotEmpty() }
+      ?: Mp3QuranTimingClient.getCachedAyatTimingsForReciter(activeReciterId, surah)
+    val validatedTimings = if (!rawTimings.isNullOrEmpty()) {
+      Mp3QuranTimingClient.normalizeAndValidateCuePoints(rawTimings, totalSurahDurationMs)
+    } else {
+      null
     }
-
-    val weights = getWeightsForSurah(surah)
-    val totalAyahs = weights.size.coerceAtLeast(1)
-    val clampedAyah = targetAyah.coerceIn(1, totalAyahs)
-    val safeTotalDuration = totalSurahDurationMs.coerceAtLeast(totalAyahs * 2500)
-    val basmalaOffsetMs = resolveSurahBasmalaOffsetMs(surah, safeTotalDuration)
-    val versesTotalDuration = (safeTotalDuration - basmalaOffsetMs).coerceAtLeast(totalAyahs * 1500)
-    val adjustedWeights = weights.map { it + 12 }
-    val totalWeight = adjustedWeights.sum().coerceAtLeast(1).toLong()
-    val precedingWeight = adjustedWeights.take(clampedAyah - 1).sum().toLong()
-    val offsetAfterBasmala = ((precedingWeight * versesTotalDuration) / totalWeight).toInt()
-    return (basmalaOffsetMs + offsetAfterBasmala).coerceIn(0, (safeTotalDuration - 500).coerceAtLeast(0))
+    val entry = validatedTimings?.firstOrNull { it.ayah == targetAyah }
+    return entry?.startTimeMs?.coerceIn(0, (totalSurahDurationMs - 500).coerceAtLeast(0)) ?: 0
   }
 
   /**
@@ -1022,36 +1012,69 @@ class AudioPlayerManager(private val context: Context) {
     return matches
   }
 
-  private fun resolveCandidateUrlsForReciter(reciter: Reciter, surah: Int, ayah: Int): List<String> {
-    val formattedSurah = surah.toString().padStart(3, '0')
-    val formattedAyah = ayah.toString().padStart(3, '0')
+  /**
+   * Single canonical resolver used by every playback path.
+   * Takes `reciter`, `moshafId`, `surahNumber`, and `ayahNumber`, selects audio strictly by
+   * `surahNumber` inside that reciter's own list of available surahs (never by list position),
+   * and returns the audio source URLs plus validated cue points from the same recording.
+   */
+  fun resolvePlaybackSourceAndCuePoints(
+    reciter: Reciter,
+    moshafId: Int = reciter.moshafId,
+    surahNumber: Int,
+    ayahNumber: Int = 1
+  ): ResolvedPlaybackSource {
+    if (surahNumber !in 1..114 || !isSurahAvailableForReciter(reciter, surahNumber)) {
+      return ResolvedPlaybackSource(
+        reciterId = reciter.id,
+        moshafId = moshafId,
+        surahNumber = surahNumber,
+        ayahNumber = ayahNumber,
+        candidateUrls = emptyList(),
+        cuePoints = emptyList(),
+        isPerAyahSource = !reciter.isSurahLevelReciter,
+        isAvailable = false
+      )
+    }
+
+    val formattedSurah = surahNumber.toString().padStart(3, '0')
+    val formattedAyah = ayahNumber.toString().padStart(3, '0')
+
+    // Per-ayah reciters (EveryAyah): each file is a single ayah (`{surah}{ayah}.mp3`), so the playing file is the current ayah
     if (!reciter.isSurahLevelReciter) {
-      return listOf("https://everyayah.com/data/${reciter.subfolder}/$formattedSurah$formattedAyah.mp3")
+      val ayahUrl = "https://everyayah.com/data/${reciter.subfolder}/$formattedSurah$formattedAyah.mp3"
+      confirmUrlMatchesRequestedSurah(reciter, surahNumber, ayahNumber, ayahUrl)
+      return ResolvedPlaybackSource(
+        reciterId = reciter.id,
+        moshafId = moshafId,
+        surahNumber = surahNumber,
+        ayahNumber = ayahNumber,
+        candidateUrls = listOf(ayahUrl),
+        cuePoints = emptyList(),
+        isPerAyahSource = true,
+        isAvailable = true
+      )
     }
 
     val candidates = mutableListOf<String>()
-
-    // 1. Add primary verified canonical Surah endpoints first (zero playlist-offset ambiguity)
     when (reciter.id) {
       "islam_sobhi" -> {
-        candidates.add("https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/$formattedSurah.mp3")
-        candidates.add("https://cdn.mp3quran.net/audio/islam-sobhi/r1/$formattedSurah.mp3")
-        candidates.add("https://archive.org/download/010_20221110/$formattedSurah.mp3")
-        candidates.add("https://media.way2quran.com/mp3/islam-sobhi/$formattedSurah.mp3")
+        if (surahNumber in ISLAM_SOBHI_AVAILABLE_SURAHS) {
+          candidates.add("https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/$formattedSurah.mp3")
+          candidates.add("https://cdn.mp3quran.net/audio/islam-sobhi/r1/$formattedSurah.mp3")
+          candidates.add("https://media.way2quran.com/mp3/islam-sobhi/$formattedSurah.mp3")
+        }
       }
       "abdul_rehman_mossad" -> {
-        if (surah in ABDUL_RAHMAN_MASSAAD_CLEAN_SURAHS) {
+        if (surahNumber in ABDUL_RAHMAN_MASSAAD_CLEAN_SURAHS) {
           candidates.add("https://archive.org/download/AbdulrahmanMassaad/$formattedSurah.mp3")
         }
-        ABDUL_RAHMAN_MOSSAD_ARCHIVE_SURAH_FILES[surah]?.let { exactFile ->
+        ABDUL_RAHMAN_MOSSAD_ARCHIVE_SURAH_FILES[surahNumber]?.let { exactFile ->
           candidates.add("https://archive.org/download/abdulrahman-mosad/$exactFile")
         }
-        if (surah !in ABDUL_RAHMAN_MASSAAD_CLEAN_SURAHS) {
-          candidates.add("https://archive.org/download/AbdulrahmanMassaad/$formattedSurah.mp3")
+        if (candidates.isNotEmpty()) {
+          candidates.add("https://media.way2quran.com/mp3/abdul-rahman-musaad/$formattedSurah.mp3")
         }
-        candidates.add("https://server16.mp3quran.net/a_musad/Rewayat-Hafs-A-n-Assem/$formattedSurah.mp3")
-        candidates.add("https://cdn.mp3quran.net/audio/abdulrahman-mossad/r1/$formattedSurah.mp3")
-        candidates.add("https://media.way2quran.com/mp3/abdul-rahman-musaad/$formattedSurah.mp3")
       }
       else -> {
         val registeredServers = Mp3QuranTimingClient.getRegisteredServerUrlsForReciter(reciter.id)
@@ -1062,36 +1085,39 @@ class AudioPlayerManager(private val context: Context) {
       }
     }
 
-    // 2. Check MP3Quran v3 API cached/live metadata (only when the reciter's moshaf explicitly lists `surah`)
+    // Check MP3Quran v3 API cached/live metadata ONLY when the reciter's own moshaf `surahSet` contains `surahNumber`
     val mp3Info = fetchMp3QuranInfoIfNeeded(reciter.id)
-    if (mp3Info != null) {
-      if (mp3Info.availableSurahs.isEmpty() || mp3Info.availableSurahs.contains(surah)) {
-        candidates.add("${mp3Info.serverBaseUrl.trimEnd('/')}/$formattedSurah.mp3")
-      }
+    if (mp3Info != null && mp3Info.availableSurahs.contains(surahNumber)) {
+      candidates.add("${mp3Info.serverBaseUrl.trimEnd('/')}/$formattedSurah.mp3")
     }
 
-    // 3. Fallback to strict canonical-name-verified Archive.org metadata lookup (never by playlist track index)
-    when (reciter.id) {
-      "islam_sobhi" -> {
-        val archiveFile = fetchArchiveSurahFileIfNeeded("islam-sobhi_202203", surah)
-        if (archiveFile != null) {
-          candidates.add("https://archive.org/download/islam-sobhi_202203/$archiveFile")
-        }
-      }
-      "abdul_rehman_mossad" -> {
-        for (archiveId in listOf("AbdulrahmanMassaad", "abdulrahman-mosad", "AMusad")) {
-          val archiveFile = fetchArchiveSurahFileIfNeeded(archiveId, surah)
-          if (archiveFile != null) {
-            candidates.add("https://archive.org/download/$archiveId/$archiveFile")
-          }
-        }
-      }
-    }
-
-    return candidates
+    val verifiedCandidates = candidates
       .distinct()
       .filter { SecurityIntegrityGuard.isUrlTrustedAndAllowed(it) }
-      .filter { confirmUrlMatchesRequestedSurah(reciter, surah, ayah, it) }
+      .filter { confirmUrlMatchesRequestedSurah(reciter, surahNumber, ayahNumber, it) }
+
+    val rawCues = Mp3QuranTimingClient.getCachedAyatTimingsForReciter(reciter.id, surahNumber).orEmpty()
+    val validatedCues = Mp3QuranTimingClient.normalizeAndValidateCuePoints(rawCues, realAudioDurationMs = 0).orEmpty()
+
+    return ResolvedPlaybackSource(
+      reciterId = reciter.id,
+      moshafId = moshafId,
+      surahNumber = surahNumber,
+      ayahNumber = ayahNumber,
+      candidateUrls = verifiedCandidates,
+      cuePoints = validatedCues,
+      isPerAyahSource = false,
+      isAvailable = verifiedCandidates.isNotEmpty()
+    )
+  }
+
+  private fun resolveCandidateUrlsForReciter(reciter: Reciter, surah: Int, ayah: Int): List<String> {
+    return resolvePlaybackSourceAndCuePoints(
+      reciter = reciter,
+      moshafId = reciter.moshafId,
+      surahNumber = surah,
+      ayahNumber = ayah
+    ).candidateUrls
   }
 
   private fun fetchMp3QuranInfoIfNeeded(reciterId: String): Mp3QuranMoshafInfo? {
@@ -1388,9 +1414,10 @@ class AudioPlayerManager(private val context: Context) {
   }
 
   /**
-   * Resets the green verse & word highlight state when the reciter or surah changes.
+   * Resets the green verse & word highlight state and clears stale cue points when the reciter or surah changes.
    */
   fun resetHighlightState() {
+    activeCuePoints = emptyList()
     _audioState.value = _audioState.value.copy(
       ayahNumber = null,
       currentPositionMs = 0,
@@ -1408,6 +1435,7 @@ class AudioPlayerManager(private val context: Context) {
     val wasPlayingOrBuffering = previousState.isPlaying || previousState.isBuffering
 
     if (previousReciterId != reciter.id) {
+      activeCuePoints = emptyList()
       releasePlayersOnly()
       val hasBasmala = TajweedAudioSyncEngine.doesReciterReciteBasmalaInSurah(
         context = context,
@@ -1424,7 +1452,7 @@ class AudioPlayerManager(private val context: Context) {
         isRecitingBasmalaPrefix = false,
         hasBasmalaInCurrentSurahStream = hasBasmala,
         basmalaOffsetMs = 0L,
-        ayahNumber = if (wasPlayingOrBuffering) activeAyah else null,
+        ayahNumber = null,
         currentPositionMs = 0,
         durationMs = 0
       )
@@ -1939,6 +1967,14 @@ class AudioPlayerManager(private val context: Context) {
   ) {
     fallbackJob?.cancel()
     stopProgressTracking()
+    activeCuePoints = emptyList()
+    try {
+      mediaPlayer?.setOnPreparedListener(null)
+      mediaPlayer?.setOnCompletionListener(null)
+      mediaPlayer?.setOnErrorListener(null)
+      mediaPlayer?.reset()
+    } catch (_: Exception) {
+    }
     try {
       mediaPlayer?.release()
     } catch (_: Exception) {
@@ -1952,7 +1988,7 @@ class AudioPlayerManager(private val context: Context) {
       isPlaying = false,
       isAudioUnavailable = true,
       surahNumber = surah,
-      ayahNumber = ayah,
+      ayahNumber = null,
       surahName = surahName,
       currentPositionMs = 0,
       durationMs = 0,
@@ -2038,15 +2074,21 @@ class AudioPlayerManager(private val context: Context) {
     autoDismissJob = null
     stopProgressTracking()
     releaseNextMediaPlayerOnly()
-    try {
-      mediaPlayer?.stop()
-    } catch (_: Exception) {
-    }
-    try {
-      mediaPlayer?.release()
-    } catch (_: Exception) {
-    }
+    val mp = mediaPlayer
     mediaPlayer = null
+    if (mp != null) {
+      try {
+        mp.setOnPreparedListener(null)
+        mp.setOnCompletionListener(null)
+        mp.setOnErrorListener(null)
+        mp.reset()
+      } catch (_: Exception) {
+      }
+      try {
+        mp.release()
+      } catch (_: Exception) {
+      }
+    }
 
     try {
       offlineAudioTrack?.stop()
@@ -2162,10 +2204,15 @@ class AudioPlayerManager(private val context: Context) {
     progressJob = null
   }
 
-  private fun getCachedAudioFile(reciterId: String, surah: Int, ayah: Int): File {
-    val dir = File(context.filesDir, "audio_cache_v2/$reciterId")
+  private fun getCachedAudioFile(
+    reciterId: String,
+    surah: Int,
+    ayah: Int,
+    moshafId: Int = Mp3QuranTimingClient.resolveReadIdForReciter(reciterId) ?: 1
+  ): File {
+    val dir = File(context.filesDir, "audio_cache_v3/${reciterId}_m${moshafId}")
     if (!dir.exists()) dir.mkdirs()
-    val name = if (surah > 0 && ayah > 0) "${surah}_${ayah}.mp3" else "${surah}.mp3"
+    val name = if (surah > 0 && ayah > 0) "s${surah}_a${ayah}.mp3" else "s${surah}.mp3"
     return File(dir, name)
   }
 

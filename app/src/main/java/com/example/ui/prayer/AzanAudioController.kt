@@ -487,15 +487,24 @@ object AzanAudioController {
   }
 
   private fun releaseCurrentPlayerAndFd() {
-    try {
-      mediaPlayer?.stop()
-    } catch (_: Exception) {
-    }
-    try {
-      mediaPlayer?.release()
-    } catch (_: Exception) {
-    }
+    val player = mediaPlayer
     mediaPlayer = null
+    if (player != null) {
+      try {
+        player.setOnPreparedListener(null)
+        player.setOnCompletionListener(null)
+        player.setOnErrorListener(null)
+      } catch (_: Exception) {
+      }
+      try {
+        player.reset()
+      } catch (_: Exception) {
+      }
+      try {
+        player.release()
+      } catch (_: Exception) {
+      }
+    }
 
     try {
       activeAssetFd?.close()

@@ -1,0 +1,98 @@
+name: Bayan Al-Huda iOS CI & IPA Build
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-test-and-package-ipa:
+    name: Build, Test & Package IPA (macOS 14 / Xcode 15.2)
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout Bayan-Al-Huda-iOS Repository
+        uses: actions/checkout@v4
+
+      - name: Checkout Primary Android Repository for Asset Sync Verification
+        uses: actions/checkout@v4
+        with:
+          repository: zulqarnain7861/Bayan-ul-huda-quran-o-hadees
+          path: android-upstream
+          continue-on-error: true
+
+      - name: Sync & Verify Byte-for-Byte Shared Assets from Primary Android Repo
+        run: |
+          if [ -d "android-upstream/app/src/main/assets" ]; then
+            chmod +x tools/sync_shared_assets_from_android.sh
+            ./tools/sync_shared_assets_from_android.sh android-upstream
+          fi
+          test -f BayanAlHuda/Resources/noorani_qaida.pdf
+          test -f BayanAlHuda/Resources/noorani_qaida_text.json
+          test -f BayanAlHuda/Resources/Fonts/Amiri-Regular.ttf
+          test -f BayanAlHuda/Resources/Fonts/ScheherazadeNew-Regular.ttf
+          PDF_SIZE=$(wc -c < BayanAlHuda/Resources/noorani_qaida.pdf | tr -d ' ')
+          echo "Verified noorani_qaida.pdf size: ${PDF_SIZE} bytes"
+          if [ "$PDF_SIZE" -gt 5242880 ]; then
+            echo "Error: noorani_qaida.pdf exceeds 5 MB limit"
+            exit 1
+          fi
+
+      - name: Select Xcode 15.2
+        run: sudo xcode-select -s /Applications/Xcode_15.2.app/Contents/Developer
+
+      - name: Install XcodeGen
+        run: |
+          if ! command -v xcodegen &> /dev/null; then
+            brew install xcodegen
+          fi
+          xcodegen generate
+
+      - name: Run Unit & Parity Tests on iOS Simulator
+        run: |
+          DESTINATION=$(xcrun simctl list devices available | grep -E "iPhone 15|iPhone 14" | head -n 1 | sed -E 's/.*\(([0-9A-F-]+)\).*/id=\1/')
+          echo "Using Simulator Destination: ${DESTINATION}"
+          xcodebuild test \
+            -project BayanAlHuda.xcodeproj \
+            -scheme BayanAlHuda \
+            -destination "${DESTINATION}" \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO
+
+      - name: Build Generic iOS Archive & Package Installable .ipa
+        run: |
+          xcodebuild archive \
+            -project BayanAlHuda.xcodeproj \
+            -scheme BayanAlHuda \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/BayanAlHuda.xcarchive" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+          mkdir -p "$RUNNER_TEMP/ipa_stage/Payload"
+          cp -R "$RUNNER_TEMP/BayanAlHuda.xcarchive/Products/Applications/BayanAlHuda.app" "$RUNNER_TEMP/ipa_stage/Payload/"
+          cd "$RUNNER_TEMP/ipa_stage"
+          zip -qry "$GITHUB_WORKSPACE/BayanAlHuda-v1.0.2-ios.ipa" Payload
+          ls -lh "$GITHUB_WORKSPACE/BayanAlHuda-v1.0.2-ios.ipa"
+
+      - name: Upload .ipa Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BayanAlHuda-v1.0.2-ios-ipa
+          path: BayanAlHuda-v1.0.2-ios.ipa
+          retention-days: 30
+
+      - name: Attach .ipa to GitHub Release (on Tag Push)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: BayanAlHuda-v1.0.2-ios.ipa
+          generate_release_notes: true

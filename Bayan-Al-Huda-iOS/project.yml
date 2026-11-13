@@ -1,0 +1,70 @@
+name: BayanAlHuda
+options:
+  bundleIdPrefix: com.bayanulhuda
+  deploymentTarget:
+    iOS: "15.0"
+  xcodeVersion: "15.2"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    MARKETING_VERSION: "1.0.2"
+    CURRENT_PROJECT_VERSION: "8"
+    SWIFT_VERSION: "5.9"
+    IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+    TARGETED_DEVICE_FAMILY: "1,2" # 1 = iPhone, 2 = iPad
+
+targets:
+  BayanAlHuda:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: BayanAlHuda
+        excludes:
+          - "Resources/**"
+      - path: BayanAlHuda/Resources
+        buildPhase: resources
+    info:
+      path: BayanAlHuda/Info.plist
+      properties:
+        CFBundleDisplayName: "Bayan Al-Huda"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        UILaunchScreen:
+          UIColorName: "AccentColor"
+        UIAppFonts:
+          - "Amiri-Regular.ttf"
+          - "ScheherazadeNew-Regular.ttf"
+        UIBackgroundModes:
+          - "audio"
+        UISupportedInterfaceOrientations:
+          - "UIInterfaceOrientationPortrait"
+          - "UIInterfaceOrientationLandscapeLeft"
+          - "UIInterfaceOrientationLandscapeRight"
+        UISupportedInterfaceOrientations~ipad:
+          - "UIInterfaceOrientationPortrait"
+          - "UIInterfaceOrientationPortraitUpsideDown"
+          - "UIInterfaceOrientationLandscapeLeft"
+          - "UIInterfaceOrientationLandscapeRight"
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bayanulhuda.ios
+        INFOPLIST_FILE: BayanAlHuda/Info.plist
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_PREVIEWS: YES
+
+  BayanAlHudaTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: BayanAlHudaTests
+    dependencies:
+      - target: BayanAlHuda
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bayanulhuda.ios.tests
+        GENERATE_INFOPLIST_FILE: YES

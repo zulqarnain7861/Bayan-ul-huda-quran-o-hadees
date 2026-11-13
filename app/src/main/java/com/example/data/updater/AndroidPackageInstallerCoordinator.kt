@@ -140,33 +140,82 @@ object AndroidPackageInstallerCoordinator {
   }
 
   /**
-   * Launches the verified official update URL via standard `Intent.ACTION_VIEW` so the user's
-   * system browser / Android Download Manager handles the verified update package safely without
-   * triggering Google Play Protect dropper/session heuristics.
+   * Launches the Android system Package Installer directly on the local verified `apkFile`
+   * via `FileProvider` (`content://.../apk_updates/...`) or `PackageInstaller.Session`.
+   * Strictly NEVER redirects the user to an external browser URL.
    */
   fun launchPackageInstallerSession(
     context: Context,
     apkFile: File,
     release: GitHubReleaseInfo
   ): InstallLaunchResult {
-    if (!apkFile.exists()) {
+    if (!apkFile.exists() || apkFile.length() <= 0L) {
       return InstallLaunchResult.RejectedBySecurity("Verified update package is missing.")
     }
-    val targetUrl = release.apkAsset.browserDownloadUrl.takeIf { it.startsWith("https://") }
-      ?: release.htmlUrl.takeIf { it.startsWith("https://") }
-      ?: AppUpdaterConstants.GITHUB_RELEASES_WEB_URL
-    return try {
-      val viewIntent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)).apply {
+
+    // 1. Primary path: launch Android's system Package Installer on the local verified APK via FileProvider
+    val fileProviderLaunched = runCatching {
+      val contentUri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        apkFile
+      )
+      val installIntent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(contentUri, "application/vnd.android.package-archive")
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
       }
-      context.startActivity(viewIntent)
-      InstallLaunchResult.ConfirmationLaunched(
+      context.startActivity(installIntent)
+      true
+    }.getOrDefault(false)
+
+    if (fileProviderLaunched) {
+      return InstallLaunchResult.ConfirmationLaunched(
         sessionId = null,
-        message = "Opened verified update v${release.versionName} for installation."
+        message = "Launched Android Package Installer for verified update v${release.versionName}."
+      )
+    }
+
+    // 2. Fallback path: stream the local verified APK into an Android PackageInstaller.Session
+    return try {
+      val packageInstaller = context.packageManager.packageInstaller
+      val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+        setAppPackageName(AppUpdaterConstants.EXPECTED_APPLICATION_ID)
+      }
+      val sessionId = packageInstaller.createSession(params)
+      packageInstaller.openSession(sessionId).use { session ->
+        FileInputStream(apkFile).use { input ->
+          session.openWrite("bayan_update_${release.versionCode}.apk", 0, apkFile.length()).use { output ->
+            input.copyTo(output)
+            session.fsync(output)
+          }
+        }
+        val callbackIntent = Intent(context, ApkInstallStatusReceiver::class.java).apply {
+          action = AppUpdaterConstants.INSTALL_STATUS_ACTION
+          setPackage(context.packageName)
+          putExtra("target_version_name", release.versionName)
+          putExtra("target_version_code", release.versionCode)
+        }
+        val pendingFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+          PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+        } else {
+          PendingIntent.FLAG_UPDATE_CURRENT
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+          context,
+          sessionId,
+          callbackIntent,
+          pendingFlags
+        )
+        session.commit(pendingIntent.intentSender)
+      }
+      InstallLaunchResult.ConfirmationLaunched(
+        sessionId = sessionId,
+        message = "Launched Android Package Installer session for verified update v${release.versionName}."
       )
     } catch (e: Exception) {
       InstallLaunchResult.RejectedBySecurity(
-        "Could not open verified update link: ${e.message ?: "No browser available"}"
+        "Could not launch Android Package Installer for local APK: ${e.message ?: "Installer unavailable"}"
       )
     }
   }

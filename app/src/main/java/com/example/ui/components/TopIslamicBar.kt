@@ -69,6 +69,7 @@ fun TopIslamicBar(
   onOpenVideoLibraryClick: () -> Unit = {},
   onOpenLibraryTabClick: (Int) -> Unit = {},
   onOpenLearnIslamClick: () -> Unit = {},
+  onOpenNooraniQaidaPdfClick: () -> Unit = {},
   onOpenSehriIftarClick: () -> Unit = {},
   onOpenQiblaClick: () -> Unit = {},
   onOpenDownloadsClick: () -> Unit = {},
@@ -296,6 +297,12 @@ fun TopIslamicBar(
           isHighlighted = false,
           testTag = "top_quick_drive_updates_btn",
           onClick = { openAppUpdatesDriveFolder(context) }
+        )
+        QuickFeaturePill(
+          label = "📖 Noorani Qaida (53 HD Pages)",
+          isHighlighted = true,
+          testTag = "top_quick_noorani_qaida_pdf_btn",
+          onClick = onOpenNooraniQaidaPdfClick
         )
         QuickFeaturePill(
           label = "🎓 Learn Islam & Qaida",

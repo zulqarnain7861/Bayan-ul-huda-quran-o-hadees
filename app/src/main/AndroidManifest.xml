@@ -82,6 +82,13 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ui.qaida.NooraniQaidaReaderActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:label="Noorani Qaida • نورانی قاعدہ"
+            android:theme="@style/Theme.MyApplication" />
+
         <receiver
             android:name=".ui.prayer.PrayerAlarmReceiver"
             android:enabled="true"

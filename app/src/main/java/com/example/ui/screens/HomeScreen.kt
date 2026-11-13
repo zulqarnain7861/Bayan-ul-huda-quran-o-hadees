@@ -134,6 +134,7 @@ fun HomeScreen(
   onNavigateToDailyDuas: () -> Unit = {},
   onNavigateToSehriIftar: () -> Unit = {},
   onNavigateToLearnIslam: () -> Unit = {},
+  onNavigateToNooraniQaidaPdf: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   val context = LocalContext.current
@@ -242,6 +243,25 @@ fun HomeScreen(
             Text(
               text = "Start Learning — Noorani Qaida & Quran",
               style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold)
+            )
+          }
+          Spacer(modifier = Modifier.height(8.dp))
+          OutlinedButton(
+            onClick = onNavigateToNooraniQaidaPdf,
+            shape = RoundedCornerShape(10.dp),
+            border = androidx.compose.foundation.BorderStroke(1.5.dp, GoldPrimary),
+            colors = ButtonDefaults.outlinedButtonColors(
+              contentColor = GoldPrimary
+            ),
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("home_open_noorani_qaida_pdf_btn")
+          ) {
+            Icon(Icons.Default.AutoStories, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+              text = "Open HD Noorani Qaida Book (53 Pages PDF + MCQ Tests)",
+              style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
             )
           }
         }

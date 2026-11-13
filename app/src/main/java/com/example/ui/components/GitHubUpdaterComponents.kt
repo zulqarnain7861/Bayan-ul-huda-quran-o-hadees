@@ -1012,9 +1012,7 @@ fun InAppUpdateAlertDialog(
 
   AlertDialog(
     onDismissRequest = {
-      if (!isCritical) {
-        onDismissDialog()
-      }
+      onDismissDialog()
     },
     modifier = Modifier.testTag("in_app_update_dialog"),
     title = {

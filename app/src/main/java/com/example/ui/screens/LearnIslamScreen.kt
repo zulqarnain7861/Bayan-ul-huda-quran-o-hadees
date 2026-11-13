@@ -67,7 +67,8 @@ fun LearnIslamScreen(
     duaAudioController: DuaAudioController,
     initialTab: LearnIslamTab = LearnIslamTab.NOORANI_QAIDA,
     onBack: () -> Unit = {},
-    onOpenQuranSurah: (Int, Int) -> Unit = { _, _ -> }
+    onOpenQuranSurah: (Int, Int) -> Unit = { _, _ -> },
+    onOpenNooraniQaidaPdfBook: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val prefs = remember {
@@ -236,7 +237,8 @@ fun LearnIslamScreen(
                                 urduText = item.makhrajOrRuleUrdu,
                                 quranSurahAyah = item.quranSurahAyah
                             )
-                        }
+                        },
+                        onOpenNooraniQaidaPdfBook = onOpenNooraniQaidaPdfBook
                     )
                 }
 
@@ -454,12 +456,15 @@ private fun NooraniQaidaSectionContent(
     onToggleBookmark: (String) -> Unit,
     onToggleShowBookmarkedOnly: () -> Unit,
     onPlayFullLesson: (NooraniQaidaLesson) -> Unit,
-    onPlayItem: (QaidaPracticeItem) -> Unit
+    onPlayItem: (QaidaPracticeItem) -> Unit,
+    onOpenNooraniQaidaPdfBook: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val currentLesson = lessons.getOrElse(selectedLessonIndex) { lessons.first() }
     val isLessonCompleted = completedLessons.contains(currentLesson.id)
     val selectedQuizAnswers = remember(currentLesson.id) { mutableStateMapOf<String, Int>() }
     val itemSelfCheckFeedback = remember(currentLesson.id) { mutableStateMapOf<String, Boolean>() }
+    val lastReadPdfPage = remember { com.example.ui.qaida.NooraniQaidaPrefs.getSavedLastReadPage(context) }
 
     LazyColumn(
         modifier = Modifier
@@ -468,6 +473,101 @@ private fun NooraniQaidaSectionContent(
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        // Native HD 53-Page Noorani Qaida PDF Reader & MCQ Exercise Test Banner
+        item {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0A4D3C)),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFD4AF37)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("learn_islam_open_hd_qaida_pdf_card")
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "مُكَمَّل نُورَانِی قَاعِدَہ (۵۳ صفحات • ۲۸ تختیاں)",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontFamily = AmiriQuranFont,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFD4AF37),
+                                    fontSize = 18.sp
+                                )
+                            )
+                            Text(
+                                text = "Complete 53-Page HD Noorani Qaida Book + Basic/Intermediate/Hard MCQ Tests",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFD4AF37).copy(alpha = 0.22f)
+                        ) {
+                            Text(
+                                text = "Resume Pg $lastReadPdfPage/53",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = Color(0xFFD4AF37),
+                                    fontWeight = FontWeight.ExtraBold
+                                ),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = onOpenNooraniQaidaPdfBook,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFD4AF37),
+                                contentColor = Color(0xFF073B2E)
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("learn_islam_open_hd_qaida_pdf_btn")
+                        ) {
+                            Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Open HD Qaida Book (53 Pages)",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                context.startActivity(
+                                    com.example.ui.qaida.NooraniQaidaReaderActivity.createIntent(context, lastReadPdfPage)
+                                )
+                            },
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD4AF37)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.testTag("learn_islam_launch_qaida_activity_btn")
+                        ) {
+                            Text("Full Screen", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
         // Progress & Lesson Selector Header
         item {
             Card(

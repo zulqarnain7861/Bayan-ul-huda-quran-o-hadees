@@ -304,9 +304,6 @@ object GitHubReleaseClient {
     val effectiveNotes = signedManifest?.releaseNotes?.ifBlank { bodyNotes } ?: bodyNotes.ifBlank {
       "Stable release $effectiveVersionName"
     }
-    val effectiveForceUpdate = signedManifest?.forceUpdate
-      ?: bodyNotes.contains("[CRITICAL_UPDATE]", ignoreCase = true)
-
     return GitHubReleaseInfo(
       tagName = tagName,
       versionName = effectiveVersionName,
@@ -322,7 +319,7 @@ object GitHubReleaseClient {
       checksumAsset = checksumAsset,
       signedManifest = signedManifest,
       htmlUrl = if (isTrustedGitHubReleaseUrl(htmlUrl)) htmlUrl else AppUpdaterConstants.GITHUB_RELEASES_WEB_URL,
-      forceUpdate = effectiveForceUpdate
+      forceUpdate = false
     )
   }
 

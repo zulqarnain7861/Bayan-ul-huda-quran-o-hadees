@@ -714,12 +714,10 @@ object TafsirRepository {
       h.linkedQuranVerses.split(",").map { it.trim() }.any {
         it == refKey || it.startsWith("${ayah.surahNumber}:")
       }
+    }.sortedByDescending { h ->
+      h.linkedQuranVerses.split(",").map { it.trim() }.any { it == refKey }
     }
-    val linkedHadiths = if (directHadiths.isNotEmpty()) {
-      directHadiths
-    } else {
-      traditionFilteredHadiths.take(3)
-    }
+    val linkedHadiths = directHadiths
 
     val relatedVerses = getRelatedVerses(ayah.surahNumber, ayah.verseNumber)
     val revelationContext =

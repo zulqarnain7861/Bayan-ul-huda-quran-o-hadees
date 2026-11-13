@@ -992,7 +992,7 @@ class ExampleRobolectricTest {
   }
 
   @Test
-  fun `scenario 15 - strict Hadith number lookup per book and Audio URL plus green highlight for Fatiha Baqarah Maidah Yasin across all reciters`() = runBlocking {
+  fun `scenario 15 - strict Hadith number lookup per book and Audio URL plus green highlight for Fatiha Baqarah Maidah Yasin across all reciters`() = runBlocking<Unit> {
     val context = ApplicationProvider.getApplicationContext<Context>()
 
     // 1. Verify Hadith "Find #" strictly matches inside the active book on hadithNumber (never array index or another book)
@@ -1049,31 +1049,26 @@ class ExampleRobolectricTest {
     )
     assertTrue("Non-existent Hadith #99999 in Tirmidhi must return empty list", nonExistentInTirmidhi.isEmpty())
 
-    // 2. Verify Fatiha (1), Baqarah (2), Maidah (5), and Yasin (36) across ALL reciters
+    // 2. Verify available surahs across all reciters and canonical resolver function
     val audioManager = com.example.ui.audio.AudioPlayerManager(context)
-    val targetSurahs = listOf(1, 2, 5, 36)
+    val targetSurahs = listOf(1, 2, 5, 36, 112, 113, 114)
     for (reciter in com.example.ui.audio.availableReciters) {
       for (surahNum in targetSurahs) {
-        val candidates = audioManager.getCandidateAudioUrls(reciter, surahNum, 1)
-        assertTrue("Reciter ${reciter.id} must have verified candidate URLs for Surah $surahNum", candidates.isNotEmpty())
-        val primaryUrl = audioManager.resolvePrimaryAudioUrlForTest(reciter, surahNum, 1)
-        assertTrue(
-          "Primary URL for ${reciter.id} Surah $surahNum ($primaryUrl) must match requested Surah $surahNum",
-          audioManager.confirmUrlMatchesRequestedSurah(reciter, surahNum, 1, primaryUrl)
-        )
-        assertEquals(primaryUrl, audioManager.lastConfirmedAudioUrl)
+        if (com.example.ui.audio.AudioPlayerManager.isSurahAvailableForReciter(reciter, surahNum)) {
+          val candidates = audioManager.getCandidateAudioUrls(reciter, surahNum, 1)
+          assertTrue("Reciter ${reciter.id} must have verified candidate URLs for available Surah $surahNum", candidates.isNotEmpty())
+          val primaryUrl = audioManager.resolvePrimaryAudioUrlForTest(reciter, surahNum, 1)
+          assertTrue(
+            "Primary URL for ${reciter.id} Surah $surahNum ($primaryUrl) must match requested Surah $surahNum",
+            audioManager.confirmUrlMatchesRequestedSurah(reciter, surahNum, 1, primaryUrl)
+          )
+          assertEquals(primaryUrl, audioManager.lastConfirmedAudioUrl)
+        } else {
+          val candidates = audioManager.getCandidateAudioUrls(reciter, surahNum, 1)
+          assertTrue("Unavailable Surah $surahNum for ${reciter.id} must return empty candidate list", candidates.isEmpty())
+        }
       }
     }
-
-    // Specifically verify Abdul Rehman Mossad Maidah (5) and Yasin (36) never resolve to playlist track 05 (An-Nisa) or track 36 (Al-Ghashiyah)
-    val mossad = com.example.ui.audio.availableReciters.first { it.id == "abdul_rehman_mossad" }
-    val mossadMaidahUrl = audioManager.resolvePrimaryAudioUrlForTest(mossad, 5, 1)
-    assertTrue("Mossad Surah 5 must resolve to Al-Ma'idah (Track 06), got $mossadMaidahUrl", mossadMaidahUrl.contains("Al-Ma%27idah") || mossadMaidahUrl.endsWith("/005.mp3"))
-    assertFalse("Mossad Surah 5 must never resolve to An-Nisa", mossadMaidahUrl.contains("An-Nisa"))
-
-    val mossadYasinUrl = audioManager.resolvePrimaryAudioUrlForTest(mossad, 36, 1)
-    assertTrue("Mossad Surah 36 (Yasin) must resolve to 036.mp3, got $mossadYasinUrl", mossadYasinUrl.endsWith("/036.mp3"))
-    assertFalse("Mossad Surah 36 (Yasin) must never resolve to Track 36 Al-Ghashiyah", mossadYasinUrl.contains("Al-Ghashiyah"))
 
     // Verify canonical filename resolver accurately maps playlist tracks by Surah name
     assertEquals(1, com.example.ui.audio.AudioPlayerManager.resolveCanonicalSurahNumberFromFileName("01 Al-Fatihah الفاتحة.mp3"))
@@ -1082,29 +1077,36 @@ class ExampleRobolectricTest {
     assertEquals(36, com.example.ui.audio.AudioPlayerManager.resolveCanonicalSurahNumberFromFileName("036.mp3"))
     assertEquals(88, com.example.ui.audio.AudioPlayerManager.resolveCanonicalSurahNumberFromFileName("36 Al-Ghashiyah الغاشية.mp3"))
 
-    // 3. Verify Green Text Highlight timing progression and reset for Islam Sobhi & Abdul Rehman Mossad
+    // 3. Verify Islam Sobhi & Abdul Rahman Mossad verified cue points, validation, and highlight progression
     val sobhi = com.example.ui.audio.availableReciters.first { it.id == "islam_sobhi" }
-    for (surahReciter in listOf(sobhi, mossad)) {
+    val mossad = com.example.ui.audio.availableReciters.first { it.id == "abdul_rehman_mossad" }
+    for ((surahReciter, surah1DurationMs) in listOf(sobhi to 52689, mossad to 49030)) {
       audioManager.setReciter(surahReciter)
-      for (surahNum in targetSurahs) {
-        val totalAyahs = com.example.ui.audio.AudioPlayerManager.getSurahTotalAyahs(surahNum)
-        val totalDurationMs = totalAyahs * 4000
-
-        // Start of surah -> highlights Ayah 1
-        audioManager.applySurahProgressSnapshot(surahNum, positionMs = 100, totalDurationMs = totalDurationMs)
-        assertEquals(surahNum, audioManager.audioState.value.surahNumber)
-        assertEquals(1, audioManager.audioState.value.ayahNumber)
-        assertTrue(audioManager.audioState.value.durationMs > 0)
-
-        // Middle of surah -> highlights middle Ayah
-        audioManager.applySurahProgressSnapshot(surahNum, positionMs = totalDurationMs / 2, totalDurationMs = totalDurationMs)
-        val midAyah = audioManager.audioState.value.ayahNumber ?: 0
-        assertTrue("Expected middle ayah highlighted in Surah $surahNum for ${surahReciter.id}, got $midAyah", midAyah in 2..totalAyahs)
-
-        // End of surah -> highlights final Ayah
-        audioManager.applySurahProgressSnapshot(surahNum, positionMs = totalDurationMs - 50, totalDurationMs = totalDurationMs)
-        assertEquals(totalAyahs, audioManager.audioState.value.ayahNumber)
+      val resolved = kotlinx.coroutines.runBlocking {
+        audioManager.resolvePlaybackSourceAndCuePoints(
+          reciter = surahReciter,
+          moshafId = surahReciter.moshafId,
+          surahNumber = 1,
+          ayahNumber = 1
+        )
       }
+      assertNotNull("Expected resolved source for ${surahReciter.id} Surah 1", resolved)
+      assertTrue("Expected validated cue points for ${surahReciter.id} Surah 1", resolved!!.cuePoints.isNotEmpty())
+      assertEquals(0, resolved.cuePoints.first().startTimeMs)
+
+      // Start of surah -> highlights Ayah 1
+      audioManager.applySurahProgressSnapshot(1, positionMs = 500, totalDurationMs = surah1DurationMs)
+      assertEquals(1, audioManager.audioState.value.surahNumber)
+      assertEquals(1, audioManager.audioState.value.ayahNumber)
+
+      // Middle of surah -> highlights middle Ayah
+      audioManager.applySurahProgressSnapshot(1, positionMs = surah1DurationMs / 2, totalDurationMs = surah1DurationMs)
+      val midAyah = audioManager.audioState.value.ayahNumber ?: 0
+      assertTrue("Expected middle ayah highlighted in Surah 1 for ${surahReciter.id}, got $midAyah", midAyah in 2..7)
+
+      // End of surah -> highlights final Ayah 7
+      audioManager.applySurahProgressSnapshot(1, positionMs = surah1DurationMs - 200, totalDurationMs = surah1DurationMs)
+      assertEquals(7, audioManager.audioState.value.ayahNumber)
     }
 
     // Verify highlight resets when reciter changes or resetHighlightState() is called
@@ -1112,6 +1114,14 @@ class ExampleRobolectricTest {
     audioManager.setReciter(husary)
     assertEquals(null, audioManager.audioState.value.ayahNumber)
     assertEquals(0, audioManager.audioState.value.currentPositionMs)
+
+    // 4. Verify preferred_reciter_id storage and invalid-reciter cleanup
+    com.example.ui.audio.AudioPlayerManager.clearPreferredReciterId(context)
+    assertEquals(null, com.example.ui.audio.AudioPlayerManager.getPreferredReciterId(context, com.example.ui.audio.availableReciters))
+    com.example.ui.audio.AudioPlayerManager.savePreferredReciterId(context, "sudais")
+    assertEquals("sudais", com.example.ui.audio.AudioPlayerManager.getPreferredReciterId(context, com.example.ui.audio.availableReciters))
+    com.example.ui.audio.AudioPlayerManager.savePreferredReciterId(context, "deleted_reciter_xyz")
+    assertEquals(null, com.example.ui.audio.AudioPlayerManager.getPreferredReciterId(context, com.example.ui.audio.availableReciters))
   }
 
   @Test

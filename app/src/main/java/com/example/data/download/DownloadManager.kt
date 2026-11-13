@@ -108,28 +108,43 @@ class DownloadManager(
     return dir
   }
 
-  fun getAudioFileForAyah(reciterId: String, surahNumber: Int, ayahNumber: Int): File {
+  fun getAudioFileForAyah(
+    reciterId: String,
+    surahNumber: Int,
+    ayahNumber: Int,
+    moshafId: Int = com.example.ui.audio.Mp3QuranTimingClient.resolveReadIdForReciter(reciterId) ?: 1
+  ): File {
     val s = surahNumber.toString().padStart(3, '0')
     val a = ayahNumber.toString().padStart(3, '0')
-    return File(getOfflineRootDir(), "audio/ayah/$reciterId/$s$a.mp3")
+    return File(getOfflineRootDir(), "audio/ayah/${reciterId}_m${moshafId}/$s$a.mp3")
   }
 
-  fun getAudioFileForSurahChapter(reciterId: String, surahNumber: Int): File {
+  fun getAudioFileForSurahChapter(
+    reciterId: String,
+    surahNumber: Int,
+    moshafId: Int = com.example.ui.audio.Mp3QuranTimingClient.resolveReadIdForReciter(reciterId) ?: 1
+  ): File {
     val s = surahNumber.toString().padStart(3, '0')
-    return File(getOfflineRootDir(), "audio/chapter/$reciterId/$s.mp3")
+    return File(getOfflineRootDir(), "audio/chapter/${reciterId}_m${moshafId}/$s.mp3")
   }
 
   /**
-   * Checks whether an offline audio file (ayah-level or chapter-level) is verified and ready on disk.
+   * Checks whether an offline audio file (ayah-level or chapter-level) is verified and ready on disk
+   * for the exact `(reciterId, moshafId, surahNumber)` combination.
    */
-  fun findVerifiedOfflineAudioFile(reciterId: String, surahNumber: Int, ayahNumber: Int? = null): File? {
+  fun findVerifiedOfflineAudioFile(
+    reciterId: String,
+    surahNumber: Int,
+    ayahNumber: Int? = null,
+    moshafId: Int = com.example.ui.audio.Mp3QuranTimingClient.resolveReadIdForReciter(reciterId) ?: 1
+  ): File? {
     if (ayahNumber != null) {
-      val ayahFile = getAudioFileForAyah(reciterId, surahNumber, ayahNumber)
+      val ayahFile = getAudioFileForAyah(reciterId, surahNumber, ayahNumber, moshafId)
       if (ayahFile.exists() && ayahFile.length() >= 128L && isValidMp3Payload(ayahFile.readBytes())) {
         return ayahFile
       }
     }
-    val chapterFile = getAudioFileForSurahChapter(reciterId, surahNumber)
+    val chapterFile = getAudioFileForSurahChapter(reciterId, surahNumber, moshafId)
     if (chapterFile.exists() && chapterFile.length() >= 128L && isValidMp3Payload(chapterFile.readBytes())) {
       return chapterFile
     }
@@ -815,17 +830,18 @@ class DownloadManager(
     val items = ArrayList<DownloadItemEntity>()
     val all114Meta = InitialDataLoader.getAll114Surahs().associateBy { it.number }
 
+    val moshafId = com.example.ui.audio.Mp3QuranTimingClient.resolveReadIdForReciter(request.reciter.id) ?: 1
     if (request.mode == AudioDownloadScopeMode.FULL_CHAPTER_AUDIO) {
       for (sNum in targetSurahs) {
         val sPadded = sNum.toString().padStart(3, '0')
         val surahName = all114Meta[sNum]?.nameEnglish ?: "Surah $sNum"
-        val localFile = getAudioFileForSurahChapter(request.reciter.id, sNum)
+        val localFile = getAudioFileForSurahChapter(request.reciter.id, sNum, moshafId)
         localFile.parentFile?.mkdirs()
         items.add(
           DownloadItemEntity(
-            itemId = "$pkgId::audio:chapter:${request.reciter.id}:$sPadded",
+            itemId = "$pkgId::audio:chapter:${request.reciter.id}:m$moshafId:$sPadded",
             packageId = pkgId,
-            resourceIdentifier = "audio:chapter:${request.reciter.chapterReciterId}:$sPadded",
+            resourceIdentifier = "audio:chapter:${request.reciter.chapterReciterId}:m$moshafId:$sPadded",
             title = "$surahName ($sPadded) • Chapter Audio (${request.reciter.displayName})",
             sourceUrl = "${request.reciter.chapterAudioBaseUrl}/$sPadded.mp3",
             localFilePath = localFile.absolutePath,
@@ -841,13 +857,13 @@ class DownloadManager(
         val sPadded = r.surahNumber.toString().padStart(3, '0')
         for (aNum in r.startAyah..r.endAyah) {
           val aPadded = aNum.toString().padStart(3, '0')
-          val localFile = getAudioFileForAyah(request.reciter.id, r.surahNumber, aNum)
+          val localFile = getAudioFileForAyah(request.reciter.id, r.surahNumber, aNum, moshafId)
           localFile.parentFile?.mkdirs()
           items.add(
             DownloadItemEntity(
-              itemId = "$pkgId::audio:ayah:${request.reciter.id}:$sPadded$aPadded",
+              itemId = "$pkgId::audio:ayah:${request.reciter.id}:m$moshafId:$sPadded$aPadded",
               packageId = pkgId,
-              resourceIdentifier = "audio:ayah:${request.reciter.ayahReciterId}:$sPadded$aPadded",
+              resourceIdentifier = "audio:ayah:${request.reciter.ayahReciterId}:m$moshafId:$sPadded$aPadded",
               title = "Surah ${r.surahNumber}:${aNum} • Ayah Audio (${request.reciter.displayName})",
               sourceUrl = "https://everyayah.com/data/${request.reciter.ayahAudioSubfolder}/$sPadded$aPadded.mp3",
               localFilePath = localFile.absolutePath,
@@ -866,13 +882,13 @@ class DownloadManager(
           )
           for (aNum in 1..verseCount) {
             val aPadded = aNum.toString().padStart(3, '0')
-            val localFile = getAudioFileForAyah(request.reciter.id, sNum, aNum)
+            val localFile = getAudioFileForAyah(request.reciter.id, sNum, aNum, moshafId)
             localFile.parentFile?.mkdirs()
             items.add(
               DownloadItemEntity(
-                itemId = "$pkgId::audio:ayah:${request.reciter.id}:$sPadded$aPadded",
+                itemId = "$pkgId::audio:ayah:${request.reciter.id}:m$moshafId:$sPadded$aPadded",
                 packageId = pkgId,
-                resourceIdentifier = "audio:ayah:${request.reciter.ayahReciterId}:$sPadded$aPadded",
+                resourceIdentifier = "audio:ayah:${request.reciter.ayahReciterId}:m$moshafId:$sPadded$aPadded",
                 title = "Surah $sNum:$aNum • Ayah Audio (${request.reciter.displayName})",
                 sourceUrl = "https://everyayah.com/data/${request.reciter.ayahAudioSubfolder}/$sPadded$aPadded.mp3",
                 localFilePath = localFile.absolutePath,
@@ -905,7 +921,7 @@ class DownloadManager(
       packageId = pkgId,
       title = "${request.reciter.displayName} (${request.mode.label})",
       category = category,
-      scopeDescription = "$scopeLabel • Reciter ID: $reciterDistinctId",
+      scopeDescription = "$scopeLabel • Reciter ID: $reciterDistinctId (Moshaf #$moshafId)",
       provider = "EveryAyah.com / QuranicAudio.com",
       licenceId = "everyayah_audio",
       licenceSummary = "Personal Offline Recitation Playback • Verified Endpoint",
@@ -919,7 +935,7 @@ class DownloadManager(
       failedItems = 0,
       totalBytes = estimateAudioSelectionSizeBytes(request),
       downloadedBytes = 0L,
-      destinationPath = File(getOfflineRootDir(), "audio/$modeSlug/${request.reciter.id}").absolutePath
+      destinationPath = File(getOfflineRootDir(), "audio/$modeSlug/${request.reciter.id}_m$moshafId").absolutePath
     )
 
     manifestDao.atomicSavePackageAndItems(manifest, items)

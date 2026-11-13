@@ -748,9 +748,12 @@ class DuaAudioController(
     offlineMediaPlayer = null
     if (player != null) {
       runCatching {
-        if (player.isPlaying) {
-          player.stop()
-        }
+        player.setOnPreparedListener(null)
+        player.setOnCompletionListener(null)
+        player.setOnErrorListener(null)
+      }
+      runCatching {
+        player.reset()
       }
       runCatching {
         player.release()

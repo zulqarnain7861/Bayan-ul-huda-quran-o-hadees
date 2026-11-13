@@ -202,9 +202,10 @@ jobs:
 
           if [[ -n "${SDKMANAGER_BIN}" ]]; then
             yes | "${SDKMANAGER_BIN}" --licenses >/dev/null 2>&1 || true
-            "${SDKMANAGER_BIN}" "platform-tools" "build-tools;36.0.0" "platforms;android-36" "platforms;android-36.1" >/dev/null 2>&1 \
-              || "${SDKMANAGER_BIN}" "platform-tools" "platforms;android-36" >/dev/null 2>&1 \
-              || true
+            "${SDKMANAGER_BIN}" "platform-tools" >/dev/null 2>&1 || true
+            "${SDKMANAGER_BIN}" "platforms;android-36" >/dev/null 2>&1 || true
+            "${SDKMANAGER_BIN}" "platforms;android-36.1" >/dev/null 2>&1 || true
+            "${SDKMANAGER_BIN}" "build-tools;36.0.0" >/dev/null 2>&1 || "${SDKMANAGER_BIN}" "build-tools;35.0.0" >/dev/null 2>&1 || true
           fi
 
       - name: 5. Run Pre-Release Security, Malware & Google Play Protect Audit
@@ -348,7 +349,7 @@ jobs:
           APK_VERSION_CODE: ${{ steps.verify_apk.outputs.apk_version_code }}
           CERT_SHA256: ${{ steps.verify_apk.outputs.cert_sha256 }}
           MIN_VERSION_CODE: ${{ github.event.inputs.minimum_version_code || '8' }}
-          FORCE_UPDATE: ${{ github.event.inputs.force_update || 'false' }}
+          FORCE_UPDATE: "false"
         run: |
           set -euo pipefail
           DIST_DIR="build/release-assets"
@@ -363,21 +364,26 @@ jobs:
           fi
 
           PRIMARY_RELEASE_APK="BAYAN-AL-HUDA-${TAG_NAME}-release.apk"
+          LOWERCASE_RELEASE_APK="bayan-al-huda-${TAG_NAME}-release.apk"
           PRIMARY_SHA256_TXT="BAYAN-AL-HUDA-${TAG_NAME}-SHA256.txt"
           PRIMARY_APK_SHA256_FILE="${PRIMARY_RELEASE_APK}.sha256"
+          LOWERCASE_APK_SHA256_FILE="${LOWERCASE_RELEASE_APK}.sha256"
           VERSIONED_APK_NAME="Bayan-al-Huda-${TAG_NAME}.apk"
           STABLE_APK_NAME="Bayan-al-Huda.apk"
 
           cp "${APK_PATH}" "${DIST_DIR}/${PRIMARY_RELEASE_APK}"
+          cp "${APK_PATH}" "${DIST_DIR}/${LOWERCASE_RELEASE_APK}"
           cp "${APK_PATH}" "${DIST_DIR}/${VERSIONED_APK_NAME}"
           cp "${APK_PATH}" "${DIST_DIR}/${STABLE_APK_NAME}"
 
           APK_SHA256="$(sha256sum "${DIST_DIR}/${PRIMARY_RELEASE_APK}" | awk '{print $1}' | tr '[:upper:]' '[:lower:]')"
           echo "${APK_SHA256}  ${PRIMARY_RELEASE_APK}" > "${DIST_DIR}/${PRIMARY_SHA256_TXT}"
           echo "${APK_SHA256}  ${PRIMARY_RELEASE_APK}" > "${DIST_DIR}/${PRIMARY_APK_SHA256_FILE}"
+          echo "${APK_SHA256}  ${LOWERCASE_RELEASE_APK}" > "${DIST_DIR}/${LOWERCASE_APK_SHA256_FILE}"
           echo "${APK_SHA256}  ${VERSIONED_APK_NAME}" > "${DIST_DIR}/${VERSIONED_APK_NAME}.sha256"
           {
             echo "${APK_SHA256}  ${PRIMARY_RELEASE_APK}"
+            echo "${APK_SHA256}  ${LOWERCASE_RELEASE_APK}"
             echo "${APK_SHA256}  ${VERSIONED_APK_NAME}"
             echo "${APK_SHA256}  ${STABLE_APK_NAME}"
           } > "${DIST_DIR}/SHA256SUMS.txt"
@@ -404,10 +410,10 @@ jobs:
             EFFECTIVE_VERSION_CODE="9"
           fi
 
-          DOWNLOAD_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG_NAME}/${PRIMARY_RELEASE_APK}"
+          DOWNLOAD_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG_NAME}/${LOWERCASE_RELEASE_APK}"
 
           ./tools/release/generate_signed_update_manifest.sh \
-            --apk "${DIST_DIR}/${PRIMARY_RELEASE_APK}" \
+            --apk "${DIST_DIR}/${LOWERCASE_RELEASE_APK}" \
             --keystore "${KEYSTORE_FILE}" \
             --store-pass "${EFFECTIVE_STORE_PASSWORD}" \
             --key-alias "upload" \
@@ -418,7 +424,7 @@ jobs:
             --min-version-code "${MIN_VERSION_CODE}" \
             --download-url "${DOWNLOAD_URL}" \
             --release-notes "${COMMIT_LOG}" \
-            --force-update "${FORCE_UPDATE}" \
+            --force-update "false" \
             --cert-sha256 "${CERT_SHA256}" \
             --output-dir "${DIST_DIR}"
 
@@ -426,7 +432,7 @@ jobs:
           ## BAYAN AL-HUDA ${TAG_NAME} (Version ${EFFECTIVE_VERSION_NAME} • Code ${EFFECTIVE_VERSION_CODE})
 
           ### Direct APK Download
-          - **Installable Android APK:** \`${PRIMARY_RELEASE_APK}\` (Download this \`.apk\` file under **Assets** below — do **not** download \`Source code (zip)\` or \`Source code (tar.gz)\` to install on Android).
+          - **Installable Android APK:** \`${LOWERCASE_RELEASE_APK}\` / \`${PRIMARY_RELEASE_APK}\` (Download this \`.apk\` file under **Assets** below — do **not** download \`Source code (zip)\` or \`Source code (tar.gz)\` to install on Android).
           - **SHA-256 Checksum File:** \`${PRIMARY_SHA256_TXT}\`
 
           ### What's Changed
@@ -461,8 +467,10 @@ jobs:
           set -euo pipefail
           ASSETS=(
             "${DIST_DIR}/BAYAN-AL-HUDA-${TAG_NAME}-release.apk"
+            "${DIST_DIR}/bayan-al-huda-${TAG_NAME}-release.apk"
             "${DIST_DIR}/BAYAN-AL-HUDA-${TAG_NAME}-SHA256.txt"
             "${DIST_DIR}/BAYAN-AL-HUDA-${TAG_NAME}-release.apk.sha256"
+            "${DIST_DIR}/bayan-al-huda-${TAG_NAME}-release.apk.sha256"
             "${DIST_DIR}/Bayan-al-Huda-${TAG_NAME}.apk"
             "${DIST_DIR}/Bayan-al-Huda.apk"
             "${DIST_DIR}/Bayan-al-Huda-${TAG_NAME}.apk.sha256"

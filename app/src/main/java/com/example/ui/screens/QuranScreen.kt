@@ -43,6 +43,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloseFullscreen
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Flag
@@ -52,8 +53,10 @@ import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.NoteAdd
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.VolumeUp
 import com.example.ui.quran.TajweedPracticeDialog
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -71,11 +74,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -88,6 +93,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -175,21 +181,38 @@ fun QuranScreen(
   onReportAyah: (String) -> Unit = {},
   modifier: Modifier = Modifier
 ) {
+  val context = LocalContext.current
   val appStrings = com.example.ui.localization.LocalAppStrings.current
-  var selectedTradition by remember { mutableStateOf("SUNNI") } // "SUNNI" or "SHIA"
-  var showRecitersSheet by remember { mutableStateOf(false) }
+  var selectedTradition by rememberSaveable { mutableStateOf("SUNNI") } // "SUNNI" or "SHIA"
+  var showRecitersSheet by rememberSaveable { mutableStateOf(false) }
 
-  // Independent reciter choices for each tradition (Initialized from persisted config)
+  // Rotation-safe state for the Reciter Picker Popup triggered from any Play button
+  var showSelectReciterDialog by rememberSaveable { mutableStateOf(false) }
+  var pendingPlaySurahNumber by rememberSaveable { mutableIntStateOf(1) }
+  var pendingPlayVerseNumber by rememberSaveable { mutableIntStateOf(1) }
+  var pendingPlaySurahName by rememberSaveable { mutableStateOf("") }
+
+  // Independent reciter choices for each tradition (Initialized from preferred_reciter_id or persisted config)
   var sunniSelectedReciter by remember(prayerConfig.sunniQuranReciterId) {
+    val preferredId = com.example.ui.audio.AudioPlayerManager.getPreferredReciterId(
+      context,
+      com.example.ui.audio.availableReciters
+    )
     mutableStateOf(
-      com.example.ui.audio.availableReciters.find { it.id == prayerConfig.sunniQuranReciterId }
+      com.example.ui.audio.availableReciters.find { it.id == preferredId && it.tradition.equals("SUNNI", ignoreCase = true) }
+        ?: com.example.ui.audio.availableReciters.find { it.id == prayerConfig.sunniQuranReciterId }
         ?: com.example.ui.audio.availableReciters.firstOrNull { it.tradition.equals("SUNNI", ignoreCase = true) }
         ?: com.example.ui.audio.availableReciters.first()
     )
   }
   var shiaSelectedReciter by remember(prayerConfig.shiaQuranReciterId) {
+    val preferredId = com.example.ui.audio.AudioPlayerManager.getPreferredReciterId(
+      context,
+      com.example.ui.audio.availableReciters
+    )
     mutableStateOf(
-      com.example.ui.audio.availableReciters.find { it.id == prayerConfig.shiaQuranReciterId }
+      com.example.ui.audio.availableReciters.find { it.id == preferredId && it.tradition.equals("SHIA", ignoreCase = true) }
+        ?: com.example.ui.audio.availableReciters.find { it.id == prayerConfig.shiaQuranReciterId }
         ?: com.example.ui.audio.availableReciters.firstOrNull { it.tradition.equals("SHIA", ignoreCase = true) }
         ?: com.example.ui.audio.availableReciters.first()
     )
@@ -201,6 +224,13 @@ fun QuranScreen(
     if (audioState.reciter.id != activeReciter.id) {
       onSelectReciter(activeReciter, selectedTradition)
     }
+  }
+
+  val requestPlayWithReciterPicker: (AyahEntity, String) -> Unit = { ayah, surahName ->
+    pendingPlaySurahNumber = ayah.surahNumber
+    pendingPlayVerseNumber = ayah.verseNumber
+    pendingPlaySurahName = surahName
+    showSelectReciterDialog = true
   }
 
   var sunniTranslationKey by remember(prayerConfig.sunniTranslationKey) { mutableStateOf(prayerConfig.sunniTranslationKey) }
@@ -254,7 +284,7 @@ fun QuranScreen(
         onToggleUrdu = onToggleUrdu,
         onToggleTransliteration = onToggleTransliteration,
         onSetArabicFontSize = onSetArabicFontSize,
-        onPlayAyahRecitation = onPlayAyahRecitation,
+        onPlayAyahRecitation = requestPlayWithReciterPicker,
         onBookmarkAyah = onBookmarkAyah,
         onAddNote = onAddNote,
         onReportAyah = onReportAyah,
@@ -302,10 +332,47 @@ fun QuranScreen(
     }
   }
 
+  if (showSelectReciterDialog) {
+    SelectReciterDialog(
+      surahNumber = pendingPlaySurahNumber,
+      surahName = pendingPlaySurahName.ifBlank { selectedSurah?.nameEnglish ?: "Surah $pendingPlaySurahNumber" },
+      defaultReciterId = activeReciter.id,
+      recitersList = com.example.ui.audio.availableReciters,
+      onConfirmPlay = { chosenReciter ->
+        if (chosenReciter.tradition.equals("SHIA", ignoreCase = true)) {
+          shiaSelectedReciter = chosenReciter
+        } else {
+          sunniSelectedReciter = chosenReciter
+        }
+        onSelectReciter(chosenReciter, selectedTradition)
+        showSelectReciterDialog = false
+        val targetAyah = currentAyahs.firstOrNull {
+          it.surahNumber == pendingPlaySurahNumber && it.verseNumber == pendingPlayVerseNumber
+        } ?: AyahEntity(
+          surahNumber = pendingPlaySurahNumber,
+          verseNumber = pendingPlayVerseNumber,
+          textArabic = "",
+          translationEnglish = "",
+          translationUrdu = "",
+          juzNumber = selectedSurah?.juzStart ?: 1,
+          pageNumber = 1
+        )
+        val resolvedSurahName = pendingPlaySurahName.ifBlank {
+          selectedSurah?.nameEnglish ?: "Surah $pendingPlaySurahNumber"
+        }
+        onPlayAyahRecitation(targetAyah, resolvedSurahName)
+      },
+      onCancel = {
+        showSelectReciterDialog = false
+      }
+    )
+  }
+
   if (showRecitersSheet) {
     QuranRecitersBottomSheet(
       currentReciter = activeReciter,
       recitersList = com.example.ui.audio.availableReciters,
+      surahNumber = selectedSurah?.number,
       onSelectReciter = { reciter ->
         val wasPlayingSurah = (audioState.isPlaying || audioState.isBuffering) &&
           selectedSurah != null &&
@@ -2589,38 +2656,67 @@ fun TafsirModalSheet(
 
           Spacer(modifier = Modifier.height(12.dp))
 
-          // Verse Text + Transliteration Box
+          // Verse Text + Transliteration + English & Urdu Translations Box
           Surface(
             shape = RoundedCornerShape(14.dp),
             color = MaterialTheme.colorScheme.surfaceVariant,
             modifier = Modifier.fillMaxWidth()
           ) {
             Column(modifier = Modifier.padding(14.dp)) {
-              Text(
-                text = cleanTafsirArabic,
-                style = MaterialTheme.typography.headlineSmall.copy(
-                  fontFamily = AmiriFontFamily,
-                  fontWeight = FontWeight.Normal,
-                  fontSize = 24.sp,
-                  lineHeight = 46.sp,
-                  textAlign = TextAlign.Right
-                ),
-                modifier = Modifier.fillMaxWidth()
-              )
-              Spacer(modifier = Modifier.height(6.dp))
-              Text(
-                text = "Transliteration: ${tafsirResult.transliteration}",
-                style = MaterialTheme.typography.bodySmall.copy(
-                  fontStyle = FontStyle.Italic,
-                  color = EmeraldPrimary,
-                  fontWeight = FontWeight.SemiBold
+              CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                Text(
+                  text = cleanTafsirArabic,
+                  style = MaterialTheme.typography.headlineSmall.copy(
+                    fontFamily = ScheherazadeFontFamily,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 26.sp,
+                    lineHeight = 48.sp,
+                    textAlign = TextAlign.Right,
+                    textDirection = TextDirection.Rtl
+                  ),
+                  modifier = Modifier.fillMaxWidth()
                 )
-              )
-              Spacer(modifier = Modifier.height(6.dp))
-              Text(
-                text = tafsirResult.englishTranslation,
-                style = MaterialTheme.typography.bodyMedium
-              )
+              }
+              if (tafsirResult.transliteration.isNotBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                  text = "Transliteration: ${tafsirResult.transliteration}",
+                  style = MaterialTheme.typography.bodySmall.copy(
+                    fontStyle = FontStyle.Italic,
+                    color = EmeraldPrimary,
+                    fontWeight = FontWeight.SemiBold
+                  )
+                )
+              }
+              if (tafsirResult.englishTranslation.isNotBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                  text = tafsirResult.englishTranslation,
+                  style = MaterialTheme.typography.bodyMedium.copy(
+                    lineHeight = 22.sp,
+                    textDirection = TextDirection.Ltr
+                  ),
+                  modifier = Modifier.fillMaxWidth()
+                )
+              }
+              if (tafsirResult.urduTranslation.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                  Text(
+                    text = tafsirResult.urduTranslation,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                      fontFamily = UrduNastaliqFontFamily,
+                      fontSize = 17.sp,
+                      lineHeight = 34.sp,
+                      textAlign = TextAlign.Right,
+                      textDirection = TextDirection.Rtl,
+                      color = MaterialTheme.colorScheme.onSurfaceVariant,
+                      platformStyle = PlatformTextStyle(includeFontPadding = true)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                  )
+                }
+              }
             }
           }
 
@@ -2873,199 +2969,281 @@ fun TafsirModalSheet(
                 }
               }
             } else {
+              val hasArabicCommentary = tafsirResult.commentaryArabic.isNotBlank()
+              val isSyntheticEnglishWrapper = hasArabicCommentary &&
+                tafsirResult.commentaryEnglish.startsWith("[Original Classical Arabic Edition")
+              val hasGenuineEnglishCommentary = tafsirResult.commentaryEnglish.isNotBlank() && !isSyntheticEnglishWrapper
+              val isFallbackUrduDuplicate = tafsirResult.commentaryUrdu.startsWith("【اصل عربی متن") ||
+                tafsirResult.commentaryUrdu.startsWith("【مستند انگریزی نسخہ")
+              val hasGenuineUrduCommentary = tafsirResult.commentaryUrdu.isNotBlank() &&
+                (!isFallbackUrduDuplicate || (!hasArabicCommentary && !hasGenuineEnglishCommentary))
+
               // Original Arabic Scholarly Commentary (RTL)
-              if (tafsirResult.commentaryArabic.isNotBlank()) {
+              if (hasArabicCommentary) {
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                  Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                      text = "النص التفسيري الأصلي (${tafsirResult.edition.titleArabic})",
+                      style = MaterialTheme.typography.labelMedium.copy(
+                        fontFamily = AmiriFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        color = EmeraldPrimary,
+                        textAlign = TextAlign.Right,
+                        textDirection = TextDirection.Rtl
+                      ),
+                      modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                      text = filteredArabicCommentary,
+                      style = MaterialTheme.typography.bodyLarge.copy(
+                        fontFamily = AmiriFontFamily,
+                        fontSize = 20.sp,
+                        lineHeight = 38.sp,
+                        textAlign = TextAlign.Right,
+                        textDirection = TextDirection.Rtl
+                      ),
+                      modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("tafsir_commentary_arabic")
+                    )
+                  }
+                }
+                if (hasGenuineEnglishCommentary || hasGenuineUrduCommentary) {
+                  HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
+                }
+              }
+
+              // English Tafsir Commentary (LTR)
+              if (hasGenuineEnglishCommentary) {
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                  Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                      text = "English Commentary (${tafsirResult.edition.titleEnglish})",
+                      style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = EmeraldPrimary,
+                        textAlign = TextAlign.Start,
+                        textDirection = TextDirection.Ltr
+                      ),
+                      modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                      text = filteredEnglishCommentary,
+                      style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 15.sp,
+                        lineHeight = 24.sp,
+                        textAlign = TextAlign.Start,
+                        textDirection = TextDirection.Ltr
+                      ),
+                      modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("tafsir_commentary_english")
+                    )
+                  }
+                }
+                if (hasGenuineUrduCommentary) {
+                  HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
+                }
+              }
+
+              // Urdu Tafsir Commentary (RTL with Nastaliq Font)
+              if (hasGenuineUrduCommentary) {
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                  Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                      text = "اردو تفسیر (${tafsirResult.edition.titleUrdu.ifBlank { tafsirResult.edition.titleArabic }})",
+                      style = MaterialTheme.typography.labelMedium.copy(
+                        fontFamily = UrduNastaliqFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        lineHeight = 28.sp,
+                        color = GoldPrimary,
+                        textAlign = TextAlign.Right,
+                        textDirection = TextDirection.Rtl,
+                        platformStyle = PlatformTextStyle(includeFontPadding = true)
+                      ),
+                      modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                      text = filteredUrduCommentary,
+                      style = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = UrduNastaliqFontFamily,
+                        fontSize = 17.sp,
+                        lineHeight = 36.sp,
+                        textAlign = TextAlign.Right,
+                        textDirection = TextDirection.Rtl,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        platformStyle = PlatformTextStyle(includeFontPadding = true)
+                      ),
+                      modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("tafsir_commentary_urdu")
+                    )
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (tafsirResult.relatedQuranVerses.isNotEmpty() || tafsirResult.linkedHadiths.isNotEmpty()) {
+        item(key = "tafsir_cross_referenced_verses", contentType = "tafsir_cross_refs") {
+          Column(modifier = Modifier.fillMaxWidth()) {
+            if (tafsirResult.relatedQuranVerses.isNotEmpty()) {
+              Spacer(modifier = Modifier.height(14.dp))
+
+              // Cross-Referenced Quranic Verses
+              Text(
+                text = "Cross-Referenced Quranic Verses (Tafsir al-Qur'an bil-Qur'an)",
+                style = MaterialTheme.typography.titleSmall.copy(
+                  fontWeight = FontWeight.Bold,
+                  color = MaterialTheme.colorScheme.primary
+                )
+              )
+              Spacer(modifier = Modifier.height(6.dp))
+              LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(tafsirResult.relatedQuranVerses) { ref ->
+                  Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = EmeraldPrimary.copy(alpha = 0.12f)
+                  ) {
+                    Row(
+                      modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                      verticalAlignment = Alignment.CenterVertically
+                    ) {
+                      Icon(
+                        imageVector = Icons.Default.Link,
+                        contentDescription = null,
+                        tint = EmeraldPrimary,
+                        modifier = Modifier.size(14.dp)
+                      )
+                      Spacer(modifier = Modifier.width(4.dp))
+                      Text(
+                        text = "Surah $ref",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                          color = EmeraldPrimary,
+                          fontWeight = FontWeight.Bold
+                        )
+                      )
+                    }
+                  }
+                }
+              }
+            }
+
+            if (tafsirResult.linkedHadiths.isNotEmpty()) {
+              Spacer(modifier = Modifier.height(16.dp))
+
+              // Linked Authentic Hadiths Section (shown ONLY when Hadiths are directly related to this verse/surah)
+              Text(
+                text = "Linked Authentic Hadiths Explaining This Verse (${tafsirResult.linkedHadiths.size})",
+                style = MaterialTheme.typography.titleSmall.copy(
+                  fontWeight = FontWeight.Bold,
+                  color = MaterialTheme.colorScheme.primary
+                )
+              )
+              Spacer(modifier = Modifier.height(8.dp))
+            }
+          }
+        }
+      }
+
+      if (tafsirResult.linkedHadiths.isNotEmpty()) {
+        items(
+          items = tafsirResult.linkedHadiths,
+          key = { "tafsir_linked_hadith_${it.collectionKey}_${it.hadithNumber}" },
+          contentType = { "tafsir_linked_hadith_card" }
+        ) { hadith ->
+          Card(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(bottom = 10.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+          ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Column(modifier = Modifier.weight(1f)) {
+                  Text(
+                    text = "${hadith.reference} (Intl #${hadith.hadithNumber})",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                      fontWeight = FontWeight.Bold,
+                      color = EmeraldPrimary
+                    )
+                  )
+                  if (hadith.inBookReference.isNotEmpty()) {
+                    Text(
+                      text = hadith.inBookReference,
+                      style = MaterialTheme.typography.labelSmall.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                      )
+                    )
+                  }
+                }
+                SahihGradeBadge(grade = hadith.grade)
+              }
+              Spacer(modifier = Modifier.height(6.dp))
+              CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                 Text(
-                  text = "النص التفسيري الأصلي (${tafsirResult.edition.titleArabic})",
-                  style = MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = EmeraldPrimary,
-                    textAlign = TextAlign.Right
+                  text = hadith.arabicText,
+                  style = MaterialTheme.typography.bodyLarge.copy(
+                    fontFamily = AmiriFontFamily,
+                    textAlign = TextAlign.Right,
+                    textDirection = TextDirection.Rtl,
+                    fontSize = 18.sp,
+                    lineHeight = 32.sp
                   ),
                   modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(modifier = Modifier.height(6.dp))
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                  Text(
-                    text = filteredArabicCommentary,
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                      fontFamily = AmiriFontFamily,
-                      fontSize = 20.sp,
-                      lineHeight = 36.sp,
-                      textAlign = TextAlign.Right,
-                      textDirection = TextDirection.Rtl
-                    ),
-                    modifier = Modifier
-                      .fillMaxWidth()
-                      .testTag("tafsir_commentary_arabic")
-                  )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
               }
-
-              // English Tafsir Commentary
-              if (tafsirResult.commentaryEnglish.isNotBlank()) {
+              if (hadith.transliteration.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                  text = filteredEnglishCommentary,
-                  style = MaterialTheme.typography.bodyMedium.copy(
-                    lineHeight = 22.sp
-                  ),
-                  modifier = Modifier.testTag("tafsir_commentary_english")
-                )
-              }
-
-              // Urdu Tafsir Commentary
-              if (tafsirResult.commentaryUrdu.isNotBlank()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                  text = filteredUrduCommentary,
-                  style = MaterialTheme.typography.bodyMedium.copy(
-                    fontFamily = UrduNastaliqFontFamily,
-                    fontSize = 15.sp,
-                    lineHeight = 30.sp,
-                    textAlign = TextAlign.Right,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    platformStyle = PlatformTextStyle(includeFontPadding = true)
-                  ),
-                  modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("tafsir_commentary_urdu")
-                )
-              }
-            }
-          }
-        }
-      }
-
-      item(key = "tafsir_cross_referenced_verses", contentType = "tafsir_cross_refs") {
-        Column(modifier = Modifier.fillMaxWidth()) {
-          Spacer(modifier = Modifier.height(14.dp))
-
-          // Cross-Referenced Quranic Verses
-          Text(
-            text = "Cross-Referenced Quranic Verses (Tafsir al-Qur'an bil-Qur'an)",
-            style = MaterialTheme.typography.titleSmall.copy(
-              fontWeight = FontWeight.Bold,
-              color = MaterialTheme.colorScheme.primary
-            )
-          )
-          Spacer(modifier = Modifier.height(6.dp))
-          LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(tafsirResult.relatedQuranVerses) { ref ->
-              Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = EmeraldPrimary.copy(alpha = 0.12f)
-              ) {
-                Row(
-                  modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                  verticalAlignment = Alignment.CenterVertically
-                ) {
-                  Icon(
-                    imageVector = Icons.Default.Link,
-                    contentDescription = null,
-                    tint = EmeraldPrimary,
-                    modifier = Modifier.size(14.dp)
-                  )
-                  Spacer(modifier = Modifier.width(4.dp))
-                  Text(
-                    text = "Surah $ref",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                      color = EmeraldPrimary,
-                      fontWeight = FontWeight.Bold
-                    )
-                  )
-                }
-              }
-            }
-          }
-
-          Spacer(modifier = Modifier.height(16.dp))
-
-          // Linked Authentic Hadiths Section
-          Text(
-            text = "Linked Authentic Hadiths Explaining This Verse (${tafsirResult.linkedHadiths.size})",
-            style = MaterialTheme.typography.titleSmall.copy(
-              fontWeight = FontWeight.Bold,
-              color = MaterialTheme.colorScheme.primary
-            )
-          )
-          Spacer(modifier = Modifier.height(8.dp))
-        }
-      }
-
-      items(
-        items = tafsirResult.linkedHadiths,
-        key = { "tafsir_linked_hadith_${it.collectionKey}_${it.hadithNumber}" },
-        contentType = { "tafsir_linked_hadith_card" }
-      ) { hadith ->
-        Card(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 10.dp),
-          shape = RoundedCornerShape(12.dp),
-          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-          Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically
-            ) {
-              Column {
-                Text(
-                  text = "${hadith.reference} (Intl #${hadith.hadithNumber})",
-                  style = MaterialTheme.typography.labelLarge.copy(
-                    fontWeight = FontWeight.Bold,
+                  text = hadith.transliteration,
+                  style = MaterialTheme.typography.bodySmall.copy(
+                    fontStyle = FontStyle.Italic,
                     color = EmeraldPrimary
                   )
                 )
-                if (hadith.inBookReference.isNotEmpty()) {
+              }
+              if (hadith.englishText.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                  text = hadith.englishText,
+                  style = MaterialTheme.typography.bodySmall.copy(
+                    lineHeight = 20.sp,
+                    textDirection = TextDirection.Ltr
+                  ),
+                  modifier = Modifier.fillMaxWidth()
+                )
+              }
+              if (hadith.urduText.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                   Text(
-                    text = hadith.inBookReference,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                      color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    text = hadith.urduText,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                      fontFamily = UrduNastaliqFontFamily,
+                      fontSize = 15.sp,
+                      lineHeight = 30.sp,
+                      textAlign = TextAlign.Right,
+                      textDirection = TextDirection.Rtl,
+                      color = MaterialTheme.colorScheme.onSurfaceVariant,
+                      platformStyle = PlatformTextStyle(includeFontPadding = true)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
                   )
                 }
               }
-              SahihGradeBadge(grade = hadith.grade)
             }
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-              text = hadith.arabicText,
-              style = MaterialTheme.typography.bodyLarge.copy(
-                fontFamily = AmiriFontFamily,
-                textAlign = TextAlign.Right,
-                fontSize = 18.sp,
-                lineHeight = 30.sp
-              ),
-              modifier = Modifier.fillMaxWidth()
-            )
-            if (hadith.transliteration.isNotEmpty()) {
-              Spacer(modifier = Modifier.height(4.dp))
-              Text(
-                text = hadith.transliteration,
-                style = MaterialTheme.typography.bodySmall.copy(
-                  fontStyle = FontStyle.Italic,
-                  color = EmeraldPrimary
-                )
-              )
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-              text = hadith.englishText,
-              style = MaterialTheme.typography.bodySmall
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-              text = hadith.urduText,
-              style = MaterialTheme.typography.bodySmall.copy(
-                fontFamily = UrduNastaliqFontFamily,
-                textAlign = TextAlign.Right,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-              ),
-              modifier = Modifier.fillMaxWidth()
-            )
           }
         }
       }
@@ -3890,11 +4068,324 @@ private fun toArabicIndicDigits(number: Int): String {
   }.joinToString("")
 }
 
+@Composable
+fun SelectReciterDialog(
+  surahNumber: Int,
+  surahName: String,
+  defaultReciterId: String? = null,
+  recitersList: List<com.example.ui.audio.Reciter> = com.example.ui.audio.availableReciters,
+  onConfirmPlay: (com.example.ui.audio.Reciter) -> Unit,
+  onCancel: () -> Unit
+) {
+  val context = LocalContext.current
+  var mergedCatalog by remember(recitersList) { mutableStateOf(recitersList) }
+  var searchQuery by rememberSaveable { mutableStateOf("") }
+
+  // Read stored reciter when dialog opens; if stored reciter no longer exists in catalog,
+  // getPreferredReciterId clears the stored value and returns null.
+  val initialSelectedId = remember(recitersList, surahNumber) {
+    val prefs = context.getSharedPreferences("bayan_prayer_and_alarm_prefs", Context.MODE_PRIVATE)
+    val rawStored = prefs.getString(com.example.ui.audio.AudioPlayerManager.KEY_PREFERRED_RECITER_ID, null)
+    if (!rawStored.isNullOrBlank()) {
+      val validated = com.example.ui.audio.AudioPlayerManager.getPreferredReciterId(context, recitersList)
+      val matched = recitersList.firstOrNull { it.id == validated }
+      if (matched != null && com.example.ui.audio.AudioPlayerManager.isSurahAvailableForReciter(matched, surahNumber)) {
+        matched.id
+      } else {
+        null
+      }
+    } else {
+      val fallback = defaultReciterId?.let { id -> recitersList.firstOrNull { it.id == id } }
+      if (fallback != null && com.example.ui.audio.AudioPlayerManager.isSurahAvailableForReciter(fallback, surahNumber)) {
+        fallback.id
+      } else {
+        null
+      }
+    }
+  }
+
+  var selectedReciterId by rememberSaveable(surahNumber) { mutableStateOf(initialSelectedId) }
+
+  LaunchedEffect(recitersList) {
+    val liveMerged = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+      com.example.ui.audio.Mp3QuranTimingClient.fetchAndMergeLiveRecitersCatalog(recitersList)
+    }
+    if (liveMerged.size > mergedCatalog.size) {
+      mergedCatalog = liveMerged
+      // Re-check stored preferred reciter against the full 280+ reciter catalog if it was a dynamic mp3quran_* ID
+      if (selectedReciterId == null) {
+        val prefs = context.getSharedPreferences("bayan_prayer_and_alarm_prefs", Context.MODE_PRIVATE)
+        val rawStored = prefs.getString(com.example.ui.audio.AudioPlayerManager.KEY_PREFERRED_RECITER_ID, null)
+        if (!rawStored.isNullOrBlank()) {
+          val matched = liveMerged.firstOrNull { it.id == rawStored }
+          if (matched != null && com.example.ui.audio.AudioPlayerManager.isSurahAvailableForReciter(matched, surahNumber)) {
+            selectedReciterId = matched.id
+          }
+        }
+      }
+    }
+  }
+
+  val filteredCatalog = remember(mergedCatalog, searchQuery) {
+    val q = searchQuery.trim().lowercase()
+    if (q.isBlank()) {
+      mergedCatalog
+    } else {
+      mergedCatalog.filter { reciter ->
+        reciter.name.lowercase().contains(q) ||
+          reciter.arabicName.contains(q) ||
+          reciter.style.lowercase().contains(q) ||
+          reciter.id.lowercase().contains(q)
+      }
+    }
+  }
+
+  val selectedReciter = remember(mergedCatalog, selectedReciterId, surahNumber) {
+    mergedCatalog.firstOrNull { it.id == selectedReciterId }?.takeIf {
+      com.example.ui.audio.AudioPlayerManager.isSurahAvailableForReciter(it, surahNumber)
+    }
+  }
+
+  BackHandler {
+    onCancel()
+  }
+
+  AlertDialog(
+    onDismissRequest = onCancel,
+    modifier = Modifier.testTag("select_reciter_dialog"),
+    title = {
+      Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+          text = "Select Reciter",
+          style = MaterialTheme.typography.titleLarge.copy(
+            fontWeight = FontWeight.Bold,
+            color = EmeraldPrimary
+          )
+        )
+        Text(
+          text = "Surah $surahNumber • $surahName • ${filteredCatalog.size} Reciters",
+          style = MaterialTheme.typography.labelMedium.copy(
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+          )
+        )
+      }
+    },
+    text = {
+      Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+          OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            modifier = Modifier
+              .weight(1f)
+              .testTag("select_reciter_search_input"),
+            singleLine = true,
+            placeholder = {
+              Text(
+                text = "Search ${mergedCatalog.size}+ reciters...",
+                style = MaterialTheme.typography.bodySmall
+              )
+            },
+            leadingIcon = {
+              Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = "Search Reciters",
+                tint = EmeraldPrimary,
+                modifier = Modifier.size(18.dp)
+              )
+            },
+            trailingIcon = {
+              if (searchQuery.isNotEmpty()) {
+                IconButton(
+                  onClick = { searchQuery = "" },
+                  modifier = Modifier.testTag("select_reciter_search_clear_button")
+                ) {
+                  Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Clear Search",
+                    modifier = Modifier.size(16.dp)
+                  )
+                }
+              }
+            },
+            textStyle = MaterialTheme.typography.bodySmall,
+            shape = RoundedCornerShape(10.dp)
+          )
+          Button(
+            onClick = { searchQuery = searchQuery.trim() },
+            colors = ButtonDefaults.buttonColors(
+              containerColor = EmeraldPrimary,
+              contentColor = Color.White
+            ),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.testTag("select_reciter_search_button")
+          ) {
+            Icon(
+              imageVector = Icons.Default.Search,
+              contentDescription = "Search",
+              modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text("Search", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+          }
+        }
+
+        if (filteredCatalog.isEmpty()) {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(vertical = 24.dp),
+            contentAlignment = Alignment.Center
+          ) {
+            Text(
+              text = "No reciters match \"$searchQuery\"",
+              style = MaterialTheme.typography.bodyMedium.copy(
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+            )
+          }
+        } else {
+          LazyColumn(
+            modifier = Modifier
+              .fillMaxWidth()
+              .heightIn(max = 340.dp)
+              .testTag("select_reciter_dialog_list"),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+          ) {
+            items(
+              items = filteredCatalog,
+              key = { it.id }
+            ) { reciter ->
+              val isAvailable = com.example.ui.audio.AudioPlayerManager.isSurahAvailableForReciter(reciter, surahNumber)
+              val isSelected = isAvailable && selectedReciterId == reciter.id
+              val showArabicName = reciter.arabicName.isNotBlank() &&
+                !reciter.arabicName.equals(reciter.style, ignoreCase = true) &&
+                !reciter.arabicName.equals(reciter.name, ignoreCase = true)
+
+              Surface(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .clickable(enabled = isAvailable) {
+                    selectedReciterId = reciter.id
+                  }
+                  .testTag("select_reciter_row_${reciter.id}"),
+                shape = RoundedCornerShape(10.dp),
+                color = when {
+                  !isAvailable -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                  isSelected -> EmeraldPrimary.copy(alpha = 0.15f)
+                  else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+                },
+                border = if (isSelected) BorderStroke(1.5.dp, EmeraldPrimary) else BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+              ) {
+                Row(
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  RadioButton(
+                    selected = isSelected,
+                    onClick = if (isAvailable) {
+                      { selectedReciterId = reciter.id }
+                    } else null,
+                    enabled = isAvailable,
+                    modifier = Modifier.testTag("select_reciter_radio_${reciter.id}")
+                  )
+                  Spacer(modifier = Modifier.width(8.dp))
+                  Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                  ) {
+                    Text(
+                      text = reciter.name,
+                      style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = if (isAvailable) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                      ),
+                      maxLines = 1,
+                      overflow = TextOverflow.Ellipsis
+                    )
+                    if (showArabicName) {
+                      Text(
+                        text = reciter.arabicName,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                          fontFamily = AmiriFontFamily,
+                          fontWeight = FontWeight.Bold,
+                          fontSize = 15.sp,
+                          textDirection = TextDirection.Rtl,
+                          color = if (isAvailable) EmeraldPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                      )
+                    }
+                    Text(
+                      text = reciter.style,
+                      style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isAvailable) 0.9f else 0.55f)
+                      ),
+                      maxLines = 1,
+                      overflow = TextOverflow.Ellipsis
+                    )
+                    if (!isAvailable) {
+                      Text(
+                        text = "No audio for Surah $surahNumber",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                          fontWeight = FontWeight.SemiBold,
+                          color = MaterialTheme.colorScheme.error
+                        ),
+                        modifier = Modifier.testTag("select_reciter_unavailable_${reciter.id}")
+                      )
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    dismissButton = {
+      TextButton(
+        onClick = onCancel,
+        modifier = Modifier.testTag("select_reciter_cancel_button")
+      ) {
+        Text("Cancel")
+      }
+    },
+    confirmButton = {
+      Button(
+        onClick = {
+          val chosen = selectedReciter ?: return@Button
+          com.example.ui.audio.AudioPlayerManager.savePreferredReciterId(context, chosen.id)
+          onConfirmPlay(chosen)
+        },
+        enabled = selectedReciter != null,
+        colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+        modifier = Modifier.testTag("select_reciter_play_button")
+      ) {
+        Text("Play")
+      }
+    }
+  )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuranRecitersBottomSheet(
   currentReciter: com.example.ui.audio.Reciter,
   recitersList: List<com.example.ui.audio.Reciter> = com.example.ui.audio.availableReciters,
+  surahNumber: Int? = null,
   onSelectReciter: (com.example.ui.audio.Reciter) -> Unit,
   onDismiss: () -> Unit
 ) {
@@ -3983,20 +4474,25 @@ fun QuranRecitersBottomSheet(
       Spacer(modifier = Modifier.height(6.dp))
 
       sunniReciters.forEach { reciter ->
-        val isSelected = reciter.id == currentReciter.id
+        val isAvailable = surahNumber == null || com.example.ui.audio.AudioPlayerManager.isSurahAvailableForReciter(reciter, surahNumber)
+        val isSelected = isAvailable && reciter.id == currentReciter.id
         val timingReadId = com.example.ui.audio.Mp3QuranTimingClient.resolveReadIdForReciter(reciter.id)
-        val hasCachedAudio = remember(reciter.id) {
-          val dir = java.io.File(context.filesDir, "audio_cache_v2/${reciter.id}")
+        val hasCachedAudio = remember(reciter.id, reciter.moshafId) {
+          val dir = java.io.File(context.filesDir, "audio_cache_v3/${reciter.id}_m${reciter.moshafId}")
           dir.exists() && (dir.listFiles()?.isNotEmpty() == true)
         }
         Surface(
           modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .clickable { onSelectReciter(reciter) }
+            .clickable(enabled = isAvailable) { onSelectReciter(reciter) }
             .testTag("reciter_option_${reciter.id}"),
           shape = RoundedCornerShape(12.dp),
-          color = if (isSelected) EmeraldPrimary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+          color = when {
+            !isAvailable -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f)
+            isSelected -> EmeraldPrimary.copy(alpha = 0.14f)
+            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+          },
           border = if (isSelected) BorderStroke(1.5.dp, EmeraldPrimary) else null
         ) {
           Row(
@@ -4009,14 +4505,26 @@ fun QuranRecitersBottomSheet(
             Column(modifier = Modifier.weight(1f)) {
               Text(
                 text = "${reciter.name} • ${reciter.arabicName}",
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                style = MaterialTheme.typography.bodyMedium.copy(
+                  fontWeight = FontWeight.Bold,
+                  color = if (isAvailable) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                )
               )
               Text(
                 text = "${reciter.style} • ${reciter.verificationStatus}",
                 style = MaterialTheme.typography.labelSmall.copy(
-                  color = MaterialTheme.colorScheme.onSurfaceVariant
+                  color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isAvailable) 1f else 0.55f)
                 )
               )
+              if (!isAvailable && surahNumber != null) {
+                Text(
+                  text = "No audio for Surah $surahNumber",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.error
+                  )
+                )
+              }
               Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -4081,19 +4589,24 @@ fun QuranRecitersBottomSheet(
       Spacer(modifier = Modifier.height(6.dp))
 
       shiaReciters.forEach { reciter ->
-        val isSelected = reciter.id == currentReciter.id
-        val hasCachedAudio = remember(reciter.id) {
-          val dir = java.io.File(context.filesDir, "audio_cache_v2/${reciter.id}")
+        val isAvailable = surahNumber == null || com.example.ui.audio.AudioPlayerManager.isSurahAvailableForReciter(reciter, surahNumber)
+        val isSelected = isAvailable && reciter.id == currentReciter.id
+        val hasCachedAudio = remember(reciter.id, reciter.moshafId) {
+          val dir = java.io.File(context.filesDir, "audio_cache_v3/${reciter.id}_m${reciter.moshafId}")
           dir.exists() && (dir.listFiles()?.isNotEmpty() == true)
         }
         Surface(
           modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .clickable { onSelectReciter(reciter) }
+            .clickable(enabled = isAvailable) { onSelectReciter(reciter) }
             .testTag("reciter_option_${reciter.id}"),
           shape = RoundedCornerShape(12.dp),
-          color = if (isSelected) GoldPrimary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+          color = when {
+            !isAvailable -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f)
+            isSelected -> GoldPrimary.copy(alpha = 0.16f)
+            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+          },
           border = if (isSelected) BorderStroke(1.5.dp, GoldPrimary) else null
         ) {
           Row(

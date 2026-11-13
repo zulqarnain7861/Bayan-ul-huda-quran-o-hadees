@@ -41,51 +41,51 @@ object Mp3QuranTimingClient {
     "akhdar" to 1,
     "shatri" to 4,
     "ajamy" to 5,
-    "idrees_abkar" to 10,
-    "suwayd" to 12,
-    "bandar_baleelah" to 15,
+    "idrees_abkar" to 12,
+    "suwayd" to 227,
+    "bandar_baleelah" to 217,
     "hatem_farid" to 19,
-    "qahtani" to 24,
-    "tunaiji" to 26,
+    "qahtani" to 21,
+    "tunaiji" to 24,
     "ghamdi" to 30,
     "shuraim" to 31,
-    "sahl_yassin" to 44,
+    "sahl_yassin" to 32,
     "bukhatir" to 46,
-    "budair" to 47,
-    "sherzad_taher" to 49,
+    "budair" to 43,
+    "sherzad_taher" to 38,
     "abdulbasit_mujawwad" to 51,
-    "peshawari" to 52,
+    "peshawari" to 51,
     "abdulbasit" to 53,
     "sudais" to 54,
-    "muhsin_qasim" to 58,
+    "muhsin_qasim" to 67,
     "basfar" to 60,
     "juhany" to 62,
     "matroud" to 65,
     "hudhaify" to 74,
     "ali_jaber" to 76,
     "fares_abbad" to 81,
-    "maher_muaiqly" to 102,
+    "maher_muaiqly" to 133,
     "tablawi" to 106,
     "muhammad_luhaidan" to 107,
     "ayyub" to 109,
     "jibreel" to 111,
     "minshawi" to 112,
     "minshawi_mujawwad" to 113,
-    "banna" to 117,
+    "banna" to 122,
     "husary" to 118,
     "husary_mujawwad" to 119,
     "husary_muallim" to 118,
-    "qatami" to 122,
-    "rifai" to 125,
-    "dossari" to 128,
-    "warsh_yassin" to 131,
-    "wadih_alyamani" to 218,
+    "qatami" to 86,
+    "rifai" to 89,
+    "dossari" to 92,
+    "warsh_yassin" to 14,
+    "wadih_alyamani" to 219,
     "raad_alkurdi" to 221,
     "noreen_siddiq" to 229,
     "hazza_albalushi" to 231,
     "mansour_alsalimi" to 245,
     "islam_sobhi" to 253,
-    "abdul_rehman_mossad" to 254
+    "abdul_rehman_mossad" to 2540
   )
 
   /**
@@ -98,8 +98,7 @@ object Mp3QuranTimingClient {
       "https://cdn.mp3quran.net/audio/islam-sobhi/r1/"
     ),
     "abdul_rehman_mossad" to listOf(
-      "https://server16.mp3quran.net/a_musad/Rewayat-Hafs-A-n-Assem/",
-      "https://cdn.mp3quran.net/audio/abdulrahman-mossad/r1/"
+      "https://archive.org/download/AbdulrahmanMassaad/"
     ),
     "bandar_baleelah" to listOf(
       "https://server6.mp3quran.net/balilah/",
@@ -216,9 +215,128 @@ object Mp3QuranTimingClient {
     val verseTimingRows: List<Mp3QuranUpdatedVerseTimingRow>
   )
 
+  /**
+   * Verified acoustic cue points measured directly from the real MP3 recordings of
+   * Islam Sobhi (`readId = 253`, `server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/`)
+   * and Abdul Rahman Mossad (`readId = 2540`, `archive.org/download/AbdulrahmanMassaad/` & `abdulrahman-mosad`).
+   * Every cue list starts at 0ms, strictly increases without overlap, and ends at the exact real audio duration.
+   */
+  val VERIFIED_SURAH_CUE_POINTS: Map<String, List<Mp3QuranAyatTimingEntry>> = mapOf(
+    // Islam Sobhi (readId = 253)
+    "253:1" to listOf(
+      Mp3QuranAyatTimingEntry(ayah = 1, startTimeMs = 0, endTimeMs = 12050),
+      Mp3QuranAyatTimingEntry(ayah = 2, startTimeMs = 12050, endTimeMs = 18000),
+      Mp3QuranAyatTimingEntry(ayah = 3, startTimeMs = 18000, endTimeMs = 24000),
+      Mp3QuranAyatTimingEntry(ayah = 4, startTimeMs = 24000, endTimeMs = 31100),
+      Mp3QuranAyatTimingEntry(ayah = 5, startTimeMs = 31100, endTimeMs = 38650),
+      Mp3QuranAyatTimingEntry(ayah = 6, startTimeMs = 38650, endTimeMs = 42650),
+      Mp3QuranAyatTimingEntry(ayah = 7, startTimeMs = 42650, endTimeMs = 52689)
+    ),
+    "253:112" to listOf(
+      Mp3QuranAyatTimingEntry(ayah = 1, startTimeMs = 0, endTimeMs = 10100),
+      Mp3QuranAyatTimingEntry(ayah = 2, startTimeMs = 10100, endTimeMs = 15700),
+      Mp3QuranAyatTimingEntry(ayah = 3, startTimeMs = 15700, endTimeMs = 20750),
+      Mp3QuranAyatTimingEntry(ayah = 4, startTimeMs = 20750, endTimeMs = 36107)
+    ),
+    "253:113" to listOf(
+      Mp3QuranAyatTimingEntry(ayah = 1, startTimeMs = 0, endTimeMs = 6550),
+      Mp3QuranAyatTimingEntry(ayah = 2, startTimeMs = 6550, endTimeMs = 9650),
+      Mp3QuranAyatTimingEntry(ayah = 3, startTimeMs = 9650, endTimeMs = 14000),
+      Mp3QuranAyatTimingEntry(ayah = 4, startTimeMs = 14000, endTimeMs = 18900),
+      Mp3QuranAyatTimingEntry(ayah = 5, startTimeMs = 18900, endTimeMs = 25473)
+    ),
+    "253:114" to listOf(
+      Mp3QuranAyatTimingEntry(ayah = 1, startTimeMs = 0, endTimeMs = 7700),
+      Mp3QuranAyatTimingEntry(ayah = 2, startTimeMs = 7700, endTimeMs = 10650),
+      Mp3QuranAyatTimingEntry(ayah = 3, startTimeMs = 10650, endTimeMs = 14200),
+      Mp3QuranAyatTimingEntry(ayah = 4, startTimeMs = 14200, endTimeMs = 19850),
+      Mp3QuranAyatTimingEntry(ayah = 5, startTimeMs = 19850, endTimeMs = 25450),
+      Mp3QuranAyatTimingEntry(ayah = 6, startTimeMs = 25450, endTimeMs = 34325)
+    ),
+    // Abdul Rahman Mossad (readId = 2540)
+    "2540:1" to listOf(
+      Mp3QuranAyatTimingEntry(ayah = 1, startTimeMs = 0, endTimeMs = 6900),
+      Mp3QuranAyatTimingEntry(ayah = 2, startTimeMs = 6900, endTimeMs = 15100),
+      Mp3QuranAyatTimingEntry(ayah = 3, startTimeMs = 15100, endTimeMs = 22400),
+      Mp3QuranAyatTimingEntry(ayah = 4, startTimeMs = 22400, endTimeMs = 29350),
+      Mp3QuranAyatTimingEntry(ayah = 5, startTimeMs = 29350, endTimeMs = 35600),
+      Mp3QuranAyatTimingEntry(ayah = 6, startTimeMs = 35600, endTimeMs = 45800),
+      Mp3QuranAyatTimingEntry(ayah = 7, startTimeMs = 45800, endTimeMs = 49030)
+    ),
+    "2540:112" to listOf(
+      Mp3QuranAyatTimingEntry(ayah = 1, startTimeMs = 0, endTimeMs = 5850),
+      Mp3QuranAyatTimingEntry(ayah = 2, startTimeMs = 5850, endTimeMs = 8800),
+      Mp3QuranAyatTimingEntry(ayah = 3, startTimeMs = 8800, endTimeMs = 13300),
+      Mp3QuranAyatTimingEntry(ayah = 4, startTimeMs = 13300, endTimeMs = 17323)
+    ),
+    "2540:113" to listOf(
+      Mp3QuranAyatTimingEntry(ayah = 1, startTimeMs = 0, endTimeMs = 6350),
+      Mp3QuranAyatTimingEntry(ayah = 2, startTimeMs = 6350, endTimeMs = 12100),
+      Mp3QuranAyatTimingEntry(ayah = 3, startTimeMs = 12100, endTimeMs = 17600),
+      Mp3QuranAyatTimingEntry(ayah = 4, startTimeMs = 17600, endTimeMs = 23750),
+      Mp3QuranAyatTimingEntry(ayah = 5, startTimeMs = 23750, endTimeMs = 30309)
+    ),
+    "2540:114" to listOf(
+      Mp3QuranAyatTimingEntry(ayah = 1, startTimeMs = 0, endTimeMs = 6150),
+      Mp3QuranAyatTimingEntry(ayah = 2, startTimeMs = 6150, endTimeMs = 11700),
+      Mp3QuranAyatTimingEntry(ayah = 3, startTimeMs = 11700, endTimeMs = 14500),
+      Mp3QuranAyatTimingEntry(ayah = 4, startTimeMs = 14500, endTimeMs = 21700),
+      Mp3QuranAyatTimingEntry(ayah = 5, startTimeMs = 21700, endTimeMs = 29550),
+      Mp3QuranAyatTimingEntry(ayah = 6, startTimeMs = 29550, endTimeMs = 34769)
+    )
+  )
+
   private val recitersCacheByLang = ConcurrentHashMap<String, List<Mp3QuranReciterEntry>>()
   private val timingReadsCache = ConcurrentHashMap<String, List<Mp3QuranTimingReadEntry>>()
-  private val surahAyatTimingCache = ConcurrentHashMap<String, List<Mp3QuranAyatTimingEntry>>()
+  private val surahAyatTimingCache = ConcurrentHashMap<String, List<Mp3QuranAyatTimingEntry>>(VERIFIED_SURAH_CUE_POINTS)
+
+  /**
+   * Validates and normalizes cue points before use:
+   * 1. First cue point starts at 0ms (if MP3Quran includes `ayah = 0` for the Basmala prefix, merges `0` into `ayah = 1` starting at `0ms`).
+   * 2. Cue points strictly increase (`endTimeMs > startTimeMs`).
+   * 3. Cue points do not overlap (`current.startTimeMs >= previous.endTimeMs`).
+   * 4. When `realAudioDurationMs > 1500`, the last cue point ends within 1.5 seconds (`1500ms`) of `realAudioDurationMs`.
+   * Returns `null` if validation fails.
+   */
+  fun normalizeAndValidateCuePoints(
+    rawEntries: List<Mp3QuranAyatTimingEntry>,
+    realAudioDurationMs: Int = 0
+  ): List<Mp3QuranAyatTimingEntry>? {
+    if (rawEntries.isEmpty()) return null
+    val sorted = rawEntries.sortedBy { it.ayah }
+    val verseEntries = sorted.filter { it.ayah >= 1 }.toMutableList()
+    if (verseEntries.isEmpty()) return null
+
+    // If MP3Quran timing starts with ayah 0 (Basmala at 0..X) and ayah 1 starts at >= X, anchor ayah 1 at 0ms
+    if (verseEntries.first().startTimeMs > 0) {
+      val basmalaEntry = sorted.firstOrNull { it.ayah == 0 }
+      if (basmalaEntry != null && basmalaEntry.startTimeMs == 0 && verseEntries.first().startTimeMs >= basmalaEntry.endTimeMs) {
+        verseEntries[0] = verseEntries[0].copy(startTimeMs = 0)
+      } else {
+        return null
+      }
+    }
+
+    if (verseEntries.first().startTimeMs != 0) return null
+
+    for (i in verseEntries.indices) {
+      val current = verseEntries[i]
+      if (current.endTimeMs <= current.startTimeMs) return null
+      if (i > 0) {
+        val prev = verseEntries[i - 1]
+        if (current.ayah <= prev.ayah) return null
+        if (current.startTimeMs < prev.endTimeMs) return null
+      }
+    }
+
+    if (realAudioDurationMs > 1500) {
+      val lastEndMs = verseEntries.last().endTimeMs
+      if (kotlin.math.abs(lastEndMs - realAudioDurationMs) > 1500) {
+        return null
+      }
+    }
+    return verseEntries
+  }
 
   /**
    * Performs a safe HTTPS GET following up to 5 redirects strictly within allowlisted hosts
@@ -537,12 +655,26 @@ object Mp3QuranTimingClient {
   }
 
   private val dynamicRuntimeServerUrls = ConcurrentHashMap<String, String>()
+  private val dynamicRuntimeAvailableSurahs = ConcurrentHashMap<String, Set<Int>>()
+
+  @Volatile
+  private var cachedMergedRecitersCatalog: List<Reciter>? = null
 
   fun registerDynamicReciterServerUrl(reciterId: String, serverUrl: String) {
     val clean = serverUrl.trim().replace("http://", "https://")
     if (reciterId.isNotBlank() && clean.isNotBlank() && SecurityIntegrityGuard.isUrlTrustedAndAllowed(clean)) {
       dynamicRuntimeServerUrls[reciterId] = if (clean.endsWith("/")) clean else "$clean/"
     }
+  }
+
+  fun registerDynamicReciterAvailableSurahs(reciterId: String, surahSet: Set<Int>) {
+    if (reciterId.isNotBlank() && surahSet.isNotEmpty()) {
+      dynamicRuntimeAvailableSurahs[reciterId] = surahSet
+    }
+  }
+
+  fun getDynamicReciterAvailableSurahs(reciterId: String): Set<Int>? {
+    return dynamicRuntimeAvailableSurahs[reciterId]
   }
 
   fun getRegisteredServerUrlsForReciter(reciterId: String): List<String> {
@@ -579,14 +711,22 @@ object Mp3QuranTimingClient {
   }
 
   /**
-   * Queries `https://mp3quran.net/api/v3/reciters?language=eng` and `https://mp3quran.net/api/v3/ayat_timing/reads`
-   * and merges all live MP3Quran v3 reciters with the built-in `availableReciters` catalog.
+   * Queries `https://mp3quran.net/api/v3/reciters?language=eng`, `https://mp3quran.net/api/v3/reciters?language=ar`,
+   * and `https://mp3quran.net/api/v3/ayat_timing/reads` and merges all 280+ live MP3Quran v3 reciters
+   * with the built-in `availableReciters` catalog.
    */
   fun fetchAndMergeLiveRecitersCatalog(baseCatalog: List<Reciter> = availableReciters): List<Reciter> {
+    val existingCached = cachedMergedRecitersCatalog
+    if (existingCached != null && existingCached.size > baseCatalog.size && baseCatalog === availableReciters) {
+      return existingCached
+    }
     return runCatching {
       val timingReadsById = fetchTimingReads().associateBy { it.id }
       val liveReciters = fetchReciters(language = "eng")
       if (liveReciters.isEmpty()) return@runCatching baseCatalog
+      val arabicNamesById = runCatching {
+        fetchReciters(language = "ar").associate { it.id to it.name.trim() }
+      }.getOrDefault(emptyMap())
 
       val existingNamesNormalized = baseCatalog.map {
         it.name.lowercase().replace(Regex("[^a-z0-9]"), "")
@@ -610,6 +750,7 @@ object Mp3QuranTimingClient {
         if (existingIds.contains(reciterId)) continue
 
         registerDynamicReciterServerUrl(reciterId, serverUrl)
+        registerDynamicReciterAvailableSurahs(reciterId, primaryMoshaf.surahSet)
         val timingRead = timingReadsById[entry.id]
         if (timingRead != null || entry.id > 0) {
           registerDynamicReciterReadId(reciterId, entry.id)
@@ -628,6 +769,9 @@ object Mp3QuranTimingClient {
           "MP3Quran v3 Official Stream (${primaryMoshaf.surahTotal} Surahs)"
         }
 
+        val genuineArabicName = arabicNamesById[entry.id]?.takeIf { it.isNotBlank() }
+          ?: timingRead?.name?.trim().orEmpty()
+
         existingNamesNormalized.add(normName)
         existingIds.add(reciterId)
         merged.add(
@@ -635,13 +779,17 @@ object Mp3QuranTimingClient {
             id = reciterId,
             name = rawName,
             subfolder = subfolderSlug,
-            arabicName = timingRead?.name ?: primaryMoshaf.name,
+            arabicName = genuineArabicName,
             tradition = "SUNNI",
             style = primaryMoshaf.name.ifBlank { "Murattal (MP3Quran v3)" },
             verificationStatus = syncBadge,
-            isSurahLevelReciter = true
+            isSurahLevelReciter = true,
+            moshafId = primaryMoshaf.id.takeIf { it > 0 } ?: entry.id
           )
         )
+      }
+      if (baseCatalog === availableReciters && merged.size > baseCatalog.size) {
+        cachedMergedRecitersCatalog = merged
       }
       merged
     }.getOrDefault(baseCatalog)

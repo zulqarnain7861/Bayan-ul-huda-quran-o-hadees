@@ -53,9 +53,10 @@ jobs:
           fi
           if [[ -n "${SDKMANAGER_BIN}" ]]; then
             yes | "${SDKMANAGER_BIN}" --licenses >/dev/null 2>&1 || true
-            "${SDKMANAGER_BIN}" "platform-tools" "build-tools;36.0.0" "platforms;android-36" "platforms;android-36.1" >/dev/null 2>&1 \
-              || "${SDKMANAGER_BIN}" "platform-tools" "platforms;android-36" >/dev/null 2>&1 \
-              || true
+            "${SDKMANAGER_BIN}" "platform-tools" >/dev/null 2>&1 || true
+            "${SDKMANAGER_BIN}" "platforms;android-36" >/dev/null 2>&1 || true
+            "${SDKMANAGER_BIN}" "platforms;android-36.1" >/dev/null 2>&1 || true
+            "${SDKMANAGER_BIN}" "build-tools;36.0.0" >/dev/null 2>&1 || "${SDKMANAGER_BIN}" "build-tools;35.0.0" >/dev/null 2>&1 || true
           fi
 
       - name: Prepare clean-build signing & verify .env.example

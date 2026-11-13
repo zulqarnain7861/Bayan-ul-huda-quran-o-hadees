@@ -89,6 +89,7 @@ object BayanNavRoutes {
   const val QIBLA = "qibla"
   const val SEHRI_IFTAR = "sehri_iftar"
   const val LEARN_ISLAM = "learn_islam"
+  const val NOORANI_QAIDA_PDF = "noorani_qaida_pdf"
 }
 
 data class BottomNavDestination(
@@ -316,13 +317,14 @@ fun BayanApp(
       BayanNavRoutes.EVIDENCE,
       BayanNavRoutes.QIBLA,
       BayanNavRoutes.SEHRI_IFTAR,
-      BayanNavRoutes.LEARN_ISLAM
+      BayanNavRoutes.LEARN_ISLAM,
+      BayanNavRoutes.NOORANI_QAIDA_PDF
     )
 
     Scaffold(
       modifier = Modifier.fillMaxSize(),
       topBar = {
-        if (isSubpageWithBack && currentRoute != BayanNavRoutes.LEARN_ISLAM) {
+        if (isSubpageWithBack && currentRoute != BayanNavRoutes.LEARN_ISLAM && currentRoute != BayanNavRoutes.NOORANI_QAIDA_PDF) {
           val headerTitle = when (currentRoute) {
             BayanNavRoutes.DOWNLOADS -> appStrings.offlineDownloadManager
             BayanNavRoutes.EVIDENCE -> appStrings.islamWithEvidence
@@ -346,7 +348,7 @@ fun BayanApp(
               containerColor = MaterialTheme.colorScheme.surface
             )
           )
-        } else if (!(currentRoute == BayanNavRoutes.QURAN && uiState.isReaderOpen) && currentRoute != BayanNavRoutes.LEARN_ISLAM) {
+        } else if (!(currentRoute == BayanNavRoutes.QURAN && uiState.isReaderOpen) && currentRoute != BayanNavRoutes.LEARN_ISLAM && currentRoute != BayanNavRoutes.NOORANI_QAIDA_PDF) {
           TopIslamicBar(
             themeMode = uiState.prayerConfig.themeMode,
             isOfflineMode = syncBadgeState.isOfflineMode,
@@ -363,6 +365,9 @@ fun BayanApp(
             },
             onOpenLearnIslamClick = {
               safeNavigateToRoute(BayanNavRoutes.LEARN_ISLAM)
+            },
+            onOpenNooraniQaidaPdfClick = {
+              safeNavigateToRoute(BayanNavRoutes.NOORANI_QAIDA_PDF)
             },
             onOpenSehriIftarClick = {
               viewModel.refreshSehriIftarTimetable(forceRemote = false)
@@ -548,6 +553,10 @@ fun BayanApp(
         composable(BayanNavRoutes.HOME) {
           val todayPrayerSchedule by viewModel.todayPrayerSchedule.collectAsStateWithLifecycle()
           val sunnahRemindersState by viewModel.sunnahRemindersState.collectAsStateWithLifecycle()
+          var showHomeReciterDialog by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+          var pendingHomeSurahNum by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableIntStateOf(1) }
+          var pendingHomeVerseNum by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableIntStateOf(1) }
+          var pendingHomeSurahName by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
           HomeScreen(
             dailyAyah = uiState.dailyAyah,
             dailyHadith = uiState.dailyHadith,
@@ -585,7 +594,12 @@ fun BayanApp(
               viewModel.resumeLastReadQuran()
               navigateToTab(BayanNavRoutes.QURAN, MainNavigationTab.QURAN)
             },
-            onPlayRecitation = { ayah, sName -> viewModel.playAyahRecitation(ayah, sName) },
+            onPlayRecitation = { ayah, sName ->
+              pendingHomeSurahNum = ayah.surahNumber
+              pendingHomeVerseNum = ayah.verseNumber
+              pendingHomeSurahName = sName
+              showHomeReciterDialog = true
+            },
             onBookmarkAyah = { ayah, sName -> viewModel.toggleBookmarkAyah(ayah, sName) },
             onBookmarkHadith = { hadith -> viewModel.toggleBookmarkHadith(hadith) },
             onNavigateToQuran = { navigateToTab(BayanNavRoutes.QURAN, MainNavigationTab.QURAN) },
@@ -613,8 +627,38 @@ fun BayanApp(
             },
             onNavigateToLearnIslam = {
               safeNavigateToRoute(BayanNavRoutes.LEARN_ISLAM)
+            },
+            onNavigateToNooraniQaidaPdf = {
+              safeNavigateToRoute(BayanNavRoutes.NOORANI_QAIDA_PDF)
             }
           )
+          if (showHomeReciterDialog) {
+            com.example.ui.screens.SelectReciterDialog(
+              surahNumber = pendingHomeSurahNum,
+              surahName = pendingHomeSurahName.ifBlank { "Surah $pendingHomeSurahNum" },
+              defaultReciterId = uiState.prayerConfig.sunniQuranReciterId,
+              recitersList = com.example.ui.audio.availableReciters,
+              onConfirmPlay = { chosenReciter ->
+                viewModel.setQuranReciter(chosenReciter, chosenReciter.tradition)
+                showHomeReciterDialog = false
+                val targetAyah = uiState.dailyAyah?.takeIf {
+                  it.surahNumber == pendingHomeSurahNum && it.verseNumber == pendingHomeVerseNum
+                } ?: com.example.data.local.entities.AyahEntity(
+                  surahNumber = pendingHomeSurahNum,
+                  verseNumber = pendingHomeVerseNum,
+                  textArabic = "",
+                  translationEnglish = "",
+                  translationUrdu = "",
+                  juzNumber = 1,
+                  pageNumber = 1
+                )
+                viewModel.playAyahRecitation(targetAyah, pendingHomeSurahName)
+              },
+              onCancel = {
+                showHomeReciterDialog = false
+              }
+            )
+          }
         }
 
         composable(BayanNavRoutes.QURAN) {
@@ -872,7 +916,16 @@ fun BayanApp(
             onOpenQuranSurah = { surahNum, verseNum ->
               viewModel.openOrPreviewQuranReference("$surahNum:$verseNum", openFullSurahReader = true)
               navigateToTab(BayanNavRoutes.QURAN, MainNavigationTab.QURAN)
+            },
+            onOpenNooraniQaidaPdfBook = {
+              safeNavigateToRoute(BayanNavRoutes.NOORANI_QAIDA_PDF)
             }
+          )
+        }
+
+        composable(BayanNavRoutes.NOORANI_QAIDA_PDF) {
+          com.example.ui.qaida.NooraniQaidaReaderScreen(
+            onBack = { safePopBackStack() }
           )
         }
 
