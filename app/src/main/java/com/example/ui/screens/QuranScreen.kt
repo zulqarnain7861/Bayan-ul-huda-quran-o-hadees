@@ -867,8 +867,8 @@ fun SurahReaderView(
   var showTranslationSheet by remember { mutableStateOf(false) }
   var selectedAyahForTafsir by remember { mutableStateOf<AyahEntity?>(null) }
   var selectedAyahForTajweed by remember { mutableStateOf<AyahEntity?>(null) }
-  // Optional Tajweed Engine: defaults to false so normal offline Quran reading is instantaneous & crash-free
-  var isTajweedColoringEnabled by remember { mutableStateOf(false) }
+  // Tajweed Engine enabled by default with crash-proof fallback to plain Uthmani text
+  var isTajweedColoringEnabled by remember { mutableStateOf(true) }
   var selectedTajweedRuleFilter by remember { mutableStateOf<String?>(null) }
   var showTajweedEngineDialog by remember { mutableStateOf(false) }
   var tajweedEngineInspectAyah by remember(surah.number) { mutableIntStateOf(1) }
@@ -1547,7 +1547,7 @@ fun SurahReaderView(
         }
       }
 
-      if (surah.number != 9) {
+      if (surah.number != 1 && surah.number != 9) {
         item(key = "bismillah_starting_verse_item_${surah.number}") {
           BismillahHeader(
             surahNumber = surah.number,
@@ -1624,10 +1624,17 @@ fun SurahReaderView(
             orderedSelectedKeys,
             translationsByKeyAndVerse,
             ayah.surahNumber,
-            ayah.verseNumber
+            ayah.verseNumber,
+            showUrdu,
+            activeTranslationKey
           ) {
             orderedSelectedKeys
-              .filter { edKey -> edKey != "en.sahih" && edKey != "ur.jalandhry" && edKey != activeTranslationKey }
+              .filter { edKey ->
+                edKey != "en.sahih" &&
+                  edKey != "ur.jalandhry" &&
+                  edKey != activeTranslationKey &&
+                  !(showUrdu && edKey == "qul.ks.273")
+              }
               .mapNotNull { edKey ->
                 val text = translationsByKeyAndVerse[edKey to ayah.verseNumber]
                   ?: QulOfflineTranslationManager.getOfflineVerseText(
@@ -3308,8 +3315,18 @@ fun AyahCardItem(
     )
   }
 
-  val arabicWords = remember(cleanVerseArabic) {
-    cleanVerseArabic.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+  val activeDisplayArabic = if (isTajweedColoringEnabled && ayahTajweedRecord != null && ayahTajweedRecord.textUthmani.isNotBlank()) {
+    ayahTajweedRecord.textUthmani
+  } else {
+    cleanVerseArabic
+  }
+
+  val arabicWordRanges = remember(activeDisplayArabic) {
+    QuranTajweedEngineRepository.computeWordCharacterRanges(activeDisplayArabic)
+  }
+
+  val arabicWords = remember(activeDisplayArabic, arabicWordRanges) {
+    arabicWordRanges.map { range -> activeDisplayArabic.substring(range.first, range.last + 1) }
   }
 
   val activeVersePositionMs = if (isThisAyahPlaying) audioState.currentPositionMs else 0
@@ -3509,6 +3526,7 @@ fun AyahCardItem(
         ayah.surahNumber,
         ayah.verseNumber,
         cleanVerseArabic,
+        arabicWordRanges,
         arabicWords,
         isThisAyahPlaying,
         activeWordIndex,
@@ -3532,7 +3550,7 @@ fun AyahCardItem(
             expectedSurah = ayah.surahNumber,
             expectedAyah = ayah.verseNumber
           )
-        } else if (!isThisAyahPlaying || activeWordIndex < 0 || arabicWords.isEmpty()) {
+        } else if (!isThisAyahPlaying || activeWordIndex < 0 || arabicWordRanges.isEmpty()) {
           buildAnnotatedString {
             withStyle(SpanStyle(color = baseTextColor)) {
               append(cleanVerseArabic)
@@ -3540,30 +3558,36 @@ fun AyahCardItem(
           }
         } else {
           buildAnnotatedString {
-            arabicWords.forEachIndexed { idx, word ->
-              val isCurrentWord = idx == activeWordIndex
-              val isSpokenWord = idx < activeWordIndex
-              val wordColor = when {
-                isCurrentWord -> Color(0xFF00E676)
-                isSpokenWord -> Color(0xFF4CAF50)
-                else -> baseTextColor
-              }
-              val wordBg = if (isCurrentWord) {
-                Color(0xFF00E676).copy(alpha = 0.20f)
-              } else {
-                Color.Transparent
-              }
-              withStyle(
-                SpanStyle(
-                  color = wordColor,
-                  background = wordBg,
-                  fontWeight = if (isCurrentWord) FontWeight.Bold else FontWeight.Normal
+            append(cleanVerseArabic)
+            if (cleanVerseArabic.isNotEmpty()) {
+              addStyle(SpanStyle(color = baseTextColor), 0, cleanVerseArabic.length)
+            }
+            val clampedWordIndex = activeWordIndex.coerceIn(0, arabicWordRanges.lastIndex)
+            arabicWordRanges.forEachIndexed { idx, range ->
+              val startIdx = range.first.coerceIn(0, cleanVerseArabic.length)
+              val endIdx = (range.last + 1).coerceIn(startIdx, cleanVerseArabic.length)
+              if (startIdx < endIdx) {
+                val isCurrentWord = idx == clampedWordIndex
+                val isSpokenWord = idx < clampedWordIndex
+                val wordColor = when {
+                  isCurrentWord -> Color(0xFF00E676)
+                  isSpokenWord -> Color(0xFF4CAF50)
+                  else -> baseTextColor
+                }
+                val wordBg = if (isCurrentWord) {
+                  Color(0xFF00E676).copy(alpha = 0.20f)
+                } else {
+                  Color.Transparent
+                }
+                addStyle(
+                  style = SpanStyle(
+                    color = wordColor,
+                    background = wordBg,
+                    fontWeight = if (isCurrentWord) FontWeight.Bold else FontWeight.Normal
+                  ),
+                  start = startIdx,
+                  end = endIdx
                 )
-              ) {
-                append(word)
-              }
-              if (idx < arabicWords.lastIndex) {
-                append(" ")
               }
             }
           }
@@ -3636,7 +3660,11 @@ fun AyahCardItem(
         }
 
         // Attached Verbatim Kashmiri Translation & Tafsir (Bayanul Furqan — Maulana Muhammad Yusuf Shah, QUL #273) right below Urdu translation
-        if (!kashmiriTranslationText.isNullOrBlank() && activeQulEdition?.editionKey != "qul.ks.273") {
+        if (
+          !kashmiriTranslationText.isNullOrBlank() &&
+          activeQulEdition?.editionKey != "qul.ks.273" &&
+          selectedVerseTranslations.none { it.editionKey == "qul.ks.273" }
+        ) {
           val (mainKsVerse, footnoteKsText) = remember(kashmiriTranslationText) {
             QulOfflineTranslationManager.splitVerseAndFootnotes(kashmiriTranslationText)
           }
@@ -3936,14 +3964,15 @@ fun ContinuousMushafRecitationCard(
         )
         val isThisAyahActive = isSurahPlaying && activeAyahNum == ayah.verseNumber
         if (isThisAyahActive) {
-          val words = cleanVerseArabic.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+          val wordRanges = QuranTajweedEngineRepository.computeWordCharacterRanges(cleanVerseArabic)
+          val words = wordRanges.map { range -> cleanVerseArabic.substring(range.first, range.last + 1) }
           val duration = audioState.durationMs.coerceAtLeast(1)
           val progress = (audioState.currentPositionMs.toFloat() / duration.toFloat()).coerceIn(0f, 0.999f)
-          val weights = words.map { it.length.coerceAtLeast(2).toFloat() }
+          val weights = words.map { com.example.ui.audio.TajweedAudioSyncEngine.computeArabicWordPhoneticWeight(it) }
           val totalWeight = weights.sum().coerceAtLeast(1f)
           val targetWeight = progress * totalWeight
           var cumulative = 0f
-          var activeWordIdx = words.lastIndex
+          var activeWordIdx = (words.size - 1).coerceAtLeast(0)
           for (wIdx in weights.indices) {
             cumulative += weights[wIdx]
             if (targetWeight <= cumulative) {
@@ -3951,7 +3980,13 @@ fun ContinuousMushafRecitationCard(
               break
             }
           }
-          words.forEachIndexed { wIdx, w ->
+          var cursor = 0
+          wordRanges.forEachIndexed { wIdx, range ->
+            if (range.first > cursor) {
+              withStyle(SpanStyle(color = baseTextColor)) {
+                append(cleanVerseArabic.substring(cursor, range.first))
+              }
+            }
             val wColor = when {
               wIdx == activeWordIdx -> Color(0xFF00E676)
               wIdx < activeWordIdx -> Color(0xFF4CAF50)
@@ -3964,9 +3999,14 @@ fun ContinuousMushafRecitationCard(
                 fontWeight = if (wIdx == activeWordIdx) FontWeight.Bold else FontWeight.Normal
               )
             ) {
-              append(w)
+              append(cleanVerseArabic.substring(range.first, range.last + 1))
             }
-            if (wIdx < words.lastIndex) append(" ")
+            cursor = range.last + 1
+          }
+          if (cursor < cleanVerseArabic.length) {
+            withStyle(SpanStyle(color = baseTextColor)) {
+              append(cleanVerseArabic.substring(cursor))
+            }
           }
         } else {
           withStyle(SpanStyle(color = baseTextColor)) {

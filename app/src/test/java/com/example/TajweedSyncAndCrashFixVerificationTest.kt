@@ -362,4 +362,307 @@ class TajweedSyncAndCrashFixVerificationTest {
     val timingAt5s = manager.computeSurahAyahTimingForPosition(surah = 1, positionMs = 5000, totalSurahDurationMs = 14000)
     assertEquals(2, timingAt5s.first)
   }
+
+  @Test
+  fun test10_allUserReportedFixesVerified() {
+    // 1. Duplicate Bismillah stripping with NFC-normalized text while preserving Surah 1:1
+    val nfcBismillahPlusAyah = java.text.Normalizer.normalize(
+      "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ الم ذَٰلِكَ ٱلْكِتَٰبُ",
+      java.text.Normalizer.Form.NFC
+    )
+    val strippedSurah2 = com.example.data.local.OfflineQuranAssetLoader.stripDuplicateBismillahPrefix(
+      surahNumber = 2,
+      verseNumber = 1,
+      rawArabic = nfcBismillahPlusAyah
+    )
+    assertFalse("Surah 2:1 must not retain duplicate leading Bismillah", strippedSurah2.startsWith("بِسْمِ"))
+    assertTrue("Surah 2:1 must retain its verse body", strippedSurah2.contains("ذَٰلِكَ"))
+
+    val surah1Verse1 = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
+    val preservedSurah1 = com.example.data.local.OfflineQuranAssetLoader.stripDuplicateBismillahPrefix(
+      surahNumber = 1,
+      verseNumber = 1,
+      rawArabic = surah1Verse1
+    )
+    assertEquals("Surah 1:1 is Bismillah itself and must remain 100% unaltered", surah1Verse1, preservedSurah1)
+
+    // 2. Reciters Surah availability in 1..114 order and full-Surah verse highlighting progression
+    val manager = AudioPlayerManager(context)
+    val sobhi = availableReciters.first { it.id == "islam_sobhi" }
+    val sobhiSurahs = (1..114).filter { AudioPlayerManager.ISLAM_SOBHI_AVAILABLE_SURAHS.contains(it) }
+    assertEquals("Islam Sobhi must have all 111 recorded Surahs available in ascending order", 111, sobhiSurahs.size)
+    assertEquals(sobhiSurahs.sorted(), sobhiSurahs)
+
+    // Verify full-Surah highlighting advances across verses even for uncached Surahs (e.g., Surah 18 Al-Kahf, 110 verses)
+    manager.setReciter(sobhi, autoResumeCurrentAyah = false)
+    val startTiming = manager.computeSurahAyahTimingForPosition(surah = 18, positionMs = 1000, totalSurahDurationMs = 1800000)
+    val midTiming = manager.computeSurahAyahTimingForPosition(surah = 18, positionMs = 900000, totalSurahDurationMs = 1800000)
+    val endTiming = manager.computeSurahAyahTimingForPosition(surah = 18, positionMs = 1795000, totalSurahDurationMs = 1800000)
+    assertEquals(1, startTiming.first)
+    assertTrue("Mid-Surah playback must highlight a middle verse (> 1)", midTiming.first in 40..70)
+    assertEquals(110, endTiming.first)
+
+    // 3. Real-only update notification (no fake update when remoteVersionCode <= installedVersionCode)
+    assertFalse(
+      "Must NOT report update available when remote version matches installed version",
+      com.example.data.updater.InAppUpdateService.isNewerVersionCode(remoteVersionCode = 8L, currentVersionCode = 8L)
+    )
+    assertTrue(
+      "Must report update available only when remoteVersionCode > currentVersionCode",
+      com.example.data.updater.InAppUpdateService.isNewerVersionCode(remoteVersionCode = 9L, currentVersionCode = 8L)
+    )
+
+    // 4. All books including History books have multiple pages/chapters and contiguous Jilds for Next/Previous navigation
+    val allBooks = com.example.data.model.IslamicBooksCatalog.allExpandedLibraryBooks +
+      com.example.data.repository.ClassicalLibraryAndBiographiesRepository.getClassifiedLibraryCatalog(context).map { it.book }
+    assertTrue("Books catalog must not be empty", allBooks.isNotEmpty())
+    allBooks.forEach { book ->
+      assertTrue("Book ${book.id} (${book.titleEnglish}) must have >= 3 chapters/pages for Next/Previous navigation", book.chapters.size >= 3)
+      val distinctJilds = book.chapters.map { it.jildNumber }.distinct().sorted()
+      assertEquals("Book ${book.id} must start at Jild 1", 1, distinctJilds.first())
+      for (i in 1 until distinctJilds.size) {
+        assertEquals(
+          "Book ${book.id} Jilds must be contiguous without gaps",
+          distinctJilds[i - 1] + 1,
+          distinctJilds[i]
+        )
+      }
+    }
+
+    // 5. Daily Aayah, Step-by-Step Guided Learning Path, and Non-Repetitive Intelligent Recommendations
+    val dailySeeds = com.example.data.model.DailyGuidanceAndRecommendationEngine.curatedDailyAyahSeeds
+    assertTrue("Must have at least 7 curated Daily Aayah seeds", dailySeeds.size >= 7)
+    val firstSeed = dailySeeds.first()
+    val resolvedDailyAyah = com.example.data.model.DailyGuidanceAndRecommendationEngine.resolveAuthenticDailyAyahEntity(context, firstSeed)
+    val resolvedDailyHadith = com.example.data.model.DailyGuidanceAndRecommendationEngine.resolveAuthenticDailyHadith(firstSeed)
+    assertTrue("Daily Aayah Arabic text must be non-empty", resolvedDailyAyah.textArabic.isNotBlank())
+    assertTrue("Daily Aayah English translation must be non-empty", resolvedDailyAyah.translationEnglish.isNotBlank())
+    assertTrue("Daily Aayah Urdu translation must be non-empty", resolvedDailyAyah.translationUrdu.isNotBlank())
+    assertEquals(39, firstSeed.surahNumber)
+    assertEquals(53, firstSeed.verseNumber)
+    assertTrue("Paired Daily Hadith must be non-empty", resolvedDailyHadith.englishText.isNotBlank())
+
+    val learningSteps = com.example.data.model.DailyGuidanceAndRecommendationEngine.stepByStepLearningPath
+    assertEquals("Step-by-step learning path must have 5 progressive stages", 5, learningSteps.size)
+
+    val recsBatch1 = com.example.data.model.DailyGuidanceAndRecommendationEngine.buildIntelligentRecommendations(
+      context = context,
+      lastReadSurahNumber = 18,
+      lastReadSurahNameEn = "Al-Kahf",
+      lastReadVerseNumber = 10,
+      isFridayOrThursdayEvening = true,
+      rotationOffset = 0
+    )
+    val recsBatch2 = com.example.data.model.DailyGuidanceAndRecommendationEngine.buildIntelligentRecommendations(
+      context = context,
+      lastReadSurahNumber = 18,
+      lastReadSurahNameEn = "Al-Kahf",
+      lastReadVerseNumber = 10,
+      isFridayOrThursdayEvening = true,
+      rotationOffset = 1
+    )
+    assertEquals(5, recsBatch1.size)
+    assertEquals("Recommendations must have unique IDs without repetition", recsBatch1.size, recsBatch1.map { it.id }.distinct().size)
+    assertTrue("Rotating recommendations must surface fresh items", recsBatch1.map { it.id } != recsBatch2.map { it.id })
+  }
+
+  @Test
+  fun test11_sunniShiaTimingEngineAndKnowledgeRepositoryVerified() {
+    val sunniConfig = com.example.data.prayer.PrayerAndAlarmConfig(
+      city = "Srinagar",
+      country = "India",
+      latitude = 34.0837,
+      longitude = 74.7973,
+      timeZoneId = "Asia/Kolkata"
+    )
+    val shiaConfig = com.example.data.prayer.ShiaPrayerAndFastingConfig(
+      method = com.example.data.prayer.ShiaJafariCalculationMethod.LEVA_INSTITUTE_QUM
+    )
+    val sunniSchedule = com.example.data.prayer.PrayerTimeCalculator.calculateOfflineSchedule(
+      locationName = sunniConfig.city,
+      country = sunniConfig.country,
+      latitude = sunniConfig.latitude,
+      longitude = sunniConfig.longitude,
+      timeZoneId = sunniConfig.timeZoneId
+    )
+    val shiaSchedule = com.example.data.prayer.ShiaJafariPrayerAndFastingEngine.calculateShiaSchedule(
+      locationName = sunniConfig.city,
+      country = sunniConfig.country,
+      latitude = sunniConfig.latitude,
+      longitude = sunniConfig.longitude,
+      timeZoneId = sunniConfig.timeZoneId,
+      shiaConfig = shiaConfig
+    )
+
+    fun toMinutes(hhmm: String): Int {
+      val parts = hhmm.trim().take(5).split(":")
+      return parts[0].toInt() * 60 + parts[1].toInt()
+    }
+
+    // 1. Verify Shia Maghrib & Iftari is strictly later than Astronomical Sunset (eastern redness disappearance)
+    assertTrue(
+      "Shia Ja'fari Maghrib (${shiaSchedule.maghribTime}) must be strictly after Astronomical Sunset (${shiaSchedule.astronomicalSunsetTime})",
+      toMinutes(shiaSchedule.maghribTime) > toMinutes(shiaSchedule.astronomicalSunsetTime)
+    )
+    assertEquals(
+      "Shia Iftari time follows Ja'fari Maghrib",
+      toMinutes(shiaSchedule.maghribTime),
+      toMinutes(shiaSchedule.iftarTime)
+    )
+
+    // 2. Verify Shia timings are calculated independently and not copied from Sunni Maghrib
+    assertTrue(
+      "Shia Maghrib (${shiaSchedule.maghribTime}) must be later than Sunni Sunset/Maghrib (${sunniSchedule.maghribTime})",
+      toMinutes(shiaSchedule.maghribTime) > toMinutes(sunniSchedule.maghribTime)
+    )
+    assertTrue(
+      "Shia Sehri Ends (${shiaSchedule.sehriEndsTime}) must precede or equal Shia Fajr (${shiaSchedule.fajrTime})",
+      toMinutes(shiaSchedule.sehriEndsTime) <= toMinutes(shiaSchedule.fajrTime)
+    )
+
+    // 3. Verify 30-day Shia fasting calendar and live countdown
+    val calendar30 = com.example.data.prayer.ShiaJafariPrayerAndFastingEngine.generateShia30DayFastingCalendar(
+      daysCount = 30,
+      locationName = sunniConfig.city,
+      country = sunniConfig.country,
+      latitude = sunniConfig.latitude,
+      longitude = sunniConfig.longitude,
+      timeZoneId = sunniConfig.timeZoneId,
+      shiaConfig = shiaConfig
+    )
+    assertEquals(30, calendar30.size)
+    calendar30.forEach { day ->
+      assertTrue(day.sehriEnds24.isNotBlank())
+      assertTrue(day.fajrDawn24.isNotBlank())
+      assertTrue(day.astronomicalSunset24.isNotBlank())
+      assertTrue(day.maghribIftari24.isNotBlank())
+    }
+    val countdown = com.example.data.prayer.ShiaJafariPrayerAndFastingEngine.computeShiaFastingCountdown(shiaSchedule)
+    assertTrue(countdown.currentPhaseTitle.isNotBlank())
+    assertTrue(countdown.countdownHhMmSs.contains(":"))
+
+    // 4. Verify Shia Dua library scholarly metadata (all 8 required verification fields)
+    val shiaDuas = com.example.data.model.ShiaIslamicKnowledgeRepository.shiaDuasCatalog
+    assertTrue("Shia Duas catalog must have at least 8 documented supplications", shiaDuas.size >= 8)
+    shiaDuas.forEach { dua ->
+      assertTrue("Dua ${dua.id} must have original Arabic text", dua.arabicText.isNotBlank())
+      assertTrue("Dua ${dua.id} must have transliteration", dua.transliteration.isNotBlank())
+      assertTrue("Dua ${dua.id} must have Urdu translation", dua.urduTranslation.isNotBlank())
+      assertTrue("Dua ${dua.id} must have English translation", dua.englishTranslation.isNotBlank())
+      assertTrue("Dua ${dua.id} must cite original book and author", dua.originalBookAndAuthor.isNotBlank())
+      assertTrue("Dua ${dua.id} must cite volume/chapter/hadith/page", dua.volumeChapterAndReference.isNotBlank())
+      assertTrue("Dua ${dua.id} must cite scholarly grading and evaluating scholar", dua.scholarlyGradingAndEvaluator.isNotBlank())
+      assertTrue("Dua ${dua.id} must state occasion and context", dua.contextAndRecommendedOccasion.isNotBlank())
+    }
+
+    // 5. Verify Evidence-Based Shia Practices, Shared Quran/Tajweed Learning, and 13 Verified Sources
+    assertTrue(com.example.data.model.ShiaIslamicKnowledgeRepository.shiaPracticesAndReminders.size >= 7)
+    assertTrue(com.example.data.model.ShiaIslamicKnowledgeRepository.shiaLearningModules.size >= 4)
+    assertEquals(13, com.example.data.model.ShiaIslamicKnowledgeRepository.shiaVerifiedSourceLinks.size)
+  }
+
+  @Test
+  fun test12_authenticIslamicWisdomEngineChronologyAndContinuousDiscoveryVerified() {
+    // 1. Verify all 4 Wisdom Categories are populated with verified Hadith/tradition entries
+    val propheticItems = com.example.data.model.ReflectionDataProvider.filterItems(
+      category = com.example.data.model.ReflectionCategory.PROPHETIC_GUIDANCE,
+      attributionFilter = com.example.data.model.WisdomAttributionStatus.VERIFIED_ATTRIBUTION
+    )
+    val ahlulBaytItems = com.example.data.model.ReflectionDataProvider.filterItems(
+      category = com.example.data.model.ReflectionCategory.AHLUL_BAYT_WISDOM,
+      attributionFilter = com.example.data.model.WisdomAttributionStatus.VERIFIED_ATTRIBUTION
+    )
+    val earlySahabahItems = com.example.data.model.ReflectionDataProvider.filterItems(
+      category = com.example.data.model.ReflectionCategory.COMPANIONS_WISDOM,
+      attributionFilter = com.example.data.model.WisdomAttributionStatus.VERIFIED_ATTRIBUTION
+    )
+    val otherSahabahItems = com.example.data.model.ReflectionDataProvider.filterItems(
+      category = com.example.data.model.ReflectionCategory.OTHER_SAHABAH_WISDOM,
+      attributionFilter = com.example.data.model.WisdomAttributionStatus.VERIFIED_ATTRIBUTION
+    )
+
+    assertTrue("Prophetic Guidance must have verified narrations", propheticItems.size >= 6)
+    assertTrue("Ahl al-Bayt Wisdom must have verified narrations", ahlulBaytItems.size >= 8)
+    assertTrue("Early Sahabah Wisdom must have at least 15 chronological entries", earlySahabahItems.size >= 15)
+    assertTrue("Other Sahabah Wisdom must have verified entries", otherSahabahItems.size >= 4)
+
+    // 2. Verify strict historical chronology in Early Sahabah (COMPANIONS_WISDOM)
+    assertTrue(
+      "First in Early Sahabah chronology must be Sayyidah Khadijah (RA)",
+      earlySahabahItems[0].speaker.contains("Khadijah")
+    )
+    assertEquals(1, earlySahabahItems[0].chronologyRank)
+
+    assertTrue(
+      "Second in Early Sahabah chronology must be Imam Ali ibn Abi Talib (AS)",
+      earlySahabahItems[1].speaker.contains("Imam Ali")
+    )
+    assertEquals(2, earlySahabahItems[1].chronologyRank)
+    assertTrue(
+      "Imam Ali entry must include scholarly historical note on earliest male/youth conversion",
+      earlySahabahItems[1].historicalDisputeNote.isNotBlank()
+    )
+
+    // Verify chronological ranks are strictly non-decreasing across the entire Early Sahabah list
+    for (i in 1 until earlySahabahItems.size) {
+      assertTrue(
+        "Early Sahabah must be ordered by chronologyRank (${earlySahabahItems[i - 1].speaker} rank ${earlySahabahItems[i - 1].chronologyRank} <= ${earlySahabahItems[i].speaker} rank ${earlySahabahItems[i].chronologyRank})",
+        earlySahabahItems[i - 1].chronologyRank <= earlySahabahItems[i].chronologyRank
+      )
+    }
+
+    // Verify Umar (RA) and Uthman (RA) are in OTHER_SAHABAH_WISDOM and not placed ahead of the earliest believers
+    assertFalse(
+      "Umar (RA) must not be placed ahead of the earliest believers in Early Sahabah",
+      earlySahabahItems.take(10).any { it.speaker.startsWith("Umar ibn al-Khattab") }
+    )
+    assertTrue(
+      "Umar (RA) and Uthman (RA) must be present in their historical position in Other Sahabah",
+      otherSahabahItems.any { it.speaker.contains("Umar ibn al-Khattab") } &&
+        otherSahabahItems.any { it.speaker.contains("Uthman ibn Affan") }
+    )
+
+    // 3. Verify Supporters of Ahl al-Bayt filter surfaces Salman, Abu Dharr, Miqdad, Ammar, Jabir, Zayd ibn Arqam, Umm Salamah
+    val ahlulBaytSupporters = com.example.data.model.ReflectionDataProvider.filterItems(
+      category = com.example.data.model.ReflectionCategory.COMPANIONS_WISDOM,
+      attributionFilter = com.example.data.model.WisdomAttributionStatus.VERIFIED_ATTRIBUTION,
+      relationshipFilter = com.example.data.model.HistoricalRelationshipTag.SUPPORTERS_OF_AHL_AL_BAYT
+    )
+    val supporterSpeakers = ahlulBaytSupporters.joinToString(" | ") { it.speaker }
+    listOf("Salman", "Abu Dharr", "Miqdad", "Ammar", "Jabir", "Zayd ibn Arqam", "Umm Salamah").forEach { name ->
+      assertTrue("Supporters of Ahl al-Bayt must include $name", supporterSpeakers.contains(name))
+    }
+
+    // 4. Verify multi-collection Hadith discovery spans across more than 7 Hadith books (20+ integrated collections)
+    val allBooks = com.example.data.model.ReflectionDataProvider.getAvailableHadithBooks()
+    assertTrue(
+      "Wisdom Engine must discover narrations across more than 7 Hadith books (found ${allBooks.size}: $allBooks)",
+      allBooks.size > 15
+    )
+
+    // 5. Verify every verified item has Arabic, English, Urdu, Speaker, Source Reference, Authenticity Grading, and Narration Type
+    com.example.data.model.ReflectionDataProvider.items.forEach { item ->
+      assertTrue("Item ${item.id} must have Arabic text", item.arabicOrOriginalText.isNotBlank())
+      assertTrue("Item ${item.id} must have English translation", item.translationEnglish.isNotBlank())
+      assertTrue("Item ${item.id} must have Urdu translation", item.translationUrdu.isNotBlank())
+      assertTrue("Item ${item.id} must have Speaker", item.speaker.isNotBlank())
+      assertTrue("Item ${item.id} must have Source Reference", item.sourceReference.isNotBlank())
+      assertTrue("Item ${item.id} must have Authenticity Grading", item.authenticityGrading.isNotBlank())
+    }
+
+    // 6. Verify continuous unseen discovery advances without repeating already-seen items
+    val nextIdx1 = com.example.data.model.ReflectionDataProvider.discoverNextUnseenIndex(
+      context = context,
+      candidates = earlySahabahItems,
+      currentIndex = 0
+    )
+    val nextIdx2 = com.example.data.model.ReflectionDataProvider.discoverNextUnseenIndex(
+      context = context,
+      candidates = earlySahabahItems,
+      currentIndex = nextIdx1
+    )
+    assertTrue("Continuous discovery must advance to a new unseen index", nextIdx1 != nextIdx2)
+  }
 }
+
+

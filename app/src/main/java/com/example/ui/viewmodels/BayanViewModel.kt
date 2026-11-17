@@ -720,11 +720,24 @@ class BayanViewModel(application: Application) : AndroidViewModel(application) {
   }
 
   private suspend fun loadDailyContent() {
-    val ayah = repository.getRandomAyah()
-    val hadith = repository.getRandomHadith()
+    val app = getApplication<Application>()
+    val seed = com.example.data.model.DailyGuidanceAndRecommendationEngine.getActiveDailyAyahSeed(app)
+    val curatedAyah = runCatching { repository.getAyah(seed.surahNumber, seed.verseNumber) }.getOrNull()
+      ?: com.example.data.model.DailyGuidanceAndRecommendationEngine.resolveAuthenticDailyAyahEntity(
+        context = app,
+        seed = seed,
+        fallbackAyah = repository.getRandomAyah()
+      )
+    val curatedHadith = runCatching {
+      repository.findOrFetchHadithByNumber(seed.pairedHadithCollectionKey, seed.pairedHadithNumber)
+    }.getOrNull()
+      ?: com.example.data.model.DailyGuidanceAndRecommendationEngine.resolveAuthenticDailyHadith(
+        seed = seed,
+        fallbackHadith = repository.getRandomHadith()
+      )
     _uiState.value = _uiState.value.copy(
-      dailyAyah = ayah,
-      dailyHadith = hadith
+      dailyAyah = curatedAyah,
+      dailyHadith = curatedHadith
     )
   }
 

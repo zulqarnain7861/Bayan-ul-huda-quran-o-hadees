@@ -94,9 +94,9 @@ fun TajweedPracticeDialog(
   val recorder = remember { TajweedVoiceRecorder(context) }
   val recordingState by recorder.state.collectAsState()
 
-  // Default to Left-to-Right word sequence (Word 1 -> Word 2 -> Word 3 -> Word 4 from left to right)
-  // as requested by user, with 1-tap toggle to switch to RTL if desired.
-  var leftToRightWordOrder by remember { mutableStateOf(true) }
+  // Default to Arabic Right-to-Left word sequence (Word #1 on the right <- Word #N on the left)
+  // as per authentic Arabic reading & voice recitation convention, with 1-tap toggle if needed.
+  var leftToRightWordOrder by remember { mutableStateOf(false) }
 
   val canonicalWords = remember(cleanArabicText) {
     cleanArabicText.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
@@ -330,7 +330,8 @@ fun TajweedPracticeDialog(
                 fontFamily = AmiriFontFamily,
                 fontSize = 24.sp,
                 lineHeight = 44.sp,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                textDirection = androidx.compose.ui.text.style.TextDirection.Rtl
               ),
               modifier = Modifier
                 .fillMaxWidth()
@@ -434,7 +435,11 @@ fun TajweedPracticeDialog(
 
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-              text = "Canonical Uthmani Arabic • Words ordered #1 → #${canonicalWords.size} from left to right for clear step-by-step tracking",
+              text = if (!leftToRightWordOrder) {
+                "Canonical Uthmani Arabic • Words ordered #1 ← #${canonicalWords.size} from right to left (Arabic RTL) for natural voice recitation"
+              } else {
+                "Canonical Uthmani Arabic • Words ordered #1 → #${canonicalWords.size} from left to right for step-by-step tracking"
+              },
               style = MaterialTheme.typography.labelSmall.copy(
                 fontSize = 10.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant

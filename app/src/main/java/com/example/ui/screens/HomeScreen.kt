@@ -82,9 +82,11 @@ import com.example.data.local.entities.HadithEntity
 import com.example.data.local.entities.PrayerScheduleEntity
 import com.example.data.local.entities.SurahEntity
 import com.example.data.model.DailyDuasDataProvider
+import com.example.data.model.HistoricalRelationshipTag
 import com.example.data.model.ReflectionCategory
 import com.example.data.model.ReflectionDataProvider
 import com.example.data.model.WisdomAttributionStatus
+import com.example.data.model.WisdomNarrationType
 import com.example.data.prayer.PrayerAndAlarmConfig
 import com.example.data.prayer.SunnahRemindersUiState
 import com.example.ui.components.BismillahHeader
@@ -140,20 +142,134 @@ fun HomeScreen(
   val context = LocalContext.current
   val appStrings = com.example.ui.localization.LocalAppStrings.current
   var reflectionCategory by remember { mutableStateOf(ReflectionCategory.PROPHETIC_GUIDANCE) }
-  var reflectionAttributionFilter by remember { mutableStateOf<WisdomAttributionStatus?>(null) }
+  var reflectionAttributionFilter by remember {
+    mutableStateOf<WisdomAttributionStatus?>(WisdomAttributionStatus.VERIFIED_ATTRIBUTION)
+  }
+  var reflectionRelationshipFilter by remember { mutableStateOf(HistoricalRelationshipTag.ALL) }
+  var reflectionBookFilter by remember { mutableStateOf<String?>(null) }
+  var reflectionBookmarkedOnly by remember { mutableStateOf(false) }
+  var bookmarkedWisdomIds by remember {
+    mutableStateOf(ReflectionDataProvider.getBookmarkedWisdomIds(context))
+  }
   var reflectionSearchQuery by remember { mutableStateOf("") }
   var reflectionIndex by remember { mutableIntStateOf(0) }
+  var homeTraditionSectionMode by remember {
+    mutableStateOf(com.example.ui.components.HomeTraditionSectionMode.SUNNI_SECTION_ONLY)
+  }
+
+  var dailyAyahOffset by remember {
+    mutableIntStateOf(com.example.data.model.DailyGuidanceAndRecommendationEngine.getSavedDailyAyahOffset(context))
+  }
+  var showStepByStepPath by remember { mutableStateOf(true) }
+  var completedLearningSteps by remember {
+    mutableStateOf(com.example.data.model.DailyGuidanceAndRecommendationEngine.getCompletedLearningSteps(context))
+  }
+  var recRotationOffset by remember {
+    mutableIntStateOf(com.example.data.model.DailyGuidanceAndRecommendationEngine.getSavedRecommendationRotation(context))
+  }
+  var selectedRecCategory by remember { mutableStateOf("ALL") }
+
+  val activeCuratedSeed = remember(dailyAyahOffset) {
+    com.example.data.model.DailyGuidanceAndRecommendationEngine.getActiveDailyAyahSeed(context, dailyAyahOffset)
+  }
+  val resolvedDailyAyah = remember(activeCuratedSeed, dailyAyah) {
+    com.example.data.model.DailyGuidanceAndRecommendationEngine.resolveAuthenticDailyAyahEntity(
+      context = context,
+      seed = activeCuratedSeed,
+      fallbackAyah = dailyAyah
+    )
+  }
+  val resolvedDailyHadith = remember(activeCuratedSeed, dailyHadith) {
+    com.example.data.model.DailyGuidanceAndRecommendationEngine.resolveAuthenticDailyHadith(
+      seed = activeCuratedSeed,
+      fallbackHadith = dailyHadith
+    )
+  }
 
   val mostRecentVideoResume = remember(context) {
     com.example.player.VideoPlaybackResumeStore.getMostRecentSavedResumeState(context)
   }
 
-  LazyColumn(
-    modifier = modifier
-      .fillMaxSize()
-      .padding(horizontal = 16.dp),
-    contentPadding = PaddingValues(vertical = 12.dp)
-  ) {
+  Column(modifier = modifier.fillMaxSize()) {
+    // Top Tradition Entry Switcher (Ahal Sunnat Home Screen vs Shia Home Screen — matching QuranScreen top bar)
+    Row(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 10.dp, vertical = 4.dp)
+        .testTag("home_top_tradition_switcher_row"),
+      horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+      val isSunniSelected =
+        homeTraditionSectionMode != com.example.ui.components.HomeTraditionSectionMode.SHIA_SECTION_ONLY
+      val isShiaSelected =
+        homeTraditionSectionMode == com.example.ui.components.HomeTraditionSectionMode.SHIA_SECTION_ONLY
+
+      FilterChip(
+        selected = isSunniSelected,
+        onClick = {
+          homeTraditionSectionMode = com.example.ui.components.HomeTraditionSectionMode.SUNNI_SECTION_ONLY
+          reflectionCategory = ReflectionCategory.PROPHETIC_GUIDANCE
+          reflectionAttributionFilter = null
+          reflectionIndex = 0
+        },
+        label = {
+          Text(
+            text = "Ahal Sunnat Home Screen",
+            fontWeight = FontWeight.Bold,
+            fontSize = 11.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+          )
+        },
+        colors = FilterChipDefaults.filterChipColors(
+          selectedContainerColor = EmeraldPrimary,
+          selectedLabelColor = Color.White
+        ),
+        modifier = Modifier
+          .weight(1f)
+          .height(36.dp)
+          .testTag("home_ahl_sunnat_entry")
+      )
+
+      FilterChip(
+        selected = isShiaSelected,
+        onClick = {
+          homeTraditionSectionMode = com.example.ui.components.HomeTraditionSectionMode.SHIA_SECTION_ONLY
+          reflectionCategory = ReflectionCategory.AHLUL_BAYT_WISDOM
+          reflectionAttributionFilter = null
+          reflectionIndex = 0
+        },
+        label = {
+          Text(
+            text = "Shia Home Screen",
+            fontWeight = FontWeight.Bold,
+            fontSize = 11.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+          )
+        },
+        colors = FilterChipDefaults.filterChipColors(
+          selectedContainerColor = GoldPrimary,
+          selectedLabelColor = Color.Black
+        ),
+        modifier = Modifier
+          .weight(1f)
+          .height(36.dp)
+          .testTag("home_shia_entry")
+      )
+    }
+
+    LazyColumn(
+      modifier = Modifier
+        .weight(1f)
+        .fillMaxWidth()
+        .padding(horizontal = 16.dp),
+      contentPadding = PaddingValues(vertical = 12.dp)
+    ) {
     // Sacred Bismillah Greeting Header
     item {
       BismillahHeader()
@@ -241,7 +357,7 @@ fun HomeScreen(
             Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-              text = "Start Learning — Noorani Qaida & Quran",
+              text = "Start Learning: Noorani Qaida & Quran",
               style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold)
             )
           }
@@ -267,6 +383,37 @@ fun HomeScreen(
         }
       }
       Spacer(modifier = Modifier.height(14.dp))
+    }
+
+    // 2. SECOND POSITION ON HOME SCREEN (Immediately after First-Priority Section):
+    // Sunni Nimaz Timings & 13 Sunni Azans on Ahal Sunnat Home Screen;
+    // Shia (Ja'fari) Nimaz Timings & Official Shia Azans on Shia Home Screen
+    item {
+      if (homeTraditionSectionMode == com.example.ui.components.HomeTraditionSectionMode.SHIA_SECTION_ONLY) {
+        com.example.ui.components.ShiaStandalonePrayerTimingsCard(
+          sunniConfig = prayerConfig,
+          onOpenSehriIftarScreen = onNavigateToSehriIftar,
+          onOpenQiblaCompass = onNavigateToQibla,
+          alarmPlaybackState = alarmPlaybackState,
+          onUpdateConfig = onUpdatePrayerConfig,
+          onStopActiveAlarm = onStopActiveAlarm,
+          onSnoozeActiveAlarm = onSnoozeActiveAlarm
+        )
+      } else {
+        SalahAndFajrAlarmCard(
+          schedule = prayerSchedule,
+          config = prayerConfig,
+          alarmPlaybackState = alarmPlaybackState,
+          onUpdateConfig = onUpdatePrayerConfig,
+          onRefreshSchedule = onRefreshPrayerSchedule,
+          onTestAzanOrFajrAlarm = onTestAzanOrFajrAlarm,
+          onStopActiveAlarm = onStopActiveAlarm,
+          onSnoozeActiveAlarm = onSnoozeActiveAlarm,
+          onOpenQiblaCompass = onNavigateToQibla,
+          showCombinedSunniShiaComparison = false
+        )
+      }
+      Spacer(modifier = Modifier.height(16.dp))
     }
 
     // 1B. Video Lectures Library & Resume Video Lecture Card (Symmetrical Centered Layout)
@@ -410,7 +557,7 @@ fun HomeScreen(
           horizontalAlignment = Alignment.CenterHorizontally
         ) {
           Text(
-            text = "تمام علمی، تحقیقی اور عبادتی شعبے — ایک نظر میں",
+            text = "تمام علمی، تحقیقی اور عبادتی شعبے: ایک نظر میں",
             style = MaterialTheme.typography.bodyMedium.copy(
               fontFamily = com.example.ui.theme.UrduNastaliqFontFamily,
               fontSize = 14.sp,
@@ -579,55 +726,7 @@ fun HomeScreen(
       Spacer(modifier = Modifier.height(14.dp))
     }
 
-    // 2. Sehri / Iftari Timings & Fasting Duas (Prophetic Hadith First)
-    item {
-      val adjustedSehri = prayerSchedule?.fajrTime?.let { rawFajr ->
-        com.example.data.prayer.SehriIftarTimetableEngine.applyMinuteAdjustment(
-          rawFajr,
-          prayerConfig.sehriAdjustmentMinutes
-        )
-      }
-      val adjustedIftar = prayerSchedule?.maghribTime?.let { rawMaghrib ->
-        com.example.data.prayer.SehriIftarTimetableEngine.applyMinuteAdjustment(
-          rawMaghrib,
-          prayerConfig.iftarAdjustmentMinutes
-        )
-      }
-      val presentDateDuas = DailyDuasDataProvider.getPresentDateShowcaseDuas(
-        hijriMonthIndex = sunnahRemindersState.calculatedDayStatus.hijriInfo.monthIndex,
-        isFridayOrThursdayAfterMaghrib = sunnahRemindersState.calculatedDayStatus.isFridayToday ||
-          sunnahRemindersState.calculatedDayStatus.isThursdayAfterMaghribJumuahActive
-      )
-      SpecialRamadanDuasShowcaseCard(
-        duas = presentDateDuas,
-        onOpenSehriIftarTimetable = onNavigateToSehriIftar,
-        todaySehriEnds = adjustedSehri,
-        todayIftarTime = adjustedIftar,
-        cityName = "${prayerConfig.city}, ${prayerConfig.country}",
-        prayerConfig = prayerConfig,
-        onUpdatePrayerConfig = onUpdatePrayerConfig,
-        modifier = Modifier.testTag("home_ramadan_duas_and_timetable_card")
-      )
-      Spacer(modifier = Modifier.height(16.dp))
-    }
-
-    // 3. Five Daily Salah Times, Adhan & Real-Time Alarm Audio Level
-    item {
-      SalahAndFajrAlarmCard(
-        schedule = prayerSchedule,
-        config = prayerConfig,
-        alarmPlaybackState = alarmPlaybackState,
-        onUpdateConfig = onUpdatePrayerConfig,
-        onRefreshSchedule = onRefreshPrayerSchedule,
-        onTestAzanOrFajrAlarm = onTestAzanOrFajrAlarm,
-        onStopActiveAlarm = onStopActiveAlarm,
-        onSnoozeActiveAlarm = onSnoozeActiveAlarm,
-        onOpenQiblaCompass = onNavigateToQibla
-      )
-      Spacer(modifier = Modifier.height(16.dp))
-    }
-
-    // Resume Quran Reading Progress Tracker Card
+    // Resume Quran Reading Progress Tracker Card (Shared across all traditions)
     if (prayerConfig.lastReadSurahNumber in 1..114) {
       item {
         val totalVerses = prayerConfig.lastReadTotalVerses.coerceAtLeast(1)
@@ -696,21 +795,103 @@ fun HomeScreen(
       }
     }
 
-    // Specially Present on Home Screen: Calculated Friday & All Other Days Sunnah & Notification Card
-    item {
-      CalculatedFridayAndDailySunnahHomeCard(
-        remindersState = sunnahRemindersState,
-        surahs = surahs,
-        onSelectPreviewDayOfWeek = onSelectPreviewDayOfWeek,
-        onSendCalculatedDayNotificationNow = onSendCalculatedDayNotificationNow,
-        onUpdateFridayBathReminder = onUpdateFridayBathReminder,
-        onUpdateDailyCalculatedReminder = onUpdateDailyCalculatedReminder,
-        onToggleFridayChecklistItem = onToggleFridayChecklistItem,
-        onIncrementFridaySalawat = onIncrementFridaySalawat,
-        onOpenSurah = onOpenSurah,
-        onNavigateToDailyDuas = onNavigateToDailyDuas
-      )
-      Spacer(modifier = Modifier.height(16.dp))
+    // =========================================================================
+    // AHAL SUNNAT HOME SCREEN CONTENT (Driven solely by the single top selector)
+    // (Sunni Sehri/Iftari & Masnoon Duas + Sunni Friday & Daily Sunnah Reminders)
+    // =========================================================================
+    if (homeTraditionSectionMode != com.example.ui.components.HomeTraditionSectionMode.SHIA_SECTION_ONLY) {
+      item {
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("home_sunni_homescreen_section"),
+          verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+          val adjustedSehri = prayerSchedule?.fajrTime?.let { rawFajr ->
+            com.example.data.prayer.SehriIftarTimetableEngine.applyMinuteAdjustment(
+              rawFajr,
+              prayerConfig.sehriAdjustmentMinutes
+            )
+          }
+          val adjustedIftar = prayerSchedule?.maghribTime?.let { rawMaghrib ->
+            com.example.data.prayer.SehriIftarTimetableEngine.applyMinuteAdjustment(
+              rawMaghrib,
+              prayerConfig.iftarAdjustmentMinutes
+            )
+          }
+          val presentDateDuas = DailyDuasDataProvider.getPresentDateShowcaseDuas(
+            hijriMonthIndex = sunnahRemindersState.calculatedDayStatus.hijriInfo.monthIndex,
+            isFridayOrThursdayAfterMaghrib = sunnahRemindersState.calculatedDayStatus.isFridayToday ||
+              sunnahRemindersState.calculatedDayStatus.isThursdayAfterMaghribJumuahActive
+          )
+          SpecialRamadanDuasShowcaseCard(
+            duas = presentDateDuas,
+            onOpenSehriIftarTimetable = onNavigateToSehriIftar,
+            todaySehriEnds = adjustedSehri,
+            todayIftarTime = adjustedIftar,
+            cityName = "${prayerConfig.city}, ${prayerConfig.country}",
+            prayerConfig = prayerConfig,
+            onUpdatePrayerConfig = onUpdatePrayerConfig,
+            modifier = Modifier.testTag("home_ramadan_duas_and_timetable_card")
+          )
+
+          CalculatedFridayAndDailySunnahHomeCard(
+            remindersState = sunnahRemindersState,
+            surahs = surahs,
+            onSelectPreviewDayOfWeek = onSelectPreviewDayOfWeek,
+            onSendCalculatedDayNotificationNow = onSendCalculatedDayNotificationNow,
+            onUpdateFridayBathReminder = onUpdateFridayBathReminder,
+            onUpdateDailyCalculatedReminder = onUpdateDailyCalculatedReminder,
+            onToggleFridayChecklistItem = onToggleFridayChecklistItem,
+            onIncrementFridaySalawat = onIncrementFridaySalawat,
+            onOpenSurah = onOpenSurah,
+            onNavigateToDailyDuas = onNavigateToDailyDuas
+          )
+        }
+        Spacer(modifier = Modifier.height(18.dp))
+      }
+    }
+
+    // =========================================================================
+    // SHIA HOME SCREEN CONTENT (Driven solely by the single top selector)
+    // (Shia Duas, Separate Shia Sehri/Iftari Engine, Evidence-Based Practices, Shia Learning & Ahl al-Bayt Daily Hadith)
+    // =========================================================================
+    if (homeTraditionSectionMode == com.example.ui.components.HomeTraditionSectionMode.SHIA_SECTION_ONLY) {
+      item {
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("home_shia_homescreen_section"),
+          verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+          com.example.ui.components.ShiaHomeKnowledgeAndPracticesSectionCard(
+            sunniConfig = prayerConfig,
+            onOpenSehriIftarScreen = onNavigateToSehriIftar,
+            onOpenDailyDuasScreen = onNavigateToDailyDuas,
+            onOpenLearnIslamScreen = onNavigateToLearnIslam,
+            onOpenNooraniQaidaPdf = onNavigateToNooraniQaidaPdf
+          )
+
+          com.example.ui.components.ShiaDailyAhlulBaytHadithCard(
+            onNavigateToHadith = onNavigateToHadith
+          )
+
+          CalculatedFridayAndDailySunnahHomeCard(
+            remindersState = sunnahRemindersState,
+            surahs = surahs,
+            onSelectPreviewDayOfWeek = onSelectPreviewDayOfWeek,
+            onSendCalculatedDayNotificationNow = onSendCalculatedDayNotificationNow,
+            onUpdateFridayBathReminder = onUpdateFridayBathReminder,
+            onUpdateDailyCalculatedReminder = onUpdateDailyCalculatedReminder,
+            onToggleFridayChecklistItem = onToggleFridayChecklistItem,
+            onIncrementFridaySalawat = onIncrementFridaySalawat,
+            onOpenSurah = onOpenSurah,
+            onNavigateToDailyDuas = onNavigateToDailyDuas,
+            isShiaTradition = true
+          )
+        }
+        Spacer(modifier = Modifier.height(18.dp))
+      }
     }
 
     // Complete Offline Corpus Summary Card (114 Surahs, 8 Tafsirs, 7 Primary Hadith Books, 32 Islamic Books)
@@ -823,11 +1004,12 @@ fun HomeScreen(
       Spacer(modifier = Modifier.height(16.dp))
     }
 
-    // Daily Quranic Ayah Card
+    // Daily Quranic Ayah & Step-by-Step Guided Learning Card
     item {
-      dailyAyah?.let { ayah ->
+      resolvedDailyAyah.let { ayah ->
         val surah = surahs.find { it.number == ayah.surahNumber }
-        val surahName = surah?.nameEnglish ?: "Surah ${ayah.surahNumber}"
+        val surahName = surah?.nameEnglish ?: activeCuratedSeed.surahNameEnglish
+        val surahNameAr = surah?.nameArabic ?: activeCuratedSeed.surahNameArabic
 
         ElevatedCard(
           modifier = Modifier
@@ -837,7 +1019,7 @@ fun HomeScreen(
           colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surface
           ),
-          elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+          elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
         ) {
           Column(modifier = Modifier.padding(18.dp)) {
             Row(
@@ -845,10 +1027,13 @@ fun HomeScreen(
               horizontalArrangement = Arrangement.SpaceBetween,
               verticalAlignment = Alignment.CenterVertically
             ) {
-              Row(verticalAlignment = Alignment.CenterVertically) {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+              ) {
                 Box(
                   modifier = Modifier
-                    .size(28.dp)
+                    .size(30.dp)
                     .clip(CircleShape)
                     .background(EmeraldPrimary),
                   contentAlignment = Alignment.Center
@@ -861,44 +1046,80 @@ fun HomeScreen(
                   )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                  text = "Daily Quranic Ayah",
-                  style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                Column {
+                  Text(
+                    text = "Daily Qur'anic Aayah • آیتِ امروز",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                      fontWeight = FontWeight.ExtraBold,
+                      color = MaterialTheme.colorScheme.primary
+                    )
                   )
-                )
+                  Text(
+                    text = activeCuratedSeed.themeBadgeEnglish,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      fontWeight = FontWeight.Bold,
+                      color = GoldPrimary
+                    )
+                  )
+                }
               }
 
               Surface(
-                shape = RoundedCornerShape(6.dp),
+                shape = RoundedCornerShape(8.dp),
                 color = MaterialTheme.colorScheme.primaryContainer
               ) {
                 Text(
-                  text = "$surahName ${ayah.surahNumber}:${ayah.verseNumber}",
+                  text = "$surahName ($surahNameAr) ${ayah.surahNumber}:${ayah.verseNumber}",
                   modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                   style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                   )
                 )
               }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            // Arabic Verse
+            // RTL Urdu Theme Subtitle
             Text(
-              text = ayah.textArabic,
-              style = MaterialTheme.typography.headlineMedium.copy(
-                fontFamily = AmiriFontFamily,
-                fontSize = 23.sp,
-                lineHeight = 38.sp,
+              text = activeCuratedSeed.themeBadgeUrdu,
+              style = MaterialTheme.typography.bodySmall.copy(
+                fontFamily = UrduNastaliqFontFamily,
+                fontSize = 14.sp,
+                lineHeight = 25.sp,
+                fontWeight = FontWeight.Bold,
+                textDirection = TextDirection.Rtl,
                 textAlign = TextAlign.Right,
-                color = MaterialTheme.colorScheme.onSurface
+                color = EmeraldPrimary
               ),
               modifier = Modifier.fillMaxWidth()
             )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Authentic Uthmani Arabic Verse (strictly 0% alteration, full RTL visibility)
+            Surface(
+              shape = RoundedCornerShape(14.dp),
+              color = EmeraldPrimary.copy(alpha = 0.06f),
+              border = androidx.compose.foundation.BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.55f)),
+              modifier = Modifier.fillMaxWidth()
+            ) {
+              Text(
+                text = ayah.textArabic,
+                style = MaterialTheme.typography.headlineMedium.copy(
+                  fontFamily = AmiriFontFamily,
+                  fontSize = 23.sp,
+                  lineHeight = 42.sp,
+                  textDirection = TextDirection.Rtl,
+                  textAlign = TextAlign.Right,
+                  color = MaterialTheme.colorScheme.onSurface
+                ),
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .padding(horizontal = 14.dp, vertical = 12.dp)
+              )
+            }
 
             if (ayah.transliteration.isNotBlank()) {
               Spacer(modifier = Modifier.height(8.dp))
@@ -914,40 +1135,102 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // English Translation (Saheeh International)
+            // Reliable English Translation (Sahih International)
             Text(
               text = ayah.translationEnglish,
               style = MaterialTheme.typography.bodyMedium.copy(
                 fontSize = 14.sp,
-                lineHeight = 21.sp,
+                lineHeight = 22.sp,
                 color = MaterialTheme.colorScheme.onSurface
               )
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Urdu Translation (Fateh Muhammad Jalandhry)
+            // Reliable Urdu Translation (Fateh Muhammad Jalandhry — full RTL alignment)
             Text(
               text = ayah.translationUrdu,
               style = MaterialTheme.typography.bodyMedium.copy(
                 fontFamily = UrduNastaliqFontFamily,
                 fontSize = 15.sp,
-                lineHeight = 28.sp,
+                lineHeight = 30.sp,
+                textDirection = TextDirection.Rtl,
                 textAlign = TextAlign.Right,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
               ),
               modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Card Action Buttons
+            // Reflection & Paired Hadith Box (Sunni Hadith on Sunni Screen; Al-Kafi / Shia Hadith on Shia Screen)
+            val isShiaHomeActive = homeTraditionSectionMode == com.example.ui.components.HomeTraditionSectionMode.SHIA_SECTION_ONLY
+            val activePairedHadithRef = if (isShiaHomeActive) {
+              activeCuratedSeed.shiaPairedHadithReference
+            } else {
+              activeCuratedSeed.pairedHadithReference
+            }
+            val activePairedHadithEn = if (isShiaHomeActive) {
+              activeCuratedSeed.shiaPairedHadithSummaryEnglish
+            } else {
+              activeCuratedSeed.pairedHadithSummaryEnglish
+            }
+            val activePairedHadithUr = if (isShiaHomeActive) {
+              activeCuratedSeed.shiaPairedHadithSummaryUrdu
+            } else {
+              activeCuratedSeed.pairedHadithSummaryUrdu
+            }
+            Surface(
+              shape = RoundedCornerShape(12.dp),
+              color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+              modifier = Modifier.fillMaxWidth()
+            ) {
+              Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                  text = if (isShiaHomeActive) {
+                    "💡 Reflection & Connected Ahl al-Bayt Hadith ($activePairedHadithRef)"
+                  } else {
+                    "💡 Reflection & Connected Sunnah ($activePairedHadithRef)"
+                  },
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    color = EmeraldPrimary
+                  )
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                  text = "${activeCuratedSeed.reflectionSummaryEnglish} $activePairedHadithEn",
+                  style = MaterialTheme.typography.bodySmall.copy(
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                  )
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                  text = "${activeCuratedSeed.reflectionSummaryUrdu} $activePairedHadithUr",
+                  style = MaterialTheme.typography.bodySmall.copy(
+                    fontFamily = UrduNastaliqFontFamily,
+                    fontSize = 13.sp,
+                    lineHeight = 25.sp,
+                    textDirection = TextDirection.Rtl,
+                    textAlign = TextAlign.Right,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                  ),
+                  modifier = Modifier.fillMaxWidth()
+                )
+              }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Card Action Buttons + Browse Daily Verses
             Row(
               modifier = Modifier.fillMaxWidth(),
               horizontalArrangement = Arrangement.SpaceBetween,
               verticalAlignment = Alignment.CenterVertically
             ) {
-              Row {
+              Row(verticalAlignment = Alignment.CenterVertically) {
                 FilledTonalButton(
                   onClick = { onPlayRecitation(ayah, surahName) },
                   contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
@@ -971,15 +1254,217 @@ fun HomeScreen(
                 }
               }
 
-              IconButton(
-                onClick = { onBookmarkAyah(ayah, surahName) },
-                modifier = Modifier.size(36.dp)
-              ) {
-                Icon(
-                  imageVector = Icons.Default.BookmarkBorder,
-                  contentDescription = "Bookmark Ayah",
-                  tint = GoldPrimary
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                  onClick = {
+                    val nextOffset = dailyAyahOffset - 1
+                    dailyAyahOffset = nextOffset
+                    com.example.data.model.DailyGuidanceAndRecommendationEngine.saveDailyAyahOffset(context, nextOffset)
+                  },
+                  modifier = Modifier
+                    .size(34.dp)
+                    .testTag("daily_ayah_prev_btn")
+                ) {
+                  Icon(
+                    imageVector = Icons.AutoMirrored.Filled.NavigateBefore,
+                    contentDescription = "Previous Daily Ayah"
+                  )
+                }
+                IconButton(
+                  onClick = {
+                    val nextOffset = dailyAyahOffset + 1
+                    dailyAyahOffset = nextOffset
+                    com.example.data.model.DailyGuidanceAndRecommendationEngine.saveDailyAyahOffset(context, nextOffset)
+                  },
+                  modifier = Modifier
+                    .size(34.dp)
+                    .testTag("daily_ayah_next_btn")
+                ) {
+                  Icon(
+                    imageVector = Icons.AutoMirrored.Filled.NavigateNext,
+                    contentDescription = "Next Daily Ayah"
+                  )
+                }
+                IconButton(
+                  onClick = { onBookmarkAyah(ayah, surahName) },
+                  modifier = Modifier.size(36.dp)
+                ) {
+                  Icon(
+                    imageVector = Icons.Default.BookmarkBorder,
+                    contentDescription = "Bookmark Ayah",
+                    tint = GoldPrimary
+                  )
+                }
+              }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Step-by-Step Guided Learning Path (From Daily Verse to All Verses, Hadith, Salah & Seerah)
+            Row(
+              modifier = Modifier
+                .fillMaxWidth()
+                .clickable { showStepByStepPath = !showStepByStepPath }
+                .testTag("home_step_by_step_learning_header"),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Column(modifier = Modifier.weight(1f)) {
+                Text(
+                  text = "🎯 Step-by-Step Guided Learning Path (${completedLearningSteps.size}/5 Completed)",
+                  style = MaterialTheme.typography.titleSmall.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    color = EmeraldPrimary
+                  )
                 )
+                Text(
+                  text = "مرحلہ وار اسلامی رہنمائی: ایمان، نورانی قاعدہ، نماز، احادیث اور تفاسیر",
+                  style = MaterialTheme.typography.bodySmall.copy(
+                    fontFamily = UrduNastaliqFontFamily,
+                    fontSize = 13.sp,
+                    lineHeight = 23.sp,
+                    textDirection = TextDirection.Rtl,
+                    textAlign = TextAlign.Right,
+                    color = GoldPrimary
+                  ),
+                  modifier = Modifier.fillMaxWidth()
+                )
+              }
+            }
+
+            if (showStepByStepPath) {
+              Spacer(modifier = Modifier.height(8.dp))
+              val activeLearningPath = if (isShiaHomeActive) {
+                com.example.data.model.DailyGuidanceAndRecommendationEngine.shiaStepByStepLearningPath
+              } else {
+                com.example.data.model.DailyGuidanceAndRecommendationEngine.stepByStepLearningPath
+              }
+              Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.testTag("home_step_by_step_learning_section")
+              ) {
+                activeLearningPath.forEach { step ->
+                  val isStepDone = completedLearningSteps.contains(step.id)
+                  Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isStepDone) EmeraldPrimary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                    border = androidx.compose.foundation.BorderStroke(
+                      1.dp,
+                      if (isStepDone) EmeraldPrimary else GoldPrimary.copy(alpha = 0.45f)
+                    ),
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .testTag("home_learning_step_${step.stepNumber}")
+                  ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                      Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                      ) {
+                        Text(
+                          text = step.stageTitleEnglish,
+                          style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            color = EmeraldPrimary
+                          ),
+                          modifier = Modifier.weight(1f)
+                        )
+                        Surface(
+                          shape = RoundedCornerShape(6.dp),
+                          color = if (isStepDone) EmeraldPrimary else GoldPrimary.copy(alpha = 0.2f),
+                          modifier = Modifier.clickable {
+                            completedLearningSteps =
+                              com.example.data.model.DailyGuidanceAndRecommendationEngine.toggleLearningStepCompleted(
+                                context,
+                                step.id
+                              )
+                          }
+                        ) {
+                          Text(
+                            text = if (isStepDone) "✓ Completed" else "Mark Done",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                              fontWeight = FontWeight.Bold,
+                              color = if (isStepDone) Color.White else MaterialTheme.colorScheme.onSurface
+                            ),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                          )
+                        }
+                      }
+                      Text(
+                        text = step.stageTitleUrdu,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                          fontFamily = UrduNastaliqFontFamily,
+                          fontSize = 13.sp,
+                          lineHeight = 23.sp,
+                          fontWeight = FontWeight.Bold,
+                          textDirection = TextDirection.Rtl,
+                          textAlign = TextAlign.Right,
+                          color = GoldPrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                      )
+                      Spacer(modifier = Modifier.height(3.dp))
+                      Text(
+                        text = step.guidanceSummaryEnglish,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                          fontSize = 12.sp,
+                          lineHeight = 17.sp,
+                          color = MaterialTheme.colorScheme.onSurface
+                        )
+                      )
+                      Text(
+                        text = step.guidanceSummaryUrdu,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                          fontFamily = UrduNastaliqFontFamily,
+                          fontSize = 13.sp,
+                          lineHeight = 23.sp,
+                          textDirection = TextDirection.Rtl,
+                          textAlign = TextAlign.Right,
+                          color = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                      )
+                      Spacer(modifier = Modifier.height(6.dp))
+                      Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                      ) {
+                        Text(
+                          text = "${step.quranReference} • ${step.hadithReference}",
+                          style = MaterialTheme.typography.labelSmall.copy(
+                            color = MaterialTheme.colorScheme.secondary,
+                            fontWeight = FontWeight.SemiBold
+                          ),
+                          modifier = Modifier.weight(1f)
+                        )
+                        FilledTonalButton(
+                          onClick = {
+                            when (step.actionTargetType) {
+                              "QURAN_SURAH" -> {
+                                val targetSurah = surahs.find { it.number == step.quranSurahNumber }
+                                if (targetSurah != null) onOpenSurah(targetSurah) else onNavigateToQuran()
+                              }
+                              "LEARN_ISLAM" -> onNavigateToLearnIslam()
+                              "HADITH" -> onNavigateToHadith()
+                              "DUAS" -> onNavigateToDailyDuas()
+                              "LIBRARY_HISTORY" -> onNavigateToLibraryTab(0)
+                              "QAIDA_PDF" -> onNavigateToNooraniQaidaPdf()
+                              else -> onNavigateToQuran()
+                            }
+                          },
+                          contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                          shape = RoundedCornerShape(8.dp)
+                        ) {
+                          Text(step.actionLabelEnglish, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -988,13 +1473,273 @@ fun HomeScreen(
       }
     }
 
-    // Daily Authentic Hadith Card
+    // Intelligent Prophetic Sunnah / Ahl al-Bayt Hadith & Islamic Discovery Recommendations Card
     item {
-      dailyHadith?.let { hadith ->
-        ElevatedCard(
-          modifier = Modifier
-            .fillMaxWidth()
-            .testTag("daily_hadith_card"),
+      val isShiaRecMode = homeTraditionSectionMode == com.example.ui.components.HomeTraditionSectionMode.SHIA_SECTION_ONLY
+      val isFridayOrThuEvening = sunnahRemindersState.calculatedDayStatus.isFridayToday ||
+        sunnahRemindersState.calculatedDayStatus.isThursdayAfterMaghribJumuahActive
+      val allRecs = remember(
+        prayerConfig.lastReadSurahNumber,
+        prayerConfig.lastReadVerseNumber,
+        isFridayOrThuEvening,
+        recRotationOffset,
+        isShiaRecMode
+      ) {
+        com.example.data.model.DailyGuidanceAndRecommendationEngine.buildIntelligentRecommendations(
+          context = context,
+          lastReadSurahNumber = prayerConfig.lastReadSurahNumber,
+          lastReadSurahNameEn = prayerConfig.lastReadSurahNameEn,
+          lastReadVerseNumber = prayerConfig.lastReadVerseNumber,
+          isFridayOrThursdayEvening = isFridayOrThuEvening,
+          rotationOffset = recRotationOffset,
+          isShiaTradition = isShiaRecMode
+        )
+      }
+      val visibleRecs = remember(allRecs, selectedRecCategory) {
+        if (selectedRecCategory == "ALL") {
+          allRecs
+        } else {
+          allRecs.filter { it.pillarCategory == selectedRecCategory }.ifEmpty { allRecs }
+        }
+      }
+
+      ElevatedCard(
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("home_intelligent_recommendations_card"),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.elevatedCardColors(
+          containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+      ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = if (isShiaRecMode) {
+                  "Recommended for You • Ahl al-Bayt (AS) Hadith & Guidance"
+                } else {
+                  "Recommended for You • Prophetic Sunnah & Guidance"
+                },
+                style = MaterialTheme.typography.titleMedium.copy(
+                  fontWeight = FontWeight.ExtraBold,
+                  color = MaterialTheme.colorScheme.primary
+                )
+              )
+              Text(
+                text = if (isShiaRecMode) {
+                  "کتبِ اربعہ (الکافی، من لا یحضرہ الفقیہ، تہذیب الاحکام)، صحیفہ سجادیہ اور قرآن سے منتخب رہنمائی"
+                } else {
+                  "سنتِ نبوی ﷺ، صحیح احادیث، قرآن اور اسلامی تاریخ سے منتخب علمی رہنمائی"
+                },
+                style = MaterialTheme.typography.bodySmall.copy(
+                  fontFamily = UrduNastaliqFontFamily,
+                  fontSize = 13.sp,
+                  lineHeight = 24.sp,
+                  fontWeight = FontWeight.Bold,
+                  textDirection = TextDirection.Rtl,
+                  textAlign = TextAlign.Right,
+                  color = GoldPrimary
+                ),
+                modifier = Modifier.fillMaxWidth()
+              )
+            }
+            OutlinedButton(
+              onClick = {
+                recRotationOffset =
+                  com.example.data.model.DailyGuidanceAndRecommendationEngine.advanceRecommendationRotation(context)
+              },
+              contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+              shape = RoundedCornerShape(10.dp),
+              modifier = Modifier.testTag("home_refresh_recommendations_btn")
+            ) {
+              Text("Next Guidance", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+          }
+
+          Spacer(modifier = Modifier.height(8.dp))
+
+          FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+          ) {
+            val recTabs = listOf(
+              "ALL" to "All Guidance",
+              "SUNNAH_HADITH" to if (isShiaRecMode) "Ahl al-Bayt Hadith" else "Prophetic Sunnah",
+              "QURAN_TAFSIR" to "Qur'an & Tafsir",
+              "DUA_CHARACTER" to "Duas & Tajweed",
+              "HISTORY_SEERAH" to "Seerah & History"
+            )
+            recTabs.forEach { (catKey, catLabel) ->
+              FilterChip(
+                selected = selectedRecCategory == catKey,
+                onClick = { selectedRecCategory = catKey },
+                label = { Text(catLabel, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                colors = FilterChipDefaults.filterChipColors(
+                  selectedContainerColor = EmeraldPrimary,
+                  selectedLabelColor = Color.White
+                ),
+                modifier = Modifier.testTag("home_rec_filter_$catKey")
+              )
+            }
+          }
+
+          Spacer(modifier = Modifier.height(10.dp))
+
+          Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            visibleRecs.forEach { rec ->
+              Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.45f)),
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .testTag("home_recommendation_item_${rec.id}")
+              ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                  Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    Text(
+                      text = rec.reasonBadgeEnglish,
+                      style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        color = EmeraldPrimary
+                      ),
+                      modifier = Modifier.weight(1f)
+                    )
+                  }
+                  Text(
+                    text = rec.reasonBadgeUrdu,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      fontFamily = UrduNastaliqFontFamily,
+                      fontSize = 12.sp,
+                      lineHeight = 21.sp,
+                      textDirection = TextDirection.Rtl,
+                      textAlign = TextAlign.Right,
+                      color = GoldPrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                  )
+                  Spacer(modifier = Modifier.height(4.dp))
+                  Text(
+                    text = rec.titleEnglish,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                      fontWeight = FontWeight.Bold,
+                      color = MaterialTheme.colorScheme.onSurface
+                    )
+                  )
+                  Text(
+                    text = rec.titleUrdu,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                      fontFamily = UrduNastaliqFontFamily,
+                      fontSize = 14.sp,
+                      lineHeight = 25.sp,
+                      fontWeight = FontWeight.Bold,
+                      textDirection = TextDirection.Rtl,
+                      textAlign = TextAlign.Right,
+                      color = MaterialTheme.colorScheme.onSurface
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                  )
+                  Spacer(modifier = Modifier.height(6.dp))
+                  Text(
+                    text = rec.arabicSnippet,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                      fontFamily = AmiriFontFamily,
+                      fontSize = 19.sp,
+                      lineHeight = 34.sp,
+                      textDirection = TextDirection.Rtl,
+                      textAlign = TextAlign.Right,
+                      color = MaterialTheme.colorScheme.primary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                  )
+                  Spacer(modifier = Modifier.height(4.dp))
+                  Text(
+                    text = rec.englishSnippet,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                      fontSize = 12.sp,
+                      lineHeight = 18.sp,
+                      color = MaterialTheme.colorScheme.onSurface
+                    )
+                  )
+                  Spacer(modifier = Modifier.height(2.dp))
+                  Text(
+                    text = rec.urduSnippet,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                      fontFamily = UrduNastaliqFontFamily,
+                      fontSize = 13.sp,
+                      lineHeight = 24.sp,
+                      textDirection = TextDirection.Rtl,
+                      textAlign = TextAlign.Right,
+                      color = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                  )
+                  Spacer(modifier = Modifier.height(8.dp))
+                  Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    Text(
+                      text = rec.authenticReference,
+                      style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = GoldPrimary
+                      ),
+                      modifier = Modifier.weight(1f)
+                    )
+                    Button(
+                      onClick = {
+                        when (rec.actionType) {
+                          "QURAN_SURAH" -> {
+                            val target = surahs.find { it.number == rec.targetSurahNumber }
+                            if (target != null) onOpenSurah(target) else onNavigateToQuran()
+                          }
+                          "HADITH" -> onNavigateToHadith()
+                          "DUAS" -> onNavigateToDailyDuas()
+                          "LEARN_ISLAM" -> onNavigateToLearnIslam()
+                          "QAIDA_PDF" -> onNavigateToNooraniQaidaPdf()
+                          "LIBRARY_TAB" -> onNavigateToLibraryTab(rec.targetLibraryTab)
+                          else -> onNavigateToQuran()
+                        }
+                      },
+                      colors = ButtonDefaults.buttonColors(
+                        containerColor = EmeraldPrimary,
+                        contentColor = Color.White
+                      ),
+                      contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                      shape = RoundedCornerShape(10.dp)
+                    ) {
+                      Text(rec.actionLabel, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    // Daily Authentic Hadith Card (Sunni / Combined Home Screen)
+    if (homeTraditionSectionMode != com.example.ui.components.HomeTraditionSectionMode.SHIA_SECTION_ONLY) {
+      item {
+        resolvedDailyHadith.let { hadith ->
+          ElevatedCard(
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("daily_hadith_card"),
           shape = RoundedCornerShape(20.dp),
           colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -1046,7 +1791,8 @@ fun HomeScreen(
               style = MaterialTheme.typography.bodyLarge.copy(
                 fontFamily = AmiriFontFamily,
                 fontSize = 20.sp,
-                lineHeight = 34.sp,
+                lineHeight = 36.sp,
+                textDirection = TextDirection.Rtl,
                 textAlign = TextAlign.Right
               ),
               modifier = Modifier.fillMaxWidth()
@@ -1083,7 +1829,8 @@ fun HomeScreen(
               style = MaterialTheme.typography.bodyMedium.copy(
                 fontFamily = UrduNastaliqFontFamily,
                 fontSize = 15.sp,
-                lineHeight = 28.sp,
+                lineHeight = 29.sp,
+                textDirection = TextDirection.Rtl,
                 textAlign = TextAlign.Right,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
               ),
@@ -1138,12 +1885,42 @@ fun HomeScreen(
             }
           }
         }
-        Spacer(modifier = Modifier.height(16.dp))
+          Spacer(modifier = Modifier.height(16.dp))
+        }
       }
     }
 
-    // Wisdom & Quotations Section (Prophet Muhammad ﷺ, Ahlul Bayt AS, & Early Sahabah RA)
+    // Wisdom & Quotations Section — Authentic Islamic Wisdom Engine (Prophetic, Ahl al-Bayt, Early Sahabah & Other Sahabah)
     item {
+      val availableHadithBooks = remember(reflectionCategory) {
+        ReflectionDataProvider.getAvailableHadithBooks(reflectionCategory)
+      }
+      val filteredReflections = remember(
+        reflectionCategory,
+        reflectionAttributionFilter,
+        reflectionSearchQuery,
+        reflectionBookFilter,
+        reflectionRelationshipFilter,
+        reflectionBookmarkedOnly,
+        bookmarkedWisdomIds
+      ) {
+        ReflectionDataProvider.filterItems(
+          category = reflectionCategory,
+          attributionFilter = reflectionAttributionFilter,
+          searchQuery = reflectionSearchQuery,
+          hadithBookFilter = reflectionBookFilter,
+          relationshipFilter = reflectionRelationshipFilter,
+          bookmarkedOnly = reflectionBookmarkedOnly,
+          bookmarkedIds = bookmarkedWisdomIds
+        )
+      }
+      val safeIndex = if (filteredReflections.isNotEmpty()) {
+        reflectionIndex.coerceIn(0, filteredReflections.lastIndex)
+      } else {
+        0
+      }
+      val item = filteredReflections.getOrNull(safeIndex)
+
       Card(
         modifier = Modifier
           .fillMaxWidth()
@@ -1154,23 +1931,52 @@ fun HomeScreen(
         )
       ) {
         Column(modifier = Modifier.padding(18.dp)) {
-          Text(
-            text = "Wisdom & Quotations (Prophetic, Ahlul Bayt & Sahabah)",
-            style = MaterialTheme.typography.titleMedium.copy(
-              fontWeight = FontWeight.Bold,
-              color = MaterialTheme.colorScheme.primary
-            )
-          )
-          Text(
-            text = "Clearly separated categories with explicit speaker, classical source, and attribution verification status.",
-            style = MaterialTheme.typography.labelSmall.copy(
-              color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-          )
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = "Wisdom & Quotations (Prophetic, Ahl al-Bayt & Sahabah)",
+                style = MaterialTheme.typography.titleMedium.copy(
+                  fontWeight = FontWeight.Bold,
+                  color = MaterialTheme.colorScheme.primary
+                )
+              )
+              Text(
+                text = "Authentic Islamic Wisdom Engine • Verified Hadith collections, historical chronology & separate grading.",
+                style = MaterialTheme.typography.labelSmall.copy(
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+              )
+            }
+            OutlinedButton(
+              onClick = {
+                reflectionIndex = ReflectionDataProvider.discoverNextUnseenIndex(
+                  context = context,
+                  candidates = filteredReflections,
+                  currentIndex = safeIndex
+                )
+              },
+              contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+              shape = RoundedCornerShape(10.dp),
+              modifier = Modifier.testTag("wisdom_discover_new_btn")
+            ) {
+              Icon(
+                Icons.Default.Explore,
+                contentDescription = "Discover Unseen Verified Wisdom",
+                modifier = Modifier.size(14.dp),
+                tint = EmeraldPrimary
+              )
+              Spacer(modifier = Modifier.width(4.dp))
+              Text("Discover New", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+          }
 
           Spacer(modifier = Modifier.height(8.dp))
 
-          // Equal & Separated Category Selector Chips
+          // Four Clearly Separated Category Selector Chips
           FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -1179,6 +1985,7 @@ fun HomeScreen(
               selected = reflectionCategory == ReflectionCategory.PROPHETIC_GUIDANCE,
               onClick = {
                 reflectionCategory = ReflectionCategory.PROPHETIC_GUIDANCE
+                reflectionBookFilter = null
                 reflectionIndex = 0
               },
               label = { Text("Prophet Muhammad ﷺ", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
@@ -1192,9 +1999,10 @@ fun HomeScreen(
               selected = reflectionCategory == ReflectionCategory.AHLUL_BAYT_WISDOM,
               onClick = {
                 reflectionCategory = ReflectionCategory.AHLUL_BAYT_WISDOM
+                reflectionBookFilter = null
                 reflectionIndex = 0
               },
-              label = { Text("Ahlul Bayt Wisdom", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+              label = { Text("Ahl al-Bayt (AS)", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
               colors = FilterChipDefaults.filterChipColors(
                 selectedContainerColor = GoldPrimary,
                 selectedLabelColor = Color.Black
@@ -1205,18 +2013,128 @@ fun HomeScreen(
               selected = reflectionCategory == ReflectionCategory.COMPANIONS_WISDOM,
               onClick = {
                 reflectionCategory = ReflectionCategory.COMPANIONS_WISDOM
+                reflectionBookFilter = null
                 reflectionIndex = 0
               },
-              label = { Text("Sahabah Wisdom (Early Sahabah)", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+              label = { Text("Early Sahabah (RA)", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
               colors = FilterChipDefaults.filterChipColors(
                 selectedContainerColor = EmeraldPrimary,
                 selectedLabelColor = Color.White
               ),
               modifier = Modifier.testTag("wisdom_category_sahabah_chip")
             )
+            FilterChip(
+              selected = reflectionCategory == ReflectionCategory.OTHER_SAHABAH_WISDOM,
+              onClick = {
+                reflectionCategory = ReflectionCategory.OTHER_SAHABAH_WISDOM
+                reflectionBookFilter = null
+                reflectionIndex = 0
+              },
+              label = { Text("Other Sahabah (RA)", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+              colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = EmeraldPrimary.copy(alpha = 0.85f),
+                selectedLabelColor = Color.White
+              ),
+              modifier = Modifier.testTag("wisdom_category_other_sahabah_chip")
+            )
           }
 
-          Spacer(modifier = Modifier.height(8.dp))
+          Spacer(modifier = Modifier.height(4.dp))
+
+          // Category Subtitle & Historical Chronology Methodology Note
+          Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+              Text(
+                text = reflectionCategory.subtitle,
+                style = MaterialTheme.typography.labelSmall.copy(
+                  fontWeight = FontWeight.SemiBold,
+                  color = MaterialTheme.colorScheme.primary
+                )
+              )
+              if (reflectionCategory == ReflectionCategory.COMPANIONS_WISDOM) {
+                Text(
+                  text = "Historical Chronology (As-Sabiqun al-Awwalun): 1. Sayyidah Khadijah (RA) • 2. Imam Ali ibn Abi Talib (AS) • 3. Zayd ibn Harithah (RA) • 4. Abu Bakr (RA) • 5. Abu Dharr al-Ghifari (RA) • 6. Ammar ibn Yasir (RA) • 7. Miqdad ibn Amr (RA) • 8. Bilal (RA) • 9. Ibn Mas'ud (RA) • 10. Ja'far al-Tayyar (RA) • 11. Salman al-Farsi (RA) • 12. Umm Salamah (RA) • 13. Jabir (RA) • 14. Zayd ibn Arqam (RA) • 15. Hudhayfah (RA).",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                  )
+                )
+              } else if (reflectionCategory == ReflectionCategory.OTHER_SAHABAH_WISDOM) {
+                Text(
+                  text = "Companions who embraced Islam in subsequent Makkan and Madinan phases are presented in their verified historical chronology without placing later converts ahead of the earliest vanguard.",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                  )
+                )
+              }
+            }
+          }
+
+          Spacer(modifier = Modifier.height(6.dp))
+
+          // Historical Relationship & Scholarly Focus Filter Chips
+          FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+          ) {
+            HistoricalRelationshipTag.entries.forEach { relTag ->
+              FilterChip(
+                selected = reflectionRelationshipFilter == relTag,
+                onClick = {
+                  reflectionRelationshipFilter = relTag
+                  reflectionIndex = 0
+                },
+                label = { Text(relTag.label, fontSize = 10.sp) },
+                modifier = Modifier.testTag("wisdom_rel_filter_${relTag.name.lowercase()}")
+              )
+            }
+            FilterChip(
+              selected = reflectionBookmarkedOnly,
+              onClick = {
+                reflectionBookmarkedOnly = !reflectionBookmarkedOnly
+                reflectionIndex = 0
+              },
+              label = { Text("Saved (${bookmarkedWisdomIds.size})", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
+              modifier = Modifier.testTag("wisdom_bookmarks_filter_chip")
+            )
+          }
+
+          Spacer(modifier = Modifier.height(6.dp))
+
+          // Hadith Book Filter Chips (across all 26+ integrated Hadith collections)
+          if (availableHadithBooks.isNotEmpty()) {
+            FlowRow(
+              horizontalArrangement = Arrangement.spacedBy(6.dp),
+              verticalArrangement = Arrangement.spacedBy(4.dp),
+              modifier = Modifier.fillMaxWidth()
+            ) {
+              FilterChip(
+                selected = reflectionBookFilter == null,
+                onClick = {
+                  reflectionBookFilter = null
+                  reflectionIndex = 0
+                },
+                label = { Text("All Hadith Books (${availableHadithBooks.size})", fontSize = 10.sp) },
+                modifier = Modifier.testTag("wisdom_book_filter_all")
+              )
+              availableHadithBooks.take(10).forEach { bookName ->
+                FilterChip(
+                  selected = reflectionBookFilter == bookName,
+                  onClick = {
+                    reflectionBookFilter = if (reflectionBookFilter == bookName) null else bookName
+                    reflectionIndex = 0
+                  },
+                  label = { Text(bookName, fontSize = 10.sp) }
+                )
+              }
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+          }
 
           // Attribution Status Filter Chips (Verified vs Disputed vs Unattributed Popular Saying)
           FlowRow(
@@ -1253,7 +2171,12 @@ fun HomeScreen(
               reflectionSearchQuery = it
               reflectionIndex = 0
             },
-            placeholder = { Text("Search speaker (e.g. Imam Ali, Fatimah, Umar), topic, or source...", fontSize = 12.sp) },
+            placeholder = {
+              Text(
+                "Search personality (e.g. Khadijah, Imam Ali, Salman, Abu Dharr, Ammar), book, or topic...",
+                fontSize = 12.sp
+              )
+            },
             singleLine = true,
             shape = RoundedCornerShape(10.dp),
             modifier = Modifier
@@ -1263,14 +2186,6 @@ fun HomeScreen(
 
           Spacer(modifier = Modifier.height(12.dp))
 
-          val filteredReflections = ReflectionDataProvider.filterItems(
-            category = reflectionCategory,
-            attributionFilter = reflectionAttributionFilter,
-            searchQuery = reflectionSearchQuery
-          )
-          val safeIndex = if (filteredReflections.isNotEmpty()) reflectionIndex.coerceIn(0, filteredReflections.lastIndex) else 0
-          val item = filteredReflections.getOrNull(safeIndex)
-
           if (item == null) {
             Surface(
               shape = RoundedCornerShape(12.dp),
@@ -1278,7 +2193,7 @@ fun HomeScreen(
               modifier = Modifier.fillMaxWidth()
             ) {
               Text(
-                text = "No quotations in ${reflectionCategory.displayTitle} match the current filter.",
+                text = "No quotations in ${reflectionCategory.displayTitle} match the current filter. Try clearing the search or selecting 'All Verified Narrations'.",
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(14.dp)
               )
@@ -1289,18 +2204,38 @@ fun HomeScreen(
               color = MaterialTheme.colorScheme.surface
             ) {
               Column(modifier = Modifier.padding(14.dp)) {
-                Row(
+                // Separate Authenticity Grading, Attribution Verification, and Narration Type Badges
+                FlowRow(
                   modifier = Modifier.fillMaxWidth(),
-                  horizontalArrangement = Arrangement.SpaceBetween,
-                  verticalAlignment = Alignment.CenterVertically
+                  horizontalArrangement = Arrangement.spacedBy(6.dp),
+                  verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                  Text(
-                    text = item.theme,
-                    style = MaterialTheme.typography.labelMedium.copy(
-                      fontWeight = FontWeight.Bold,
-                      color = GoldPrimary
+                  Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = GoldPrimary.copy(alpha = 0.16f)
+                  ) {
+                    Text(
+                      text = item.theme,
+                      modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                      style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = GoldPrimary
+                      )
                     )
-                  )
+                  }
+                  Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer
+                  ) {
+                    Text(
+                      text = item.narrationType.label,
+                      modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                      style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                      )
+                    )
+                  }
                   Surface(
                     shape = RoundedCornerShape(6.dp),
                     color = when (item.attributionStatus) {
@@ -1327,7 +2262,7 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                  text = "Speaker: ${item.speaker}",
+                  text = "Speaker / Transmitter: ${item.speaker}",
                   style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -1338,6 +2273,27 @@ fun HomeScreen(
                   text = item.title,
                   style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
                 )
+
+                if (item.chronologyEraAndOrderNote.isNotBlank()) {
+                  Spacer(modifier = Modifier.height(4.dp))
+                  Text(
+                    text = item.chronologyEraAndOrderNote,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      fontWeight = FontWeight.SemiBold,
+                      color = EmeraldPrimary
+                    )
+                  )
+                }
+
+                if (item.relationshipToProphetAndAhlAlBayt.isNotBlank()) {
+                  Spacer(modifier = Modifier.height(2.dp))
+                  Text(
+                    text = "Relationship to Prophet ﷺ & Ahl al-Bayt: ${item.relationshipToProphetAndAhlAlBayt}",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                  )
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -1373,10 +2329,17 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                  text = "Source: ${item.sourceReference}",
+                  text = "Book Reference: ${item.sourceReference}",
                   style = MaterialTheme.typography.labelSmall.copy(
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                  )
+                )
+                Text(
+                  text = "Authenticity Grading: ${item.authenticityGrading}",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = EmeraldPrimary
                   )
                 )
                 if (item.contextNotes.isNotBlank()) {
@@ -1388,6 +2351,23 @@ fun HomeScreen(
                       color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                   )
+                }
+                if (item.historicalDisputeNote.isNotBlank()) {
+                  Spacer(modifier = Modifier.height(4.dp))
+                  Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                    modifier = Modifier.fillMaxWidth()
+                  ) {
+                    Text(
+                      text = item.historicalDisputeNote,
+                      style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                      ),
+                      modifier = Modifier.padding(8.dp)
+                    )
+                  }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -1409,7 +2389,13 @@ fun HomeScreen(
                       style = MaterialTheme.typography.labelSmall
                     )
                     IconButton(
-                      onClick = { if (safeIndex < filteredReflections.lastIndex) reflectionIndex = safeIndex + 1 },
+                      onClick = {
+                        if (safeIndex < filteredReflections.lastIndex) {
+                          val nextIdx = safeIndex + 1
+                          reflectionIndex = nextIdx
+                          ReflectionDataProvider.markWisdomSeen(context, filteredReflections[nextIdx].id)
+                        }
+                      },
                       enabled = safeIndex < filteredReflections.lastIndex,
                       modifier = Modifier.size(30.dp)
                     ) {
@@ -1417,11 +2403,33 @@ fun HomeScreen(
                     }
                   }
 
-                  Row {
+                  Row(verticalAlignment = Alignment.CenterVertically) {
+                    val isBookmarked = bookmarkedWisdomIds.contains(item.id)
+                    IconButton(
+                      onClick = {
+                        bookmarkedWisdomIds = ReflectionDataProvider.toggleWisdomBookmark(context, item.id)
+                        val msg = if (bookmarkedWisdomIds.contains(item.id)) {
+                          "Saved to Wisdom Bookmarks"
+                        } else {
+                          "Removed from Wisdom Bookmarks"
+                        }
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                      },
+                      modifier = Modifier
+                        .size(32.dp)
+                        .testTag("wisdom_bookmark_btn")
+                    ) {
+                      Icon(
+                        imageVector = if (isBookmarked) Icons.Default.Bookmarks else Icons.Default.BookmarkBorder,
+                        contentDescription = "Bookmark Wisdom Quotation",
+                        tint = if (isBookmarked) GoldPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(17.dp)
+                      )
+                    }
                     IconButton(
                       onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val shareBody = "${item.arabicOrOriginalText}\n\n${item.translationEnglish}\n\n${item.translationUrdu}\n\n— ${item.speaker} | ${item.sourceReference} (${item.attributionStatus.label})"
+                        val shareBody = "${item.arabicOrOriginalText}\n\n${item.translationEnglish}\n\n${item.translationUrdu}\n\nNarrator: ${item.speaker}\nSource: ${item.sourceReference} | Grading: ${item.authenticityGrading} (${item.attributionStatus.label})"
                         clipboard.setPrimaryClip(ClipData.newPlainText("Wisdom Quotation", shareBody))
                         Toast.makeText(context, "Quotation copied to clipboard", Toast.LENGTH_SHORT).show()
                       },
@@ -1431,7 +2439,7 @@ fun HomeScreen(
                     }
                     IconButton(
                       onClick = {
-                        val shareBody = "${item.arabicOrOriginalText}\n\n${item.translationEnglish}\n\n${item.translationUrdu}\n\n— ${item.speaker} | ${item.sourceReference} (${item.attributionStatus.label})\nShared via Bayan al-Huda"
+                        val shareBody = "${item.arabicOrOriginalText}\n\n${item.translationEnglish}\n\n${item.translationUrdu}\n\nNarrator: ${item.speaker}\nSource: ${item.sourceReference} | Grading: ${item.authenticityGrading} (${item.attributionStatus.label})\nShared via Bayan al-Huda"
                         val sendIntent = Intent().apply {
                           action = Intent.ACTION_SEND
                           putExtra(Intent.EXTRA_TEXT, shareBody)
@@ -1549,6 +2557,7 @@ fun HomeScreen(
 
       Spacer(modifier = Modifier.height(24.dp))
     }
+    }
   }
 }
 
@@ -1564,7 +2573,8 @@ fun CalculatedFridayAndDailySunnahHomeCard(
   onToggleFridayChecklistItem: (String) -> Unit,
   onIncrementFridaySalawat: (Int) -> Unit,
   onOpenSurah: (SurahEntity) -> Unit,
-  onNavigateToDailyDuas: () -> Unit
+  onNavigateToDailyDuas: () -> Unit,
+  isShiaTradition: Boolean = false
 ) {
   val context = LocalContext.current
   val calcStatus = remindersState.calculatedDayStatus
@@ -1590,7 +2600,7 @@ fun CalculatedFridayAndDailySunnahHomeCard(
     elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
   ) {
     Column(modifier = Modifier.padding(18.dp)) {
-      // 1. Top Header Banner: Calculated Friday & Daily Sunnah Reminder
+      // 1. Top Header Banner: Calculated Friday & Daily Sunnah / Ahl al-Bayt Practice Reminder
       Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -1604,7 +2614,11 @@ fun CalculatedFridayAndDailySunnahHomeCard(
           ) {
             Column(modifier = Modifier.weight(1f)) {
               Text(
-                text = "Calculated Friday & Daily Sunnah Reminder",
+                text = if (isShiaTradition) {
+                  "Calculated Friday & 7-Day Ahl al-Bayt (AS) Practices"
+                } else {
+                  "Calculated Friday & Daily Sunnah Reminder"
+                },
                 style = MaterialTheme.typography.titleMedium.copy(
                   color = Color.White,
                   fontWeight = FontWeight.Bold
@@ -1741,8 +2755,8 @@ fun CalculatedFridayAndDailySunnahHomeCard(
               Column {
                 Text(
                   text = when {
-                    calcStatus.isFridayToday -> "Blessed Friday (Jumu'ah) Special Reminder — TODAY"
-                    calcStatus.isThursdayAfterMaghribJumuahActive -> "🌙 Laylatul Jumu'ah Active (After Thursday Maghrib) — Friday Sunnahs"
+                    calcStatus.isFridayToday -> "Blessed Friday (Jumu'ah) Special Reminder (TODAY)"
+                    calcStatus.isThursdayAfterMaghribJumuahActive -> "🌙 Laylatul Jumu'ah Active (After Thursday Maghrib): Friday Sunnahs"
                     else -> "Special Friday (Jumu'ah) Bath & Sunnah Preparation (Starts Thu Maghrib)"
                   },
                   style = MaterialTheme.typography.titleSmall.copy(
@@ -1751,7 +2765,11 @@ fun CalculatedFridayAndDailySunnahHomeCard(
                   )
                 )
                 Text(
-                  text = "${calcStatus.nextFridayBathAlertSummary} • Checklist: $completedFridayCount/$totalFridayCount",
+                  text = if (isShiaTradition) {
+                    "Al-Kafi Vol. 3, p. 41 (Sahih: Friday Ghusl is Sunnah Mu'akkadah) • Checklist: $completedFridayCount/$totalFridayCount"
+                  } else {
+                    "${calcStatus.nextFridayBathAlertSummary} • Checklist: $completedFridayCount/$totalFridayCount"
+                  },
                   style = MaterialTheme.typography.labelSmall.copy(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.SemiBold
@@ -1900,7 +2918,7 @@ fun CalculatedFridayAndDailySunnahHomeCard(
           ) {
             Column(modifier = Modifier.weight(1f)) {
               Text(
-                text = "${selectedSpec.dayNameEnglish} — ${selectedSpec.islamicDayTitle}",
+                text = "${selectedSpec.dayNameEnglish}: ${selectedSpec.islamicDayTitle}",
                 style = MaterialTheme.typography.titleSmall.copy(
                   fontWeight = FontWeight.Bold,
                   color = MaterialTheme.colorScheme.primary
@@ -1929,10 +2947,95 @@ fun CalculatedFridayAndDailySunnahHomeCard(
             }
           }
 
+          // Tradition-Specific Weekday Practice Content & Authentic Hadith Source
+          val shiaDayPractice = remember(selectedSpec.calendarDayOfWeek, isShiaTradition) {
+            if (!isShiaTradition) null else when (selectedSpec.calendarDayOfWeek) {
+              Calendar.FRIDAY -> Triple(
+                "Friday (Yawm al-Jumu'ah): Ghusl al-Jumu'ah, Salawat, Dua Kumayl & Dua al-Nudba",
+                "اللَّهُمَّ صَلِّ عَلَىٰ مُحَمَّدٍ وَآلِ مُحَمَّدٍ وَعَجِّلْ فَرَجَهُمْ • الْغُسْلُ يَوْمَ الْجُمُعَةِ سُنَّةٌ وَاجِبَةٌ",
+                Triple(
+                  "In Al-Kafi and Man La Yahduruhu al-Faqih, Imam Ja'far al-Sadiq (AS) taught that Friday Ghusl is an emphasized Sunnah (Sunnah Mu'akkadah) purifying from Friday to Friday, alongside abundant Salawat ('Allahumma salli ala Muhammad wa Aali Muhammad'), Surah Al-Jumu'ah & Al-Kahf, Dua Kumayl on Thursday night, and Dua al-Nudba on Friday morning.",
+                  "الکافی اور من لا یحضرہ الفقیہ کی صحیح احادیث میں امام جعفر صادق علیہ السلام نے فرمایا کہ غسلِ جمعہ سنتِ مؤکدہ ہے اور ایک جمعہ سے دوسرے جمعہ تک پاکیزگی و کفارہ ہے، نیز شبِ جمعہ دعائے کمیل، صبحِ جمعہ دعائے ندبہ، سورۃ الجمعہ و سورۃ الکہف اور کثرتِ صلوات بر محمد و آلِ محمد ﷺ کی تاکید فرمائی۔",
+                  "Al-Kafi Vol. 3, Kitab al-Taharah, p. 41, Hadith 1 (Sahih) & Vol. 3, p. 425 • Man La Yahduruhu al-Faqih Vol. 1, p. 112 • Misbah al-Mutahajjid, p. 844"
+                )
+              )
+              Calendar.SATURDAY -> Triple(
+                "Saturday (Yawm al-Sabt): Day of Prophet Muhammad ﷺ & Silat al-Rahim",
+                "اللَّهُمَّ صَلِّ عَلَىٰ مُحَمَّدٍ وَآلِ مُحَمَّدٍ • يَوْمُ السَّبْتِ لَنَا وَيَوْمُ الأَحَدِ لِشِيعَتِنَا",
+                Triple(
+                  "Saturday is dedicated in classical Shia devotional manuals (Misbah al-Mutahajjid & Mafatih al-Jinan) to the remembrance and Ziyarah of the Seal of Prophets Muhammad ﷺ, renewing sincerity (Ikhlas), and strengthening family bonds (Silat al-Rahim).",
+                  "مصباح المتہجد اور مفاتیح الجنان کے مطابق ہفتہ کا دن خاتم النبیین حضرت محمد مصطفیٰ ﷺ سے منسوب ہے؛ اس دن درود و سلام، تسبیحِ فاطمہ زہراؑ اور صلہ رحمی کی خاص فضیلت وارد ہوئی ہے۔",
+                  "Al-Kafi Vol. 2, Bab Silat al-Rahim, p. 150 (Sahih) • Misbah al-Mutahajjid of Shaykh al-Tusi • Bihar al-Anwar Vol. 87"
+                )
+              )
+              Calendar.SUNDAY -> Triple(
+                "Sunday (Yawm al-Ahad): Day of Imam Ali (AS) & Sayyidah Fatimah al-Zahra (SA)",
+                "السَّلَامُ عَلَيْكَ يَا أَمِيرَ الْمُؤْمِنِينَ • السَّلَامُ عَلَيْكِ يَا فَاطِمَةُ الزَّهْرَاءُ سَيِّدَةَ نِسَاءِ الْعَالَمِينَ",
+                Triple(
+                  "Sunday is associated in Shia devotional literature with Amir al-Mu'minin Imam Ali ibn Abi Talib (AS) and Sayyidah Fatimah al-Zahra (SA), emphasizing justice, truthfulness, charity to the needy (Surah Al-Insan 76:8), and reciting Tasbih al-Zahra.",
+                  "اتوار کا دن امیر المؤمنین حضرت علی بن ابی طالب علیہ السلام اور سیدۃ النساء العالمین حضرت فاطمہ زہرا سلام اللّٰہ علیہا کی یاد، عدل و انصاف، مساکین و یتامیٰ کی مدد (سورۃ الدہر) اور تسبیحِ زہراؑ کے لیے مخصوص ہے۔",
+                  "Al-Kafi Vol. 1, p. 458 & Vol. 3, p. 343 (Sahih) • Al-Sahifa al-Sajjadiyya • Mafatih al-Jinan (Weekday Supplications)"
+                )
+              )
+              Calendar.MONDAY -> Triple(
+                "Monday (Yawm al-Ithnayn): Day of Imam Hasan & Imam Husayn (AS) & Mustahabb Fasting",
+                "الْحَسَنُ وَالْحُسَيْنُ سَيِّدَا شَبَابِ أَهْلِ الْجَنَّةِ",
+                Triple(
+                  "Monday is honoured with the remembrance of Imam Hasan al-Mujtaba and Imam Husayn Sayyid al-Shuhada (AS), alongside the recommended (Mustahabb) fast of Monday and Thursday documented in Al-Kafi and Man La Yahduruhu al-Faqih.",
+                  "پیر کا دن حسنین کریمین (امام حسن مجتبیٰ اور امام حسین سید الشہداء علیہما السلام) سے منسوب ہے، اور الکافی و من لا یحضرہ الفقیہ کی احادیث میں پیر اور جمعرات کے مستحب روزے کی فضیلت بیان ہوئی ہے۔",
+                  "Al-Kafi Vol. 4, Kitab al-Sawm, Bab Sawm al-Sunnah, p. 90, Hadith 1 • Man La Yahduruhu al-Faqih Vol. 2, p. 89"
+                )
+              )
+              Calendar.TUESDAY -> Triple(
+                "Tuesday (Yawm al-Thulatha'): Day of Imam Sajjad, Imam al-Baqir & Imam al-Sadiq (AS)",
+                "اللَّهُمَّ بَلِّغْ بِإِيمَانِي أَكْمَلَ الْإِيمَانِ وَاجْعَلْ يَقِينِي أَفْضَلَ الْيَقِينِ",
+                Triple(
+                  "Tuesday highlights the scholarly and spiritual legacy of Imam Ali Zayn al-'Abidin, Imam Muhammad al-Baqir, and Imam Ja'far al-Sadiq (AS): seeking religious knowledge (Tafaqquh fi al-Din), reciting Al-Sahifa al-Sajjadiyya, and noble conduct.",
+                  "منگل کا دن امام زین العابدینؑ، امام محمد باقرؑ اور امام جعفر صادقؑ کی علمی و روحانی میراث (تفقہ فی الدین، صحیفہ سجادیہ اور مکارمِ اخلاق) کے مطالعہ اور عمل کے لیے خاص اہمیت رکھتا ہے۔",
+                  "Al-Kafi Vol. 1, Kitab Fadl al-'Ilm, p. 31, Hadith 1 (Sahih) • Al-Sahifa al-Sajjadiyya, Dua 20"
+                )
+              )
+              Calendar.WEDNESDAY -> Triple(
+                "Wednesday (Yawm al-Arbi'a'): Day of Imam al-Kazim, Imam al-Rida, Imam al-Jawad & Imam al-Hadi (AS)",
+                "الْكَاظِمِينَ الْغَيْظَ وَالْعَافِينَ عَنِ النَّاسِ وَاللَّهُ يُحِبُّ الْمُحْسِنِينَ",
+                Triple(
+                  "Wednesday honours Imam Musa al-Kazim, Imam Ali al-Rida, Imam Muhammad al-Jawad, and Imam Ali al-Hadi (AS), focusing on restraining anger (Kazm al-Ghayz), patience, forgiveness, and deep reflection on the Qur'an.",
+                  "بدھ کا دن امام موسیٰ کاظمؑ، امام علی رضاؑ، امام محمد تقی الجوادؑ اور امام علی نقی الہادیؑ سے منسوب ہے اور غصہ ضبط کرنے (کاظمین الغیظ)، حلم و بردباری اور تدبرِ قرآن کی تعلیم دیتا ہے۔",
+                  "Al-Kafi Vol. 2, Bab Kazm al-Ghayz, p. 109, Hadith 1 (Sahih) • Uyun Akhbar al-Rida by Shaykh al-Saduq"
+                )
+              )
+              else -> Triple(
+                "Thursday (Yawm al-Khamis): Mustahabb Fast, Istighfar & Laylat al-Jumu'ah Preparation",
+                "اللَّهُمَّ إِنِّي أَسْأَلُكَ بِرَحْمَتِكَ الَّتِي وَسِعَتْ كُلَّ شَيْءٍ",
+                Triple(
+                  "In Al-Kafi and Tahdhib al-Ahkam, Imam Ja'far al-Sadiq (AS) states that deeds are presented on Thursday; fasting on Thursday is Mustahabb, and once Thursday Maghrib enters (Laylat al-Jumu'ah), reciting Dua Kumayl, abundant Salawat, and Istighfar is highly recommended.",
+                  "الکافی اور تہذیب الاحکام کی صحیح احادیث کے مطابق جمعرات کا مستحب روزہ، استغفار اور غروبِ جمعرات (شبِ جمعہ) کے بعد دعائے کمیل، سورۃ الجمعہ اور کثرتِ درود بر محمد و آلِ محمد ﷺ مسنون ہے۔",
+                  "Al-Kafi Vol. 4, p. 90 & Vol. 3, p. 414 (Sahih) • Misbah al-Mutahajjid of Shaykh al-Tusi, p. 844 (Dua Kumayl)"
+                )
+              )
+            }
+          }
+
+          val activeDayTitle = shiaDayPractice?.first ?: selectedSpec.primaryReminderTitle
+          val activeArabicSnippet = shiaDayPractice?.second ?: selectedSpec.arabicHadithSnippet
+          val activeEnglishGuidance = shiaDayPractice?.third?.first ?: selectedSpec.englishGuidance
+          val activeUrduGuidance = shiaDayPractice?.third?.second ?: selectedSpec.urduGuidance
+          val activeAuthenticSource = shiaDayPractice?.third?.third ?: selectedSpec.authenticReference
+          val activeBullets = if (isShiaTradition) {
+            listOf(
+              "17 Rak'ahs Daily Obligatory (Wajib) + 34 Rak'ahs Daily Recommended (Nafilah) Prayers (Al-Kafi Vol. 3, p. 442)",
+              "Tasbih of Sayyidah Fatimah al-Zahra (SA): 34x Allahu Akbar, 33x Alhamdulillah, 33x SubhanAllah after every Salah",
+              "Abundant Salawat: Allahumma salli 'ala Muhammad wa Aali Muhammad (especially on Thursday night & Friday)",
+              "Friday Ghusl (Ghusl al-Jumu'ah) between Fajr and Dhuhr (Al-Kafi Vol. 3, p. 41, Sahih)"
+            )
+          } else {
+            selectedSpec.keySunnahBullets
+          }
+
           Spacer(modifier = Modifier.height(8.dp))
 
           Text(
-            text = selectedSpec.primaryReminderTitle,
+            text = activeDayTitle,
             style = MaterialTheme.typography.bodyMedium.copy(
               fontWeight = FontWeight.Bold
             )
@@ -1941,7 +3044,7 @@ fun CalculatedFridayAndDailySunnahHomeCard(
           Spacer(modifier = Modifier.height(6.dp))
 
           Text(
-            text = selectedSpec.arabicHadithSnippet,
+            text = activeArabicSnippet,
             style = MaterialTheme.typography.titleMedium.copy(
               fontFamily = AmiriFontFamily,
               fontSize = 19.sp,
@@ -1955,7 +3058,7 @@ fun CalculatedFridayAndDailySunnahHomeCard(
           Spacer(modifier = Modifier.height(6.dp))
 
           Text(
-            text = selectedSpec.englishGuidance,
+            text = activeEnglishGuidance,
             style = MaterialTheme.typography.bodySmall.copy(
               fontSize = 12.sp,
               lineHeight = 18.sp
@@ -1965,7 +3068,7 @@ fun CalculatedFridayAndDailySunnahHomeCard(
           Spacer(modifier = Modifier.height(4.dp))
 
           Text(
-            text = selectedSpec.urduGuidance,
+            text = activeUrduGuidance,
             style = MaterialTheme.typography.bodySmall.copy(
               fontFamily = UrduNastaliqFontFamily,
               fontSize = 13.sp,
@@ -1980,7 +3083,7 @@ fun CalculatedFridayAndDailySunnahHomeCard(
           HorizontalDivider()
           Spacer(modifier = Modifier.height(6.dp))
 
-          selectedSpec.keySunnahBullets.forEach { bullet ->
+          activeBullets.forEach { bullet ->
             Text(
               text = "• $bullet",
               style = MaterialTheme.typography.labelSmall.copy(
@@ -1992,7 +3095,7 @@ fun CalculatedFridayAndDailySunnahHomeCard(
 
           Spacer(modifier = Modifier.height(4.dp))
           Text(
-            text = "Authentic Source: ${selectedSpec.authenticReference}",
+            text = "Authentic Source: $activeAuthenticSource",
             style = MaterialTheme.typography.labelSmall.copy(
               color = EmeraldPrimary,
               fontWeight = FontWeight.Bold

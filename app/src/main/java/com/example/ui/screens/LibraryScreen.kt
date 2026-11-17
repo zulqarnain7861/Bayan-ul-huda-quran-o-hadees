@@ -215,24 +215,28 @@ fun LibraryScreen(
   var activeReaderHighlightQuery by remember { mutableStateOf("") }
 
   fun openBookAtChapter(book: IslamicClassicalBook, chapterIdx: Int, highlightQuery: String = "") {
-    val safeIdx = chapterIdx.coerceIn(0, (book.chapters.size - 1).coerceAtLeast(0))
+    val fullBook = com.example.data.repository.ClassicalLibraryAndBiographiesRepository
+      .getAllUniversalLibraryBooks(context)
+      .firstOrNull { it.id == book.id && it.chapters.size >= book.chapters.size }
+      ?: book
+    val safeIdx = chapterIdx.coerceIn(0, (fullBook.chapters.size - 1).coerceAtLeast(0))
     selectedChapterIndex = safeIdx
     activeReaderHighlightQuery = highlightQuery
-    openedBook = book
-    val jildNum = book.chapters.getOrNull(safeIdx)?.jildNumber ?: 1
+    openedBook = fullBook
+    val jildNum = fullBook.chapters.getOrNull(safeIdx)?.jildNumber ?: 1
     com.example.data.repository.IslamicDigitalLibraryRepository.saveReadingProgress(
       context = context,
-      bookId = book.id,
+      bookId = fullBook.id,
       chapterIndex = safeIdx,
       volumeNumber = jildNum
     )
-    if (book.category.equals("History of Islam", ignoreCase = true) ||
-      book.category.equals("Seerah & History", ignoreCase = true)
+    if (fullBook.category.equals("History of Islam", ignoreCase = true) ||
+      fullBook.category.equals("Seerah & History", ignoreCase = true)
     ) {
-      lastReadHistoryBookId = book.id
+      lastReadHistoryBookId = fullBook.id
       lastReadHistoryChapterIdx = safeIdx
       historyPrefs.edit()
-        .putString("last_history_book_id", book.id)
+        .putString("last_history_book_id", fullBook.id)
         .putInt("last_history_chapter_idx", safeIdx)
         .apply()
     }
@@ -2700,8 +2704,12 @@ fun IslamicBookReaderView(
   val currentChapter = book.chapters.getOrElse(safeChapterIdx) { book.chapters.first() }
   var inBookSearchQuery by remember(book.id) { mutableStateOf("") }
   var searchAllBooksScope by remember { mutableStateOf(false) }
-  var showAllJildsFullText by remember(book.id) { mutableStateOf(selectedChapterIndex == 0 && initialHighlightQuery.isBlank()) }
+  var showAllJildsFullText by remember(book.id) { mutableStateOf(false) }
   var selectedJildFilter by remember(book.id) { mutableIntStateOf(0) }
+  val readerListState = androidx.compose.foundation.lazy.rememberLazyListState()
+  LaunchedEffect(book.id, safeChapterIdx, selectedJildFilter, showAllJildsFullText) {
+    readerListState.scrollToItem(0)
+  }
   val distinctJildNumbers = remember(book) {
     book.chapters.map { it.jildNumber }.filter { it > 0 }.distinct().sorted().ifEmpty { listOf(1) }
   }
@@ -3214,6 +3222,73 @@ fun IslamicBookReaderView(
       }
     }
 
+    // Persistent Top Page & Jild Navigation Bar (Works across all Classical & History books)
+    Surface(
+      color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+      modifier = Modifier
+        .fillMaxWidth()
+        .testTag("book_reader_top_page_nav_bar")
+    ) {
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(horizontal = 10.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        OutlinedButton(
+          onClick = {
+            selectedJildFilter = 0
+            showAllJildsFullText = false
+            if (safeChapterIdx > 0) {
+              onSelectChapter(safeChapterIdx - 1)
+            } else if (currentBookUniversalIdx > 0) {
+              onNavigateBook(-1)
+            }
+          },
+          enabled = safeChapterIdx > 0 || currentBookUniversalIdx > 0,
+          shape = RoundedCornerShape(8.dp),
+          contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+          modifier = Modifier.height(32.dp).testTag("top_prev_page_button")
+        ) {
+          Icon(Icons.AutoMirrored.Filled.NavigateBefore, contentDescription = "Previous Page", modifier = Modifier.size(16.dp))
+          Spacer(modifier = Modifier.width(2.dp))
+          Text("Previous", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
+
+        val pagesInCurrentJild = book.chapters.filter { it.jildNumber == currentChapter.jildNumber }
+        val pageIndexInJild = (pagesInCurrentJild.indexOfFirst { it.chapterNumber == currentChapter.chapterNumber }.coerceAtLeast(0)) + 1
+        Text(
+          text = "Jild ${currentChapter.jildNumber}/${distinctJildNumbers.last()} • Page ${safeChapterIdx + 1}/${book.chapters.size} (Vol Pg $pageIndexInJild/${pagesInCurrentJild.size.coerceAtLeast(1)})",
+          style = MaterialTheme.typography.labelSmall.copy(
+            fontWeight = FontWeight.Bold,
+            color = EmeraldPrimary
+          ),
+          maxLines = 1
+        )
+
+        OutlinedButton(
+          onClick = {
+            selectedJildFilter = 0
+            showAllJildsFullText = false
+            if (safeChapterIdx < book.chapters.lastIndex) {
+              onSelectChapter(safeChapterIdx + 1)
+            } else if (currentBookUniversalIdx >= 0 && currentBookUniversalIdx < allUniversalBooks.lastIndex) {
+              onNavigateBook(1)
+            }
+          },
+          enabled = safeChapterIdx < book.chapters.lastIndex || (currentBookUniversalIdx >= 0 && currentBookUniversalIdx < allUniversalBooks.lastIndex),
+          shape = RoundedCornerShape(8.dp),
+          contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+          modifier = Modifier.height(32.dp).testTag("top_next_page_button")
+        ) {
+          Text("Next", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+          Spacer(modifier = Modifier.width(2.dp))
+          Icon(Icons.AutoMirrored.Filled.NavigateNext, contentDescription = "Next Page", modifier = Modifier.size(16.dp))
+        }
+      }
+    }
+
     // Chapter Content Body (Displays All Jilds continuously, all pages of a selected Jild, or a single Chapter)
     val chaptersToRender = remember(book, showAllJildsFullText, selectedJildFilter, currentChapter) {
       when {
@@ -3224,6 +3299,7 @@ fun IslamicBookReaderView(
     }
 
     LazyColumn(
+      state = readerListState,
       modifier = Modifier
         .fillMaxSize()
         .padding(horizontal = 12.dp),

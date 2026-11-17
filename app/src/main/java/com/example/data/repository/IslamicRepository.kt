@@ -90,7 +90,9 @@ class IslamicRepository(
     // Also refresh if an older cached version still had duplicate Bismillah prepended to Surah 2 Verse 1
     val surah2Verse1 = ayahDao.getAyah(2, 1)
     val hasLegacyDuplicateBismillah = surah2Verse1?.textArabic?.contains("بِسْمِ") == true
-    if (ayahDao.getAyahCount() < 6000 || hasLegacyDuplicateBismillah) {
+    val surah13Verse1 = ayahDao.getAyah(13, 1)
+    val hasMissingMuqattaatSmallAlif = surah13Verse1?.textArabic?.startsWith("الٓمٓرٰ") != true
+    if (ayahDao.getAyahCount() < 6000 || hasLegacyDuplicateBismillah || hasMissingMuqattaatSmallAlif) {
       val loadedAll = OfflineQuranAssetLoader.loadAll6236AyahsIntoRoom(
         context = appContext,
         ayahDao = ayahDao,

@@ -1632,11 +1632,8 @@ object IslamicBooksCatalog {
         } else {
           idx + 4
         }
-        val computedJild = when {
-          h.collectionKey.endsWith("_history") -> ((idx / 2) + 2).coerceIn(2, 12)
-          else -> ((idx / 2) + 2).coerceAtLeast(h.bookNumber.coerceIn(1, 10))
-        }
-        val pgNum = computedJild * 45 + ((idx % 2) * 22)
+        val computedJild = ((idx / 2) + 2).coerceIn(2, 12)
+        val pgNum = (computedJild - 1) * 45 + ((idx % 2) * 22 + 12)
         val titlePrefix = if (id == "book_shia_nahjul_balagha" || h.collectionKey.endsWith("_history")) {
           "Jild $computedJild (Volume $computedJild • Pg. $pgNum) — ${h.bookName.replaceFirst("Book ", "Part ")} — ${h.chapterName}"
         } else {

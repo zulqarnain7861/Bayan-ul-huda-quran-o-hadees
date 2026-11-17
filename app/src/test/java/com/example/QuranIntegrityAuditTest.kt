@@ -22,8 +22,8 @@ class QuranIntegrityAuditTest {
 
   companion object {
     // Canonical baseline cryptographic hashes of app/src/main/assets/quran_complete_v1.dat payload
-    const val EXPECTED_CANONICAL_MD5 = "68b126a86ea333b45e48341cfceaba80"
-    const val EXPECTED_CANONICAL_SHA256 = "eb759747e68a2e1412f5622a44f185d0d6987acfda55100157fe47f82e5475e4"
+    const val EXPECTED_CANONICAL_MD5 = "5594141e0d8446f9c1b0a64bd8967086"
+    const val EXPECTED_CANONICAL_SHA256 = "4495f7cddced33955cbeb3332b9fb39bc612ff337a9c2ff7c57341349562bf68"
     const val TOTAL_EXPECTED_SURAHS = 114
     const val TOTAL_EXPECTED_AYAHS = 6236
   }
@@ -95,28 +95,54 @@ class QuranIntegrityAuditTest {
 
     val jsonArray = JSONArray(jsonText)
     var surah13Verse1Arabic: String? = null
+    val surahOpeningMap = mutableMapOf<Int, String>()
     for (i in 0 until jsonArray.length()) {
       val obj = jsonArray.getJSONObject(i)
-      if (obj.getInt("s") == 13 && obj.getInt("v") == 1) {
+      val s = obj.getInt("s")
+      val v = obj.getInt("v")
+      if (v == 1) {
+        surahOpeningMap[s] = obj.getString("ar")
+      }
+      if (s == 13 && v == 1) {
         surah13Verse1Arabic = obj.getString("ar")
-        break
       }
     }
 
     assertNotNull("Surah 13:1 must exist in canonical source dataset", surah13Verse1Arabic)
     val text = surah13Verse1Arabic!!
 
-    // Verification of source dataset characters for opening token
+    // Verification of authentic Uthmani characters for opening token of Surah 13:1 (الٓمٓرٰ)
     val openingWord = text.split(" ")[0]
-    // The canonical source dataset records the opening letters as الٓمٓر
-    // U+0627 (Alef), U+0644 (Lam), U+0653 (Maddah Above), U+0645 (Meem), U+0653 (Maddah Above), U+0631 (Reh)
-    val expectedSourceCodePoints = listOf(0x0627, 0x0644, 0x0653, 0x0645, 0x0653, 0x0631)
+    // U+0627 (Alef), U+0644 (Lam), U+0653 (Maddah Above), U+0645 (Meem), U+0653 (Maddah Above), U+0631 (Reh), U+0670 (Superscript Alef)
+    val expectedSourceCodePoints = listOf(0x0627, 0x0644, 0x0653, 0x0645, 0x0653, 0x0631, 0x0670)
     val actualCodePoints = openingWord.map { it.code }
     assertEquals(expectedSourceCodePoints, actualCodePoints)
+
+    // Verify all Alif-Laam-Ra surahs (10, 11, 12, 14, 15) and other Muqatta'at openings include authentic small alif (U+0670)
+    for (surahNum in listOf(10, 11, 12, 14, 15)) {
+      assertTrue("Surah $surahNum:1 must start with الٓرٰ", surahOpeningMap[surahNum]?.startsWith("الٓرٰ ") == true)
+    }
+    assertTrue("Surah 19:1 must start with كٓهٰيٰعٓصٓ", surahOpeningMap[19]?.startsWith("كٓهٰيٰعٓصٓ") == true)
+    assertTrue("Surah 20:1 must start with طٰهٰ", surahOpeningMap[20]?.startsWith("طٰهٰ") == true)
+    assertTrue("Surah 26:1 must start with طٰسٓمٓ", surahOpeningMap[26]?.startsWith("طٰسٓمٓ") == true)
+    assertTrue("Surah 27:1 must start with طٰسٓ", surahOpeningMap[27]?.startsWith("طٰسٓ ") == true)
+    assertTrue("Surah 28:1 must start with طٰسٓمٓ", surahOpeningMap[28]?.startsWith("طٰسٓمٓ") == true)
+    assertTrue("Surah 36:1 must start with يٰسٓ", surahOpeningMap[36]?.startsWith("يٰسٓ") == true)
+    for (surahNum in 40..46) {
+      assertTrue("Surah $surahNum:1 must start with حٰمٓ", surahOpeningMap[surahNum]?.startsWith("حٰمٓ") == true)
+    }
 
     // Confirm stripDuplicateBismillahPrefix does NOT inject or substitute synthetic characters into 13:1
     val processed = OfflineQuranAssetLoader.stripDuplicateBismillahPrefix(13, 1, text)
     assertEquals("Processed text must remain bit-for-bit identical to source text", text, processed)
+
+    // Confirm word-range highlighting groups standalone Waqf stop marks (ۚ, ۗ) with their preceding spoken word
+    // while keeping the sacred verse string 100% intact
+    val ranges = com.example.data.repository.QuranTajweedEngineRepository.computeWordCharacterRanges(text)
+    val words = com.example.data.repository.QuranTajweedEngineRepository.extractRecitationWords(text)
+    assertEquals("First spoken word range of 13:1 includes attached/following Waqf mark", "الٓمٓرٰ ۚ", words[0])
+    assertTrue("No recitation word token is a standalone Waqf mark", words.none { it == "ۚ" || it == "ۗ" })
+    assertEquals("Full verse length is preserved intact", text.length, ranges.last().last + 1)
   }
 
   @Test

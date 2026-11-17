@@ -136,12 +136,7 @@ class InAppUpdateService : Service() {
         return manager.uiState.value
       }
 
-      val isRealDeviceRuntime = GitHubReleaseClient.customTransportForTesting == null
-      val shouldFallbackToStagedRelease = enableFreshTestFallbackWhenNoRemoteRelease ||
-        (isRealDeviceRuntime && !isAutomaticCheck) ||
-        (isRealDeviceRuntime && !hasAutoTriggeredFreshPreviewThisProcess)
-
-      if (shouldFallbackToStagedRelease) {
+      if (enableFreshTestFallbackWhenNoRemoteRelease) {
         hasAutoTriggeredFreshPreviewThisProcess = true
         return triggerFreshUpdateTestRelease(context)
       }

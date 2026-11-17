@@ -1052,6 +1052,38 @@ object QuranTajweedEngineRepository {
           }
         }
 
+        // 1b. Highlight 2-count natural Madd (ح ي ط ه ر with small alif ٰ) in Surah opening Muqatta'at
+        // if not already covered by an existing rule span (e.g. هٰ يٰ in 19:1, هٰ in 20:1, يٰ in 36:1, حٰ in 40:1-46:1)
+        if (record.ayah == 1 && (selectedRuleFilter == null || selectedRuleFilter == "maddNaturalMiniature")) {
+          val miniatureRule = rulesMap["maddNaturalMiniature"]
+          if (miniatureRule != null) {
+            val firstWordEnd = text.indexOfFirst { it.isWhitespace() }.let { if (it == -1) text.length else it }
+            var idx = 0
+            while (idx + 1 < firstWordEnd) {
+              val ch = text[idx]
+              val nextCh = text[idx + 1]
+              if ((ch == '\u062D' || ch == '\u064A' || ch == '\u0637' || ch == '\u0647' || ch == '\u0631') &&
+                nextCh == '\u0670'
+              ) {
+                val alreadyCovered = validSpans.any { idx < it.end && (idx + 2) > it.start }
+                if (!alreadyCovered && !isSurrogateBoundarySplit(text, idx, idx + 2)) {
+                  addStyle(
+                    style = SpanStyle(
+                      color = miniatureRule.composeColor(),
+                      fontWeight = FontWeight.Bold
+                    ),
+                    start = idx,
+                    end = idx + 2
+                  )
+                }
+                idx += 2
+              } else {
+                idx++
+              }
+            }
+          }
+        }
+
         // 2. If audio is actively playing this verse, overlay word-level sync highlight
         // while preserving Tajweed colors on non-active words!
         if (isAudioPlayingOnThisVerse && activeWordIndex >= 0) {
@@ -1097,7 +1129,13 @@ object QuranTajweedEngineRepository {
     }
   }
 
-  private fun computeWordCharacterRanges(text: String): List<IntRange> {
+  /**
+   * Computes character ranges of spoken words in [text] while keeping every character and space
+   * of [text] intact. Standalone Quranic Waqf/pause/ornament signs (`\u06D6..\u06ED`) separated by
+   * whitespace are grouped with their preceding word range so audio highlighting never pauses on
+   * or drifts after silent stop marks.
+   */
+  fun computeWordCharacterRanges(text: String): List<IntRange> {
     val ranges = ArrayList<IntRange>()
     var i = 0
     val n = text.length
@@ -1106,9 +1144,35 @@ object QuranTajweedEngineRepository {
       if (i >= n) break
       val start = i
       while (i < n && !text[i].isWhitespace()) i++
-      ranges.add(start until i)
+      if (ranges.isNotEmpty() && isStandaloneWaqfOrOrnamentToken(text, start, i)) {
+        val prev = ranges[ranges.lastIndex]
+        ranges[ranges.lastIndex] = prev.first until i
+      } else {
+        ranges.add(start until i)
+      }
     }
     return ranges
+  }
+
+  fun extractRecitationWords(text: String): List<String> {
+    return computeWordCharacterRanges(text).map { range ->
+      text.substring(range.first, range.last + 1)
+    }
+  }
+
+  private fun isStandaloneWaqfOrOrnamentToken(text: String, start: Int, endExclusive: Int): Boolean {
+    if (start >= endExclusive) return false
+    var hasMark = false
+    for (idx in start until endExclusive) {
+      val ch = text[idx]
+      if (ch in '\u0621'..'\u064A' || ch == '\u0671') {
+        return false
+      }
+      if (ch in '\u06D6'..'\u06ED') {
+        hasMark = true
+      }
+    }
+    return hasMark
   }
 
   /**

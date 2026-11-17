@@ -180,7 +180,7 @@ fun BayanApp(
     if (!uiState.isOpeningScreenVisible && (currentUser != null || uiState.isGuestModeActive)) {
       com.example.data.updater.InAppUpdateService.checkForUpdatesAndTriggerDialog(
         context = appContext,
-        enableFreshTestFallbackWhenNoRemoteRelease = true,
+        enableFreshTestFallbackWhenNoRemoteRelease = false,
         isAutomaticCheck = true
       )
     }

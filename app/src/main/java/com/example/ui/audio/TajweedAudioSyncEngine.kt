@@ -731,6 +731,9 @@ object TajweedAudioSyncEngine {
       }
     }
 
+    if (baseLetters == 0f && maddWeight == 0f) {
+      return 0.05f
+    }
     val rawWeight = baseLetters.coerceAtLeast(1.5f)
     return if (audioAssistedRefinement) {
       (rawWeight + maddWeight + shaddahGhunnahWeight).coerceAtLeast(2.0f)

@@ -241,7 +241,7 @@ object InitialDataLoader {
       AyahEntity(
         surahNumber = 36,
         verseNumber = 1,
-        textArabic = "يس",
+        textArabic = "يٰسٓ",
         translationEnglish = "Ya-Seen.",
         translationUrdu = "یٰسین",
         transliteration = "Yā-Sīn",

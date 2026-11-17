@@ -18,7 +18,16 @@ object OfflineQuranAssetLoader {
     "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ ",
     "بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ ",
     "بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ ",
-    "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ "
+    "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ ",
+    "بِسۡمِ ٱللَّهِ ٱلرَّحۡمَـٰنِ ٱلرَّحِيمِ ",
+    "بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ "
+  )
+
+  private val LEADING_BISMILLAH_REGEX = Regex(
+    "^ب[\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]*س[\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]*م[\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]*\\s+" +
+      "[ٱا][\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]*ل[\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]*ل[\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]*ه[\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]*\\s+" +
+      "[ٱا][\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]*ل[\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]*ر[\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]*ح[\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]*م[\\u0640\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]*ن[\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]*\\s+" +
+      "[ٱا][\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]*ل[\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]*ر[\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]*ح[\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]*ي[\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]*م[\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]*\\s+"
   )
 
   /**
@@ -29,12 +38,23 @@ object OfflineQuranAssetLoader {
   fun stripDuplicateBismillahPrefix(surahNumber: Int, verseNumber: Int, rawArabic: String): String {
     var cleaned = rawArabic.removePrefix("\uFEFF").trim()
     if (surahNumber != 1 && surahNumber != 9 && verseNumber == 1) {
+      var stripped = false
       for (prefix in LEADING_BISMILLAH_PREFIXES) {
         if (cleaned.startsWith(prefix)) {
           val remainder = cleaned.substring(prefix.length).trim()
           if (remainder.isNotEmpty()) {
             cleaned = remainder
+            stripped = true
             break
+          }
+        }
+      }
+      if (!stripped) {
+        val match = LEADING_BISMILLAH_REGEX.find(cleaned)
+        if (match != null) {
+          val remainder = cleaned.substring(match.range.last + 1).trim()
+          if (remainder.isNotEmpty()) {
+            cleaned = remainder
           }
         }
       }

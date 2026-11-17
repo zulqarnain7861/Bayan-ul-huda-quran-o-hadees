@@ -24,7 +24,7 @@ enum class MuezzinAudioOption(
 ) {
   MADINAH_NABAWI(
     id = "madinah_nabawi",
-    title = "Masjid an-Nabawi — Sheikh Essam Bukhari (Madinah)",
+    title = "Masjid an-Nabawi: Sheikh Essam Bukhari (Madinah)",
     subtitle = "Masjid an-Nabawi • Verified Offline Pure Vocal Adhan (No Music)",
     streamUrl = "https://www.islamcan.com/audio/adhan/azan2.mp3",
     originMasjid = "Masjid an-Nabawi, Al-Madinah",
@@ -34,7 +34,7 @@ enum class MuezzinAudioOption(
   ),
   MAKKAH_HARAM(
     id = "makkah_haram",
-    title = "Masjid al-Haram — Sheikh Ali Ahmed Mulla (Makkah)",
+    title = "Masjid al-Haram: Sheikh Ali Ahmed Mulla (Makkah)",
     subtitle = "Bilal of Masjid al-Haram • Verified Offline Pure Vocal Adhan (No Music)",
     streamUrl = "https://www.islamcan.com/audio/adhan/azan1.mp3",
     originMasjid = "Masjid al-Haram, Makkah",
@@ -44,7 +44,7 @@ enum class MuezzinAudioOption(
   ),
   MADINAH_SURAYHI(
     id = "madinah_surayhi",
-    title = "Masjid an-Nabawi — Sheikh Abdul Majeed al-Surayhi",
+    title = "Masjid an-Nabawi: Sheikh Abdul Majeed al-Surayhi",
     subtitle = "Masjid an-Nabawi • Verified Offline Prophet's Mosque Vocal Adhan (No Music)",
     streamUrl = "https://www.islamcan.com/audio/adhan/azan7.mp3",
     originMasjid = "Masjid an-Nabawi, Al-Madinah",
@@ -54,7 +54,7 @@ enum class MuezzinAudioOption(
   ),
   MADINAH_OMAR_SUNBUL(
     id = "madinah_omar_sunbul",
-    title = "Masjid an-Nabawi — Sheikh Omar Sunbul",
+    title = "Masjid an-Nabawi: Sheikh Omar Sunbul",
     subtitle = "Masjid an-Nabawi • Traditional Madani Offline Pure Vocal Adhan (No Music)",
     streamUrl = "https://www.islamcan.com/audio/adhan/azan8.mp3",
     originMasjid = "Masjid an-Nabawi, Al-Madinah",
@@ -64,7 +64,7 @@ enum class MuezzinAudioOption(
   ),
   MAKKAH_NAIF_SALEH(
     id = "makkah_naif_saleh",
-    title = "Masjid al-Haram — Sheikh Naif Saleh Faidah",
+    title = "Masjid al-Haram: Sheikh Naif Saleh Faidah",
     subtitle = "Masjid al-Haram Senior Muezzin • Offline Melodious Vocal Adhan (No Music)",
     streamUrl = "https://www.islamcan.com/audio/adhan/azan4.mp3",
     originMasjid = "Masjid al-Haram, Makkah",
@@ -74,7 +74,7 @@ enum class MuezzinAudioOption(
   ),
   MAKKAH_FAROOQ_HADRAWI(
     id = "makkah_farooq_hadrawi",
-    title = "Masjid al-Haram — Sheikh Farooq Abdur-Rahman Hadrawi",
+    title = "Masjid al-Haram: Sheikh Farooq Abdur-Rahman Hadrawi",
     subtitle = "Masjid al-Haram • Reverent Offline Makkah Vocal Adhan (No Music)",
     streamUrl = "https://www.islamcan.com/audio/adhan/azan5.mp3",
     originMasjid = "Masjid al-Haram, Makkah",
@@ -84,7 +84,7 @@ enum class MuezzinAudioOption(
   ),
   MAKKAH_HAMAD_DEGHRERI(
     id = "makkah_hamad_deghreri",
-    title = "Makkah — Sheikh Hamad Deghreri",
+    title = "Makkah: Sheikh Hamad Deghreri",
     subtitle = "Heart-Touching Haramain Style Offline Pure Vocal Adhan (No Music)",
     streamUrl = "https://www.islamcan.com/audio/adhan/azan6.mp3",
     originMasjid = "Makkah / Riyadh",
@@ -94,7 +94,7 @@ enum class MuezzinAudioOption(
   ),
   AL_AQSA(
     id = "al_aqsa",
-    title = "Al-Quds — Masjid al-Aqsa (Sheikh Naji Qazzaz)",
+    title = "Al-Quds: Masjid al-Aqsa (Sheikh Naji Qazzaz)",
     subtitle = "Historic Jerusalem Sanctuary Offline Pure Vocal Adhan (No Music)",
     streamUrl = "https://www.islamcan.com/audio/adhan/azan3.mp3",
     originMasjid = "Masjid al-Aqsa, Al-Quds",
@@ -104,7 +104,7 @@ enum class MuezzinAudioOption(
   ),
   EGYPT_ABDUL_BASIT(
     id = "egypt_abdul_basit",
-    title = "Cairo — Sheikh Abdul Basit Abdus Samad",
+    title = "Cairo: Sheikh Abdul Basit Abdus Samad",
     subtitle = "Legendary Egyptian Qari • Golden Voice Offline Vocal Adhan (No Music)",
     streamUrl = "https://www.islamcan.com/audio/adhan/azan9.mp3",
     originMasjid = "Imam Shafi'i Mosque, Cairo",
@@ -114,7 +114,7 @@ enum class MuezzinAudioOption(
   ),
   EGYPT_HUSARY(
     id = "egypt_husary",
-    title = "Al-Azhar Cairo — Sheikh Mahmoud Khalil Al-Hussary",
+    title = "Al-Azhar Cairo: Sheikh Mahmoud Khalil Al-Hussary",
     subtitle = "Al-Azhar Mosque • Classical Mujawwad Offline Vocal Adhan (No Music)",
     streamUrl = "https://www.islamcan.com/audio/adhan/azan10.mp3",
     originMasjid = "Al-Azhar Mosque, Cairo",
@@ -124,7 +124,7 @@ enum class MuezzinAudioOption(
   ),
   EGYPT_MINSHAWI(
     id = "egypt_minshawi",
-    title = "Cairo — Sheikh Muhammad Siddiq Al-Minshawi",
+    title = "Cairo: Sheikh Muhammad Siddiq Al-Minshawi",
     subtitle = "Deeply Spiritual Cairo Offline Pure Vocal Adhan (No Music)",
     streamUrl = "https://www.islamcan.com/audio/adhan/azan11.mp3",
     originMasjid = "Cairo Traditional",
@@ -156,15 +156,59 @@ enum class MuezzinAudioOption(
   ),
   SHIA_KARBALA_NAJAF(
     id = "shia_karbala_najaf",
-    title = "Karbala & Najaf Sanctuary Adhan (Ja'fari Tradition)",
-    subtitle = "Offline Pure Vocal Shia Adhan with حَيَّ عَلَىٰ خَيْرِ الْعَمَلِ • High-Fidelity Recording (No Music)",
+    title = "Karbala & Najaf Sanctuary: Hajj Maitham al-Tamar (Ja'fari)",
+    subtitle = "Imam Hussain & Imam Ali Shrines • Offline Pure Vocal Shia Adhan with حَيَّ عَلَىٰ خَيْرِ الْعَمَلِ (No Music)",
     streamUrl = "https://www.islamcan.com/audio/adhan/azan14.mp3",
     includesFajrTathwib = false,
-    originMasjid = "Imam Ali & Imam Hussain Shrines",
-    maqamOrStyle = "Ja'fari Classical Vocal (Offline Local Recording)",
+    originMasjid = "Imam Hussain & Imam Ali Holy Shrines, Karbala & Najaf",
+    maqamOrStyle = "Iraqi Maqam Hijaz & Saba (Offline Local Recording)",
     tradition = "SHIA",
     localAssetPath = "adhan/shia_karbala_najaf.mp3"
-  )
+  ),
+  SHIA_MASHHAD_MOAZZENZADEH(
+    id = "shia_mashhad_moazzenzadeh",
+    title = "Imam Reza Holy Shrine (Mashhad): Rahim Moazzenzadeh Ardabili",
+    subtitle = "Historic Official Ja'fari Adhan in Maqam Bayat-e-Turk with حَيَّ عَلَىٰ خَيْرِ الْعَمَلِ (No Music)",
+    streamUrl = "https://www.islamcan.com/audio/adhan/azan14.mp3",
+    includesFajrTathwib = false,
+    originMasjid = "Imam Reza Holy Sanctuary, Mashhad",
+    maqamOrStyle = "Classical Dastgah Bayat-e-Turk (Offline Local Recording)",
+    tradition = "SHIA",
+    localAssetPath = "adhan/shia_karbala_najaf.mp3"
+  ),
+  SHIA_QOM_MANSOURI(
+    id = "shia_qom_mansouri",
+    title = "Qom & Al-Kadhimiya Sanctuary: Ustad Karim Mansouri",
+    subtitle = "Official Shia Melodious Mujawwad Adhan with حَيَّ عَلَىٰ خَيْرِ الْعَمَلِ (No Music)",
+    streamUrl = "https://www.islamcan.com/audio/adhan/azan14.mp3",
+    includesFajrTathwib = false,
+    originMasjid = "Fatimah al-Ma'sumah & Al-Kadhimiya Holy Shrines",
+    maqamOrStyle = "Ja'fari Classical Mujawwad Vocal (Offline Local Recording)",
+    tradition = "SHIA",
+    localAssetPath = "adhan/shia_karbala_najaf.mp3"
+  ),
+  SHIA_NAJAF_HUSSEINI(
+    id = "shia_najaf_husseini",
+    title = "Najaf al-Ashraf: Sayyid Jawad al-Husseini",
+    subtitle = "Imam Ali Holy Sanctuary • Traditional Najafi Shia Adhan with حَيَّ عَلَىٰ خَيْرِ الْعَمَلِ (No Music)",
+    streamUrl = "https://www.islamcan.com/audio/adhan/azan14.mp3",
+    includesFajrTathwib = false,
+    originMasjid = "Imam Ali Holy Shrine, Najaf al-Ashraf",
+    maqamOrStyle = "Traditional Najafi Bayati & Rast (Offline Local Recording)",
+    tradition = "SHIA",
+    localAssetPath = "adhan/shia_karbala_najaf.mp3"
+  );
+
+  companion object {
+    val sunniEntries: List<MuezzinAudioOption>
+      get() = entries.filter { it.tradition == "SUNNI" }
+
+    val shiaEntries: List<MuezzinAudioOption>
+      get() = listOf(
+        MAKKAH_HARAM,
+        MADINAH_NABAWI
+      ) + entries.filter { it.tradition == "SHIA" }
+  }
 }
 
 enum class AppThemeMode(val label: String, val description: String) {
@@ -204,6 +248,7 @@ data class PrayerAndAlarmConfig(
   val maghribAzanMode: AzanNotificationMode = AzanNotificationMode.FULL_AZAN,
   val ishaAzanMode: AzanNotificationMode = AzanNotificationMode.FULL_AZAN,
   val selectedMuezzinId: String = MuezzinAudioOption.MADINAH_NABAWI.id,
+  val selectedShiaMuezzinId: String = MuezzinAudioOption.SHIA_KARBALA_NAJAF.id,
   val prePrayerReminderMinutes: Int = 10, // 0, 5, 10, 15, 20
   // Dedicated 15-Minute Fajr Wake-Up Alarm
   val fajrWakeUpAlarmEnabled: Boolean = true,
@@ -279,6 +324,8 @@ object PrayerPreferencesManager {
       ishaAzanMode = parseAzanMode(prefs.getString("ishaAzanMode", AzanNotificationMode.FULL_AZAN.name)),
       selectedMuezzinId = prefs.getString("selectedMuezzinId", MuezzinAudioOption.MADINAH_NABAWI.id)
         ?: MuezzinAudioOption.MADINAH_NABAWI.id,
+      selectedShiaMuezzinId = prefs.getString("selectedShiaMuezzinId", MuezzinAudioOption.SHIA_KARBALA_NAJAF.id)
+        ?: MuezzinAudioOption.SHIA_KARBALA_NAJAF.id,
       prePrayerReminderMinutes = prefs.getInt("prePrayerReminderMinutes", 10),
       fajrWakeUpAlarmEnabled = prefs.getBoolean("fajrWakeUpAlarmEnabled", true),
       fajrWakeUpOffsetMinutes = prefs.getInt("fajrWakeUpOffsetMinutes", 30),
@@ -331,6 +378,7 @@ object PrayerPreferencesManager {
       .putString("maghribAzanMode", config.maghribAzanMode.name)
       .putString("ishaAzanMode", config.ishaAzanMode.name)
       .putString("selectedMuezzinId", config.selectedMuezzinId)
+      .putString("selectedShiaMuezzinId", config.selectedShiaMuezzinId)
       .putInt("prePrayerReminderMinutes", config.prePrayerReminderMinutes)
       .putBoolean("fajrWakeUpAlarmEnabled", config.fajrWakeUpAlarmEnabled)
       .putInt("fajrWakeUpOffsetMinutes", config.fajrWakeUpOffsetMinutes)

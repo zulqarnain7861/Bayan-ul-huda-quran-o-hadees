@@ -52,6 +52,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -502,45 +503,6 @@ fun NooraniQaidaReaderScreen(
         )
       )
     },
-    floatingActionButton = {
-      Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        ExtendedFloatingActionButton(
-          onClick = { showExerciseTestSheet = true },
-          containerColor = Color(0xFF0A4D3C),
-          contentColor = GoldPrimary,
-          icon = {
-            Icon(Icons.Default.Quiz, contentDescription = "Exercise MCQ Test")
-          },
-          text = {
-            Text(
-              text = "Test MCQs (${currentPageQuestions.size})",
-              fontWeight = FontWeight.ExtraBold,
-              fontSize = 12.sp
-            )
-          },
-          modifier = Modifier.testTag("qaida_pdf_fab_mcq_test")
-        )
-        ExtendedFloatingActionButton(
-          onClick = { showIndexSheet = true },
-          containerColor = GoldPrimary,
-          contentColor = Color(0xFF073B2E),
-          icon = {
-            Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Lesson Index")
-          },
-          text = {
-            Text(
-              text = "Index (53)",
-              fontWeight = FontWeight.ExtraBold,
-              fontSize = 12.sp
-            )
-          },
-          modifier = Modifier.testTag("qaida_pdf_fab_index")
-        )
-      }
-    },
     bottomBar = {
       Surface(
         color = Color(0xFF073B2E),
@@ -687,66 +649,135 @@ fun NooraniQaidaReaderScreen(
           )
         )
     ) {
-      // Decorative Islamic Header Banner displaying Lesson/Takhti Title & Top Printed Page Number
+      // Compact Top Header Banner (Test MCQs + Index 53 at top + Lesson & RTL Title without shrinking the full-page PDF view)
       Surface(
         color = Color(0xFF0E4A3A),
         border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.55f)),
-        shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
+        shape = RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp),
         modifier = Modifier
           .fillMaxWidth()
-          .padding(horizontal = 12.dp, vertical = 4.dp)
+          .padding(horizontal = 12.dp, vertical = 2.dp)
       ) {
-        Row(
+        Column(
           modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+          verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-          Column(modifier = Modifier.weight(1f)) {
-            Text(
-              text = if (currentPageMeta.takhtiNumber > 0) {
-                "TAKHTI ${currentPageMeta.takhtiNumber} • PRINTED TOP PAGE #${currentPageMeta.bookPageNumber}"
-              } else {
-                "GUIDELINES & CURRICULUM • PRINTED TOP PAGE #${currentPageMeta.bookPageNumber}"
-              },
-              style = MaterialTheme.typography.labelSmall.copy(
-                color = GoldPrimary,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 10.sp
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = if (currentPageMeta.takhtiNumber > 0) {
+                  "TAKHTI ${currentPageMeta.takhtiNumber} • PRINTED TOP PAGE #${currentPageMeta.bookPageNumber}"
+                } else {
+                  "GUIDELINES & CURRICULUM • PRINTED TOP PAGE #${currentPageMeta.bookPageNumber}"
+                },
+                style = MaterialTheme.typography.labelSmall.copy(
+                  color = GoldPrimary,
+                  fontWeight = FontWeight.ExtraBold,
+                  fontSize = 10.sp
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
               )
-            )
-            Text(
-              text = currentPageMeta.titleEnglish,
-              style = MaterialTheme.typography.bodySmall.copy(
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-              ),
-              maxLines = 1,
-              overflow = TextOverflow.Ellipsis
+              Text(
+                text = currentPageMeta.titleEnglish,
+                style = MaterialTheme.typography.bodySmall.copy(
+                  color = Color.White,
+                  fontWeight = FontWeight.SemiBold,
+                  fontSize = 11.sp
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+              )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            AndroidView(
+              factory = { ctx ->
+                TextView(ctx).apply {
+                  typeface = arabicTypeface
+                  textSize = 16f
+                  setTextColor(AndroidColor.parseColor("#FFD4AF37"))
+                  textDirection = android.view.View.TEXT_DIRECTION_RTL
+                  layoutDirection = android.view.View.LAYOUT_DIRECTION_RTL
+                  gravity = Gravity.END or Gravity.CENTER_VERTICAL
+                  maxLines = 1
+                }
+              },
+              update = { tv ->
+                tv.text = currentPageMeta.titleArabic
+              },
+              modifier = Modifier.testTag("qaida_header_rtl_typeface_title")
             )
           }
 
-          // Native RTL Arabic Title rendered via bundled Typeface (Amiri-Regular.ttf)
-          AndroidView(
-            factory = { ctx ->
-              TextView(ctx).apply {
-                typeface = arabicTypeface
-                textSize = 16f
-                setTextColor(AndroidColor.parseColor("#FFD4AF37"))
-                textDirection = android.view.View.TEXT_DIRECTION_RTL
-                layoutDirection = android.view.View.LAYOUT_DIRECTION_RTL
-                gravity = Gravity.END or Gravity.CENTER_VERTICAL
+          // Compact Top Action Row: Test MCQs + Index (53) at top so bottom of page is completely unobstructed
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Button(
+              onClick = { showExerciseTestSheet = true },
+              colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF073B2E),
+                contentColor = GoldPrimary
+              ),
+              border = BorderStroke(1.dp, GoldPrimary),
+              shape = RoundedCornerShape(10.dp),
+              contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+              modifier = Modifier
+                .weight(1f)
+                .height(32.dp)
+                .testTag("qaida_pdf_fab_mcq_test")
+            ) {
+              Icon(
+                imageVector = Icons.Default.Quiz,
+                contentDescription = "Exercise MCQ Test",
+                modifier = Modifier.size(14.dp)
+              )
+              Spacer(modifier = Modifier.width(5.dp))
+              Text(
+                text = "Test MCQs (${currentPageQuestions.size})",
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 11.sp,
                 maxLines = 1
-              }
-            },
-            update = { tv ->
-              tv.text = currentPageMeta.titleArabic
-            },
-            modifier = Modifier
-              .padding(start = 8.dp)
-              .testTag("qaida_header_rtl_typeface_title")
-          )
+              )
+            }
+
+            Button(
+              onClick = { showIndexSheet = true },
+              colors = ButtonDefaults.buttonColors(
+                containerColor = GoldPrimary,
+                contentColor = Color(0xFF073B2E)
+              ),
+              shape = RoundedCornerShape(10.dp),
+              contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+              modifier = Modifier
+                .weight(1f)
+                .height(32.dp)
+                .testTag("qaida_pdf_fab_index")
+            ) {
+              Icon(
+                imageVector = Icons.AutoMirrored.Filled.List,
+                contentDescription = "Lesson Index",
+                modifier = Modifier.size(14.dp)
+              )
+              Spacer(modifier = Modifier.width(5.dp))
+              Text(
+                text = "Index (${allPages.size})",
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 11.sp,
+                maxLines = 1
+              )
+            }
+          }
         }
       }
 
@@ -1127,7 +1158,7 @@ private fun DecoratedZoomableQaidaPageCard(
           }
         }
 
-        // Bottom RTL Arabic Snippet Strip inside the Decorated Card (uses bundled Amiri-Regular.ttf + RTL)
+        // Compact Bottom RTL Arabic & Notes Bar (opens full RTL Text & Notes sheet when tapped, preserving full-page PDF view)
         Surface(
           shape = RoundedCornerShape(10.dp),
           color = Color(0xFF0A4D3C).copy(alpha = 0.08f),
@@ -1140,7 +1171,7 @@ private fun DecoratedZoomableQaidaPageCard(
           Row(
             modifier = Modifier
               .fillMaxWidth()
-              .padding(horizontal = 10.dp, vertical = 4.dp),
+              .padding(horizontal = 10.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
           ) {
@@ -1152,6 +1183,7 @@ private fun DecoratedZoomableQaidaPageCard(
                 fontSize = 10.sp
               )
             )
+            Spacer(modifier = Modifier.width(8.dp))
             AndroidView(
               factory = { ctx ->
                 TextView(ctx).apply {
@@ -1167,9 +1199,7 @@ private fun DecoratedZoomableQaidaPageCard(
               update = { tv ->
                 tv.text = pageMetadata.arabicText
               },
-              modifier = Modifier
-                .weight(1f)
-                .padding(start = 8.dp)
+              modifier = Modifier.weight(1f)
             )
           }
         }
@@ -1377,6 +1407,7 @@ private fun NooraniQaidaRtlTextBottomSheet(
       Column(
         modifier = Modifier
           .fillMaxWidth()
+          .verticalScroll(rememberScrollState())
           .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
       ) {
@@ -1387,6 +1418,21 @@ private fun NooraniQaidaRtlTextBottomSheet(
             color = EmeraldPrimary
           )
         )
+        if (pageMeta.titleUrdu.isNotBlank()) {
+          Text(
+            text = pageMeta.titleUrdu,
+            style = MaterialTheme.typography.bodyMedium.copy(
+              fontFamily = UrduNastaliqFontFamily,
+              fontWeight = FontWeight.Bold,
+              fontSize = 16.sp,
+              lineHeight = 28.sp,
+              textDirection = TextDirection.Rtl,
+              textAlign = TextAlign.Right,
+              color = GoldPrimary
+            ),
+            modifier = Modifier.fillMaxWidth()
+          )
+        }
 
         Surface(
           shape = RoundedCornerShape(14.dp),
@@ -1409,6 +1455,7 @@ private fun NooraniQaidaRtlTextBottomSheet(
                   textDirection = android.view.View.TEXT_DIRECTION_RTL
                   layoutDirection = android.view.View.LAYOUT_DIRECTION_RTL
                   gravity = Gravity.END
+                  setLineSpacing(10f, 1.25f)
                   setTextIsSelectable(true)
                 }
               },
@@ -1434,7 +1481,7 @@ private fun NooraniQaidaRtlTextBottomSheet(
               style = MaterialTheme.typography.bodyMedium.copy(
                 fontFamily = UrduNastaliqFontFamily,
                 fontSize = 16.sp,
-                lineHeight = 28.sp,
+                lineHeight = 30.sp,
                 textDirection = TextDirection.Rtl,
                 textAlign = TextAlign.Right,
                 color = MaterialTheme.colorScheme.onSurface

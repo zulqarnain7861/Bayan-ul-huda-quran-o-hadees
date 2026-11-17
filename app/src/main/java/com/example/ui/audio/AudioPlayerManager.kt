@@ -722,13 +722,10 @@ class AudioPlayerManager(private val context: Context) {
       "masad", "ikhlas", "falaq", "nas"
     )
 
-    // Canonical surahs recorded by Islam Sobhi in MP3Quran v3 Moshaf #253 (`server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/`)
-    val ISLAM_SOBHI_AVAILABLE_SURAHS = setOf(
-      1, 2, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 24, 25, 26, 28, 29, 30, 31, 32, 34, 36,
-      39, 40, 41, 42, 44, 50, 51, 52, 53, 54, 55, 56, 57, 62, 63, 64, 66, 67, 68, 70, 71, 72,
-      73, 74, 75, 76, 77, 78, 79, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 97,
-      99, 100, 102, 103, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114
-    )
+    // Canonical surahs recorded by Islam Sobhi across MP3Quran CDN (`cdn.mp3quran.net/audio/islam-sobhi/r1/`, 109 Surahs)
+    // and MP3Quran v3 Moshaf #253 (`server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/`, Surahs 39 & 40) -> 111 verified Surahs
+    val ISLAM_SOBHI_SERVER14_ONLY_SURAHS = setOf(39, 40)
+    val ISLAM_SOBHI_AVAILABLE_SURAHS: Set<Int> = (1..114).filter { it !in setOf(37, 45, 65) }.toSet()
 
     // Surahs available with canonical 3-digit filenames on https://archive.org/download/AbdulrahmanMassaad/{002..114}.mp3
     // (Excludes partial-ayah excerpts so only full-surah recordings are selected)
@@ -890,7 +887,39 @@ class AudioPlayerManager(private val context: Context) {
       val ayahDurationMs = matchingEntry.durationMs.coerceAtLeast(600)
       return Triple(matchingEntry.ayah, withinAyahMs, ayahDurationMs)
     }
-    return Triple(1, positionMs.coerceAtLeast(0), totalSurahDurationMs.coerceAtLeast(1000))
+
+    // Proportional verse-weight progression across all verses of the Surah when exact API cue points are not yet cached
+    val totalAyahs = getSurahTotalAyahs(surah).coerceAtLeast(1)
+    val safeTotalMs = totalSurahDurationMs.coerceAtLeast(totalAyahs * 1200)
+    val basmalaMs = resolveSurahBasmalaOffsetMs(surah, safeTotalMs)
+    val clampedPosMs = positionMs.coerceIn(0, safeTotalMs)
+    if (clampedPosMs < basmalaMs && totalAyahs >= 1) {
+      val weights = getWeightsForSurah(surah)
+      val totalWeight = weights.sum().coerceAtLeast(1)
+      val firstAyahDuration = ((safeTotalMs - basmalaMs).toLong() * weights.first() / totalWeight).toInt().coerceAtLeast(800)
+      return Triple(1, 0, firstAyahDuration)
+    }
+    val effectiveTotalMs = (safeTotalMs - basmalaMs).coerceAtLeast(1000)
+    val effectivePosMs = (clampedPosMs - basmalaMs).coerceIn(0, effectiveTotalMs)
+    val weights = getWeightsForSurah(surah)
+    val totalWeight = weights.sum().coerceAtLeast(1)
+    var cumulativeStartMs = 0
+    for (idx in 0 until totalAyahs) {
+      val w = weights.getOrElse(idx) { 60 }
+      val isLast = idx == totalAyahs - 1
+      val endMs = if (isLast) {
+        effectiveTotalMs
+      } else {
+        cumulativeStartMs + ((effectiveTotalMs.toLong() * w) / totalWeight).toInt().coerceAtLeast(400)
+      }.coerceAtMost(effectiveTotalMs)
+      if (effectivePosMs < endMs || isLast) {
+        val withinAyahMs = (effectivePosMs - cumulativeStartMs).coerceAtLeast(0)
+        val ayahDurationMs = (endMs - cumulativeStartMs).coerceAtLeast(600)
+        return Triple(idx + 1, withinAyahMs, ayahDurationMs)
+      }
+      cumulativeStartMs = endMs
+    }
+    return Triple(totalAyahs, 0, 1000)
   }
 
   fun computeStartOffsetMsForAyah(surah: Int, targetAyah: Int, totalSurahDurationMs: Int): Int {
@@ -904,7 +933,19 @@ class AudioPlayerManager(private val context: Context) {
       null
     }
     val entry = validatedTimings?.firstOrNull { it.ayah == targetAyah }
-    return entry?.startTimeMs?.coerceIn(0, (totalSurahDurationMs - 500).coerceAtLeast(0)) ?: 0
+    if (entry != null) {
+      return entry.startTimeMs.coerceIn(0, (totalSurahDurationMs - 500).coerceAtLeast(0))
+    }
+    val totalAyahs = getSurahTotalAyahs(surah).coerceAtLeast(1)
+    val safeTarget = targetAyah.coerceIn(1, totalAyahs)
+    val safeTotalMs = totalSurahDurationMs.coerceAtLeast(totalAyahs * 1200)
+    val basmalaMs = resolveSurahBasmalaOffsetMs(surah, safeTotalMs)
+    val effectiveTotalMs = (safeTotalMs - basmalaMs).coerceAtLeast(1000)
+    val weights = getWeightsForSurah(surah)
+    val totalWeight = weights.sum().coerceAtLeast(1)
+    val precedingWeight = weights.take(safeTarget - 1).sum()
+    val offsetMs = basmalaMs + ((effectiveTotalMs.toLong() * precedingWeight) / totalWeight).toInt()
+    return offsetMs.coerceIn(0, (safeTotalMs - 500).coerceAtLeast(0))
   }
 
   /**
@@ -944,7 +985,13 @@ class AudioPlayerManager(private val context: Context) {
     val formattedAyah = ayah.toString().padStart(3, '0')
     return if (reciter.isSurahLevelReciter) {
       when (reciter.id) {
-        "islam_sobhi" -> "https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/$formattedSurah.mp3"
+        "islam_sobhi" -> {
+          if (surah in ISLAM_SOBHI_SERVER14_ONLY_SURAHS) {
+            "https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/$formattedSurah.mp3"
+          } else {
+            "https://cdn.mp3quran.net/audio/islam-sobhi/r1/$formattedSurah.mp3"
+          }
+        }
         "abdul_rehman_mossad" -> {
           when {
             surah in ABDUL_RAHMAN_MASSAAD_CLEAN_SURAHS ->
@@ -1060,8 +1107,13 @@ class AudioPlayerManager(private val context: Context) {
     when (reciter.id) {
       "islam_sobhi" -> {
         if (surahNumber in ISLAM_SOBHI_AVAILABLE_SURAHS) {
-          candidates.add("https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/$formattedSurah.mp3")
-          candidates.add("https://cdn.mp3quran.net/audio/islam-sobhi/r1/$formattedSurah.mp3")
+          if (surahNumber in ISLAM_SOBHI_SERVER14_ONLY_SURAHS) {
+            candidates.add("https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/$formattedSurah.mp3")
+            candidates.add("https://cdn.mp3quran.net/audio/islam-sobhi/r1/$formattedSurah.mp3")
+          } else {
+            candidates.add("https://cdn.mp3quran.net/audio/islam-sobhi/r1/$formattedSurah.mp3")
+            candidates.add("https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/$formattedSurah.mp3")
+          }
           candidates.add("https://media.way2quran.com/mp3/islam-sobhi/$formattedSurah.mp3")
         }
       }

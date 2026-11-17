@@ -17,16 +17,16 @@
       "sha256": "6da65c916481407659c844c85d0d9a3dc6be110b605772a5fa3099992dc4c454"
     },
     "quran.json.gz": {
-      "size": 1359846,
-      "sha256": "ca4bf20f7b3dda6e3f203b64b05dc1ad704c585afc4be4c105ddd22dd8ccdb7e"
+      "size": 1323587,
+      "sha256": "1aa54093dc6d62131385b77118c25ca9d1dc7d8de73b87c3a7e6a2fca09ca2b5"
     },
     "reciters.json": {
       "size": 21799,
       "sha256": "04156af62228e82ca1105d2a398e0029005907e239e4cfe84bbfa19e7d9b5004"
     },
     "tajweed-annotations.json.gz": {
-      "size": 458115,
-      "sha256": "9319072997bbca3de0b7cbe766c02e116caab0363ac157d955a7267834dc6bad"
+      "size": 458125,
+      "sha256": "74fd0a9d670c6db8caaed9fd9f43c3e00b8d54c80e16eb6d94b458556e4a48f6"
     },
     "tajweed-lessons.json": {
       "size": 458880,

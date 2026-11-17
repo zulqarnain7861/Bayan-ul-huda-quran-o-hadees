@@ -649,9 +649,11 @@ class ExampleRobolectricTest {
     AzanAudioController.savePreferredAlarmVolume(context, 100)
     assertEquals(100, PrayerPreferencesManager.loadConfig(context).alarmVolumePercent)
 
-    // 2. Verify all 14 genuine pure-vocal Adhans are stored locally offline in assets/adhan/<id>.wav
+    // 2. Verify all genuine pure-vocal Adhans (13 Sunni + 4 Official Shia) are stored locally offline in assets/adhan/
     val muezzins = com.example.data.prayer.MuezzinAudioOption.entries
-    assertEquals(14, muezzins.size)
+    assertEquals(17, muezzins.size)
+    assertEquals(13, com.example.data.prayer.MuezzinAudioOption.sunniEntries.size)
+    assertEquals(6, com.example.data.prayer.MuezzinAudioOption.shiaEntries.size)
     assertTrue(muezzins.all { it.subtitle.contains("No Music", ignoreCase = true) })
     assertTrue(muezzins.any { it.title.contains("Masjid an-Nabawi", ignoreCase = true) || it.originMasjid.contains("Masjid an-Nabawi", ignoreCase = true) })
     assertTrue(muezzins.any { it.title.contains("Ali Ahmed Mulla") })
@@ -659,9 +661,9 @@ class ExampleRobolectricTest {
     assertTrue(muezzins.any { it.tradition == "SHIA" })
 
     val offlineVerification = AzanAudioController.verifyAllOfflineAdhanRecordings(context)
-    assertEquals(14, offlineVerification.size)
+    assertEquals(17, offlineVerification.size)
     assertTrue(
-      "All 14 Adhan recordings must exist locally in assets/adhan/ with non-zero bytes",
+      "All Adhan recordings must exist locally in assets/adhan/ with non-zero bytes",
       offlineVerification.values.all { it }
     )
 

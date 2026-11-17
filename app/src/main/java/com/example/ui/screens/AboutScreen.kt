@@ -266,7 +266,7 @@ fun AboutScreen(
               .testTag("support_our_app_whatsapp_button")
           ) {
             Text(
-              text = "Assalamu Alaikum — Support $25 Play Store Publication",
+              text = "Connect on WhatsApp — Support $25 Play Store Publication",
               fontWeight = FontWeight.Bold,
               fontSize = 12.sp,
               textAlign = TextAlign.Center
@@ -435,7 +435,7 @@ fun AboutScreen(
           updaterScope.launch {
             com.example.data.updater.InAppUpdateService.checkForUpdatesAndTriggerDialog(
               context = context,
-              enableFreshTestFallbackWhenNoRemoteRelease = true
+              enableFreshTestFallbackWhenNoRemoteRelease = false
             )
           }
         },
@@ -1580,6 +1580,7 @@ fun DeveloperApiSourcesAndLicencesDialog(
   var showLearnIslamInvestigatedSources by remember { mutableStateOf(false) }
   var showDuaContentAudioAudit by remember { mutableStateOf(false) }
   var showHadithManifestProvenance by remember { mutableStateOf(false) }
+  var showShiaPrimarySourcesRegistry by remember { mutableStateOf(false) }
   val learnIslamSources = remember {
     com.example.data.model.LearnIslamCurriculumData.verifiedSourceRegistry
   }
@@ -1588,6 +1589,9 @@ fun DeveloperApiSourcesAndLicencesDialog(
   }
   val hadithManifestEntries = remember {
     com.example.data.local.OfflineHadithAssetLoader.loadManifest(context)
+  }
+  val shiaPrimarySources = remember {
+    com.example.data.model.ShiaIslamicKnowledgeRepository.shiaVerifiedSourceLinks
   }
 
   fun openSafeExternalUrl(url: String) {
@@ -2068,6 +2072,75 @@ fun DeveloperApiSourcesAndLicencesDialog(
                           Text(
                             text = "Attribution: ${entry.attribution}",
                             style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                          )
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          // Consolidated Shia (Ja'fari) 13 Evaluated Primary APIs, Hadith Databases & Official Jurisprudential References
+          if (shiaPrimarySources.isNotEmpty()) {
+            item {
+              Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .testTag("dev_shia_primary_sources_registry_card")
+              ) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                  Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                      Text(
+                        text = "Shia (Ja'fari) Primary APIs, Hadith & Fiqh Sources (${shiaPrimarySources.size})",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                          fontWeight = FontWeight.Bold,
+                          color = MaterialTheme.colorScheme.primary
+                        )
+                      )
+                      Text(
+                        text = "Consolidated from Shia Home Section • Al-Kutub al-Arba'ah, Marja'iyyah & Calculation References",
+                        style = MaterialTheme.typography.labelSmall.copy(color = GoldPrimary)
+                      )
+                    }
+                    OutlinedButton(
+                      onClick = { showShiaPrimarySourcesRegistry = !showShiaPrimarySourcesRegistry },
+                      contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                      modifier = Modifier.testTag("toggle_shia_primary_sources_button")
+                    ) {
+                      Text(if (showShiaPrimarySourcesRegistry) "Hide" else "Show", fontSize = 11.sp)
+                    }
+                  }
+
+                  if (showShiaPrimarySourcesRegistry) {
+                    shiaPrimarySources.forEach { src ->
+                      Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                        modifier = Modifier
+                          .fillMaxWidth()
+                          .clickable { openSafeExternalUrl(src.officialUrl) }
+                      ) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                          Text(
+                            text = "${src.category} • ${src.title}",
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
+                          )
+                          Text(
+                            text = src.usageAndVerificationRole,
+                            style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                          )
+                          Text(
+                            text = "URL: ${src.officialUrl}",
+                            style = MaterialTheme.typography.labelSmall.copy(color = EmeraldPrimary)
                           )
                         }
                       }

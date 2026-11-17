@@ -58,7 +58,8 @@ enum class LearnIslamTab(
     NIMAZ_JANAZA("nimaz_janaza", "Nimaz Janaza", "نمازِ جنازہ"),
     DAILY_DUAS_SEQ("duas_seq", "Daily Duas", "مسنون دعائیں (ترتیب وار)"),
     SEHRI_NIYAT_SOURCES("sehri_niyat", "Sehri Niyat & Fiqh", "سحری کی نیت اور فقہی رہنمائی"),
-    PROPHET_STORIES("prophet_stories", "25 Prophet Stories", "قصص الانبیاء (۲۵ انبیاء)")
+    PROPHET_STORIES("prophet_stories", "25 Prophet Stories", "قصص الانبیاء (۲۵ انبیاء)"),
+    SHIA_JAFARI_LEARNING("jafari_fiqh", "Ja'fari Fiqh & Learning", "فقہِ جعفری و نصاب")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -335,6 +336,26 @@ fun LearnIslamScreen(
 
                 LearnIslamTab.PROPHET_STORIES -> {
                     ProphetStoriesHubView()
+                }
+
+                LearnIslamTab.SHIA_JAFARI_LEARNING -> {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .testTag("learn_islam_shia_jafari_list"),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        item {
+                            com.example.ui.components.ShiaLearningAndCalendarSection()
+                        }
+                        item {
+                            com.example.ui.components.ShiaEvidencePracticesSection()
+                        }
+                        item {
+                            com.example.ui.components.ShiaVerifiedSourcesRegistrySection()
+                        }
+                    }
                 }
             }
         }

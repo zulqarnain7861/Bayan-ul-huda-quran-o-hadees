@@ -517,6 +517,44 @@ fun SehriIftarTimetableScreen(
       }
     }
 
+    // 3B. Separate Shia Ja'fari Sehri & Iftari Engine, Countdown, Notifications & 30-Day Ramadan Calendar
+    item {
+      var shiaFastingConfig by remember {
+        mutableStateOf(com.example.data.prayer.ShiaJafariPrayerAndFastingEngine.loadShiaConfig(context))
+      }
+      val shiaFastingSchedule = remember(
+        prayerConfig.city,
+        prayerConfig.country,
+        prayerConfig.latitude,
+        prayerConfig.longitude,
+        prayerConfig.timeZoneId,
+        shiaFastingConfig
+      ) {
+        com.example.data.prayer.ShiaJafariPrayerAndFastingEngine.calculateShiaSchedule(
+          locationName = prayerConfig.city,
+          country = prayerConfig.country,
+          latitude = prayerConfig.latitude,
+          longitude = prayerConfig.longitude,
+          timeZoneId = prayerConfig.timeZoneId,
+          shiaConfig = shiaFastingConfig
+        )
+      }
+      val shiaFastingCountdown = remember(shiaFastingSchedule) {
+        com.example.data.prayer.ShiaJafariPrayerAndFastingEngine.computeShiaFastingCountdown(shiaFastingSchedule)
+      }
+      com.example.ui.components.ShiaSehriIftarEnginePanel(
+        sunniConfig = prayerConfig,
+        shiaConfig = shiaFastingConfig,
+        shiaSchedule = shiaFastingSchedule,
+        fastingCountdown = shiaFastingCountdown,
+        onUpdateShiaConfig = { updated ->
+          shiaFastingConfig = updated
+          com.example.data.prayer.ShiaJafariPrayerAndFastingEngine.saveShiaConfig(context, updated)
+        },
+        showOpenFullScreenButton = false
+      )
+    }
+
     // 4. Hanafi / Shafi Toggle, Calculation Method & Manual Minute Adjustments Panel
     item {
       Card(

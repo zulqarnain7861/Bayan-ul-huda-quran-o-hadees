@@ -44,7 +44,7 @@ object Mp3QuranTimingClient {
     "idrees_abkar" to 12,
     "suwayd" to 227,
     "bandar_baleelah" to 217,
-    "hatem_farid" to 19,
+    "hatem_farid" to 163,
     "qahtani" to 21,
     "tunaiji" to 24,
     "ghamdi" to 30,
@@ -81,7 +81,7 @@ object Mp3QuranTimingClient {
     "warsh_yassin" to 14,
     "wadih_alyamani" to 219,
     "raad_alkurdi" to 221,
-    "noreen_siddiq" to 229,
+    "noreen_siddiq" to 138,
     "hazza_albalushi" to 231,
     "mansour_alsalimi" to 245,
     "islam_sobhi" to 253,
@@ -89,56 +89,67 @@ object Mp3QuranTimingClient {
   )
 
   /**
-   * Direct verified MP3Quran.net v3 server base URLs (`https://server{6..16}.mp3quran.net/.../`)
+   * Direct verified MP3Quran.net v3 server base URLs (`https://server{6..16}.mp3quran.net/.../` and `https://cdn.mp3quran.net/audio/.../r1/`)
    * for Surah-stream reciters and backup mirrors.
    */
   val MP3QURAN_DIRECT_SERVER_URLS: Map<String, List<String>> = mapOf(
     "islam_sobhi" to listOf(
-      "https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/",
-      "https://cdn.mp3quran.net/audio/islam-sobhi/r1/"
+      "https://cdn.mp3quran.net/audio/islam-sobhi/r1/",
+      "https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/"
     ),
     "abdul_rehman_mossad" to listOf(
       "https://archive.org/download/AbdulrahmanMassaad/"
     ),
     "bandar_baleelah" to listOf(
       "https://server6.mp3quran.net/balilah/",
+      "https://cdn.mp3quran.net/audio/bandar-balilah/r1/",
       "https://download.quranicaudio.com/quran/bandar_baleela/"
     ),
     "idrees_abkar" to listOf(
       "https://server6.mp3quran.net/abkr/",
+      "https://cdn.mp3quran.net/audio/idrees-abkar/r1/",
       "https://download.quranicaudio.com/quran/idrees_abkar/"
     ),
     "hazza_albalushi" to listOf(
       "https://server11.mp3quran.net/hazza/",
+      "https://cdn.mp3quran.net/audio/hazza-al-balushi/r1/",
       "https://download.quranicaudio.com/quran/hazza_al_balushi/"
     ),
     "raad_alkurdi" to listOf(
       "https://server6.mp3quran.net/kurdi/",
+      "https://cdn.mp3quran.net/audio/raad-al-kurdi/r1/",
       "https://download.quranicaudio.com/quran/raad_al_kurdi/"
     ),
     "wadih_alyamani" to listOf(
       "https://server6.mp3quran.net/wdee3/",
+      "https://cdn.mp3quran.net/audio/wadie-al-yamani/r1/",
       "https://download.quranicaudio.com/quran/wadee_hammadi_al-yamani/"
     ),
     "muhammad_luhaidan" to listOf(
       "https://server8.mp3quran.net/lhdan/",
+      "https://cdn.mp3quran.net/audio/muhammad-al-luhaidan/r1/",
       "https://download.quranicaudio.com/quran/muhammad_al_luhaidan/"
     ),
     "mansour_alsalimi" to listOf(
-      "https://server14.mp3quran.net/mansor/"
+      "https://server14.mp3quran.net/mansor/",
+      "https://cdn.mp3quran.net/audio/mansour-al-salimi/r1/"
     ),
     "noreen_siddiq" to listOf(
-      "https://server16.mp3quran.net/nourin_siddig/Rewayat-Aldori-A-n-Abi-Amr/"
+      "https://server16.mp3quran.net/nourin_siddig/Rewayat-Aldori-A-n-Abi-Amr/",
+      "https://cdn.mp3quran.net/audio/noreen-mohammad-siddiq/r1/"
     ),
     "sherzad_taher" to listOf(
-      "https://server12.mp3quran.net/taher/"
+      "https://server12.mp3quran.net/taher/",
+      "https://cdn.mp3quran.net/audio/sherzad-abdulrahman-taher/r1/"
     ),
     "hatem_farid" to listOf(
       "https://server11.mp3quran.net/hatem/",
+      "https://cdn.mp3quran.net/audio/hatem-farid-alwaer/r1/",
       "https://download.quranicaudio.com/quran/hatem_farid/"
     ),
     "peshawari" to listOf(
-      "https://server7.mp3quran.net/basit/Almusshaf-Al-Mojawwad/"
+      "https://server7.mp3quran.net/basit/Almusshaf-Al-Mojawwad/",
+      "https://cdn.mp3quran.net/audio/abdulbasit-abdulsamad/r1/"
     )
   )
 
@@ -307,10 +318,10 @@ object Mp3QuranTimingClient {
     val verseEntries = sorted.filter { it.ayah >= 1 }.toMutableList()
     if (verseEntries.isEmpty()) return null
 
-    // If MP3Quran timing starts with ayah 0 (Basmala at 0..X) and ayah 1 starts at >= X, anchor ayah 1 at 0ms
+    // If MP3Quran timing starts with ayah 0 (Basmala at 0..X) or a Basmala/Isti'adhah intro before ayah 1, anchor ayah 1 at 0ms
     if (verseEntries.first().startTimeMs > 0) {
       val basmalaEntry = sorted.firstOrNull { it.ayah == 0 }
-      if (basmalaEntry != null && basmalaEntry.startTimeMs == 0 && verseEntries.first().startTimeMs >= basmalaEntry.endTimeMs) {
+      if (basmalaEntry == null || (basmalaEntry.startTimeMs == 0 && verseEntries.first().startTimeMs >= basmalaEntry.endTimeMs)) {
         verseEntries[0] = verseEntries[0].copy(startTimeMs = 0)
       } else {
         return null

@@ -233,41 +233,43 @@ fun BismillahHeader(
         .padding(vertical = 12.dp, horizontal = 14.dp),
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
-      Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = EmeraldPrimary.copy(alpha = 0.12f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.55f)),
-        modifier = Modifier
-          .fillMaxWidth()
-          .clickable { openWhatsAppSupport(context) }
-          .testTag("clickable_assalamu_alaikum_greeting")
-      ) {
-        Column(
+      if (!isSurahReaderMode) {
+        Surface(
+          shape = RoundedCornerShape(14.dp),
+          color = EmeraldPrimary.copy(alpha = 0.12f),
+          border = androidx.compose.foundation.BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.55f)),
           modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-          horizontalAlignment = Alignment.CenterHorizontally
+            .clickable { openWhatsAppSupport(context) }
+            .testTag("clickable_assalamu_alaikum_greeting")
         ) {
-          Text(
-            text = "السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ",
-            style = MaterialTheme.typography.labelMedium.copy(
-              fontFamily = ScheherazadeFontFamily,
-              fontSize = 15.sp,
-              fontWeight = FontWeight.Bold,
-              color = GoldPrimary,
-              textAlign = TextAlign.Center
+          Column(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(horizontal = 12.dp, vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+          ) {
+            Text(
+              text = "السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ",
+              style = MaterialTheme.typography.labelMedium.copy(
+                fontFamily = ScheherazadeFontFamily,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = GoldPrimary,
+                textAlign = TextAlign.Center
+              )
             )
-          )
-          Text(
-            text = "Assalamu Alaikum • Support Bayan al-Huda",
-            maxLines = 1,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.labelSmall.copy(
-              fontWeight = FontWeight.Bold,
-              color = EmeraldPrimary,
-              textAlign = TextAlign.Center
+            Text(
+              text = "Assalamu Alaikum • Support Bayan al-Huda",
+              maxLines = 1,
+              overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+              style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.Bold,
+                color = EmeraldPrimary,
+                textAlign = TextAlign.Center
+              )
             )
-          )
+          }
         }
       }
 

@@ -115,6 +115,7 @@ fun SalahAndFajrAlarmCard(
   onStopActiveAlarm: () -> Unit,
   onSnoozeActiveAlarm: (Int) -> Unit,
   onOpenQiblaCompass: () -> Unit = {},
+  showCombinedSunniShiaComparison: Boolean = false,
   modifier: Modifier = Modifier
 ) {
   val context = LocalContext.current
@@ -301,7 +302,7 @@ fun SalahAndFajrAlarmCard(
               modifier = Modifier.fillMaxWidth()
             )
             Text(
-              text = "${PrayerTimeCalculator.FAJR_TATHWIB_TRANSLITERATION} — ${PrayerTimeCalculator.FAJR_TATHWIB_ENGLISH}",
+              text = "${PrayerTimeCalculator.FAJR_TATHWIB_TRANSLITERATION} (${PrayerTimeCalculator.FAJR_TATHWIB_ENGLISH})",
               style = MaterialTheme.typography.bodySmall.copy(
                 fontStyle = FontStyle.Italic,
                 color = Color(0xFFD8CCB2)
@@ -568,6 +569,18 @@ fun SalahAndFajrAlarmCard(
           }
         }
 
+        if (showCombinedSunniShiaComparison) {
+          Spacer(modifier = Modifier.height(12.dp))
+
+          // Unified Sunni & Shia (Ja'fari) Timing Comparison Table (optional when requested)
+          CombinedSunniShiaTimingComparisonTable(
+            sunniSchedule = effectiveSchedule,
+            sunniConfig = config,
+            sunniNextPrayer = nextPrayerStatus,
+            nowMillis = nowMillis
+          )
+        }
+
         Spacer(modifier = Modifier.height(12.dp))
 
         // Five Daily Prayers List with Per-Prayer Azan Toggle
@@ -682,6 +695,159 @@ fun SalahAndFajrAlarmCard(
           }
         }
 
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Sunni Daily Farz, Wajib & Additional Sunnat/Nafl Namaz Rak'ats with Authentic Hadith References
+        var showSunniRakatAndAdditionalNamaz by remember { mutableStateOf(true) }
+        Surface(
+          shape = RoundedCornerShape(12.dp),
+          color = EmeraldPrimary.copy(alpha = 0.08f),
+          border = androidx.compose.foundation.BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.45f)),
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("sunni_farz_sunnat_additional_namaz_section")
+        ) {
+          Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Column(modifier = Modifier.weight(1f)) {
+                Text(
+                  text = "Daily Farz, Sunnat & Additional Namaz (With Hadith References)",
+                  style = MaterialTheme.typography.titleSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                  )
+                )
+                Text(
+                  text = "17 Farz + 3 Wajib (Witr) + 12 Sunnat Mu'akkadah Rawatib + Tahajjud, Ishraq & Duha",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    color = GoldPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp
+                  )
+                )
+              }
+              OutlinedButton(
+                onClick = { showSunniRakatAndAdditionalNamaz = !showSunniRakatAndAdditionalNamaz },
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                shape = RoundedCornerShape(8.dp)
+              ) {
+                Text(
+                  text = if (showSunniRakatAndAdditionalNamaz) "Hide" else "Show",
+                  fontSize = 10.5.sp,
+                  fontWeight = FontWeight.Bold
+                )
+              }
+            }
+
+            if (showSunniRakatAndAdditionalNamaz) {
+              Spacer(modifier = Modifier.height(8.dp))
+              val sunniNamazDetails = listOf(
+                Triple(
+                  "Fajr (Dawn): 4 Rak'ats Total",
+                  "2 Sunnat Mu'akkadah (Before) + 2 FARZ",
+                  "📖 Sahih Muslim 725 & Sahih al-Bukhari 1180 ('The two Rak'ahs of Fajr are better than the world and all it contains') • Sahih Muslim 728 (12 Rawatib)"
+                ),
+                Triple(
+                  "Dhuhr (Noon): 10 or 12 Rak'ats Total",
+                  "4 Sunnat Mu'akkadah (Before) + 4 FARZ + 2 Sunnat Mu'akkadah (+ 2 Nafl After)",
+                  "📖 Sahih Muslim 728 • Jami' at-Tirmidhi 414 & 428 • Sunan an-Nasa'i 1794 (Narrated by Umm Habibah & Aishah RA)"
+                ),
+                Triple(
+                  "Asr (Afternoon): 4 Farz (+ 4 Sunnat Before)",
+                  "4 Sunnat Ghayr Mu'akkadah (Before) + 4 FARZ",
+                  "📖 Sunan Abi Dawud 1271 • Jami' at-Tirmidhi 430 ('May Allah have mercy on a man who prays 4 Rak'ahs before Asr', Hasan)"
+                ),
+                Triple(
+                  "Maghrib (Sunset): 5 or 7 Rak'ats Total",
+                  "3 FARZ + 2 Sunnat Mu'akkadah (+ 2 Nafl / 6 Awwabin After)",
+                  "📖 Sahih al-Bukhari 1172 • Sahih Muslim 728 • Jami' at-Tirmidhi 435 (Salat al-Awwabin after Maghrib)"
+                ),
+                Triple(
+                  "Isha & Witr (Night): 9 to 17 Rak'ats Total",
+                  "4 Sunnat Ghayr Mu'akkadah + 4 FARZ + 2 Sunnat Mu'akkadah + 3 WAJIB / SUNNAT MU'AKKADAH WITR (+ 2 Nafl)",
+                  "📖 Sahih al-Bukhari 990 & 1172 • Sahih Muslim 754 • Sunan Abi Dawud 1416 & 1422 (Witr before sleeping or at end of night)"
+                ),
+                Triple(
+                  "Additional Namaz: Tahajjud (Qiyam al-Layl), 2 to 8+ Rak'ats",
+                  "SUNNAT MU'AKKADAH / NAFL • Last Third of Night (${PrayerTimeCalculator.format24hTo12h(effectiveSchedule.tahajjudLastThirdStart)} → Fajr)",
+                  "📖 Qur'an 17:79 (Surah Al-Isra) • Sahih Muslim 1163 ('The best prayer after the obligatory Farz prayers is the Night Prayer') • Sahih al-Bukhari 1145"
+                ),
+                Triple(
+                  "Additional Namaz: Ishraq & Chasht (Salat al-Duha), 2 to 8 Rak'ats",
+                  "SUNNAT / MUSTAHABB • 15–20 mins after Sunrise (${PrayerTimeCalculator.format24hTo12h(effectiveSchedule.sunriseTime)}) until pre-Zawal",
+                  "📖 Sahih Muslim 719 & 720 (Charity for every joint of the body) • Jami' at-Tirmidhi 586 (Fajr in congregation + Dhikr until Sunrise + 2 Rak'ahs Ishraq)"
+                ),
+                Triple(
+                  "Additional Namaz: Tahiyyat al-Wudu & Tahiyyat al-Masjid, 2 Rak'ats",
+                  "SUNNAT / MUSTAHABB • Upon performing Wudu or entering the Masjid before sitting",
+                  "📖 Sahih al-Bukhari 1149 (Hadith of Bilal RA on 2 Rak'ahs after Wudu) • Sahih al-Bukhari 444 & Sahih Muslim 714 (Tahiyyat al-Masjid)"
+                )
+              )
+
+              Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                sunniNamazDetails.forEach { (title, statusLine, refLine) ->
+                  val isAdditional = title.startsWith("Additional")
+                  Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (isAdditional) GoldPrimary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.fillMaxWidth()
+                  ) {
+                    Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)) {
+                      Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                      ) {
+                        Text(
+                          text = title,
+                          style = MaterialTheme.typography.bodySmall.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.primary
+                          ),
+                          modifier = Modifier.weight(1f)
+                        )
+                        Surface(
+                          shape = RoundedCornerShape(6.dp),
+                          color = if (isAdditional) GoldPrimary.copy(alpha = 0.25f) else EmeraldPrimary.copy(alpha = 0.15f)
+                        ) {
+                          Text(
+                            text = if (isAdditional) "SUNNAT / NAFL" else "FARZ + SUNNAT",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                              fontWeight = FontWeight.ExtraBold,
+                              fontSize = 9.sp,
+                              color = if (isAdditional) Color(0xFF102018) else EmeraldPrimary
+                            ),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                          )
+                        }
+                      }
+                      Text(
+                        text = statusLine,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                          fontWeight = FontWeight.Bold,
+                          color = MaterialTheme.colorScheme.onSurface
+                        )
+                      )
+                      Text(
+                        text = refLine,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                          fontSize = 9.5.sp,
+                          color = MaterialTheme.colorScheme.onSurfaceVariant,
+                          lineHeight = 13.5.sp
+                        )
+                      )
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
         Spacer(modifier = Modifier.height(12.dp))
 
         // Special 15-Minute Fajr Wake-Up Alarm & Tahajjud Card Section
@@ -735,7 +901,7 @@ fun SalahAndFajrAlarmCard(
               modifier = Modifier.fillMaxWidth()
             )
             Text(
-              text = "${PrayerTimeCalculator.FAJR_TATHWIB_TRANSLITERATION} — ${PrayerTimeCalculator.FAJR_TATHWIB_ENGLISH}",
+              text = "${PrayerTimeCalculator.FAJR_TATHWIB_TRANSLITERATION} (${PrayerTimeCalculator.FAJR_TATHWIB_ENGLISH})",
               style = MaterialTheme.typography.labelSmall.copy(
                 fontStyle = FontStyle.Italic,
                 color = MaterialTheme.colorScheme.secondary
@@ -767,7 +933,7 @@ fun SalahAndFajrAlarmCard(
                   )
                 )
                 Text(
-                  text = "Sunan Abi Dawud — Hadith 500, 501 (Sahih) • Sunan an-Nasa'i — Hadith 647 (Sahih) • Jami' at-Tirmidhi — Hadith 198 • Sunan Ibn Majah — Hadith 706, 708 • Musnad Ahmad — Hadith 16477 (Narrated by Abu Mahdhurah & Bilal رضي الله عنهما)",
+                  text = "Sunan Abi Dawud: Hadith 500, 501 (Sahih) • Sunan an-Nasa'i: Hadith 647 (Sahih) • Jami' at-Tirmidhi: Hadith 198 • Sunan Ibn Majah: Hadith 706, 708 • Musnad Ahmad: Hadith 16477 (Narrated by Abu Mahdhurah & Bilal رضي الله عنهما)",
                   style = MaterialTheme.typography.labelSmall.copy(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 10.sp,
@@ -834,8 +1000,9 @@ fun SalahAndFajrAlarmCard(
             Spacer(modifier = Modifier.height(10.dp))
 
             // Offline Adhan Favourite, Real-Time Hardware Alarm Volume Sync & Continuous Vibration Panel
+            val sunniMuezzins = remember { MuezzinAudioOption.sunniEntries }
             val activeMuezzin = remember(config.selectedMuezzinId) {
-              MuezzinAudioOption.entries.find { it.id == config.selectedMuezzinId }
+              sunniMuezzins.find { it.id == config.selectedMuezzinId }
                 ?: MuezzinAudioOption.MADINAH_NABAWI
             }
             val hwAlarmStatus = remember(config.alarmVolumePercent, nowMillis / 1000L) {
@@ -1092,9 +1259,9 @@ fun SalahAndFajrAlarmCard(
                   Spacer(modifier = Modifier.width(6.dp))
                   Text(
                     text = if (showAuthenticAzansGallery) {
-                      "Hide ${MuezzinAudioOption.entries.size} Offline Authentic Adhans"
+                      "Hide ${sunniMuezzins.size} Offline Authentic Sunni Adhans"
                     } else {
-                      "Preview, Test & Keep ${MuezzinAudioOption.entries.size} Offline Adhans (Masjid an-Nabawi, Makkah & More)"
+                      "Preview, Test & Keep ${sunniMuezzins.size} Offline Sunni Adhans (Masjid an-Nabawi, Makkah & More)"
                     },
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
@@ -1107,7 +1274,7 @@ fun SalahAndFajrAlarmCard(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.testTag("authentic_azans_gallery_list")
                   ) {
-                    MuezzinAudioOption.entries.forEach { muezzin ->
+                    sunniMuezzins.forEach { muezzin ->
                       val isSelected = config.selectedMuezzinId == muezzin.id
                       val isPlayingThis = alarmPlaybackState.isActive && alarmPlaybackState.activeMuezzinId == muezzin.id
                       Surface(
@@ -1263,7 +1430,7 @@ fun SalahAndFajrAlarmCard(
                     Toast.makeText(context, "Continuous vibration stopped", Toast.LENGTH_SHORT).show()
                   } else {
                     AzanAudioController.startContinuousVibrationTest(context)
-                    Toast.makeText(context, "Continuous alarm vibration started — tap again to stop", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Continuous alarm vibration started (tap again to stop)", Toast.LENGTH_SHORT).show()
                   }
                 },
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
@@ -1287,7 +1454,7 @@ fun SalahAndFajrAlarmCard(
               ) {
                 Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(15.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Location, 14 Azans & Setup", fontSize = 12.sp)
+                Text("Location, ${sunniMuezzins.size} Sunni Azans & Setup", fontSize = 12.sp)
               }
             }
           }
@@ -1593,8 +1760,9 @@ fun SalahAndFajrAlarmCard(
 
         // 4. Concise Adhan Voice, Real-Time Alarm Volume & Vibration Controls
         var expandMuezzinsInSheet by remember { mutableStateOf(false) }
+        val sheetSunniMuezzins = remember { MuezzinAudioOption.sunniEntries }
         val currentSheetMuezzin = remember(config.selectedMuezzinId) {
-          MuezzinAudioOption.entries.find { it.id == config.selectedMuezzinId }
+          sheetSunniMuezzins.find { it.id == config.selectedMuezzinId }
             ?: MuezzinAudioOption.MADINAH_NABAWI
         }
         val sheetHwAlarm = remember(config.alarmVolumePercent, nowMillis / 1000L) {
@@ -1608,7 +1776,7 @@ fun SalahAndFajrAlarmCard(
         ) {
           Column(modifier = Modifier.weight(1f)) {
             Text(
-              text = "Active Adhan: ${currentSheetMuezzin.title}",
+              text = "Active Sunni Adhan: ${currentSheetMuezzin.title}",
               style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
             )
             Text(
@@ -1622,7 +1790,7 @@ fun SalahAndFajrAlarmCard(
             shape = RoundedCornerShape(8.dp)
           ) {
             Text(
-              text = if (expandMuezzinsInSheet) "Hide Voices" else "Change (${MuezzinAudioOption.entries.size})",
+              text = if (expandMuezzinsInSheet) "Hide Voices" else "Change (${sheetSunniMuezzins.size})",
               fontSize = 11.sp,
               fontWeight = FontWeight.Bold
             )
@@ -1631,7 +1799,7 @@ fun SalahAndFajrAlarmCard(
 
         if (expandMuezzinsInSheet) {
           Spacer(modifier = Modifier.height(6.dp))
-          MuezzinAudioOption.entries.forEach { muezzin ->
+          sheetSunniMuezzins.forEach { muezzin ->
             val isPlayingThis = alarmPlaybackState.isActive && alarmPlaybackState.activeMuezzinId == muezzin.id
             Row(
               modifier = Modifier

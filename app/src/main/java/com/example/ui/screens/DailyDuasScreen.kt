@@ -105,7 +105,8 @@ import com.example.ui.theme.UrduNastaliqFontFamily
 enum class DailyDuasSectionTab(val label: String, val testTag: String) {
   MASNOON_DUAS("Masnoon Duas", "duas_tab_masnoon"),
   SPECIAL_OCCASIONS("Special Occasions", "duas_tab_special_occasions"),
-  FRIDAY_AND_REMINDERS("Friday Bath & Reminders", "duas_tab_friday_reminders")
+  FRIDAY_AND_REMINDERS("Friday Bath & Reminders", "duas_tab_friday_reminders"),
+  SHIA_DUAS_AND_PRACTICES("Shia Duas & Practices", "duas_tab_shia_library")
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -1145,6 +1146,23 @@ fun DailyDuasScreen(
             }
           }
         )
+      }
+    }
+
+    // =========================================================================
+    // TAB 4: SHIA DUAS, PRACTICES & AUTHENTIC SOURCES LIBRARY
+    // =========================================================================
+    if (activeTab == DailyDuasSectionTab.SHIA_DUAS_AND_PRACTICES) {
+      item {
+        com.example.ui.components.ShiaDuaLibraryInteractiveSection(
+          showOpenFullDuasButton = false
+        )
+      }
+      item {
+        com.example.ui.components.ShiaEvidencePracticesSection()
+      }
+      item {
+        com.example.ui.components.ShiaVerifiedSourcesRegistrySection()
       }
     }
   }
