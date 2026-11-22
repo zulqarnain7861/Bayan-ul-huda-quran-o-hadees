@@ -1,0 +1,330 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mishkat_al_masabih_master.schema.json",
+  "title": "Mishkat al-Masabih Master Hadith Database (Bayan Ul Huda)",
+  "description": "Universal standardized schema for the complete Mishkat al-Masabih JSON database compiled by Zulqarnain Ahmad Sheikh.",
+  "type": "object",
+  "required": [
+    "book_name",
+    "book_name_transliterated",
+    "chapter_titles",
+    "part",
+    "grading_authority",
+    "source",
+    "total_files_processed",
+    "total_babs",
+    "total_hadith_extracted",
+    "metadata",
+    "babs",
+    "hadith",
+    "end_notes",
+    "_watermark"
+  ],
+  "properties": {
+    "book_name": {
+      "type": "string",
+      "description": "Book title in Urdu/Arabic script."
+    },
+    "book_name_transliterated": {
+      "type": "string",
+      "description": "Transliterated book title."
+    },
+    "chapter_titles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Ordered unique list of main chapter (Kitab) titles."
+    },
+    "part": {
+      "type": "string",
+      "description": "Collection scope label."
+    },
+    "grading_authority": {
+      "type": "string",
+      "description": "Primary grading authority (Darussalam)."
+    },
+    "source": {
+      "type": "string",
+      "description": "Intentionally blank (external URLs stripped)."
+    },
+    "total_files_processed": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "total_babs": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "total_hadith_extracted": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "metadata": {
+      "type": "object",
+      "required": [
+        "dataset_name",
+        "compiled_by",
+        "compiler_handle",
+        "compiled_for",
+        "attribution",
+        "attribution_required",
+        "schema_version"
+      ],
+      "properties": {
+        "dataset_name": {
+          "type": "string"
+        },
+        "compiled_by": {
+          "type": "string"
+        },
+        "compiler_handle": {
+          "type": "string"
+        },
+        "compiled_for": {
+          "type": "string"
+        },
+        "attribution": {
+          "type": "string"
+        },
+        "attribution_required": {
+          "type": "boolean"
+        },
+        "schema_version": {
+          "type": "string"
+        },
+        "content_ownership_notice": {
+          "type": "string"
+        },
+        "source_files_processed": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "babs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "bab_number",
+          "chapter_number",
+          "chapter_name",
+          "chapter_heading",
+          "chapter_heading_arabic",
+          "start_hadith_number",
+          "end_hadith_number",
+          "hadith_count",
+          "_watermark"
+        ],
+        "properties": {
+          "bab_number": {
+            "type": "string"
+          },
+          "chapter_number": {
+            "type": "string"
+          },
+          "chapter_name": {
+            "type": "string"
+          },
+          "chapter_heading": {
+            "type": "string"
+          },
+          "chapter_heading_arabic": {
+            "type": "string"
+          },
+          "start_hadith_number": {
+            "type": "string"
+          },
+          "end_hadith_number": {
+            "type": "string"
+          },
+          "hadith_count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "_watermark": {
+            "$ref": "#/$defs/watermark"
+          }
+        }
+      }
+    },
+    "hadith": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "hadith_number",
+          "hadith_number_int",
+          "chapter_number",
+          "chapter_name",
+          "chapter_heading",
+          "chapter_heading_arabic",
+          "bab_number",
+          "narrator",
+          "arabic",
+          "urdu",
+          "grading",
+          "grading_scholar",
+          "gradings",
+          "footnotes",
+          "references",
+          "additional_information",
+          "source_files",
+          "prev_hadith_number",
+          "next_hadith_number",
+          "prev_hadith_id",
+          "next_hadith_id",
+          "_watermark"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable permanent internal ID (e.g., mishkat_0001)."
+          },
+          "hadith_number": {
+            "type": "string",
+            "description": "Original Hadith number as string."
+          },
+          "hadith_number_int": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Numeric Hadith number for sorting and range lookup."
+          },
+          "chapter_number": {
+            "type": "string"
+          },
+          "chapter_name": {
+            "type": "string"
+          },
+          "chapter_heading": {
+            "type": "string"
+          },
+          "chapter_heading_arabic": {
+            "type": "string"
+          },
+          "bab_number": {
+            "type": "string"
+          },
+          "narrator": {
+            "type": "string"
+          },
+          "arabic": {
+            "type": "string",
+            "description": "Original untouched Arabic text with full Harakat and Unicode diacritics."
+          },
+          "urdu": {
+            "type": "string",
+            "description": "Original untouched Urdu translation."
+          },
+          "grading": {
+            "type": "string",
+            "description": "Primary Hadith authenticity grading."
+          },
+          "grading_scholar": {
+            "type": "string",
+            "description": "Primary grading authority."
+          },
+          "gradings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "grade",
+                "scholar"
+              ],
+              "properties": {
+                "grade": {
+                  "type": "string"
+                },
+                "scholar": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "footnotes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "additional_information": {
+            "type": "string"
+          },
+          "source_files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "prev_hadith_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "next_hadith_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "prev_hadith_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "next_hadith_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "_watermark": {
+            "$ref": "#/$defs/watermark"
+          }
+        }
+      }
+    },
+    "end_notes": {
+      "type": "object"
+    },
+    "_watermark": {
+      "$ref": "#/$defs/watermark"
+    }
+  },
+  "$defs": {
+    "watermark": {
+      "type": "object",
+      "required": [
+        "made_by",
+        "instagram",
+        "app"
+      ],
+      "properties": {
+        "made_by": {
+          "type": "string"
+        },
+        "instagram": {
+          "type": "string"
+        },
+        "app": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

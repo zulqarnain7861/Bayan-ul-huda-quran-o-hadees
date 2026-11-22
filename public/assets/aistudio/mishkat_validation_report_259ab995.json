@@ -1,0 +1,222 @@
+{
+  "dataset": "Mishkat al-Masabih (Complete Master Database)",
+  "compiled_for": "Bayan Ul Huda",
+  "compiled_by": "Zulqarnain Ahmad Sheikh",
+  "schema_version": "1.0.0",
+  "summary": {
+    "total_source_files_processed": 11,
+    "total_raw_records_read": 7438,
+    "total_unique_hadiths": 6294,
+    "hadith_range": "#1-#6294",
+    "total_babs": 269,
+    "total_chapters": 29,
+    "duplicate_overlapping_records_merged": 1144,
+    "missing_hadiths_in_range_1_to_6294": 0,
+    "conflicting_grades_count": 0,
+    "text_conflicts_count": 0,
+    "grading_breakdown": {
+      "Sahih": 4558,
+      "Zaeef": 1736
+    }
+  },
+  "source_files": [
+    {
+      "filename": "hadith_complete.json",
+      "file_size_bytes": 626618,
+      "record_count": 299,
+      "start_hadith_number": "1",
+      "end_hadith_number": "299",
+      "has_babs_array": false,
+      "babs_count_in_source": 0,
+      "has_root_watermark": false,
+      "has_end_notes": false
+    },
+    {
+      "filename": "book2_hadith_complete.json",
+      "file_size_bytes": 434128,
+      "record_count": 281,
+      "start_hadith_number": "300",
+      "end_hadith_number": "580",
+      "has_babs_array": false,
+      "babs_count_in_source": 0,
+      "has_root_watermark": true,
+      "has_end_notes": false
+    },
+    {
+      "filename": "book3_part_a_hadith_complete.json",
+      "file_size_bytes": 768560,
+      "record_count": 433,
+      "start_hadith_number": "581",
+      "end_hadith_number": "1013",
+      "has_babs_array": false,
+      "babs_count_in_source": 0,
+      "has_root_watermark": true,
+      "has_end_notes": false
+    },
+    {
+      "filename": "book3_part_b_hadith_complete.json",
+      "file_size_bytes": 894212,
+      "record_count": 509,
+      "start_hadith_number": "1014",
+      "end_hadith_number": "1522",
+      "has_babs_array": false,
+      "babs_count_in_source": 0,
+      "has_root_watermark": true,
+      "has_end_notes": false
+    },
+    {
+      "filename": "book4_hadith_complete.json",
+      "file_size_bytes": 520471,
+      "record_count": 271,
+      "start_hadith_number": "1523",
+      "end_hadith_number": "1793",
+      "has_babs_array": false,
+      "babs_count_in_source": 0,
+      "has_root_watermark": true,
+      "has_end_notes": false
+    },
+    {
+      "filename": "part5_hadith_complete.json",
+      "file_size_bytes": 1626296,
+      "record_count": 746,
+      "start_hadith_number": "1794",
+      "end_hadith_number": "2539",
+      "has_babs_array": true,
+      "babs_count_in_source": 29,
+      "has_root_watermark": true,
+      "has_end_notes": false
+    },
+    {
+      "filename": "part6_hadith_complete.json",
+      "file_size_bytes": 3747349,
+      "record_count": 1843,
+      "start_hadith_number": "2540",
+      "end_hadith_number": "4382",
+      "has_babs_array": true,
+      "babs_count_in_source": 85,
+      "has_root_watermark": true,
+      "has_end_notes": false
+    },
+    {
+      "filename": "part6_from_3563_to_4382.json",
+      "file_size_bytes": 1656874,
+      "record_count": 820,
+      "start_hadith_number": "3563",
+      "end_hadith_number": "4382",
+      "has_babs_array": true,
+      "babs_count_in_source": 30,
+      "has_root_watermark": true,
+      "has_end_notes": false
+    },
+    {
+      "filename": "part7_hadith_complete.json",
+      "file_size_bytes": 1626751,
+      "record_count": 848,
+      "start_hadith_number": "4383",
+      "end_hadith_number": "5230",
+      "has_babs_array": true,
+      "babs_count_in_source": 28,
+      "has_root_watermark": true,
+      "has_end_notes": false
+    },
+    {
+      "filename": "part8_last_part_hadith_complete.json",
+      "file_size_bytes": 2818514,
+      "record_count": 1064,
+      "start_hadith_number": "5231",
+      "end_hadith_number": "6294",
+      "has_babs_array": true,
+      "babs_count_in_source": 48,
+      "has_root_watermark": true,
+      "has_end_notes": true
+    },
+    {
+      "filename": "part8_from_5971_to_6294.json",
+      "file_size_bytes": 733738,
+      "record_count": 324,
+      "start_hadith_number": "5971",
+      "end_hadith_number": "6294",
+      "has_babs_array": true,
+      "babs_count_in_source": 16,
+      "has_root_watermark": true,
+      "has_end_notes": true
+    }
+  ],
+  "quality_control_checks": {
+    "1_all_source_files_processed": "PASS",
+    "2_all_original_hadiths_accounted_for": "PASS",
+    "3_no_hadith_accidentally_deleted": "PASS",
+    "4_no_original_text_altered": "PASS",
+    "5_no_hadith_numbers_changed": "PASS",
+    "6_all_babs_valid_and_assigned": "PASS",
+    "7_all_prev_next_navigation_verified": "PASS",
+    "8_all_internal_ids_unique": "PASS",
+    "9_uniform_schema_across_all_records": "PASS",
+    "10_metadata_grades_preserved_zero_urls": "PASS",
+    "11_watermarks_and_attribution_preserved": "PASS",
+    "12_valid_utf8_json_parsed": "PASS"
+  },
+  "duplicate_overlap_summary": {
+    "total_overlapping_records": 1144,
+    "all_overlapping_texts_identical": true,
+    "all_overlapping_grades_identical": true,
+    "overlap_sources": [
+      {
+        "subset_file": "part6_from_3563_to_4382.json",
+        "covered_by": "part6_hadith_complete.json",
+        "overlapping_count": 820
+      },
+      {
+        "subset_file": "part8_from_5971_to_6294.json",
+        "covered_by": "part8_last_part_hadith_complete.json",
+        "overlapping_count": 324
+      }
+    ]
+  },
+  "missing_records": [],
+  "conflicting_grades": [],
+  "flagged_source_anomalies_for_review": {
+    "note": "These anomalies existed in the original source pages and were preserved verbatim without AI generation or silent editing.",
+    "empty_arabic_text_hadith_numbers": [
+      "4174",
+      "4317",
+      "4318",
+      "4319",
+      "4457",
+      "5622"
+    ],
+    "empty_urdu_translation_hadith_numbers": [
+      "6211"
+    ],
+    "incomplete_arabic_bab_headings_count": 246,
+    "babs_missing_arabic_heading": [
+      {
+        "bab_number": "1",
+        "chapter_heading": "ایمان کے ابواب"
+      },
+      {
+        "bab_number": "4",
+        "chapter_heading": "تقدیر پر ایمان لانے کا بیان"
+      },
+      {
+        "bab_number": "6",
+        "chapter_heading": "کتاب و سنت کے ساتھ تمسک اختیار کرنے کا بیان"
+      },
+      {
+        "bab_number": "77",
+        "chapter_heading": "جنازے کے ساتھ جانے اور نماز جنازہ پڑھنے کا بیان"
+      },
+      {
+        "bab_number": "255",
+        "chapter_heading": "گزشتہ باب کے متعلقات (میراثِ نبوی ﷺ وغیرہ) کا بیان"
+      }
+    ],
+    "grading_scholar_standardized_from_blank_count": 580,
+    "grading_scholar_standardization_note": "Books 1 and 2 (#1-#580) had blank grading_scholar fields in earlier exports; standardized to 'Darussalam' per user confirmation."
+  },
+  "_watermark": {
+    "made_by": "Zulqarnain Ahmad Sheikh",
+    "instagram": "zulqarnainah",
+    "app": "Bayan Ul Huda"
+  }
+}
